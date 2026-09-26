@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--favicon-->
+    <link rel="icon" href="{{ asset('backend/assets/images/favicon-32x32.png')}}" type="image/png"/>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!--plugins-->
+    <link href="{{ asset('backend/assets/plugins/vectormap/jquery-jvectormap-2.0.2.css')}}" rel="stylesheet"/>
+    <link href="{{ asset('backend/assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
+    <link href="{{ asset('backend/assets/plugins/perfect-scrollbar/css/perfect-scrollbar.css')}}" rel="stylesheet" />
+    <link href="{{ asset('backend/assets/plugins/metismenu/css/metisMenu.min.css')}}" rel="stylesheet"/>
+    <!-- loader-->
+    <link href="{{ asset('backend/assets/css/pace.min.css')}}" rel="stylesheet"/>
+    <script src="{{ asset('backend/assets/js/pace.min.js')}}"></script>
+    <!-- Bootstrap CSS -->
+    <link href="{{ asset('backend/assets/css/bootstrap.min.css')}}" rel="stylesheet">
+    <link href="{{ asset('backend/assets/css/bootstrap-extended.css')}}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="{{ asset('backend/assets/css/app.css')}}" rel="stylesheet">
+    <link href="{{ asset('backend/assets/css/icons.css')}}" rel="stylesheet">
+    <!-- Theme Style CSS -->
+    <link rel="stylesheet" href="{{ asset('backend/assets/css/dark-theme.css')}}"/>
+    <link rel="stylesheet" href="{{ asset('backend/assets/css/semi-dark.css')}}"/>
+    <link rel="stylesheet" href="{{ asset('backend/assets/css/header-colors.css')}}"/>
+
+    <link href="{{ asset('backend/assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.css" >
+
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.css" rel="stylesheet">
+    <title>SISFO SMK | Absensi Wajah </title>
+    
+    <style>
+        /* Style untuk tombol pilihan mode */
+        .btn-check:checked + .btn-outline-primary {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-check:checked + .btn-outline-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        /* Responsive Video Container */
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px; /* Max width for desktop */
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3; /* Maintain aspect ratio */
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Mobile specific adjustments */
+        @media (max-width: 576px) {
+            .btn-group {
+                width: 100% !important;
+                display: flex;
+            }
+            .btn-group .btn {
+                flex: 1;
+                font-size: 0.9rem;
+                padding: 0.5rem;
+            }
+            .card-header span {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-content">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-10 col-lg-8">
+                <div class="shadow card">
+
+                    <div class="text-white card-header bg-success d-flex justify-content-between align-items-center">
+                        <span class="d-flex align-items-center"><i class="fas fa-smile-beam me-2"></i> Absensi Wajah</span>
+                        <a href="{{ route('dashboard') }}" class="btn btn-sm btn-light text-success fw-bold">Dashboard</a>
+                    </div>
+                    <div class="text-center card-body bg-light">
+
+                        <!-- FITUR BARU: PILIHAN MODE ABSENSI -->
+                        <div class="mb-2">
+                            <h5 class="mb-2 h6 d-md-block d-none">Pilih Mode Absensi:</h5>
+                            <div class="btn-group w-50 w-md-50 w-sm-100" role="group" aria-label="Mode Absensi">
+                                <input type="radio" class="btn-check" name="mode_absen" id="mode_harian" value="harian" checked>
+                                <label class="btn btn-outline-primary fw-bold" for="mode_harian">
+                                    <i class="fas fa-clock me-1"></i> Datang / Pulang
+                                </label>
+                              
+                                <input type="radio" class="btn-check" name="mode_absen" id="mode_izin" value="izin_keluar">
+                                <label class="btn btn-outline-warning fw-bold" for="mode_izin">
+                                    <i class="fas fa-sign-out-alt me-1"></i> Izin Keluar
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- FITUR BARU: PILIHAN KAMERA -->
+                        <div class="mb-3 d-flex justify-content-center">
+                            <div class="input-group w-auto">
+                                <label class="input-group-text bg-white" for="cameraSelect"><i class="fas fa-camera"></i></label>
+                                <select class="form-select form-select-sm" id="cameraSelect" style="max-width: 250px;">
+                                    <option value="" selected>Mencari kamera...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div id="status-loading" class="alert alert-warning">
+                            <span class="spinner-border spinner-border-sm me-2"></span> Memuat Data Wajah Seluruh Siswa...
+                        </div>
+
+                        <div class="shadow-lg video-container">
+                            <!-- Video Webcam -->
+                            <video id="video" autoplay muted playsinline></video>
+                            <canvas id="overlay"></canvas>
+                        </div>
+
+                        <div class="mt-3">
+                            <p class="text-muted small">Pastikan pencahayaan cukup terang. Lepas masker/kacamata hitam.</p>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.all.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+    const video = document.getElementById('video');
+    const statusMsg = document.getElementById('status-loading');
+    const cameraSelect = document.getElementById('cameraSelect'); // Element Select Kamera
+
+    let labeledFaceDescriptors = [];
+    let faceMatcher = null;
+    let isProcessing = false; // Cegah spam request
+    let currentStream = null; // Variable untuk menyimpan stream kamera saat ini
+
+     // 1. Load Models & Data Siswa
+    Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+        faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+        faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+    ]).then(loadStudentData);
+
+    async function loadStudentData() {
+       // Panggil API baru get-all-descriptors
+        // Ambil data wajah satu kelas dari Server
+        // const response = await fetch(`/face/all-descriptors`);
+        const response = await fetch("{{ route('face.descriptors.all') }}");
+        const data = await response.json();
+
+        if(data.length === 0) {
+                statusMsg.className = 'alert alert-danger';
+                statusMsg.innerText = "Belum ada siswa yang mendaftarkan wajah di sistem!";
+                return;
+            }
+
+        // Format ulang data untuk Face API
+        labeledFaceDescriptors = data.map(d => {
+            // Convert array biasa kembali ke Float32Array
+            return new faceapi.LabeledFaceDescriptors(d.label, [new Float32Array(d.descriptor)]);
+        });
+
+        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5); // 0.5 Threshold (Semakin kecil semakin ketat)
+
+        document.getElementById('status-loading').classList.remove('alert-warning');
+        document.getElementById('status-loading').classList.add('alert-success');
+        document.getElementById('status-loading').innerText = "Sistem Siap! Silakan menghadap kamera.";
+
+        startVideo();
+    }
+
+    // Fungsi Mendapatkan Daftar Kamera
+    async function getCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            cameraSelect.innerHTML = '<option value="" disabled>Pilih Kamera</option>';
+            
+            if (videoDevices.length === 0) {
+                const opt = document.createElement('option');
+                opt.text = "Tidak ada kamera ditemukan";
+                cameraSelect.add(opt);
+                return;
+            }
+
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Kamera ${index + 1}`;
+                cameraSelect.add(option);
+            });
+
+            // Set select value ke kamera yang sedang aktif jika ada
+            if (currentStream) {
+                const track = currentStream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                if (settings.deviceId) {
+                    cameraSelect.value = settings.deviceId;
+                }
+            }
+        } catch (err) {
+            console.error("Error enumerating devices:", err);
+        }
+    }
+
+    // Fungsi Start Video dengan opsi Device ID
+    function startVideo(deviceId = null) {
+        // Stop stream sebelumnya jika ada
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Tambahkan playsinline agar di iOS video tidak fullscreen otomatis
+        video.setAttribute('playsinline', ''); 
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+
+        // Config constraints
+        const constraints = {
+            video: deviceId ? { deviceId: { exact: deviceId } } : {}
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                currentStream = stream;
+                video.srcObject = stream;
+                
+                // Ambil daftar kamera setelah izin diberikan (agar label terbaca)
+                // Cek jika option masih default/sedikit, reload list
+                if (cameraSelect.options.length <= 1) {
+                    getCameras();
+                }
+            })
+            .catch(err => {
+                statusMsg.className = 'alert alert-danger';
+                statusMsg.innerText = "Kamera tidak terdeteksi / Izin ditolak.";
+            });
+    }
+
+    // Event Listener saat user mengganti kamera
+    cameraSelect.addEventListener('change', function() {
+        if (this.value) {
+            startVideo(this.value);
+        }
+    });
+
+    video.addEventListener('play', () => {
+        const canvas = document.getElementById('overlay');
+        
+        // Fungsi untuk menyesuaikan ukuran canvas saat window diresize
+        function adjustCanvasSize() {
+            const displaySize = { width: video.clientWidth, height: video.clientHeight };
+            faceapi.matchDimensions(canvas, displaySize);
+            return displaySize;
+        }
+
+        let displaySize = adjustCanvasSize();
+
+        // Update canvas size saat window resize
+        window.addEventListener('resize', () => {
+            displaySize = adjustCanvasSize();
+        });
+
+        setInterval(async () => {
+            // Jika sedang memproses data absensi, pause deteksi visual
+            if(isProcessing || !faceMatcher) return;
+
+            // Pastikan ukuran canvas selalu sinkron sebelum detect
+            const currentDisplaySize = { width: video.clientWidth, height: video.clientHeight };
+            // Optional: cek if size changed drastically to avoid flicker, but matchDimensions usually safe
+            if (canvas.width !== currentDisplaySize.width || canvas.height !== currentDisplaySize.height) {
+                 faceapi.matchDimensions(canvas, currentDisplaySize);
+            }
+
+            const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options())
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+
+            const resizedDetections = faceapi.resizeResults(detections, currentDisplaySize);
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+            const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+
+            results.forEach((result, i) => {
+                const box = resizedDetections[i].detection.box;
+                // Gambar label nama di layar
+                const drawBox = new faceapi.draw.DrawBox(box, { label: result.toString() });
+                drawBox.draw(canvas);
+
+                // --- LOGIKA ABSENSI ---
+                if (result.label !== 'unknown') {
+                    // Format Label: "12345 - Ahmad"
+                    // Ambil NIS (12345)
+                    const nis = result.label.split(' - ')[0];
+                    const nama = result.label.split(' - ')[1];
+
+                    performDailyAttendance(nis, nama);
+                }
+            });
+        }, 1000); // 1000 = Scan tiap 1 detik
+    });
+
+    // --- Helper Functions ---
+    function safeResume() {
+        setTimeout(() => { isProcessing = false; }, 2000);
+    }
+
+    function handleError(xhr) {
+        Swal.close();
+        console.log("Error API", xhr);
+        // Reset processing agar bisa scan ulang jika error koneksi
+        setTimeout(() => { isProcessing = false; }, 3000);
+    }
+
+    // Dummy playSound (jika file audio belum ada)
+    function playSound(type) {
+        // Implementasi suara bisa ditambahkan di sini
+    }
+
+    // --- FUNGSI UTAMA: MENGARAHKAN LOGIKA BERDASARKAN MODE ---
+    function performDailyAttendance(nis, fullName) {
+        // Lock process
+        isProcessing = true; 
+
+        // AMBIL NILAI MODE ABSENSI (Harian / Izin Keluar)
+        let mode = $('input[name="mode_absen"]:checked').val();
+
+        if (mode === 'izin_keluar') {
+            // Panggil fungsi Izin Keluar
+            processPermission(nis, null); // Token null krn tidak pakai QR
+        } else {
+            // Panggil fungsi Absensi Harian (Datang/Pulang)
+            processDailyAttendance(nis, fullName);
+        }
+    }
+
+    // --- LOGIKA ABSENSI HARIAN (Datang/Pulang) ---
+    function processDailyAttendance(nis, fullName) {
+        Swal.fire({
+            title: 'Wajah Terdeteksi!',
+            text: 'Memproses Kehadiran (' + fullName + ')',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        $.ajax({
+            url: "{{ route('daily.store') }}",
+            type: "POST",
+            data: {
+                _token: "{{ csrf_token() }}",
+                nis: nis,
+                mode: 'harian'
+            },
+            success: function(response) {
+                if(response.status == 'success') {
+                    // Warna Alert: Hijau (Masuk), Biru (Pulang)
+                    let color = '#28a745';
+                    if(response.type == 'out') color = '#17a2b8';
+
+                    Swal.fire({
+                        title: response.message,
+                        text: response.student,
+                        icon: 'success',
+                        timer: 3000,
+                        showConfirmButton: false,
+                        iconColor: color
+                    }).then(() => safeResume());
+                } else {
+                    // Error (Misal: Sudah absen pulang)
+                    Swal.fire({
+                        title: 'Info',
+                        text: response.message,
+                        icon: 'info',
+                        timer: 3000,
+                        showConfirmButton: false
+                    }).then(() => safeResume());
+                }
+            },
+            error: function(xhr) {
+                handleError(xhr);
+            }
+        });
+    }
+
+    // --- FUNGSI IZIN KELUAR (FITUR BARU) ---
+    function processPermission(nis, token) {
+        Swal.fire({
+            title: 'Cek Status Siswa...',
+            didOpen: () => Swal.showLoading()
+        });
+
+        // 1. Cek Status Izin Terakhir
+        $.ajax({
+            url: "{{ route('izin.check') }}", // Route baru
+            type: "POST",
+            data: { _token: "{{ csrf_token() }}", nis: nis },
+            success: function(res) {
+                if (res.status === 'active_permission') {
+                    // SISWA SEDANG DILUAR -> PROSES KEMBALI
+                    confirmReturn(res.data);
+                } else if (res.status === 'can_leave') {
+                    // SISWA DI SEKOLAH -> PROSES KELUAR
+                    inputReason(nis, res.student);
+                } else {
+                    // Error (Misal: Belum absen masuk)
+                    playSound('error');
+                    Swal.fire('Gagal', res.message, 'error').then(() => safeResume());
+                }
+            },
+            error: function(xhr) { handleError(xhr); }
+        });
+    }
+
+    function inputReason(nis, student) {
+        Swal.fire({
+            title: 'Izin Meninggalkan Sekolah',
+            html: `Siswa: <b>${student.name}</b><br>Kelas: ${student.classroom}`,
+            input: 'text',
+            inputLabel: 'Keperluan / Alasan',
+            inputPlaceholder: 'Contoh: Sakit, Dispen Lomba, Urusan Keluarga...',
+            showCancelButton: true,
+            confirmButtonText: 'Simpan Izin & Cetak',
+            cancelButtonText: 'Batal',
+            inputValidator: (value) => {
+                if (!value) return 'Alasan wajib diisi!'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                savePermission(nis, result.value);
+            } else {
+                safeResume();
+            }
+        });
+    }
+
+    function savePermission(nis, reason) {
+        $.ajax({
+            url: "{{ route('izin.store') }}",
+            type: "POST",
+            data: { _token: "{{ csrf_token() }}", nis: nis, reason: reason },
+            success: function(res) {
+                playSound('success');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Izin Tercatat!',
+                    html: `Silakan ambil surat izin.<br><br>
+                            <a href="/izin/print/${res.id}" target="_blank" class="btn btn-primary btn-lg">
+                            <i class="fas fa-print"></i> CETAK SURAT IZIN</a>`,
+                    showConfirmButton: true,
+                    confirmButtonText: 'Tutup & Lanjut'
+                }).then(() => safeResume());
+            },
+            error: function(xhr) { handleError(xhr); }
+        });
+    }
+
+    function confirmReturn(permissionData) {
+        Swal.fire({
+            title: 'Siswa Kembali?',
+            html: `Siswa <b>${permissionData.student.name}</b> tercatat izin keluar.<br>
+                    Alasan: "${permissionData.reason}"<br>
+                    Jam Keluar: ${permissionData.time_out}<br><br>
+                    Apakah siswa sudah kembali ke sekolah?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Catat Kembali',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "{{ route('izin.return') }}",
+                    type: "POST",
+                    data: { _token: "{{ csrf_token() }}", id: permissionData.id },
+                    success: function(res) {
+                        playSound('success');
+                        Swal.fire('Berhasil', 'Siswa tercatat kembali ke sekolah.', 'success')
+                            .then(() => safeResume());
+                    }
+                });
+            } else {
+                safeResume();
+            }
+        });
+    }
+</script>
+</body>
+
+</html>
