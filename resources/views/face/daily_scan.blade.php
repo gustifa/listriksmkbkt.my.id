@@ -99,7 +99,7 @@
         let isProcessing = false;
         let currentStream = null;
 
-        // 1. LOAD MODEL VERSI TINY (DENGAN PENANGANAN ERROR LENGKAP)
+        // 1. LOAD MODEL VERSI TINY DENGAN VALIDASI SWEETALERT
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
@@ -107,26 +107,41 @@
         ]).then(initSystem).catch(err => {
             console.error("Gagal memuat berkas model AI:", err);
             statusMsg.className = 'alert alert-danger py-1 small';
-            statusMsg.innerText = "Error: Berkas model AI tidak dapat diakses di folder public/models.";
+            statusMsg.innerText = "Error: Berkas model AI tidak ditemukan.";
+            
+            // SweetAlert Popup Validasi Gagal Load Model
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Memuat Model AI',
+                text: 'Berkas model AI tidak dapat diakses di folder public/models. Silakan periksa jaringan atau berkas model Anda.',
+                confirmButtonColor: '#dc3545'
+            });
         });
 
         async function initSystem() {
             try {
-                // Pemicu awal izin kamera agar label nama kamera terbaca oleh browser
+                // Pemicu izin kamera
                 try {
                     const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
                     tempStream.getTracks().forEach(track => track.stop());
                 } catch (camErr) {
-                    console.warn("Akses kamera belum disetujui atau diblokir:", camErr);
+                    console.warn("Akses kamera belum disetujui:", camErr);
                 }
 
-                // Ambil daftar perangkat kamera
+                // Check Perangkat Kamera
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
                 
                 cameraSelect.innerHTML = '';
                 if (videoDevices.length === 0) {
                     cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+                    // SweetAlert Validasi Kamera Tidak Ada
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Kamera Tidak Ditemukan',
+                        text: 'Sistem tidak dapat menemukan webcam. Pastikan kamera terhubung dan izin akses kamera diizinkan pada browser Anda.',
+                        confirmButtonColor: '#ffc107'
+                    });
                 } else {
                     videoDevices.forEach((d, i) => {
                         const opt = document.createElement('option');
@@ -136,33 +151,37 @@
                     });
                 }
 
-                // Ambil data deskriptor wajah dari backend Laravel
+                // Ambil data deskriptor dari server
                 const response = await fetch("{{ route('face.descriptors.all') }}");
                 if (!response.ok) {
-                    throw new Error(`HTTP Error Status: ${response.status} saat mengambil deskriptor.`);
+                    throw new Error(`Gagal menghubungi server (Status: ${response.status}).`);
                 }
                 const data = await response.json();
                 
+                // Validasi SweetAlert jika data wajah di DB Kosong
                 if (!Array.isArray(data) || data.length === 0) {
-                    console.warn("Data deskriptor dari server kosong.");
-                }
-
-                // Parsing deskriptor (aman untuk format String JSON maupun Array)
-                const labeledDescriptors = data.map(d => {
-                    let rawDescriptor = d.descriptor;
-                    if (typeof rawDescriptor === 'string') {
-                        rawDescriptor = JSON.parse(rawDescriptor);
-                    }
-                    return new faceapi.LabeledFaceDescriptors(
-                        d.label, 
-                        [new Float32Array(rawDescriptor)]
-                    );
-                });
-
-                if (labeledDescriptors.length > 0) {
-                    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Data Wajah Kosong',
+                        text: 'Belum ada data wajah siswa yang terdaftar di database. Silakan daftarkan wajah siswa terlebih dahulu!',
+                        confirmButtonColor: '#ffc107'
+                    });
                 } else {
-                    console.warn("Belum ada data wajah terdaftar yang valid di database.");
+                    // Parsing deskriptor
+                    const labeledDescriptors = data.map(d => {
+                        let rawDescriptor = d.descriptor;
+                        if (typeof rawDescriptor === 'string') {
+                            rawDescriptor = JSON.parse(rawDescriptor);
+                        }
+                        return new faceapi.LabeledFaceDescriptors(
+                            d.label, 
+                            [new Float32Array(rawDescriptor)]
+                        );
+                    });
+
+                    if (labeledDescriptors.length > 0) {
+                        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+                    }
                 }
                 
                 statusMsg.className = 'alert alert-success py-1 small';
@@ -172,10 +191,16 @@
                     startCamera(cameraSelect.value);
                 }
             } catch (err) {
-                // Cetak detail error ke Console DevTools
                 console.error("Detail Error Init System:", err);
                 statusMsg.className = 'alert alert-danger py-1 small';
                 statusMsg.innerText = `Error: ${err.message || "Gagal muat AI."}`;
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan Sistem',
+                    text: err.message || 'Gagal menginisialisasi sistem absensi.',
+                    confirmButtonColor: '#dc3545'
+                });
             }
         }
 
@@ -189,10 +214,15 @@
                 video.srcObject = s;
             }).catch(err => {
                 console.error("Gagal membuka stream kamera:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kamera Gagal Dibuka',
+                    text: 'Tidak dapat mengakses kamera yang dipilih. Pastikan kamera tidak sedang digunakan aplikasi lain.',
+                    confirmButtonColor: '#dc3545'
+                });
             });
         }
 
-        // FUNGSI SCREENSHOT OPTIMASI HP (KOMPRESI TINGGI)
         function takeScreenshot() {
             captureCanvas.width = 320; 
             captureCanvas.height = 240;
@@ -237,60 +267,155 @@
         }
 
         function submitAttendance(nis, name, image) {
-            Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ 
+                title: 'Memproses Absensi...', 
+                html: `Siswa: <b>${name}</b> (${nis})`,
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+            
             $.ajax({
                 url: "{{ route('daily.store') }}",
                 type: "POST",
                 data: { nis: nis, mode: 'harian', image: image },
                 success: function(res) {
-                    Swal.fire({ title: 'Berhasil', text: name, icon: 'success', timer: 2000, showConfirmButton: false }).then(() => { isProcessing = false; });
+                    Swal.fire({ 
+                        title: 'Absen Berhasil!', 
+                        text: `Selamat Datang, ${name}`, 
+                        icon: 'success', 
+                        timer: 2000, 
+                        showConfirmButton: false 
+                    }).then(() => { isProcessing = false; });
                 },
                 error: function(xhr) {
-                    let msg = xhr.responseJSON?.message || "Gagal Absen";
-                    Swal.fire({ title: 'Gagal', text: msg, icon: 'error', timer: 3000, showConfirmButton: false }).then(() => { isProcessing = false; });
+                    let msg = xhr.responseJSON?.message || "Gagal melakukan absensi.";
+                    Swal.fire({ 
+                        title: 'Absen Gagal', 
+                        text: msg, 
+                        icon: 'error', 
+                        timer: 3000, 
+                        showConfirmButton: false 
+                    }).then(() => { isProcessing = false; });
                 }
             });
         }
 
         function checkPermission(nis, name, image) {
+            Swal.fire({ 
+                title: 'Memeriksa Izin...', 
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+
             $.ajax({
-                url: "{{ route('izin.check') }}", type: "POST", data: { nis: nis },
+                url: "{{ route('izin.check') }}", 
+                type: "POST", 
+                data: { nis: nis },
                 success: function(res) {
-                    if (res.status === 'active_permission') { confirmReturn(res.data, image); } 
-                    else if (res.status === 'can_leave') { inputReason(nis, name, image); } 
-                    else { Swal.fire({ title: 'Info', text: res.message, icon: 'info', timer: 3000, showConfirmButton: false }).then(() => isProcessing = false); }
+                    if (res.status === 'active_permission') { 
+                        confirmReturn(res.data, image); 
+                    } else if (res.status === 'can_leave') { 
+                        inputReason(nis, name, image); 
+                    } else { 
+                        Swal.fire({ 
+                            title: 'Informasi', 
+                            text: res.message, 
+                            icon: 'info', 
+                            timer: 3000, 
+                            showConfirmButton: false 
+                        }).then(() => isProcessing = false); 
+                    }
                 },
-                error: () => { isProcessing = false; }
+                error: function(xhr) {
+                    let msg = xhr.responseJSON?.message || "Gagal memeriksa status izin.";
+                    Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
+                        .then(() => { isProcessing = false; });
+                }
             });
         }
 
         function inputReason(nis, name, image) {
             Swal.fire({
-                title: 'Alasan Keluar', text: name, input: 'text',
-                showCancelButton: true, confirmButtonText: 'Simpan', cancelButtonText: 'Batal'
+                title: 'Alasan Keluar Sekolah',
+                html: `Siswa: <b>${name}</b> (${nis})`,
+                input: 'text',
+                inputPlaceholder: 'Ketik alasan izin keluar di sini...',
+                showCancelButton: true,
+                confirmButtonText: 'Simpan & Cetak',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#dc3545',
+                allowOutsideClick: false,
+                // VALIDASI INPUT ALASAN TIDAK BOLEH KOSONG
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Alasan keluar sekolah wajib diisi!';
+                    }
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    Swal.fire({ title: 'Menyimpan Izin...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
-                        url: "{{ route('izin.store') }}", type: "POST",
+                        url: "{{ route('izin.store') }}", 
+                        type: "POST",
                         data: { nis: nis, reason: result.value, image: image },
                         success: (res) => {
-                            Swal.fire({ icon: 'success', title: 'Berhasil', html: `<a href="{{ url('izin/print') }}/${res.id}" target="_blank" class="btn btn-primary mt-2">CETAK IZIN</a>`, showConfirmButton: true, confirmButtonText: 'Selesai' }).then(() => isProcessing = false);
+                            Swal.fire({ 
+                                icon: 'success', 
+                                title: 'Izin Disimpan', 
+                                html: `<p>Izin keluar untuk <b>${name}</b> berhasil dibuat.</p><a href="{{ url('izin/print') }}/${res.id}" target="_blank" class="btn btn-primary mt-2"><i class="fas fa-print"></i> CETAK SURAT IZIN</a>`, 
+                                showConfirmButton: true, 
+                                confirmButtonText: 'Selesai' 
+                            }).then(() => isProcessing = false);
                         },
-                        error: () => { isProcessing = false; }
+                        error: (xhr) => {
+                            let msg = xhr.responseJSON?.message || "Gagal menyimpan izin.";
+                            Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
+                                .then(() => isProcessing = false);
+                        }
                     });
-                } else { isProcessing = false; }
+                } else { 
+                    isProcessing = false; 
+                }
             });
         }
 
         function confirmReturn(data, image) {
-            Swal.fire({ title: 'Siswa Kembali?', text: `${data.student.name}`, icon: 'question', showCancelButton: true, confirmButtonText: 'Ya', cancelButtonText: 'Batal' }).then((result) => {
+            Swal.fire({ 
+                title: 'Konfirmasi Kembali', 
+                html: `Siswa <b>${data.student.name}</b> tercatat sedang izin keluar.<br>Apakah siswa sudah kembali ke sekolah?`, 
+                icon: 'question', 
+                showCancelButton: true, 
+                confirmButtonText: 'Ya, Kembali', 
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#dc3545',
+                allowOutsideClick: false
+            }).then((result) => {
                 if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
-                        url: "{{ route('izin.return') }}", type: "POST", data: { id: data.id, image: image },
-                        success: () => { Swal.fire({ title: 'Selesai', icon: 'success', timer: 2000, showConfirmButton: false }).then(() => isProcessing = false); },
-                        error: () => { isProcessing = false; }
+                        url: "{{ route('izin.return') }}", 
+                        type: "POST", 
+                        data: { id: data.id, image: image },
+                        success: () => { 
+                            Swal.fire({ 
+                                title: 'Selesai', 
+                                text: `Status izin ${data.student.name} telah ditutup.`,
+                                icon: 'success', 
+                                timer: 2000, 
+                                showConfirmButton: false 
+                            }).then(() => isProcessing = false); 
+                        },
+                        error: (xhr) => { 
+                            let msg = xhr.responseJSON?.message || "Gagal memperbarui status kembali.";
+                            Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
+                                .then(() => isProcessing = false); 
+                        }
                     });
-                } else { isProcessing = false; }
+                } else { 
+                    isProcessing = false; 
+                }
             });
         }
     </script>
