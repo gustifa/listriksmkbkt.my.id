@@ -12,14 +12,14 @@
 </div>
 
 
-              <div class="top-menu ms-auto">
+              <!-- <div class="top-menu ms-auto">
                 <ul class="gap-1 navbar-nav align-items-center">
                    
                    
                     <li class="nav-item dark-mode d-none d-sm-flex">
                         <a class="nav-link dark-mode-icon" href="javascript:;"><i class='bx bx-moon'></i>
                         </a>
-                    </li>
+                    </li> -->
 
                     
 
@@ -334,8 +334,8 @@
                             </a>
                         </div>
                     </li> -->
-                </ul>
-            </div>
+                <!-- </ul>
+            </div> -->
 
             @php
             $id = Auth::user()->id;
