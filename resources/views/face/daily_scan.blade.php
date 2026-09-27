@@ -44,13 +44,18 @@
                     </div>
                     <div class="card-body px-2">
                         
-                        <div class="mb-2 d-flex justify-content-center">
-                            <div class="input-group input-group-sm w-100">
+                        <!-- Pilihan Kamera & Tombol Toggle Kamera -->
+                        <div class="mb-2 d-flex justify-content-center align-items-center gap-2">
+                            <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-white"><i class="fas fa-video"></i></span>
                                 <select id="camera-select" class="form-select border-start-0 shadow-none">
                                     <option value="">Mencari Kamera...</option>
                                 </select>
                             </div>
+                            <!-- Tombol Matikan / Hidupkan Kamera -->
+                            <button id="btn-toggle-cam" class="btn btn-sm btn-danger text-nowrap fw-bold" type="button" disabled>
+                                <i class="fas fa-video-slash me-1"></i> Matikan Kamera
+                            </button>
                         </div>
 
                         <div class="mb-3">
@@ -94,10 +99,12 @@
         const cameraSelect = document.getElementById('camera-select');
         const statusMsg = document.getElementById('status-loading');
         const captureCanvas = document.getElementById('capture-canvas');
+        const btnToggleCam = document.getElementById('btn-toggle-cam');
         
         let faceMatcher = null;
         let isProcessing = false;
         let currentStream = null;
+        let isCameraOn = false;
 
         // 1. LOAD MODEL VERSI TINY DENGAN VALIDASI SWEETALERT
         Promise.all([
@@ -109,7 +116,6 @@
             statusMsg.className = 'alert alert-danger py-1 small';
             statusMsg.innerText = "Error: Berkas model AI tidak ditemukan.";
             
-            // SweetAlert Popup Validasi Gagal Load Model
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Memuat Model AI',
@@ -135,7 +141,7 @@
                 cameraSelect.innerHTML = '';
                 if (videoDevices.length === 0) {
                     cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
-                    // SweetAlert Validasi Kamera Tidak Ada
+                    btnToggleCam.disabled = true;
                     Swal.fire({
                         icon: 'warning',
                         title: 'Kamera Tidak Ditemukan',
@@ -149,6 +155,7 @@
                         opt.text = d.label || `Kamera ${i + 1}`;
                         cameraSelect.appendChild(opt);
                     });
+                    btnToggleCam.disabled = false;
                 }
 
                 // Ambil data deskriptor dari server
@@ -158,7 +165,6 @@
                 }
                 const data = await response.json();
                 
-                // Validasi SweetAlert jika data wajah di DB Kosong
                 if (!Array.isArray(data) || data.length === 0) {
                     Swal.fire({
                         icon: 'warning',
@@ -167,7 +173,6 @@
                         confirmButtonColor: '#ffc107'
                     });
                 } else {
-                    // Parsing deskriptor
                     const labeledDescriptors = data.map(d => {
                         let rawDescriptor = d.descriptor;
                         if (typeof rawDescriptor === 'string') {
@@ -204,14 +209,45 @@
             }
         }
 
-        cameraSelect.addEventListener('change', () => startCamera(cameraSelect.value));
+        cameraSelect.addEventListener('change', () => {
+            if (isCameraOn && cameraSelect.value) {
+                startCamera(cameraSelect.value);
+            }
+        });
+
+        // Event Listener untuk Tombol Matikan/Hidupkan Kamera
+        btnToggleCam.addEventListener('click', () => {
+            if (isCameraOn) {
+                stopCamera();
+            } else {
+                if (cameraSelect.value) {
+                    startCamera(cameraSelect.value);
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Kamera Tidak Tersedia',
+                        text: 'Pilih kamera terlebih dahulu.',
+                        confirmButtonColor: '#ffc107'
+                    });
+                }
+            }
+        });
 
         function startCamera(deviceId) {
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
             const constraints = { video: { deviceId: deviceId ? { exact: deviceId } : undefined } };
+            
             navigator.mediaDevices.getUserMedia(constraints).then(s => {
                 currentStream = s;
                 video.srcObject = s;
+                isCameraOn = true;
+
+                // Update Tampilan Tombol Kamera
+                btnToggleCam.className = 'btn btn-sm btn-danger text-nowrap fw-bold';
+                btnToggleCam.innerHTML = '<i class="fas fa-video-slash me-1"></i> Matikan Kamera';
+                
+                statusMsg.className = 'alert alert-success py-1 small';
+                statusMsg.innerText = "Sistem Siap!";
             }).catch(err => {
                 console.error("Gagal membuka stream kamera:", err);
                 Swal.fire({
@@ -221,6 +257,29 @@
                     confirmButtonColor: '#dc3545'
                 });
             });
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            video.srcObject = null;
+            isCameraOn = false;
+
+            // Bersihkan Canvas Overlay
+            const overlay = document.getElementById('overlay');
+            if (overlay) {
+                const ctx = overlay.getContext('2d');
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+            }
+
+            // Update Tampilan Tombol Kamera
+            btnToggleCam.className = 'btn btn-sm btn-success text-nowrap fw-bold';
+            btnToggleCam.innerHTML = '<i class="fas fa-video me-1"></i> Hidupkan Kamera';
+
+            statusMsg.className = 'alert alert-secondary py-1 small';
+            statusMsg.innerText = "Kamera Dimatikan.";
         }
 
         function takeScreenshot() {
@@ -237,7 +296,8 @@
             faceapi.matchDimensions(overlay, displaySize);
 
             setInterval(async () => {
-                if(isProcessing || !faceMatcher) return;
+                // Jangan jalankan deteksi jika kamera sedang dimatikan
+                if(isProcessing || !faceMatcher || !isCameraOn) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                     .withFaceLandmarks().withFaceDescriptors();
@@ -346,7 +406,6 @@
                 confirmButtonColor: '#198754',
                 cancelButtonColor: '#dc3545',
                 allowOutsideClick: false,
-                // VALIDASI INPUT ALASAN TIDAK BOLEH KOSONG
                 inputValidator: (value) => {
                     if (!value || !value.trim()) {
                         return 'Alasan keluar sekolah wajib diisi!';
