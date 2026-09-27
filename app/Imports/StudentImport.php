@@ -7,11 +7,28 @@ use App\Models\Classroom;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithBatchInserts;
 
-class StudentImport implements ToModel, WithHeadingRow
+class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBatchInserts
 {
+    private $existingNis = [];
+    private $classrooms = [];
+    private $users = [];
     private $duplicates = [];
     private $successCount = 0;
+
+    public function __construct()
+    {
+        // 1. Perpanjang batas waktu eksekusi script menjadi 5 menit
+        set_time_limit(300);
+
+        // 2. PRE-FETCH DATA KE MEMORI (RAM)
+        // Mencegah N+1 query: Mengambil semua data awal sekaligus dalam 3 query ringkas
+        $this->existingNis = Student::pluck('nis')->flip()->toArray();
+        $this->classrooms  = Classroom::pluck('id', 'name')->toArray(); // Format: ['X IPA 1' => 1]
+        $this->users       = User::pluck('id', 'email')->toArray();    // Format: ['123@siswa.sekolah.id' => 1]
+    }
 
     /**
     * @param array $row
@@ -29,33 +46,34 @@ class StudentImport implements ToModel, WithHeadingRow
         $nama  = ucwords(strtolower(trim($row['nama_siswa']))); 
         $kelas = strtoupper(trim($row['kelas'])); 
 
-        // 2. CEK DUPLIKASI NIS di Tabel Student
-        if (Student::where('nis', $nis)->exists()) {
+        // 2. CEK DUPLIKASI NIS (Cepat via Memori RAM, 0 Query DB)
+        if (isset($this->existingNis[$nis])) {
             $this->duplicates[] = "{$nis} - {$nama}";
             return null; 
         }
 
-        // 3. CARI / BUAT KELAS
-        $classroom = Classroom::firstOrCreate(
-            ['name' => $kelas]
-        );
+        // Tandai NIS agar jika ada NIS ganda dalam file Excel yang sama tetap terdeteksi
+        $this->existingNis[$nis] = true;
+
+        // 3. CARI / BUAT KELAS (Pencarian via Memori RAM)
+        if (!isset($this->classrooms[$kelas])) {
+            $classroom = Classroom::create(['name' => $kelas]);
+            $this->classrooms[$kelas] = $classroom->id; // Simpan ke cache lokal
+        }
+        $classroomId = $this->classrooms[$kelas];
 
         // 4. CLEANING NOMOR HP
         $phone = null;
         if (!empty($row['no_hp'])) {
             $phone = preg_replace('/[^0-9]/', '', $row['no_hp']);
-            if (substr($phone, 0, 2) == '62') {
+            if (str_starts_with($phone, '62')) {
                 $phone = '0' . substr($phone, 2);
             }
         }
 
-        // 5. FITUR TAMBAHAN: CEK USER_ID (Auto-Link)
-        // Kita asumsikan email user menggunakan format: NIS@siswa.sekolah.id
-        $email = $nis . '@siswa.sekolah.id';
-        $existingUser = User::where('email', $email)->first();
-        
-        // Ambil ID user jika ditemukan, jika tidak biarkan null (nanti di-generate via Command)
-        $userId = $existingUser ? $existingUser->id : null;
+        // 5. FITUR TAMBAHAN: CEK USER_ID (Cepat via Memori RAM, 0 Query DB)
+        $email  = $nis . '@siswa.sekolah.id';
+        $userId = $this->users[$email] ?? null;
 
         // 6. SIMPAN SISWA BARU
         $this->successCount++;
@@ -63,10 +81,26 @@ class StudentImport implements ToModel, WithHeadingRow
         return new Student([
             'nis'          => $nis,
             'name'         => $nama,
-            'classroom_id' => $classroom->id,
+            'classroom_id' => $classroomId,
             'phone'        => $phone,
-            'user_id'      => $userId, // Set user_id secara otomatis jika akun user sudah ada
+            'user_id'      => $userId,
         ]);
+    }
+
+    /**
+     * Memproses data per batch 500 baris agar penggunaan RAM tetap efisien
+     */
+    public function chunkSize(): int
+    {
+        return 500;
+    }
+
+    /**
+     * Melakukan Insert sekaligus per 500 data ke database (Batch Insert)
+     */
+    public function batchSize(): int
+    {
+        return 500;
     }
 
     // --- GETTERS ---
