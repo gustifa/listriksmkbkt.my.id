@@ -13,12 +13,18 @@
                             @csrf
                             @method('PUT')
 
-                            <!-- Nama Program Keahlian -->
+                            <!-- Program Keahlian -->
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Program Keahlian</label>
-                                <input type="text" name="program_name" class="form-control @error('program_name') is-invalid @enderror"
-                                    value="{{ old('program_name', $major->program_name) }}" placeholder="Contoh: Ketenagalistrikan" required>
-                                @error('program_name')
+                                <select name="program_id" class="form-select @error('program_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Program Keahlian --</option>
+                                    @foreach($programs as $program)
+                                        <option value="{{ $program->id }}" {{ old('program_id', $major->program_id) == $program->id ? 'selected' : '' }}>
+                                            {{ $program->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('program_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -31,43 +37,22 @@
                                 @error('name')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <div class="form-text text-muted">Pastikan nama konsentrasi keahlian unik.</div>
                             </div>
 
-
-
-                            <div class="row">
-                                <!-- Ketua Program Keahlian (Dropdown) -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold">Ketua Program Keahlian</label>
-                                    <select name="head_of_major" class="form-select @error('head_of_major') is-invalid @enderror">
-                                        <option value="">-- Pilih Ketua Program --</option>
-                                        @foreach($teachers as $teacher)
-                                            <option value="{{ $teacher->name }}" {{ old('head_of_major', $major->head_of_major) == $teacher->name ? 'selected' : '' }}>
-                                                {{ $teacher->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('head_of_major')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <!-- Kepala Bengkel (Dropdown) -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold">Kepala Bengkel (Kabeng)</label>
-                                    <select name="head_of_workshop" class="form-select @error('head_of_workshop') is-invalid @enderror">
-                                        <option value="">-- Pilih Kepala Bengkel --</option>
-                                        @foreach($teachers as $teacher)
-                                            <option value="{{ $teacher->name }}" {{ old('head_of_workshop', $major->head_of_workshop) == $teacher->name ? 'selected' : '' }}>
-                                                {{ $teacher->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('head_of_workshop')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                            <!-- Kepala Bengkel -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Kepala Bengkel (Kabeng)</label>
+                                <select name="workshop_teacher_id" class="form-select @error('workshop_teacher_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Kepala Bengkel --</option>
+                                    @foreach($teachers as $teacher)
+                                        <option value="{{ $teacher->id }}" {{ old('workshop_teacher_id', $major->workshop_teacher_id) == $teacher->id ? 'selected' : '' }}>
+                                            {{ $teacher->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('workshop_teacher_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <!-- Kode Jurusan -->
@@ -78,7 +63,6 @@
                                 @error('code')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <div class="form-text text-muted">Kode ini terisi otomatis, namun tetap bisa diubah manual.</div>
                             </div>
 
                             <hr>
@@ -100,35 +84,15 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const nameInput = document.getElementById('name');
             const codeInput = document.getElementById('code');
 
-            // --- LOGIC GENERATE KODE OTOMATIS ---
             nameInput.addEventListener('input', function() {
-                let text = this.value;
-                let matches = text.match(/\b(\w)/g);
-
-                if (matches) {
-                    let acronym = matches.join('').toUpperCase();
-                    codeInput.value = acronym;
-                } else {
-                    codeInput.value = '';
-                }
+                let matches = this.value.match(/\b(\w)/g);
+                codeInput.value = matches ? matches.join('').toUpperCase() : '';
             });
-
-            // --- SWEETALERT NOTIFICATIONS ---
-            @if(session('success'))
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: '{{ session('success') }}',
-                    showConfirmButton: false,
-                    timer: 2000
-                });
-            @endif
 
             @if($errors->any())
                 Swal.fire({
