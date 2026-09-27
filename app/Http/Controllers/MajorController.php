@@ -69,7 +69,7 @@ class MajorController extends Controller
         $request->validate([
             // 'name' => 'required|string|max:255|unique:majors,name',
             'code' => 'required|string|max:20|unique:majors,code',
-            'program_name' => 'required|string|max:255',
+            // 'program_name' => 'required|string|max:255',
             'head_of_major' => 'nullable|string|max:255',
             'head_of_workshop' => 'nullable|string|max:255',
         ], [
@@ -78,12 +78,12 @@ class MajorController extends Controller
             'name.unique'   => 'Nama konsentrasi ini sudah terdaftar di database.',
             'code.required' => 'Kode singkatan wajib diisi.',
             'code.unique'   => 'Kode singkatan ini sudah digunakan.',
-            'program_name.required' => 'Nama program keahlian wajib diisi.',
+            // 'program_name.required' => 'Nama program keahlian wajib diisi.',
         ]);
 
         // EKSEKUSI PENYIMPANAN
         Major::create([
-            'name'             => strtoupper($name),
+            'name'             => strtoupper($request->name),
             'code'             => strtoupper($request->code),
             'program_name'     => $request->program_name,
             'head_of_major'    => $request->head_of_major,
