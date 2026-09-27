@@ -2,83 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Major;
+use App\Models\Program;
 use App\Models\Teacher;
+use Illuminate\Http\Request;
 
 class MajorController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        $majors = Major::orderBy('name')->get();
+        $majors = Major::with(['program', 'workshopTeacher'])->latest()->get();
         return view('majors.index', compact('majors'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    // public function create()
-    // {
-    //     $teachers = Teacher::orderBy('name', 'asc')->get();
-    //     return view('majors.create', compact('teachers'));
-    // }
-
     public function create()
     {
-        $programs = \App\Models\Program::orderBy('name', 'asc')->get();
-        $teachers = \App\Models\Teacher::orderBy('name', 'asc')->get();
-        
+        $programs = Program::all();
+        $teachers = Teacher::all();
         return view('majors.create', compact('programs', 'teachers'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    // public function store(Request $request)
-    // {
-    //     // VALIDASI TAMBAH DATA
-    //     $request->validate([
-    //         // Nama tabel diasumsikan 'majors'. Jika tabel Anda 'subjects', ganti 'majors' jadi 'subjects'
-    //         'name' => 'required|string|max:255|unique:majors,name',
-    //         'code' => 'required|string|max:20|unique:majors,code',
-    //     ], [
-    //         // Custom Error Messages (Bahasa Indonesia)
-    //         'name.required' => 'Nama jurusan wajib diisi.',
-    //         'name.unique'   => 'Nama jurusan ini sudah terdaftar di database.',
-    //         'code.required' => 'Kode jurusan wajib diisi.',
-    //         'code.unique'   => 'Kode jurusan ini sudah digunakan.',
-    //     ]);
-
-    //     Major::create([
-    //         'name' => strtoupper($request->name),
-    //         'code' => strtoupper($request->code)
-    //     ]);
-
-    //     return redirect()->route('majors.index')->with('success', 'Jurusan berhasil ditambahkan!');
-    // }
-
-    /**
-     * Menyimpan data jurusan baru ke database.
-     */
     public function store(Request $request)
     {
-        // 1. VALIDASI DATA
         $request->validate([
             'name'                => 'required|string|max:255',
             'code'                => 'required|string|max:20|unique:majors,code',
-            'program_id'          => 'nullable|string', // atau 'nullable|uuid' jika menggunakan UUID
-            'workshop_teacher_id' => 'nullable|string', // atau 'nullable|uuid'
+            'program_id'          => 'nullable|exists:programs,id',
+            'workshop_teacher_id' => 'nullable|exists:teachers,id',
         ], [
-            // Custom Error Messages (Bahasa Indonesia)
             'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
             'code.required' => 'Kode singkatan wajib diisi.',
             'code.unique'   => 'Kode singkatan ini sudah digunakan.',
         ]);
 
-        // 2. EKSEKUSI PENYIMPANAN
         Major::create([
             'name'                => strtoupper($request->name),
             'code'                => strtoupper($request->code),
@@ -89,70 +45,39 @@ class MajorController extends Controller
         return redirect()->route('majors.index')->with('success', 'Jurusan berhasil ditambahkan!');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function edit(Major $major)
     {
-        //
+        $programs = Program::all();
+        $teachers = Teacher::all();
+        return view('majors.edit', compact('major', 'programs', 'teachers'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function update(Request $request, Major $major)
     {
-        $major = Major::findOrFail($id);
-        $teachers = Teacher::orderBy('name', 'asc')->get();
-        return view('majors.edit', compact('major', 'teachers'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        // VALIDASI UPDATE DATA
         $request->validate([
-            // unique:table,column,except_id
-            'name' => 'required|string|max:255|unique:majors,name,' . $id,
-            'code' => 'required|string|max:20|unique:majors,code,' . $id,
+            'name'                => 'required|string|max:255',
+            'code'                => 'required|string|max:20|unique:majors,code,' . $major->id,
+            'program_id'          => 'nullable|exists:programs,id',
+            'workshop_teacher_id' => 'nullable|exists:teachers,id',
         ], [
-            // Custom Error Messages
-            'name.required' => 'Nama jurusan wajib diisi.',
-            'name.unique'   => 'Nama jurusan ini sudah terdaftar (tidak boleh kembar).',
-            'code.required' => 'Kode jurusan wajib diisi.',
-            'code.unique'   => 'Kode jurusan ini sudah digunakan oleh jurusan lain.',
+            'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
+            'code.required' => 'Kode singkatan wajib diisi.',
+            'code.unique'   => 'Kode singkatan ini sudah digunakan.',
         ]);
-
-        $major = Major::findOrFail($id);
 
         $major->update([
-            'name' => strtoupper($request->name),
-            'code' => strtoupper($request->code),
-            'program_name'     => $request->program_name,
-            'head_of_major'    => $request->head_of_major,
-            'head_of_workshop' => $request->head_of_workshop,
+            'name'                => strtoupper($request->name),
+            'code'                => strtoupper($request->code),
+            'program_id'          => $request->program_id,
+            'workshop_teacher_id' => $request->workshop_teacher_id,
         ]);
 
-        return redirect()->route('majors.index')
-                ->with('success', 'Data Jurusan berhasil diperbarui!');
+        return redirect()->route('majors.index')->with('success', 'Data jurusan berhasil diperbarui!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy(Major $major)
     {
-        $major = Major::findOrFail($id);
-
-        // Opsional: Validasi Relasi (misal: jangan hapus jika ada siswa di jurusan ini)
-        // if($major->students()->exists()) {
-        //    return back()->with('error', 'Gagal hapus! Masih ada siswa di jurusan ini.');
-        // }
-
         $major->delete();
-
-        return redirect()->route('majors.index')->with('success', 'Jurusan berhasil dihapus!');
+        return redirect()->route('majors.index')->with('success', 'Data jurusan berhasil dihapus!');
     }
 }

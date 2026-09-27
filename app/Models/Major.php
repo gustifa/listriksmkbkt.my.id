@@ -9,12 +9,26 @@ class Major extends Model
 {
     use HasFactory;
 
+    protected $table = 'majors';
+
     protected $fillable = [
         'code',
         'name',
         'program_id',
         'workshop_teacher_id',
     ];
+
+    // Relasi ke Program Keahlian
+    public function program()
+    {
+        return $this->belongsTo(Program::class, 'program_id');
+    }
+
+    // Relasi ke Kepala Bengkel (Guru)
+    public function workshopTeacher()
+    {
+        return $this->belongsTo(Teacher::class, 'workshop_teacher_id');
+    }
 
     public function teachers()
     {
@@ -24,17 +38,5 @@ class Major extends Model
     public function classrooms()
     {
         return $this->hasMany(Classroom::class);
-    }
-
-    // Relasi ke Program (opsional jika ada Model Program)
-    public function program()
-    {
-        return $this->belongsTo(Program::class, 'program_id');
-    }
-
-    // Relasi ke Guru Bengkel (opsional jika ada Model Teacher)
-    public function workshopTeacher()
-    {
-        return $this->belongsTo(Teacher::class, 'workshop_teacher_id');
     }
 }
