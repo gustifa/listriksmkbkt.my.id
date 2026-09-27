@@ -23,7 +23,7 @@
 
                     
 
-                    <li class="nav-item dropdown dropdown-large">
+                    <!-- <li class="nav-item dropdown dropdown-large">
                         <a class="nav-link dropdown-toggle dropdown-toggle-nocaret position-relative" href="#" data-bs-toggle="dropdown"><span class="alert-count">7</span>
                             <i class='bx bx-bell'></i>
                         </a>
@@ -333,7 +333,7 @@
                                 </div>
                             </a>
                         </div>
-                    </li>
+                    </li> -->
                 </ul>
             </div>
 
