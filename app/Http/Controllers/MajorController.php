@@ -67,14 +67,14 @@ class MajorController extends Controller
     {
         // VALIDASI DATA
         $request->validate([
-            'name' => 'required|string|max:255|unique:majors,name',
+            // 'name' => 'required|string|max:255|unique:majors,name',
             'code' => 'required|string|max:20|unique:majors,code',
             'program_name' => 'required|string|max:255',
             'head_of_major' => 'nullable|string|max:255',
             'head_of_workshop' => 'nullable|string|max:255',
         ], [
             // Custom Error Messages (Bahasa Indonesia)
-            'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
+            // 'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
             'name.unique'   => 'Nama konsentrasi ini sudah terdaftar di database.',
             'code.required' => 'Kode singkatan wajib diisi.',
             'code.unique'   => 'Kode singkatan ini sudah digunakan.',
@@ -83,7 +83,7 @@ class MajorController extends Controller
 
         // EKSEKUSI PENYIMPANAN
         Major::create([
-            'name'             => strtoupper($request->name),
+            'name'             => strtoupper($name),
             'code'             => strtoupper($request->code),
             'program_name'     => $request->program_name,
             'head_of_major'    => $request->head_of_major,
