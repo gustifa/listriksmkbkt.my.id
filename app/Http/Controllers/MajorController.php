@@ -65,29 +65,25 @@ class MajorController extends Controller
      */
     public function store(Request $request)
     {
-        // VALIDASI DATA
+        // 1. VALIDASI DATA
         $request->validate([
-            // 'name' => 'required|string|max:255|unique:majors,name',
-            'code' => 'required|string|max:20|unique:majors,code',
-            // 'program_name' => 'required|string|max:255',
-            'head_of_major' => 'nullable|string|max:255',
-            'head_of_workshop' => 'nullable|string|max:255',
+            'name'                => 'required|string|max:255',
+            'code'                => 'required|string|max:20|unique:majors,code',
+            'program_id'          => 'nullable|string', // atau 'nullable|uuid' jika menggunakan UUID
+            'workshop_teacher_id' => 'nullable|string', // atau 'nullable|uuid'
         ], [
             // Custom Error Messages (Bahasa Indonesia)
-            // 'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
-            'name.unique'   => 'Nama konsentrasi ini sudah terdaftar di database.',
+            'name.required' => 'Nama konsentrasi keahlian wajib diisi.',
             'code.required' => 'Kode singkatan wajib diisi.',
             'code.unique'   => 'Kode singkatan ini sudah digunakan.',
-            // 'program_name.required' => 'Nama program keahlian wajib diisi.',
         ]);
 
-        // EKSEKUSI PENYIMPANAN
+        // 2. EKSEKUSI PENYIMPANAN
         Major::create([
-            'name'             => strtoupper($request->name),
-            'code'             => strtoupper($request->code),
-            'program_name'     => $request->program_name,
-            'head_of_major'    => $request->head_of_major,
-            'head_of_workshop' => $request->head_of_workshop,
+            'name'                => strtoupper($request->name),
+            'code'                => strtoupper($request->code),
+            'program_id'          => $request->program_id,
+            'workshop_teacher_id' => $request->workshop_teacher_id,
         ]);
 
         return redirect()->route('majors.index')->with('success', 'Jurusan berhasil ditambahkan!');
