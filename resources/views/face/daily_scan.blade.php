@@ -17,7 +17,7 @@
         .video-container {
             position: relative;
             width: 100%;
-            max-width: 500px; /* Ukuran lebih kecil untuk HP */
+            max-width: 500px;
             margin: 0 auto;
             border-radius: 12px;
             overflow: hidden;
@@ -99,39 +99,83 @@
         let isProcessing = false;
         let currentStream = null;
 
-        // 1. LOAD MODEL VERSI TINY (SANGAT RINGAN)
+        // 1. LOAD MODEL VERSI TINY (DENGAN PENANGANAN ERROR LENGKAP)
         Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
-        ]).then(initSystem);
+        ]).then(initSystem).catch(err => {
+            console.error("Gagal memuat berkas model AI:", err);
+            statusMsg.className = 'alert alert-danger py-1 small';
+            statusMsg.innerText = "Error: Berkas model AI tidak dapat diakses di folder public/models.";
+        });
 
         async function initSystem() {
             try {
+                // Pemicu awal izin kamera agar label nama kamera terbaca oleh browser
+                try {
+                    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    tempStream.getTracks().forEach(track => track.stop());
+                } catch (camErr) {
+                    console.warn("Akses kamera belum disetujui atau diblokir:", camErr);
+                }
+
+                // Ambil daftar perangkat kamera
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
                 
                 cameraSelect.innerHTML = '';
-                videoDevices.forEach((d, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = d.deviceId;
-                    opt.text = d.label || `Kamera ${i + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
+                if (videoDevices.length === 0) {
+                    cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+                } else {
+                    videoDevices.forEach((d, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = d.deviceId;
+                        opt.text = d.label || `Kamera ${i + 1}`;
+                        cameraSelect.appendChild(opt);
+                    });
+                }
 
+                // Ambil data deskriptor wajah dari backend Laravel
                 const response = await fetch("{{ route('face.descriptors.all') }}");
+                if (!response.ok) {
+                    throw new Error(`HTTP Error Status: ${response.status} saat mengambil deskriptor.`);
+                }
                 const data = await response.json();
                 
-                const labeledDescriptors = data.map(d => new faceapi.LabeledFaceDescriptors(d.label, [new Float32Array(d.descriptor)]));
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.warn("Data deskriptor dari server kosong.");
+                }
+
+                // Parsing deskriptor (aman untuk format String JSON maupun Array)
+                const labeledDescriptors = data.map(d => {
+                    let rawDescriptor = d.descriptor;
+                    if (typeof rawDescriptor === 'string') {
+                        rawDescriptor = JSON.parse(rawDescriptor);
+                    }
+                    return new faceapi.LabeledFaceDescriptors(
+                        d.label, 
+                        [new Float32Array(rawDescriptor)]
+                    );
+                });
+
+                if (labeledDescriptors.length > 0) {
+                    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+                } else {
+                    console.warn("Belum ada data wajah terdaftar yang valid di database.");
+                }
                 
                 statusMsg.className = 'alert alert-success py-1 small';
                 statusMsg.innerText = "Sistem Siap!";
                 
-                startCamera(cameraSelect.value);
+                if (cameraSelect.value) {
+                    startCamera(cameraSelect.value);
+                }
             } catch (err) {
-                statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Error: Gagal muat AI.";
+                // Cetak detail error ke Console DevTools
+                console.error("Detail Error Init System:", err);
+                statusMsg.className = 'alert alert-danger py-1 small';
+                statusMsg.innerText = `Error: ${err.message || "Gagal muat AI."}`;
             }
         }
 
@@ -143,6 +187,8 @@
             navigator.mediaDevices.getUserMedia(constraints).then(s => {
                 currentStream = s;
                 video.srcObject = s;
+            }).catch(err => {
+                console.error("Gagal membuka stream kamera:", err);
             });
         }
 
@@ -152,7 +198,7 @@
             captureCanvas.height = 240;
             const ctx = captureCanvas.getContext('2d');
             ctx.drawImage(video, 0, 0, 320, 240);
-            return captureCanvas.toDataURL('image/jpeg', 0.4); // Kompresi 40% agar kirim data cepat
+            return captureCanvas.toDataURL('image/jpeg', 0.4);
         }
 
         video.addEventListener('play', () => {
@@ -163,7 +209,6 @@
             setInterval(async () => {
                 if(isProcessing || !faceMatcher) return;
 
-                // GUNAKAN TINY FACE DETECTOR UNTUK HP
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                     .withFaceLandmarks().withFaceDescriptors();
 
@@ -179,7 +224,7 @@
                         handleAction(nis, name, screenshot);
                     }
                 });
-            }, 1500); // Jeda 1.5 detik agar CPU HP tidak panas
+            }, 1500);
         });
 
         function handleAction(nis, name, image) {
