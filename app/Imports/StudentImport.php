@@ -8,9 +8,9 @@ use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithBatchInserts;
 
-class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBatchInserts
+// HAPUS WithBatchInserts untuk mendukung UUID
+class StudentImport implements ToModel, WithHeadingRow, WithChunkReading
 {
     private $existingNis = [];
     private $classrooms = [];
@@ -26,8 +26,8 @@ class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBa
         // 2. PRE-FETCH DATA KE MEMORI (RAM)
         // Mencegah N+1 query: Mengambil semua data awal sekaligus dalam 3 query ringkas
         $this->existingNis = Student::pluck('nis')->flip()->toArray();
-        $this->classrooms  = Classroom::pluck('id', 'name')->toArray(); // Format: ['X IPA 1' => 1]
-        $this->users       = User::pluck('id', 'email')->toArray();    // Format: ['123@siswa.sekolah.id' => 1]
+        $this->classrooms  = Classroom::pluck('id', 'name')->toArray(); // Format: ['XII RPL 1' => 'uuid-...']
+        $this->users       = User::pluck('id', 'email')->toArray();    // Format: ['1001@siswa.sekolah.id' => 'uuid-...']
     }
 
     /**
@@ -43,13 +43,13 @@ class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBa
         }
 
         $nis   = trim($row['nis']);
-        $nama  = ucwords(strtolower(trim($row['nama_siswa']))); 
-        $kelas = strtoupper(trim($row['kelas'])); 
+        $nama  = ucwords(strtolower(trim($row['nama_siswa'])));
+        $kelas = strtoupper(trim($row['kelas']));
 
         // 2. CEK DUPLIKASI NIS (Cepat via Memori RAM, 0 Query DB)
         if (isset($this->existingNis[$nis])) {
             $this->duplicates[] = "{$nis} - {$nama}";
-            return null; 
+            return null;
         }
 
         // Tandai NIS agar jika ada NIS ganda dalam file Excel yang sama tetap terdeteksi
@@ -57,6 +57,7 @@ class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBa
 
         // 3. CARI / BUAT KELAS (Pencarian via Memori RAM)
         if (!isset($this->classrooms[$kelas])) {
+            // Menggunakan Eloquent agar UUID Classroom tergenerate otomatis
             $classroom = Classroom::create(['name' => $kelas]);
             $this->classrooms[$kelas] = $classroom->id; // Simpan ke cache lokal
         }
@@ -65,7 +66,7 @@ class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBa
         // 4. CLEANING NOMOR HP
         $phone = null;
         if (!empty($row['no_hp'])) {
-            $phone = preg_replace('/[^0-9]/', '', $row['no_hp']);
+            $phone = preg_replace('/[^0-9]/', '', (string)$row['no_hp']);
             if (str_starts_with($phone, '62')) {
                 $phone = '0' . substr($phone, 2);
             }
@@ -88,17 +89,9 @@ class StudentImport implements ToModel, WithHeadingRow, WithChunkReading, WithBa
     }
 
     /**
-     * Memproses data per batch 500 baris agar penggunaan RAM tetap efisien
+     * Memproses data per chunk agar penggunaan RAM tetap efisien
      */
     public function chunkSize(): int
-    {
-        return 500;
-    }
-
-    /**
-     * Melakukan Insert sekaligus per 500 data ke database (Batch Insert)
-     */
-    public function batchSize(): int
     {
         return 500;
     }

@@ -261,6 +261,17 @@ $status = $guruId->status;
 						<li> <a href="{{route('admin.violation-types.create')}}"><i class='bx bx-radio-circle'></i>Tambah Pelanggaran</a></li>
 					</ul>
 				</li>
+
+                <li>
+					<a class="has-arrow" href="javascript:;">
+						<div class="parent-icon"><i class="bx bx-cog"></i>
+						</div>
+						<div class="menu-title">Izin Toilet </div>
+					</a>
+					<ul>
+						<li> <a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Izin</a></li>
+					</ul>
+				</li>
                 @role('guru')
 				<li>
 					<a class="has-arrow" href="javascript:;">

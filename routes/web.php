@@ -300,6 +300,16 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{id}/download', [DocumentController::class, 'download'])->name('download');
             Route::delete('/{id}', [DocumentController::class, 'destroy'])->name('destroy');
         });
+
+        Route::get('/admin/mbg', [MbgController::class, 'index'])->name('admin.mbg.index');
+        Route::get('/admin/mbg/scan', [MbgController::class, 'scan'])->name('admin.mbg.scan');
+        // Proses Simpan Data (AJAX dari Scanner)
+        Route::post('/admin/mbg/store', [MbgController::class, 'store'])->name('admin.mbg.store');
+
+        Route::get('/admin/permit', [StudentPermitController::class, 'index'])->name('admin.permit.index');
+        Route::get('/admin/permit/scan', [StudentPermitController::class, 'scan'])->name('admin.permit.scan');
+        // Proses Simpan Data (AJAX dari Scanner)
+        Route::post('/admin/permit/store', [StudentPermitController::class, 'store'])->name('admin.permit.store');
     });
 
     // =========================================================================
@@ -574,15 +584,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/prayer/sync', [PrayerSettingController::class, 'sync'])->name('admin.prayer.sync');
         Route::post('/prayer/settings/pull-attendance', [PrayerSettingController::class, 'pullAttendance'])->name('admin.prayer.pull_attendance');
 
-        Route::get('/admin/mbg', [MbgController::class, 'index'])->name('admin.mbg.index');
-        Route::get('/admin/mbg/scan', [MbgController::class, 'scan'])->name('admin.mbg.scan');
-        // Proses Simpan Data (AJAX dari Scanner)
-        Route::post('/admin/mbg/store', [MbgController::class, 'store'])->name('admin.mbg.store');
 
-        Route::get('/admin/permit', [StudentPermitController::class, 'index'])->name('admin.permit.index');
-        Route::get('/admin/permit/scan', [StudentPermitController::class, 'scan'])->name('admin.permit.scan');
-        // Proses Simpan Data (AJAX dari Scanner)
-        Route::post('/admin/permit/store', [StudentPermitController::class, 'store'])->name('admin.permit.store');
 
         // --- ROUTE PKL ---
         // Anda mungkin perlu membuat IndustryController terpisah untuk CRUD Master Data DUDI
