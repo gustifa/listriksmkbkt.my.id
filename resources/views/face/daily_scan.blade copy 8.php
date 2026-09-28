@@ -12,7 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.css" rel="stylesheet">
 
     <title>SISFO SMK | Monitor Gerbang (Mobile Optimized)</title>
-
+    
     <style>
         .video-container {
             position: relative;
@@ -23,17 +23,9 @@
             overflow: hidden;
             background: #000;
             aspect-ratio: 4/3;
-            border: 4px solid #fff;
+            border: 3px solid #fff;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-
-        /* Tanda respon hijau pada kamera saat wajah terdeteksi */
-        .video-container.active-detect {
-            border-color: #198754 !important;
-            box-shadow: 0 0 20px rgba(25, 135, 84, 0.8) !important;
-        }
-
         #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         #capture-canvas { display: none; }
@@ -51,7 +43,7 @@
                         <a href="{{ route('dashboard') }}" class="btn btn-sm btn-light text-success fw-bold py-0">DASHBOARD</a>
                     </div>
                     <div class="card-body px-2">
-
+                        
                         <!-- Pilihan Kamera & Tombol Toggle Kamera -->
                         <div class="mb-2 d-flex justify-content-center align-items-center gap-2">
                             <div class="input-group input-group-sm">
@@ -79,8 +71,7 @@
                             <span class="spinner-border spinner-border-sm me-1"></span> Loading AI Models...
                         </div>
 
-                        <!-- Kontainer Kamera dengan Efek Border Hijau -->
-                        <div class="video-container" id="video-box">
+                        <div class="video-container">
                             <video id="video" autoplay muted playsinline></video>
                             <canvas id="overlay"></canvas>
                         </div>
@@ -109,56 +100,11 @@
         const statusMsg = document.getElementById('status-loading');
         const captureCanvas = document.getElementById('capture-canvas');
         const btnToggleCam = document.getElementById('btn-toggle-cam');
-        const videoBox = document.getElementById('video-box');
-
+        
         let faceMatcher = null;
         let isProcessing = false;
         let currentStream = null;
         let isCameraOn = false;
-
-        // Inisialisasi Toast SweetAlert
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 2000,
-            timerProgressBar: true
-        });
-
-        // Efek Suara Bip Sintetis
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playBeep(type = 'success') {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            if (type === 'success') {
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.15);
-            } else {
-                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.3);
-            }
-        }
-
-        // Fungsi Tanda Respon Hijau
-        function triggerSuccessUI() {
-            playBeep('success');
-            videoBox.classList.add('active-detect');
-        }
-
-        function resetSuccessUI() {
-            videoBox.classList.remove('active-detect');
-            isProcessing = false;
-        }
 
         // 1. LOAD MODEL VERSI TINY DENGAN VALIDASI SWEETALERT
         Promise.all([
@@ -169,17 +115,18 @@
             console.error("Gagal memuat berkas model AI:", err);
             statusMsg.className = 'alert alert-danger py-1 small';
             statusMsg.innerText = "Error: Berkas model AI tidak ditemukan.";
-
+            
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Memuat Model AI',
-                text: 'Berkas model AI tidak dapat diakses di folder public/models.',
+                text: 'Berkas model AI tidak dapat diakses di folder public/models. Silakan periksa jaringan atau berkas model Anda.',
                 confirmButtonColor: '#dc3545'
             });
         });
 
         async function initSystem() {
             try {
+                // Pemicu izin kamera
                 try {
                     const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
                     tempStream.getTracks().forEach(track => track.stop());
@@ -187,9 +134,10 @@
                     console.warn("Akses kamera belum disetujui:", camErr);
                 }
 
+                // Check Perangkat Kamera
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
-
+                
                 cameraSelect.innerHTML = '';
                 if (videoDevices.length === 0) {
                     cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
@@ -197,7 +145,7 @@
                     Swal.fire({
                         icon: 'warning',
                         title: 'Kamera Tidak Ditemukan',
-                        text: 'Sistem tidak dapat menemukan webcam.',
+                        text: 'Sistem tidak dapat menemukan webcam. Pastikan kamera terhubung dan izin akses kamera diizinkan pada browser Anda.',
                         confirmButtonColor: '#ffc107'
                     });
                 } else {
@@ -210,17 +158,18 @@
                     btnToggleCam.disabled = false;
                 }
 
+                // Ambil data deskriptor dari server
                 const response = await fetch("{{ route('face.descriptors.all') }}");
                 if (!response.ok) {
                     throw new Error(`Gagal menghubungi server (Status: ${response.status}).`);
                 }
                 const data = await response.json();
-
+                
                 if (!Array.isArray(data) || data.length === 0) {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Data Wajah Kosong',
-                        text: 'Belum ada data wajah siswa yang terdaftar di database.',
+                        text: 'Belum ada data wajah siswa yang terdaftar di database. Silakan daftarkan wajah siswa terlebih dahulu!',
                         confirmButtonColor: '#ffc107'
                     });
                 } else {
@@ -230,19 +179,19 @@
                             rawDescriptor = JSON.parse(rawDescriptor);
                         }
                         return new faceapi.LabeledFaceDescriptors(
-                            d.label,
+                            d.label, 
                             [new Float32Array(rawDescriptor)]
                         );
                     });
 
                     if (labeledDescriptors.length > 0) {
-                        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
+                        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
                     }
                 }
-
+                
                 statusMsg.className = 'alert alert-success py-1 small';
                 statusMsg.innerText = "Sistem Siap!";
-
+                
                 if (cameraSelect.value) {
                     startCamera(cameraSelect.value);
                 }
@@ -250,6 +199,13 @@
                 console.error("Detail Error Init System:", err);
                 statusMsg.className = 'alert alert-danger py-1 small';
                 statusMsg.innerText = `Error: ${err.message || "Gagal muat AI."}`;
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan Sistem',
+                    text: err.message || 'Gagal menginisialisasi sistem absensi.',
+                    confirmButtonColor: '#dc3545'
+                });
             }
         }
 
@@ -259,32 +215,47 @@
             }
         });
 
+        // Event Listener untuk Tombol Matikan/Hidupkan Kamera
         btnToggleCam.addEventListener('click', () => {
             if (isCameraOn) {
                 stopCamera();
             } else {
                 if (cameraSelect.value) {
                     startCamera(cameraSelect.value);
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Kamera Tidak Tersedia',
+                        text: 'Pilih kamera terlebih dahulu.',
+                        confirmButtonColor: '#ffc107'
+                    });
                 }
             }
         });
 
         function startCamera(deviceId) {
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            const constraints = { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 640 }, height: { ideal: 480 } } };
-
+            const constraints = { video: { deviceId: deviceId ? { exact: deviceId } : undefined } };
+            
             navigator.mediaDevices.getUserMedia(constraints).then(s => {
                 currentStream = s;
                 video.srcObject = s;
                 isCameraOn = true;
 
+                // Update Tampilan Tombol Kamera
                 btnToggleCam.className = 'btn btn-sm btn-danger text-nowrap fw-bold';
                 btnToggleCam.innerHTML = '<i class="fas fa-video-slash me-1"></i> Matikan Kamera';
-
+                
                 statusMsg.className = 'alert alert-success py-1 small';
                 statusMsg.innerText = "Sistem Siap!";
             }).catch(err => {
                 console.error("Gagal membuka stream kamera:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kamera Gagal Dibuka',
+                    text: 'Tidak dapat mengakses kamera yang dipilih. Pastikan kamera tidak sedang digunakan aplikasi lain.',
+                    confirmButtonColor: '#dc3545'
+                });
             });
         }
 
@@ -296,12 +267,14 @@
             video.srcObject = null;
             isCameraOn = false;
 
+            // Bersihkan Canvas Overlay
             const overlay = document.getElementById('overlay');
             if (overlay) {
                 const ctx = overlay.getContext('2d');
                 ctx.clearRect(0, 0, overlay.width, overlay.height);
             }
 
+            // Update Tampilan Tombol Kamera
             btnToggleCam.className = 'btn btn-sm btn-success text-nowrap fw-bold';
             btnToggleCam.innerHTML = '<i class="fas fa-video me-1"></i> Hidupkan Kamera';
 
@@ -310,11 +283,11 @@
         }
 
         function takeScreenshot() {
-            captureCanvas.width = 240;
-            captureCanvas.height = 180;
+            captureCanvas.width = 320; 
+            captureCanvas.height = 240;
             const ctx = captureCanvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, 240, 180);
-            return captureCanvas.toDataURL('image/jpeg', 0.3);
+            ctx.drawImage(video, 0, 0, 320, 240);
+            return captureCanvas.toDataURL('image/jpeg', 0.4);
         }
 
         video.addEventListener('play', () => {
@@ -323,6 +296,7 @@
             faceapi.matchDimensions(overlay, displaySize);
 
             setInterval(async () => {
+                // Jangan jalankan deteksi jika kamera sedang dimatikan
                 if(isProcessing || !faceMatcher || !isCameraOn) return;
 
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
@@ -334,17 +308,13 @@
                 resized.forEach(det => {
                     const match = faceMatcher.findBestMatch(det.descriptor);
                     if (match.label !== 'unknown' && match.distance < 0.45) {
-                        isProcessing = true;
-
-                        // Menyalakan Tanda Respon Hijau & Suara Bip
-                        triggerSuccessUI();
-
+                        isProcessing = true; 
                         const screenshot = takeScreenshot();
                         const [nis, name] = match.label.split(' - ');
                         handleAction(nis, name, screenshot);
                     }
                 });
-            }, 500);
+            }, 1500);
         });
 
         function handleAction(nis, name, image) {
@@ -357,65 +327,69 @@
         }
 
         function submitAttendance(nis, name, image) {
-            Toast.fire({
-                icon: 'info',
-                title: `Memproses: ${name}`
+            Swal.fire({ 
+                title: 'Memproses Absensi...', 
+                html: `Siswa: <b>${name}</b> (${nis})`,
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
             });
-
+            
             $.ajax({
                 url: "{{ route('daily.store') }}",
                 type: "POST",
                 data: { nis: nis, mode: 'harian', image: image },
                 success: function(res) {
-                    Toast.fire({
-                        icon: 'success',
-                        title: `Absen Berhasil!\nSelamat Datang, ${name}`
-                    });
-                    setTimeout(resetSuccessUI, 1200);
+                    Swal.fire({ 
+                        title: 'Absen Berhasil!', 
+                        text: `Selamat Datang, ${name}`, 
+                        icon: 'success', 
+                        timer: 2000, 
+                        showConfirmButton: false 
+                    }).then(() => { isProcessing = false; });
                 },
                 error: function(xhr) {
-                    playBeep('error');
                     let msg = xhr.responseJSON?.message || "Gagal melakukan absensi.";
-                    Toast.fire({
-                        icon: 'error',
-                        title: msg
-                    });
-                    setTimeout(resetSuccessUI, 1500);
+                    Swal.fire({ 
+                        title: 'Absen Gagal', 
+                        text: msg, 
+                        icon: 'error', 
+                        timer: 3000, 
+                        showConfirmButton: false 
+                    }).then(() => { isProcessing = false; });
                 }
             });
         }
 
         function checkPermission(nis, name, image) {
-            Swal.fire({
-                title: 'Memeriksa Izin...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
+            Swal.fire({ 
+                title: 'Memeriksa Izin...', 
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
             });
 
             $.ajax({
-                url: "{{ route('izin.check') }}",
-                type: "POST",
+                url: "{{ route('izin.check') }}", 
+                type: "POST", 
                 data: { nis: nis },
                 success: function(res) {
-                    if (res.status === 'active_permission') {
-                        confirmReturn(res.data, image);
-                    } else if (res.status === 'can_leave') {
-                        inputReason(nis, name, image);
-                    } else {
-                        Swal.fire({
-                            title: 'Informasi',
-                            text: res.message,
-                            icon: 'info',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(resetSuccessUI);
+                    if (res.status === 'active_permission') { 
+                        confirmReturn(res.data, image); 
+                    } else if (res.status === 'can_leave') { 
+                        inputReason(nis, name, image); 
+                    } else { 
+                        Swal.fire({ 
+                            title: 'Informasi', 
+                            text: res.message, 
+                            icon: 'info', 
+                            timer: 3000, 
+                            showConfirmButton: false 
+                        }).then(() => isProcessing = false); 
                     }
                 },
                 error: function(xhr) {
-                    playBeep('error');
                     let msg = xhr.responseJSON?.message || "Gagal memeriksa status izin.";
                     Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
-                        .then(resetSuccessUI);
+                        .then(() => { isProcessing = false; });
                 }
             });
         }
@@ -425,7 +399,7 @@
                 title: 'Alasan Keluar Sekolah',
                 html: `Siswa: <b>${name}</b> (${nis})`,
                 input: 'text',
-                inputPlaceholder: 'Ketik alasan izin keluar...',
+                inputPlaceholder: 'Ketik alasan izin keluar di sini...',
                 showCancelButton: true,
                 confirmButtonText: 'Simpan & Cetak',
                 cancelButtonText: 'Batal',
@@ -441,38 +415,37 @@
                 if (result.isConfirmed) {
                     Swal.fire({ title: 'Menyimpan Izin...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
-                        url: "{{ route('izin.store') }}",
+                        url: "{{ route('izin.store') }}", 
                         type: "POST",
                         data: { nis: nis, reason: result.value, image: image },
                         success: (res) => {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Izin Disimpan',
-                                html: `<p>Izin keluar untuk <b>${name}</b> berhasil dibuat.</p><a href="{{ url('izin/print') }}/${res.id}" target="_blank" class="btn btn-primary mt-2"><i class="fas fa-print"></i> CETAK SURAT IZIN</a>`,
-                                showConfirmButton: true,
-                                confirmButtonText: 'Selesai'
-                            }).then(resetSuccessUI);
+                            Swal.fire({ 
+                                icon: 'success', 
+                                title: 'Izin Disimpan', 
+                                html: `<p>Izin keluar untuk <b>${name}</b> berhasil dibuat.</p><a href="{{ url('izin/print') }}/${res.id}" target="_blank" class="btn btn-primary mt-2"><i class="fas fa-print"></i> CETAK SURAT IZIN</a>`, 
+                                showConfirmButton: true, 
+                                confirmButtonText: 'Selesai' 
+                            }).then(() => isProcessing = false);
                         },
                         error: (xhr) => {
-                            playBeep('error');
                             let msg = xhr.responseJSON?.message || "Gagal menyimpan izin.";
                             Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
-                                .then(resetSuccessUI);
+                                .then(() => isProcessing = false);
                         }
                     });
-                } else {
-                    resetSuccessUI();
+                } else { 
+                    isProcessing = false; 
                 }
             });
         }
 
         function confirmReturn(data, image) {
-            Swal.fire({
-                title: 'Konfirmasi Kembali',
-                html: `Siswa <b>${data.student.name}</b> tercatat sedang izin keluar.<br>Apakah siswa sudah kembali ke sekolah?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, Kembali',
+            Swal.fire({ 
+                title: 'Konfirmasi Kembali', 
+                html: `Siswa <b>${data.student.name}</b> tercatat sedang izin keluar.<br>Apakah siswa sudah kembali ke sekolah?`, 
+                icon: 'question', 
+                showCancelButton: true, 
+                confirmButtonText: 'Ya, Kembali', 
                 cancelButtonText: 'Batal',
                 confirmButtonColor: '#198754',
                 cancelButtonColor: '#dc3545',
@@ -481,27 +454,26 @@
                 if (result.isConfirmed) {
                     Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
-                        url: "{{ route('izin.return') }}",
-                        type: "POST",
+                        url: "{{ route('izin.return') }}", 
+                        type: "POST", 
                         data: { id: data.id, image: image },
-                        success: () => {
-                            Swal.fire({
-                                title: 'Selesai',
+                        success: () => { 
+                            Swal.fire({ 
+                                title: 'Selesai', 
                                 text: `Status izin ${data.student.name} telah ditutup.`,
-                                icon: 'success',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(resetSuccessUI);
+                                icon: 'success', 
+                                timer: 2000, 
+                                showConfirmButton: false 
+                            }).then(() => isProcessing = false); 
                         },
-                        error: (xhr) => {
-                            playBeep('error');
+                        error: (xhr) => { 
                             let msg = xhr.responseJSON?.message || "Gagal memperbarui status kembali.";
                             Swal.fire({ title: 'Gagal', text: msg, icon: 'error', confirmButtonColor: '#dc3545' })
-                                .then(resetSuccessUI);
+                                .then(() => isProcessing = false); 
                         }
                     });
-                } else {
-                    resetSuccessUI();
+                } else { 
+                    isProcessing = false; 
                 }
             });
         }

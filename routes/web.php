@@ -82,8 +82,10 @@ use App\Http\Controllers\Student\RamadanJournalStudentController;
 use App\Http\Controllers\Student\GuidanceStudentController;
 use App\Http\Controllers\Student\TahfizController;
 use App\Services\GithubVersionChecker; // Service Pengecekan Versi
+use App\Http\Controllers\HomeController;
 
-Route::view('/', 'welcome');
+// Route::view('/', 'welcome');
+Route::get('/', [HomeController::class, 'index'])->name('welcome');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
