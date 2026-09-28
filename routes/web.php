@@ -105,6 +105,10 @@ Route::get('/update-required', function () {
 
 require __DIR__.'/auth.php';
 
+Route::get('/virtual-lab/dc', function () {
+    return view('lab.dc');
+});
+
 Route::get('/logout', [UserController::class, 'Logout'])->name('user.logout');
 Route::get('/profile', [UserController::class, 'Profile'])->name('user.profile');
 Route::post('/profile/store', [UserController::class, 'profileStore'])->name('profile.store');
