@@ -261,7 +261,7 @@
         <p class="text-muted small mx-auto mb-0" style="max-width: 550px;">Pantau aktivitas sekolah, statistik kehadiran, jadwal pelajaran, timeline PKL, dan jurnal pengajaran secara real-time.</p>
     </div>
 
-    <!-- Live Metric Cards (Tersusun ke Bawah / 1 Kolom Penuh di HP) -->
+    <!-- Live Metric Cards -->
     <div class="row g-3 mb-4" id="rekap">
         <!-- Hadir Hari Ini -->
         <div class="col-12 col-md-3">
@@ -380,7 +380,54 @@
             </div>
         </div>
 
-        <!-- Item 3: Status WhatsApp Gateway -->
+        <!-- Item 3: Timeline PKL -->
+        @if($internshipTimeline)
+        <div class="timeline-item">
+            <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
+            <div class="timeline-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1">PRAKERIN / PKL</span>
+                    <small class="text-muted fw-semibold">{{ \Carbon\Carbon::parse($internshipTimeline->start_date ?? now())->format('d M Y') }}</small>
+                </div>
+                <h6 class="fw-bold fs-6 mb-1">{{ $internshipTimeline->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
+                <p class="text-muted small mb-0 lh-sm">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan.' }}</p>
+            </div>
+        </div>
+        @endif
+
+        <!-- Item 4: Jurnal Mengajar -->
+        @if($latestJournal)
+        <div class="timeline-item">
+            <div class="timeline-dot"><i class="fas fa-book-open"></i></div>
+            <div class="timeline-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                    <span class="badge bg-info text-dark rounded-pill px-2 py-1">JURNAL MENGAJAR</span>
+                    <small class="text-muted fw-semibold">{{ $latestJournal->created_at->diffForHumans() }}</small>
+                </div>
+                <h6 class="fw-bold fs-6 mb-1">{{ $latestJournal->subject->name ?? 'Kegiatan Mengajar' }}</h6>
+                <p class="text-muted small mb-1 lh-sm">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
+                <p class="text-muted small mb-0 lh-sm">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
+            </div>
+        </div>
+        @endif
+
+        <!-- Item 5: Catatan Tahfiz -->
+        @if($latestTahfiz)
+        <div class="timeline-item">
+            <div class="timeline-dot"><i class="fas fa-quran"></i></div>
+            <div class="timeline-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                    <span class="badge bg-danger rounded-pill px-2 py-1">TAHFIZ AL-QUR'AN</span>
+                    <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at->format('H:i') }} WIB</small>
+                </div>
+                <h6 class="fw-bold fs-6 mb-1">Setoran Hafalan Terbaru</h6>
+                <p class="text-muted small mb-1 lh-sm">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
+                <p class="text-muted small mb-0 lh-sm">Capaian: Surah/Juz <span class="badge bg-light text-dark border">{{ $latestTahfiz->surah_or_juz ?? '-' }}</span></p>
+            </div>
+        </div>
+        @endif
+
+        <!-- Item 6: Status WhatsApp Gateway (POSISI PALING BAWAH) -->
         <div class="timeline-item" id="status">
             <div class="timeline-dot"><i class="fab fa-whatsapp"></i></div>
             <div class="timeline-card">
@@ -399,53 +446,6 @@
                 @endif
             </div>
         </div>
-
-        <!-- Item 4: Timeline PKL -->
-        @if($internshipTimeline)
-        <div class="timeline-item">
-            <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
-            <div class="timeline-card">
-                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1">PRAKERIN / PKL</span>
-                    <small class="text-muted fw-semibold">{{ \Carbon\Carbon::parse($internshipTimeline->start_date ?? now())->format('d M Y') }}</small>
-                </div>
-                <h6 class="fw-bold fs-6 mb-1">{{ $internshipTimeline->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
-                <p class="text-muted small mb-0 lh-sm">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan.' }}</p>
-            </div>
-        </div>
-        @endif
-
-        <!-- Item 5: Jurnal Mengajar -->
-        @if($latestJournal)
-        <div class="timeline-item">
-            <div class="timeline-dot"><i class="fas fa-book-open"></i></div>
-            <div class="timeline-card">
-                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-info text-dark rounded-pill px-2 py-1">JURNAL MENGAJAR</span>
-                    <small class="text-muted fw-semibold">{{ $latestJournal->created_at->diffForHumans() }}</small>
-                </div>
-                <h6 class="fw-bold fs-6 mb-1">{{ $latestJournal->subject->name ?? 'Kegiatan Mengajar' }}</h6>
-                <p class="text-muted small mb-1 lh-sm">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
-            </div>
-        </div>
-        @endif
-
-        <!-- Item 6: Catatan Tahfiz -->
-        @if($latestTahfiz)
-        <div class="timeline-item">
-            <div class="timeline-dot"><i class="fas fa-quran"></i></div>
-            <div class="timeline-card">
-                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-danger rounded-pill px-2 py-1">TAHFIZ AL-QUR'AN</span>
-                    <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at->format('H:i') }} WIB</small>
-                </div>
-                <h6 class="fw-bold fs-6 mb-1">Setoran Hafalan Terbaru</h6>
-                <p class="text-muted small mb-1 lh-sm">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm">Capaian: Surah/Juz <span class="badge bg-light text-dark border">{{ $latestTahfiz->surah_or_juz ?? '-' }}</span></p>
-            </div>
-        </div>
-        @endif
 
     </div>
 
