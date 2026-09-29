@@ -29,7 +29,7 @@ class InternshipController extends Controller
         $internships = $query->latest()->paginate(20)->withQueryString();
         
         $industries = Industry::orderBy('name')->get();
-        $classrooms = Classroom::orderBy('name')->get();
+        $classrooms = Classroom::orderBy('name')->where('is_pkl_active', true)->get();
         $teachers = Teacher::orderBy('name')->get();
 
         // Mengambil siswa yang belum PKL atau sudah selesai

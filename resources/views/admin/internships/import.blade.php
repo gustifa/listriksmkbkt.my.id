@@ -1,7 +1,7 @@
 @section('title', 'Penempatan PKL Siswa')
 
 <x-app-layout>
-<div class="container-fluid py-4">
+    <div class="page-content">
 
     <!-- HEADER / BREADCRUMB -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -54,7 +54,7 @@
                     </h6>
                 </div>
                 <div class="card-body p-4">
-                    <form action="" method="POST" enctype="multipart/form-data">
+                    <form action="{{ route('admin.internships.import.process') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <!-- DRAG & DROP / FILE INPUT -->
@@ -73,7 +73,7 @@
 
                         <!-- BUTTON SUBMIT -->
                         <div class="d-flex justify-content-between align-items-center">
-                            <a href="" class="btn btn-link text-decoration-none text-muted small p-0">
+                            <a href="{{route('admin.internships.import.template')}}" class="btn btn-link text-decoration-none text-muted small p-0">
                                 <i class="fas fa-download me-1"></i> Download Format Template Excel
                             </a>
                             <button type="submit" class="btn btn-success fw-bold px-4">
@@ -156,4 +156,3 @@
     }
 </script>
 @endpush
-@endsection

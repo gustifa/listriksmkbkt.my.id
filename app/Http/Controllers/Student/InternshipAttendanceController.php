@@ -224,7 +224,7 @@ class InternshipAttendanceController extends Controller
         try {
             Excel::import(new AttendanceImport, $request->file('file'));
 
-            return redirect()->route('admin.internships.attendance.import')
+            return redirect()->route('admin.internships.import.process')
                 ->with('success', 'Data absensi berhasil di-import!');
         } catch (\Exception $e) {
             return redirect()->back()
@@ -237,7 +237,7 @@ class InternshipAttendanceController extends Controller
      */
     public function downloadTemplate()
     {
-        $filePath = public_path('templates/template_import_absensi.xlsx');
+        $filePath = public_path('file/template_import_absensi.xlsx');
 
         if (!file_exists($filePath)) {
             return redirect()->back()->with('error', 'File template belum tersedia di server.');

@@ -595,8 +595,8 @@ Route::middleware(['auth'])->group(function () {
         // --- ROUTE PKL ---
         // Anda mungkin perlu membuat IndustryController terpisah untuk CRUD Master Data DUDI
         Route::get('admin/internships/import', [InternshipAttendanceController::class, 'importView'])->name('import');
-        Route::post('admin/internships/import', [InternshipAttendanceController::class, 'processImport'])->name('import.process');
-        Route::get('admin/internships/template', [InternshipAttendanceController::class, 'downloadTemplate'])->name('template');
+        Route::post('admin/internships/import', [InternshipAttendanceController::class, 'processImport'])->name('admin.internships.import.process');
+        Route::get('admin/internships/template', [InternshipAttendanceController::class, 'downloadTemplate'])->name('admin.internships.import.template');
         Route::resource('admin/industries', IndustryController::class)->except(['show']);
 
 
