@@ -49,7 +49,7 @@ class HomeController extends Controller
         $isWaActive = $waGateway ? ($waGateway->status === 'connected') : false;
 
         // 4. Timeline PKL / Magang yang STATUSNYA AKTIF
-        $internshipTimelines = InternshipTimeline::where(function($query) {
+        $internshipTimeline = InternshipTimeline::where(function($query) {
         $query->whereRaw('LOWER(status) = ?', ['aktif'])
               ->orWhereRaw('LOWER(status) = ?', ['active'])
               ->orWhere('status', '1');
