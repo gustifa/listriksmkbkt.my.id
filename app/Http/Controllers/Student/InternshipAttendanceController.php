@@ -224,7 +224,7 @@ class InternshipAttendanceController extends Controller
         try {
             Excel::import(new AttendanceImport, $request->file('file'));
 
-            return redirect()->route('admin.internships.import.process')
+            return redirect()->back()
                 ->with('success', 'Data absensi berhasil di-import!');
         } catch (\Exception $e) {
             return redirect()->back()
