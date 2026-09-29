@@ -73,7 +73,7 @@
             box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
         }
 
-        /* Stats Cards - Tetap Besar dan Tidak Diperkecil */
+        /* Stats Cards - Tetap Besar dan Pindah ke Bawah saat Mobile */
         .stats-card {
             background: #ffffff;
             border-radius: 16px;
@@ -117,7 +117,7 @@
             color: #1a1d20;
         }
 
-        /* Timeline Layout - Desktop */
+        /* Timeline Layout */
         .timeline-container {
             position: relative;
             padding: 10px 0;
@@ -172,7 +172,16 @@
             font-size: 1rem;
         }
 
-        /* PERBAIKAN TAMPILAN KHUSUS MOBILE */
+        /* Item Jadwal Pelajaran */
+        .schedule-list-item {
+            background: #f8fafc;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+
+        /* TAMPILAN KHUSUS MOBILE */
         @media (max-width: 767.98px) {
             body {
                 padding-top: 75px;
@@ -184,7 +193,6 @@
                 padding: 8px 12px;
             }
 
-            /* Garis Timeline pindah ke kiri */
             .timeline-container::before {
                 left: 18px;
                 transform: none;
@@ -230,8 +238,8 @@
             <ul class="navbar-nav mx-auto my-2 my-lg-0 text-center">
                 <li class="nav-item"><a class="nav-link active" href="#">Beranda</a></li>
                 <li class="nav-item"><a class="nav-link" href="#timeline">Timeline</a></li>
+                <li class="nav-item"><a class="nav-link" href="#jadwal">Jadwal Hari Ini</a></li>
                 <li class="nav-item"><a class="nav-link" href="#rekap">Rekapitulasi</a></li>
-                <li class="nav-item"><a class="nav-link" href="#status">Status Sistem</a></li>
             </ul>
             <div class="d-flex align-items-center justify-content-center gap-2 mt-2 mt-lg-0">
                 @if (Route::has('login'))
@@ -250,10 +258,10 @@
     <!-- Header -->
     <div class="text-center mb-4 mt-2">
         <h1 class="fw-bold fs-3 fs-md-1 mb-2">Informasi <span class="text-primary">Terintegrasi</span></h1>
-        <p class="text-muted small mx-auto mb-0" style="max-width: 550px;">Pantau aktivitas sekolah, statistik kehadiran, timeline PKL, jurnal pengajaran, dan status WhatsApp Gateway secara real-time.</p>
+        <p class="text-muted small mx-auto mb-0" style="max-width: 550px;">Pantau aktivitas sekolah, statistik kehadiran, jadwal pelajaran, timeline PKL, dan jurnal pengajaran secara real-time.</p>
     </div>
 
-    <!-- Live Metric Cards (Berjejer ke bawah / 1 Kolom Penuh di HP, 4 Kolom di Laptop) -->
+    <!-- Live Metric Cards (Tersusun ke Bawah / 1 Kolom Penuh di HP, 4 Kolom di Laptop) -->
     <div class="row g-3 mb-4" id="rekap">
         <!-- Hadir Hari Ini -->
         <div class="col-12 col-md-3">
@@ -320,7 +328,7 @@
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
                     <span class="badge bg-success rounded-pill px-2 py-1">KEHADIRAN</span>
-                    <small class="text-muted fw-semibold">Jadwal Hari Ini</small>
+                    <small class="text-muted fw-semibold">Jadwal Absensi</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-2">Pengaturan Absensi Harian</h6>
                 <p class="text-muted small mb-2 lh-sm">
@@ -334,7 +342,43 @@
             </div>
         </div>
 
-        <!-- Item 2: Status WhatsApp Gateway -->
+        <!-- FITUR BARU: Item Jadwal Pelajaran Hari Ini -->
+        <div class="timeline-item" id="jadwal">
+            <div class="timeline-dot"><i class="fas fa-calendar-day"></i></div>
+            <div class="timeline-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                    <span class="badge bg-purple bg-primary text-white rounded-pill px-2 py-1">JADWAL HARI INI</span>
+                    <small class="text-muted fw-semibold"><i class="far fa-calendar-alt me-1"></i>{{ $todayName ?? \Carbon\Carbon::now()->isoFormat('dddd') }}</small>
+                </div>
+                <h6 class="fw-bold fs-6 mb-2">Jadwal Pelajaran Aktif</h6>
+
+                @if(isset($todaySchedules) && count($todaySchedules) > 0)
+                    <div class="mt-2">
+                        @foreach($todaySchedules as $schedule)
+                            <div class="schedule-list-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong class="text-dark small">{{ $schedule->subject->name ?? 'Mata Pelajaran' }}</strong>
+                                    <span class="badge bg-light text-primary border" style="font-size: 0.7rem;">
+                                        {{ \Carbon\Carbon::parse($schedule->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($schedule->end_time)->format('H:i') }}
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1 text-muted extra-small" style="font-size: 0.78rem;">
+                                    <span><i class="fas fa-chalkboard-teacher me-1"></i>{{ $schedule->teacher->name ?? 'Guru Pengampu' }}</span>
+                                    <span><i class="fas fa-door-open me-1"></i>{{ $schedule->classroom->name ?? 'Kelas' }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-3 bg-light rounded-3">
+                        <i class="fas fa-coffee text-muted mb-2 fs-4"></i>
+                        <p class="text-muted small mb-0">Tidak ada jadwal pelajaran aktif untuk hari {{ $todayName ?? 'ini' }}.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- Item 3: Status WhatsApp Gateway -->
         <div class="timeline-item" id="status">
             <div class="timeline-dot"><i class="fab fa-whatsapp"></i></div>
             <div class="timeline-card">
@@ -354,7 +398,7 @@
             </div>
         </div>
 
-        <!-- Item 3: Timeline PKL -->
+        <!-- Item 4: Timeline PKL -->
         @if($internshipTimeline)
         <div class="timeline-item">
             <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
@@ -369,7 +413,7 @@
         </div>
         @endif
 
-        <!-- Item 4: Jurnal Mengajar -->
+        <!-- Item 5: Jurnal Mengajar -->
         @if($latestJournal)
         <div class="timeline-item">
             <div class="timeline-dot"><i class="fas fa-book-open"></i></div>
@@ -381,22 +425,6 @@
                 <h6 class="fw-bold fs-6 mb-1">{{ $latestJournal->subject->name ?? 'Kegiatan Mengajar' }}</h6>
                 <p class="text-muted small mb-1 lh-sm">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
                 <p class="text-muted small mb-0 lh-sm">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
-            </div>
-        </div>
-        @endif
-
-        <!-- Item 5: Catatan Tahfiz -->
-        @if($latestTahfiz)
-        <div class="timeline-item">
-            <div class="timeline-dot"><i class="fas fa-quran"></i></div>
-            <div class="timeline-card">
-                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-danger rounded-pill px-2 py-1">TAHFIZ AL-QUR'AN</span>
-                    <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at->format('H:i') }} WIB</small>
-                </div>
-                <h6 class="fw-bold fs-6 mb-1">Setoran Hafalan Terbaru</h6>
-                <p class="text-muted small mb-1 lh-sm">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm">Capaian: Surah/Juz <span class="badge bg-light text-dark border">{{ $latestTahfiz->surah_or_juz ?? '-' }}</span></p>
             </div>
         </div>
         @endif

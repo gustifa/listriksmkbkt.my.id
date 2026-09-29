@@ -9,6 +9,7 @@ use App\Models\WhatsappGateway;
 use App\Models\TeachingJournal;
 use App\Models\TahfizRecord;
 use App\Models\InternshipTimeline;
+use App\Models\Schedule; // Sesuaikan dengan nama Model Jadwal Anda
 use Carbon\Carbon;
 
 class HomeController extends Controller
@@ -19,6 +20,13 @@ class HomeController extends Controller
 
         // 1. Pengaturan Waktu Absensi
         $attendanceSetting = AttendanceSetting::first();
+
+        // Ambil jadwal pelajaran berdasarkan hari aktif
+        // Sesuaikan nama tabel/relasi jika nama model & relasinya berbeda
+        $todaySchedules = Schedule::with(['subject', 'teacher', 'classroom'])
+            ->where('day', $today)
+            ->orderBy('start_time', 'asc')
+            ->get();
 
         // 2. Statistik Kehadiran Hari Ini
         $attendances = DailyAttendance::whereDate('created_at', $today)->get();
@@ -53,6 +61,7 @@ class HomeController extends Controller
             'isWaActive',
             'internshipTimeline',
             'latestJournal',
+            'todaySchedules', // Tambahkan variabel ini ke view
             'latestTahfiz'
         ));
     }
