@@ -22,21 +22,34 @@ class TeachingJournal extends Model
     {
         return $this->belongsTo(Schedule::class);
     }
+
     /**
-     * Relasi ke Mata Pelajaran (Subject)
+     * Relasi ke Mata Pelajaran via Schedule
      */
     public function subject()
     {
-        return $this->belongsTo(Subject::class, 'subject_id');
-        // Catatan: Sesuaikan 'subject_id' dengan nama kolom foreign key di tabel teaching_journals Anda jika berbeda.
+        return $this->hasOneThrough(
+            Subject::class,
+            Schedule::class,
+            'id',          // Foreign key di tabel schedules (schedules.id)
+            'id',          // Foreign key di tabel subjects (subjects.id)
+            'schedule_id', // Local key di tabel teaching_journals
+            'subject_id'   // Local key di tabel schedules
+        );
     }
 
     /**
-     * Relasi ke Guru / Pengajar (Teacher / User)
+     * Relasi ke Guru via Schedule
      */
     public function teacher()
     {
-        return $this->belongsTo(User::class, 'teacher_id');
-        // Catatan: Jika model guru Anda dinamai Teacher, ubah User::class menjadi Teacher::class.
+        return $this->hasOneThrough(
+            User::class,     // Ubah ke Teacher::class jika menggunakan model Teacher
+            Schedule::class,
+            'id',          // Foreign key di tabel schedules (schedules.id)
+            'id',          // Foreign key di tabel users/teachers (users.id)
+            'schedule_id', // Local key di tabel teaching_journals
+            'teacher_id'   // Local key di tabel schedules
+        );
     }
 }

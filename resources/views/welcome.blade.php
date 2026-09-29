@@ -271,7 +271,7 @@
                 </div>
                 <div class="stats-info">
                     <span class="stats-title">Hadir Hari Ini</span>
-                    <div class="stats-value">{{ $stats['hadir'] }}</div>
+                    <div class="stats-value">{{ $stats['hadir'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
@@ -284,7 +284,7 @@
                 </div>
                 <div class="stats-info">
                     <span class="stats-title">Terlambat</span>
-                    <div class="stats-value">{{ $stats['terlambat'] }}</div>
+                    <div class="stats-value">{{ $stats['terlambat'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
@@ -297,7 +297,7 @@
                 </div>
                 <div class="stats-info">
                     <span class="stats-title">Sakit / Izin</span>
-                    <div class="stats-value">{{ $stats['sakit'] }}</div>
+                    <div class="stats-value">{{ $stats['sakit'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
@@ -310,7 +310,7 @@
                 </div>
                 <div class="stats-info">
                     <span class="stats-title">Tanpa Keterangan</span>
-                    <div class="stats-value">{{ $stats['alpa'] }}</div>
+                    <div class="stats-value">{{ $stats['alpa'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
@@ -321,7 +321,7 @@
 
         <!-- Item 1: Status Presensi Hari Ini -->
         @php
-            $percentage = $stats['total'] > 0 ? round(($stats['hadir'] / $stats['total']) * 100) : 0;
+            $percentage = (isset($stats['total']) && $stats['total'] > 0) ? round(($stats['hadir'] / $stats['total']) * 100) : 0;
         @endphp
         <div class="timeline-item">
             <div class="timeline-dot"><i class="fas fa-clock"></i></div>
@@ -332,8 +332,8 @@
                 </div>
                 <h6 class="fw-bold fs-6 mb-2">Pengaturan Absensi Harian</h6>
                 <p class="text-muted small mb-2 lh-sm">
-                    Waktu Masuk: <strong>{{ $attendanceSetting->start_check_in_time ?? '07:00' }} WIB</strong><br>
-                    Batas Terlambat: <strong class="text-danger">{{ $attendanceSetting->late_limit_time ?? '07:30' }} WIB</strong>
+                    Waktu Masuk: <strong>{{ $attendanceSetting->start_check_in_time ?? '06:00:00' }} WIB</strong><br>
+                    Batas Terlambat: <strong class="text-danger">{{ $attendanceSetting->late_limit_time ?? '15:32:00' }} WIB</strong>
                 </p>
                 <div class="progress" style="height: 6px;">
                     <div class="progress-bar bg-success" role="progressbar" style="width: {{ $percentage }}%;" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
@@ -352,7 +352,7 @@
                 </div>
                 <h6 class="fw-bold fs-6 mb-2">Jadwal Pelajaran Aktif</h6>
 
-                @if(isset($todaySchedules) && $todaySchedules->count() > 0)
+                @if(isset($todaySchedules) && count($todaySchedules) > 0)
                     <div class="mt-2">
                         @foreach($todaySchedules as $schedule)
                             <div class="schedule-list-item">
@@ -365,7 +365,7 @@
                                     </span>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mt-1 text-muted" style="font-size: 0.78rem;">
-                                    <span><i class="fas fa-chalkboard-teacher me-1"></i>{{ $schedule->teacher->name ?? ($schedule->teacher->user->name ?? 'Guru Pengampu') }}</span>
+                                    <span><i class="fas fa-chalkboard-teacher me-1"></i>{{ $schedule->teacher->name ?? ($schedule->teacher->user->name ?? ($schedule->user->name ?? 'Guru Pengampu')) }}</span>
                                     <span><i class="fas fa-door-open me-1"></i>{{ $schedule->classroom->name ?? ($schedule->room->name ?? 'Kelas') }}</span>
                                 </div>
                             </div>
@@ -414,30 +414,44 @@
             </div>
         @endforeach
 
-        <!-- Item 4: Jurnal Mengajar -->
-        @if($latestJournal)
+        <!-- Item 4: Jurnal Mengajar (Dengan Nama Mata Pelajaran & Nama Guru) -->
+        @if(isset($latestJournal) && $latestJournal)
         <div class="timeline-item">
             <div class="timeline-dot"><i class="fas fa-book-open"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
                     <span class="badge bg-info text-dark rounded-pill px-2 py-1">JURNAL MENGAJAR</span>
-                    <small class="text-muted fw-semibold">{{ $latestJournal->created_at->diffForHumans() }}</small>
+                    <small class="text-muted fw-semibold">
+                        {{ $latestJournal->created_at ? $latestJournal->created_at->diffForHumans() : '' }}
+                    </small>
                 </div>
-                <h6 class="fw-bold fs-6 mb-1">{{ $latestJournal->subject->name ?? 'Kegiatan Mengajar' }}</h6>
-                <p class="text-muted small mb-1 lh-sm">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
+
+                <!-- Nama Mata Pelajaran sebagai Judul -->
+                <h6 class="fw-bold fs-6 mb-1">
+                    {{ $latestJournal->schedule->subject->name ?? $latestJournal->schedule->subject->subject_name ?? $latestJournal->subject->name ?? $latestJournal->topic ?? 'Kegiatan Mengajar' }}
+                </h6>
+
+                <!-- Nama Guru Pengajar -->
+                <p class="text-muted small mb-1 lh-sm">
+                    Pengajar: <strong>{{ $latestJournal->schedule->teacher->name ?? $latestJournal->schedule->teacher->user->name ?? $latestJournal->schedule->user->name ?? $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong>
+                </p>
+
+                <!-- Ringkasan Materi/Aktivitas -->
+                <p class="text-muted small mb-0 lh-sm">
+                    Materi: {{ $latestJournal->topic ?? $latestJournal->activity ?? $latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.' }}
+                </p>
             </div>
         </div>
         @endif
 
         <!-- Item 5: Catatan Tahfiz -->
-        @if($latestTahfiz)
+        @if(isset($latestTahfiz) && $latestTahfiz)
         <div class="timeline-item">
             <div class="timeline-dot"><i class="fas fa-quran"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
                     <span class="badge bg-danger rounded-pill px-2 py-1">TAHFIZ AL-QUR'AN</span>
-                    <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at->format('H:i') }} WIB</small>
+                    <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at ? $latestTahfiz->created_at->format('H:i') . ' WIB' : '' }}</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-1">Setoran Hafalan Terbaru</h6>
                 <p class="text-muted small mb-1 lh-sm">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
@@ -458,7 +472,7 @@
                 <p class="text-muted small mb-2 lh-sm">
                     Layanan notifikasi otomatis pesan kehadiran dan pengumuman wali murid saat ini:
                 </p>
-                @if($isWaActive)
+                @if(isset($isWaActive) && $isWaActive)
                     <span class="badge bg-success-subtle text-success border border-success px-2 py-1 rounded-2"><i class="fas fa-check-circle me-1"></i> Terhubung</span>
                 @else
                     <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1 rounded-2"><i class="fas fa-exclamation-circle me-1"></i> Terputus</span>
