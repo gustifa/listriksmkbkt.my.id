@@ -61,10 +61,9 @@ class HomeController extends Controller
         // $internshipTimeline = $internshipTimelines->get();
 
         // 6. Jurnal Mengajar Terbaru
-
-        $latestJournal = TeachingJournal::with(['schedule.subject', 'schedule.teacher', 'schedule.user'])
-        ->latest()
-        ->first();
+        $latestJournal = TeachingJournal::with('schedule')
+            ->latest()
+            ->first();
 
         // 7. Catatan Tahfiz Terbaru
         $latestTahfiz = TahfizRecord::with('student')
