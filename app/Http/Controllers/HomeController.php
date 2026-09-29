@@ -49,13 +49,16 @@ class HomeController extends Controller
         $isWaActive = $waGateway ? ($waGateway->status === 'connected') : false;
 
         // 4. Timeline PKL / Magang yang STATUSNYA AKTIF
-        $internshipTimeline = InternshipTimeline::where(function($query) {
+        $internshipTimelines = InternshipTimeline::where(function($query) {
         $query->whereRaw('LOWER(status) = ?', ['aktif'])
               ->orWhereRaw('LOWER(status) = ?', ['active'])
               ->orWhere('status', '1');
         })
         ->latest()
         ->get();
+
+        // Juga sertakan variabel single untuk kompatibilitas
+        $internshipTimeline = $internshipTimelines->first();
 
         // 6. Jurnal Mengajar Terbaru
         $latestJournal = TeachingJournal::with(['subject', 'teacher'])
