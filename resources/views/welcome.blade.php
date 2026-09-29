@@ -37,7 +37,7 @@
             color: #2b2d42;
             min-height: 100vh;
             padding-top: 85px;
-            overflow-x: hidden; /* Mencegah scroll samping */
+            overflow-x: hidden;
         }
 
         /* Floating Navbar */
@@ -73,59 +73,56 @@
             box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
         }
 
-        /* Stats Cards - Diperbaiki untuk Mobile */
+        /* Stats Cards - Tetap Besar dan Tidak Diperkecil */
         .stats-card {
             background: #ffffff;
             border-radius: 16px;
-            padding: 12px 14px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            padding: 16px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.04);
             border: 1px solid rgba(0,0,0,0.03);
             height: 100%;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
         }
 
         .stats-icon-box {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
         }
 
         .stats-info {
-            min-width: 0; /* Agar teks ellipsis / word wrap bekerja */
             flex: 1;
         }
 
         .stats-title {
-            font-size: 0.75rem;
+            font-size: 0.875rem;
             color: #6c757d;
             font-weight: 600;
             line-height: 1.2;
             display: block;
-            word-break: break-word; /* Mencegah teks terpotong */
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .stats-value {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 700;
             line-height: 1;
             color: #1a1d20;
         }
 
-        /* Timeline Layout - Diperbaiki total untuk Desktop & Mobile */
+        /* Timeline Layout - Desktop */
         .timeline-container {
             position: relative;
             padding: 10px 0;
         }
 
-        /* Garis Tengah Desktop */
         .timeline-container::before {
             content: '';
             position: absolute;
@@ -162,8 +159,8 @@
             left: 50%;
             top: 15px;
             transform: translateX(-50%);
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             background: #fff;
             border-radius: 50%;
             display: flex;
@@ -172,10 +169,10 @@
             z-index: 5;
             box-shadow: 0 2px 8px rgba(0,0,0,0.12);
             color: var(--primary-color);
-            font-size: 0.9rem;
+            font-size: 1rem;
         }
 
-        /* PERBAIKAN KHUSUS LAYAR HP (MOBILE) */
+        /* PERBAIKAN TAMPILAN KHUSUS MOBILE */
         @media (max-width: 767.98px) {
             body {
                 padding-top: 75px;
@@ -187,7 +184,7 @@
                 padding: 8px 12px;
             }
 
-            /* Pindahkan Garis Timeline ke Kiri pada Layar HP */
+            /* Garis Timeline pindah ke kiri */
             .timeline-container::before {
                 left: 18px;
                 transform: none;
@@ -196,8 +193,6 @@
             .timeline-dot {
                 left: 0;
                 transform: none;
-                width: 36px;
-                height: 36px;
             }
 
             .timeline-item {
@@ -208,33 +203,13 @@
             .timeline-card {
                 width: calc(100% - 50px) !important;
                 margin-left: 50px !important;
-                padding: 1rem;
+                padding: 1.1rem;
             }
 
-            /* Header Kartu Timeline di HP (Badge + Subtitle) */
             .timeline-header {
                 flex-direction: column;
                 align-items: flex-start !important;
                 gap: 4px;
-            }
-
-            .timeline-header small {
-                font-size: 0.7rem !important;
-            }
-
-            .stats-card {
-                padding: 10px;
-            }
-            .stats-icon-box {
-                width: 34px;
-                height: 34px;
-                font-size: 0.95rem;
-            }
-            .stats-title {
-                font-size: 0.7rem;
-            }
-            .stats-value {
-                font-size: 1.1rem;
             }
         }
     </style>
@@ -275,13 +250,13 @@
     <!-- Header -->
     <div class="text-center mb-4 mt-2">
         <h1 class="fw-bold fs-3 fs-md-1 mb-2">Informasi <span class="text-primary">Terintegrasi</span></h1>
-        <p class="text-muted small mx-auto mb-0" style="max-width: 550px; font-size: 0.85rem;">Pantau aktivitas sekolah, statistik kehadiran, timeline PKL, jurnal pengajaran, dan status WhatsApp Gateway secara real-time.</p>
+        <p class="text-muted small mx-auto mb-0" style="max-width: 550px;">Pantau aktivitas sekolah, statistik kehadiran, timeline PKL, jurnal pengajaran, dan status WhatsApp Gateway secara real-time.</p>
     </div>
 
-    <!-- Live Metric Cards (Grid 2 Kolom Rapi di HP) -->
-    <div class="row g-2 g-md-3 mb-4" id="rekap">
+    <!-- Live Metric Cards (Berjejer ke bawah / 1 Kolom Penuh di HP, 4 Kolom di Laptop) -->
+    <div class="row g-3 mb-4" id="rekap">
         <!-- Hadir Hari Ini -->
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-3">
             <div class="stats-card">
                 <div class="stats-icon-box bg-primary bg-opacity-10 text-primary">
                     <i class="fas fa-user-check"></i>
@@ -294,7 +269,7 @@
         </div>
 
         <!-- Terlambat -->
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-3">
             <div class="stats-card">
                 <div class="stats-icon-box bg-warning bg-opacity-10 text-warning">
                     <i class="fas fa-clock"></i>
@@ -307,7 +282,7 @@
         </div>
 
         <!-- Sakit / Izin -->
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-3">
             <div class="stats-card">
                 <div class="stats-icon-box bg-info bg-opacity-10 text-info">
                     <i class="fas fa-notes-medical"></i>
@@ -320,7 +295,7 @@
         </div>
 
         <!-- Tanpa Keterangan -->
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-3">
             <div class="stats-card">
                 <div class="stats-icon-box bg-danger bg-opacity-10 text-danger">
                     <i class="fas fa-user-times"></i>
@@ -344,18 +319,18 @@
             <div class="timeline-dot"><i class="fas fa-clock"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-success rounded-pill px-2 py-1" style="font-size: 0.7rem;">KEHADIRAN</span>
+                    <span class="badge bg-success rounded-pill px-2 py-1">KEHADIRAN</span>
                     <small class="text-muted fw-semibold">Jadwal Hari Ini</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-2">Pengaturan Absensi Harian</h6>
-                <p class="text-muted small mb-2 lh-sm" style="font-size: 0.8rem;">
+                <p class="text-muted small mb-2 lh-sm">
                     Waktu Masuk: <strong>{{ $attendanceSetting->start_check_in_time ?? '07:00' }} WIB</strong><br>
                     Batas Terlambat: <strong class="text-danger">{{ $attendanceSetting->late_limit_time ?? '07:30' }} WIB</strong>
                 </p>
                 <div class="progress" style="height: 6px;">
                     <div class="progress-bar bg-success" role="progressbar" style="width: {{ $percentage }}%;" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-                <small class="text-muted mt-2 d-block font-monospace" style="font-size: 0.72rem;">Tingkat Kehadiran: {{ $percentage }}%</small>
+                <small class="text-muted mt-2 d-block font-monospace">Tingkat Kehadiran: {{ $percentage }}%</small>
             </div>
         </div>
 
@@ -364,17 +339,17 @@
             <div class="timeline-dot"><i class="fab fa-whatsapp"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">SISTEM NOTIFIKASI</span>
+                    <span class="badge bg-primary rounded-pill px-2 py-1">SISTEM NOTIFIKASI</span>
                     <small class="text-muted fw-semibold">Real-time</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-2">Status WhatsApp Gateway</h6>
-                <p class="text-muted small mb-2 lh-sm" style="font-size: 0.8rem;">
+                <p class="text-muted small mb-2 lh-sm">
                     Layanan notifikasi otomatis pesan kehadiran dan pengumuman wali murid saat ini:
                 </p>
                 @if($isWaActive)
-                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1 rounded-2" style="font-size: 0.75rem;"><i class="fas fa-check-circle me-1"></i> Terhubung</span>
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1 rounded-2"><i class="fas fa-check-circle me-1"></i> Terhubung</span>
                 @else
-                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1 rounded-2" style="font-size: 0.75rem;"><i class="fas fa-exclamation-circle me-1"></i> Terputus</span>
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1 rounded-2"><i class="fas fa-exclamation-circle me-1"></i> Terputus</span>
                 @endif
             </div>
         </div>
@@ -385,11 +360,11 @@
             <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1" style="font-size: 0.7rem;">PRAKERIN / PKL</span>
+                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1">PRAKERIN / PKL</span>
                     <small class="text-muted fw-semibold">{{ \Carbon\Carbon::parse($internshipTimeline->start_date ?? now())->format('d M Y') }}</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-1">{{ $internshipTimeline->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
-                <p class="text-muted small mb-0 lh-sm" style="font-size: 0.8rem;">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan.' }}</p>
+                <p class="text-muted small mb-0 lh-sm">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan.' }}</p>
             </div>
         </div>
         @endif
@@ -400,12 +375,12 @@
             <div class="timeline-dot"><i class="fas fa-book-open"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 0.7rem;">JURNAL MENGAJAR</span>
+                    <span class="badge bg-info text-dark rounded-pill px-2 py-1">JURNAL MENGAJAR</span>
                     <small class="text-muted fw-semibold">{{ $latestJournal->created_at->diffForHumans() }}</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-1">{{ $latestJournal->subject->name ?? 'Kegiatan Mengajar' }}</h6>
-                <p class="text-muted small mb-1 lh-sm" style="font-size: 0.8rem;">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm" style="font-size: 0.8rem;">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
+                <p class="text-muted small mb-1 lh-sm">Pengajar: <strong>{{ $latestJournal->teacher->name ?? 'Guru Pengampu' }}</strong></p>
+                <p class="text-muted small mb-0 lh-sm">Materi: {{ Str::limit($latestJournal->notes ?? 'Penyampaian materi dan praktik kelas.', 100) }}</p>
             </div>
         </div>
         @endif
@@ -416,12 +391,12 @@
             <div class="timeline-dot"><i class="fas fa-quran"></i></div>
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-danger rounded-pill px-2 py-1" style="font-size: 0.7rem;">TAHFIZ AL-QUR'AN</span>
+                    <span class="badge bg-danger rounded-pill px-2 py-1">TAHFIZ AL-QUR'AN</span>
                     <small class="text-muted fw-semibold">{{ $latestTahfiz->created_at->format('H:i') }} WIB</small>
                 </div>
                 <h6 class="fw-bold fs-6 mb-1">Setoran Hafalan Terbaru</h6>
-                <p class="text-muted small mb-1 lh-sm" style="font-size: 0.8rem;">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
-                <p class="text-muted small mb-0 lh-sm" style="font-size: 0.8rem;">Capaian: Surah/Juz <span class="badge bg-light text-dark border">{{ $latestTahfiz->surah_or_juz ?? '-' }}</span></p>
+                <p class="text-muted small mb-1 lh-sm">Siswa: <strong>{{ $latestTahfiz->student->name ?? 'Siswa' }}</strong></p>
+                <p class="text-muted small mb-0 lh-sm">Capaian: Surah/Juz <span class="badge bg-light text-dark border">{{ $latestTahfiz->surah_or_juz ?? '-' }}</span></p>
             </div>
         </div>
         @endif
@@ -431,7 +406,7 @@
     <!-- Footer -->
     <div class="text-center my-4">
         <p class="text-muted small mb-0">&copy; {{ date('Y') }} {{ \App\Models\Setting::value('school_name', 'SMK Negeri 1 Bukittinggi') }}</p>
-        <p class="text-muted small" style="font-size: 0.72rem;">Dikembangkan oleh {{ \App\Models\Setting::value('developer_name', 'Gustifa Fauzan') }}</p>
+        <p class="text-muted small" style="font-size: 0.75rem;">Dikembangkan oleh {{ \App\Models\Setting::value('developer_name', 'Gustifa Fauzan') }}</p>
     </div>
 </div>
 
