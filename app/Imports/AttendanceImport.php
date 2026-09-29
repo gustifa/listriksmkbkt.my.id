@@ -2,8 +2,9 @@
 
 namespace App\Imports;
 
-use App\Models\Attendance;
+use App\Models\InternshipAttendance; // atau App\Models\Attendance tergantung nama Model Anda
 use App\Models\Student;
+use App\Models\Internship;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -14,30 +15,43 @@ class AttendanceImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        // 1. Ambil data dari kolom header Excel (nisn, tanggal, jam_masuk, jam_pulang, status, jurnal)
-        $nisn      = trim($row['nisn'] ?? '');
-        $rawDate   = trim($row['tanggal'] ?? '');
-        $jamMasuk  = trim($row['jam_masuk'] ?? '');
-        $jamPulang = trim($row['jam_pulang'] ?? '');
-        $status    = strtolower(trim($row['status'] ?? 'present'));
-        $jurnal    = trim($row['jurnal'] ?? '');
+        // Mengubah key array menjadi lowercase
+        $row = array_change_key_case($row, CASE_LOWER);
 
-        // Abaikan baris jika NISN atau Tanggal kosong
-        if (empty($nisn) || empty($rawDate)) {
+        $nis       = trim($row['nisn'] ?? $row['nis'] ?? '');
+        $rawDate   = trim($row['tanggal'] ?? $row['date'] ?? '');
+        $jamMasuk  = trim($row['jam_masuk'] ?? $row['check_in'] ?? '');
+        $jamPulang = trim($row['jam_pulang'] ?? $row['check_out'] ?? '');
+        $status    = strtolower(trim($row['status'] ?? 'present'));
+        $jurnal    = trim($row['jurnal'] ?? $row['journal'] ?? '');
+
+        // Abaikan baris kosong
+        if (empty($nis) && empty($rawDate)) {
             return null;
         }
 
-        // 2. Cari data siswa berdasarkan NISN atau NIS
-        $student = Student::where('nisn', $nisn)
-            ->orWhere('nis', $nisn)
-            ->first();
-
-        if (!$student) {
-            return null; // Abaikan jika siswa tidak ditemukan
+        if (empty($nis)) {
+            throw new Exception("Ditemukan baris dengan Tanggal '{$rawDate}' tetapi NIS/NISN kosong.");
         }
 
-        // 3. Conversion/Parsing Tanggal yang Fleksibel (DD/MM/YYYY, YYYY-MM-DD, Serial Excel)
-        $formattedDate = $this->parseDate($rawDate, $nisn);
+        // 1. Cari data siswa berdasarkan kolom 'nis'
+        $student = Student::where('nis', $nis)->first();
+
+        if (!$student) {
+            throw new Exception("Siswa dengan NIS '{$nis}' tidak ditemukan di database.");
+        }
+
+        // 2. Cari data Penempatan PKL Siswa (internship_id)
+        $internship = Internship::where('student_id', $student->id)->first();
+
+        if (!$internship) {
+            throw new Exception("Siswa dengan NIS '{$nis}' ({{ $student->name }}) belum terdaftar pada data Penempatan PKL (Internship).");
+        }
+
+        // 3. Parsing Tanggal & Jam
+        $formattedDate      = $this->parseDate($rawDate, $nis);
+        $formattedJamMasuk  = $this->parseTime($jamMasuk) ?? '07:00:00'; // Fallback default time jika kosong
+        $formattedJamPulang = $this->parseTime($jamPulang);
 
         // 4. Normalisasi Status
         $mappedStatus = match ($status) {
@@ -48,51 +62,70 @@ class AttendanceImport implements ToModel, WithHeadingRow
             default                 => 'present',
         };
 
-        // 5. Update atau Buat Absensi Baru (UpdateOrCreate)
-        return Attendance::updateOrCreate(
+        // 5. Simpan / Update ke Tabel internship_attendances
+        return InternshipAttendance::updateOrCreate(
             [
-                'student_id' => $student->id,
-                'date'       => $formattedDate,
+                'student_id'    => $student->id,
+                'internship_id' => $internship->id,
+                'date'          => $formattedDate,
             ],
             [
-                'check_in'  => $jamMasuk ?: null,
-                'check_out' => $jamPulang ?: null,
-                'status'    => $mappedStatus,
-                'journal'   => $jurnal ?: null,
+                'time'           => $formattedJamMasuk,
+                'check_out_time' => $formattedJamPulang,
+                'status'         => $mappedStatus,
+                'activity_log'   => $jurnal ?: null,
             ]
         );
     }
 
     /**
-     * Helper Function Parsing Format Tanggal
+     * Parsing Tanggal Excel / String ke Format YYYY-MM-DD
      */
-    private function parseDate($value, $nisn)
+    private function parseDate($value, $nis)
     {
         try {
-            // Jika tanggal dibaca sebagai Serial Number dari Excel (misal: 45464)
+            if (empty($value)) {
+                throw new Exception("Tanggal kosong.");
+            }
+
             if (is_numeric($value)) {
                 return Date::excelToDateTimeObject($value)->format('Y-m-d');
             }
 
-            // Ganti pemisah '/' menjadi '-' agar standar
             $cleaned = str_replace('/', '-', $value);
 
-            // Jika format Tanggal-Bulan-Tahun (contoh: 21-06-2026 atau 21/06/2026)
             if (preg_match('/^\d{1,2}-\d{1,2}-\d{4}$/', $cleaned)) {
                 return Carbon::createFromFormat('d-m-Y', $cleaned)->format('Y-m-d');
             }
 
-            // Jika format Tahun-Bulan-Tanggal (contoh: 2026-06-21)
             if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}$/', $cleaned)) {
                 return Carbon::parse($cleaned)->format('Y-m-d');
             }
 
-            // Fallback parsing otomatis menggunakan Carbon
             return Carbon::parse($cleaned)->format('Y-m-d');
 
         } catch (Exception $e) {
-            // Lemparkan error agar ditangkap oleh catch (\Exception $e) di Controller
-            throw new Exception("Gagal membaca format tanggal: '{$value}' untuk NIS: {$nisn}");
+            throw new Exception("Gagal membaca format tanggal: '{$value}' untuk NIS: {$nis}");
+        }
+    }
+
+    /**
+     * Parsing Jam Excel / String ke Format HH:MM:SS
+     */
+    private function parseTime($value)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            if (is_numeric($value)) {
+                return Date::excelToDateTimeObject($value)->format('H:i:s');
+            }
+
+            return Carbon::parse($value)->format('H:i:s');
+        } catch (Exception $e) {
+            return null;
         }
     }
 }
