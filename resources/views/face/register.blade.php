@@ -6,14 +6,14 @@
 <div class="page-content">
     <div class="row justify-content-center pt-2">
         <div class="col-12 col-md-10 col-lg-8">
-            <!-- Card Utama disesuaikan seperti UI rujukan -->
+            <!-- Card Utama -->
             <div class="register-card shadow-sm border-0">
                 <div class="register-card-header text-white fw-bold py-3 px-4">
                     Registrasi Wajah: {{ $student->name }}
                 </div>
 
-                <div class="card-body text-center p-4">
-                    <!-- Dropdown Pilihan Kamera Rapi di Tengah -->
+                <div class="card-body text-center p-3 p-md-4">
+                    <!-- Dropdown Pilihan Kamera -->
                     <div class="camera-select-wrapper">
                         <div class="input-group">
                             <span class="input-group-text bg-white"><i class="fas fa-camera text-secondary"></i></span>
@@ -28,13 +28,13 @@
                         <span class="spinner-border spinner-border-sm me-2"></span> Memuat model AI... Harap tunggu.
                     </div>
 
-                    <!-- Video Container Membulat (Rounded) -->
+                    <!-- Video Container Membulat -->
                     <div class="video-container shadow-sm">
                         <video id="video" autoplay muted playsinline></video>
                         <canvas id="overlay"></canvas>
                     </div>
 
-                    <!-- Tombol Aksi Simpan & Batal persis seperti gambar rujukan -->
+                    <!-- Tombol Aksi Simpan & Batal (Sejajar Responsif) -->
                     <div class="btn-action-group">
                         <button id="btn-save" class="btn-save-face" disabled>
                             <i class="fas fa-check-circle me-1"></i>
@@ -53,7 +53,7 @@
     </div>
 </div>
 
-<!-- STYLES KHUSUS MENGACU TAMPILAN GAMBAR RUJUKAN -->
+<!-- STYLES KHUSUS UNTUK MEMBUAT TOMBOL SELALU SEJAJAR -->
 <style>
     /* Card utama */
     .register-card {
@@ -100,7 +100,7 @@
         height: 100%;
         object-fit: cover;
         display: block;
-        transform: scaleX(-1); /* Mirroring video agar natural */
+        transform: scaleX(-1);
     }
 
     #overlay {
@@ -109,30 +109,40 @@
         left: 0;
         width: 100%;
         height: 100%;
-        transform: scaleX(-1); /* Mirroring canvas sinkron dengan video */
+        transform: scaleX(-1);
     }
 
-    /* Tombol Aksi di Bawah Video */
+    /* PERBAIKAN RESPONSIVE TOMBOL: Selalu Sejajar Samping-sampingan */
     .btn-action-group {
         display: flex;
+        flex-direction: row; /* Wajib sejajar horizontal */
+        flex-wrap: nowrap;   /* Dilarang pindah ke baris baru */
         justify-content: center;
         align-items: center;
-        gap: 12px;
-        margin-top: 20px;
+        gap: 8px;            /* Jarak antar tombol */
+        margin-top: 15px;
+        width: 100%;
+        max-width: 680px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .btn-save-face {
+        flex: 1;            /* Tombol simpan mengambil sisa ruang terbanyak */
         background-color: #28a745;
         color: white;
         border: none;
         border-radius: 8px;
-        padding: 10px 24px;
+        padding: 10px 12px;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
+        white-space: nowrap; /* Teks tidak tertekuk ke bawah */
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .btn-save-face:hover:not(:disabled) {
@@ -147,22 +157,36 @@
     }
 
     .btn-cancel {
+        flex: 0 0 auto;     /* Ukuran tombol batal pas dengan teksnya */
         background-color: #6c757d;
         color: white;
         border: none;
         border-radius: 8px;
-        padding: 10px 24px;
+        padding: 10px 18px;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         text-decoration: none;
         transition: all 0.2s ease;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        white-space: nowrap;
     }
 
     .btn-cancel:hover {
         background-color: #5a6268;
         color: white;
+    }
+
+    /* Penyesuaian Ukuran Font di Layar HP Kecil */
+    @media (min-width: 576px) {
+        .btn-action-group {
+            gap: 12px;
+        }
+        .btn-save-face, .btn-cancel {
+            font-size: 0.95rem;
+            padding: 10px 24px;
+        }
     }
 
     /* Teks Petunjuk */
@@ -190,7 +214,7 @@
     let currentStream = null;
     let isProcessingFrame = false;
 
-    // 1. Load Model AI yang Ringan saja (Hapus SsdMobilenetv1 untuk cegah LAG)
+    // Load Model AI yang Ringan
     Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
         faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
@@ -207,7 +231,6 @@
         loadingMsg.innerHTML = '<b>Error:</b> Gagal memuat file model AI dari folder /models.';
     });
 
-    // 2. Mendapatkan Daftar Kamera Tersedia
     async function getCameras() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
@@ -251,7 +274,6 @@
         }
     }
 
-    // 3. Menjalankan Kamera dengan Reselusi Teroptimasi (640x480)
     function startVideo(deviceId = null) {
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
@@ -291,7 +313,6 @@
         }
     });
 
-    // 4. Deteksi Wajah Asinkronus Tanpa Penumpukan Frame (Lancar & Ringan)
     video.addEventListener('play', () => {
         const canvas = document.getElementById('overlay');
 
@@ -308,7 +329,6 @@
                 if (!isProcessingFrame) {
                     isProcessingFrame = true;
 
-                    // TinyFaceDetector dengan inputSize 160 sangat cepat & tidak patah-patah
                     const detections = await faceapi.detectSingleFace(
                         video,
                         new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
@@ -334,14 +354,12 @@
                 }
             }
 
-            // Jeda 150ms antar frame deteksi agar pergerakan video tetap mulus
             setTimeout(processDetection, 150);
         }
 
         processDetection();
     });
 
-    // 5. Simpan Data Wajah via AJAX
     btnSave.addEventListener('click', () => {
         if (!detectedDescriptor) return;
 
