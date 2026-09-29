@@ -31,7 +31,6 @@
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         #capture-canvas { display: none; }
 
-        /* Style Kontrol Kamera */
         .camera-controls {
             max-width: 640px;
             margin: 0 auto 15px auto;
@@ -111,10 +110,11 @@
         let isProcessing = false;
         let currentStream = null;
         let isCameraOn = true;
+        let detectionLoopActive = false;
 
-        // 1. Load Face Models
+        // 1. Load Face Models (TinyFaceDetector jauh lebih ringan dari SsdMobilenetv1)
         Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
+            faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
         ]).then(loadDescriptors);
@@ -140,10 +140,8 @@
             }
         }
 
-        // --- PENGELOLAAN KAMERA & SELEKSI ---
         async function initCameraDevices() {
             try {
-                // Request sementara untuk izin perangkat
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 tempStream.getTracks().forEach(track => track.stop());
 
@@ -161,7 +159,6 @@
                     option.value = device.deviceId;
                     let label = device.label || `Kamera ${index + 1}`;
 
-                    // Format nama kamera agar mudah dikenali
                     if (label.toLowerCase().includes('back') || label.toLowerCase().includes('rear')) {
                         label = `📷 Kamera Belakang (${label})`;
                     } else if (label.toLowerCase().includes('front') || label.toLowerCase().includes('facing')) {
@@ -182,8 +179,14 @@
         function startCamera(deviceId = null) {
             stopCameraStream();
 
+            // Batasi resolusi stream kamera ke 640x480 agar ringan
             const constraints = {
-                video: deviceId ? { deviceId: { exact: deviceId } } : true
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30, max: 30 }
+                }
             };
 
             navigator.mediaDevices.getUserMedia(constraints)
@@ -218,14 +221,12 @@
             }
         }
 
-        // Event Switch Kamera
         cameraSelect.addEventListener('change', () => {
             if (cameraSelect.value) {
                 startCamera(cameraSelect.value);
             }
         });
 
-        // Event Toggle On/Off Kamera
         btnToggleCamera.addEventListener('click', () => {
             if (isCameraOn) {
                 stopCameraStream();
@@ -241,39 +242,60 @@
             }
         });
 
-        // FUNGSI SCREENSHOT
         function takeScreenshot() {
-            captureCanvas.width = video.videoWidth;
-            captureCanvas.height = video.videoHeight;
+            captureCanvas.width = video.videoWidth || 640;
+            captureCanvas.height = video.videoHeight || 480;
             const ctx = captureCanvas.getContext('2d');
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.8);
+            return captureCanvas.toDataURL('image/jpeg', 0.7);
         }
 
+        // OTOMASI DETEKSI MENGGUNAKAN ASYNC LOOP (Mencegah Lag / Patah-patah)
         video.addEventListener('play', () => {
             const overlay = document.getElementById('overlay');
-            const displaySize = { width: video.clientWidth, height: video.clientHeight };
-            faceapi.matchDimensions(overlay, displaySize);
 
-            setInterval(async () => {
-                if(isProcessing || !faceMatcher || !isCameraOn) return;
+            if (detectionLoopActive) return;
+            detectionLoopActive = true;
 
-                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
-                const resized = faceapi.resizeResults(detections, displaySize);
-                overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+            async function processFrame() {
+                if (!isCameraOn || !video.srcObject) {
+                    detectionLoopActive = false;
+                    return;
+                }
 
-                resized.forEach(det => {
-                    const match = faceMatcher.findBestMatch(det.descriptor);
-                    new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
+                const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                if (displaySize.width > 0 && displaySize.height > 0) {
+                    faceapi.matchDimensions(overlay, displaySize);
 
-                    if (match.label !== 'unknown' && match.distance < 0.45) {
-                        isProcessing = true;
-                        const screenshot = takeScreenshot();
-                        const [nis, name] = match.label.split(' - ');
-                        handleAction(nis, name, screenshot);
+                    if (!isProcessing && faceMatcher) {
+                        // Menggunakan TinyFaceDetector dengan inputSize 160 & scoreThreshold 0.5 untuk proses super cepat
+                        const detections = await faceapi.detectAllFaces(
+                            video,
+                            new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptors();
+
+                        const resized = faceapi.resizeResults(detections, displaySize);
+                        overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+
+                        resized.forEach(det => {
+                            const match = faceMatcher.findBestMatch(det.descriptor);
+                            new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
+
+                            if (match.label !== 'unknown' && match.distance < 0.45) {
+                                isProcessing = true;
+                                const screenshot = takeScreenshot();
+                                const [nis, name] = match.label.split(' - ');
+                                handleAction(nis, name, screenshot);
+                            }
+                        });
                     }
-                });
-            }, 1000);
+                }
+
+                // Beri jeda 200ms sebelum frame berikutnya agar CPU tidak beban 100%
+                setTimeout(processFrame, 200);
+            }
+
+            processFrame();
         });
 
         function handleAction(nis, name, image) {
@@ -285,7 +307,6 @@
             }
         }
 
-        // --- 1. AJAX: ABSENSI HARIAN ---
         function submitAttendance(nis, name, image) {
             Swal.fire({ title: 'Memproses...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -315,7 +336,6 @@
             });
         }
 
-        // --- 2. AJAX: CEK IZIN ---
         function checkPermission(nis, name, image) {
             $.ajax({
                 url: "{{ route('izin.check') }}",
