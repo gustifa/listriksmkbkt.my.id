@@ -594,7 +594,12 @@ Route::middleware(['auth'])->group(function () {
 
         // --- ROUTE PKL ---
         // Anda mungkin perlu membuat IndustryController terpisah untuk CRUD Master Data DUDI
+        Route::get('admin/internships/import', [InternshipAttendanceController::class, 'importView'])->name('import');
+        Route::post('admin/internships/import', [InternshipAttendanceController::class, 'processImport'])->name('import.process');
+        Route::get('admin/internships/template', [InternshipAttendanceController::class, 'downloadTemplate'])->name('template');
         Route::resource('admin/industries', IndustryController::class)->except(['show']);
+
+
 
         // Route Penempatan PKL (Sesuai yang dibuat di atas)
         Route::get('admin/internships', [InternshipController::class, 'index'])->name('admin.internships.index');
@@ -673,6 +678,7 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('internships/transcript', [InternshipStudentController::class, 'transcript'])->name('internships.transcript');
             Route::get('internships/transcript/print', [InternshipStudentController::class, 'printTranscript'])->name('internships.print_transcript');
+
             // Jurnal Ramadhan
             Route::get('/ramadhan', [RamadanJournalStudentController::class, 'index'])->name('ramadan.index');
             Route::post('/ramadhan', [RamadanJournalStudentController::class, 'store'])->name('ramadan.store');
