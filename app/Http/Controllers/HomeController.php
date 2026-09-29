@@ -58,7 +58,7 @@ class HomeController extends Controller
         ->get();
 
         // Juga sertakan variabel single untuk kompatibilitas
-        $internshipTimeline = $internshipTimelines->first();
+        $internshipTimeline = $internshipTimelines->get();
 
         // 6. Jurnal Mengajar Terbaru
         $latestJournal = TeachingJournal::with(['subject', 'teacher'])
