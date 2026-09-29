@@ -48,8 +48,11 @@ class HomeController extends Controller
         $waGateway = WhatsappGateway::latest()->first();
         $isWaActive = $waGateway ? ($waGateway->status === 'connected') : false;
 
-        // 5. Timeline PKL / Magang Terbaru
-        $internshipTimeline = InternshipTimeline::latest()->first();
+        // 4. Timeline PKL / Magang yang SEDANG AKTIF HARI INI
+        $internshipTimeline = InternshipTimeline::where('start_date', '<=', $todayDate)
+            ->where('end_date', '>=', $todayDate)
+            ->latest()
+            ->first();
 
         // 6. Jurnal Mengajar Terbaru
         $latestJournal = TeachingJournal::with(['subject', 'teacher'])
