@@ -33,9 +33,17 @@ class InternshipController extends Controller
         $teachers = Teacher::orderBy('name')->get();
 
         // Mengambil siswa yang belum PKL atau sudah selesai
-        $students = Student::whereDoesntHave('internships', function($q) {
-            $q->whereIn('status', ['pending', 'active']);
-        })->orderBy('name')->get();
+        // Mengambil siswa yang SUDAH DI-MAPPING KELASNYA (memiliki classroom_id / kelas PKL aktif) 
+        // dan belum memiliki jadwal PKL aktif
+        $students = Student::whereNotNull('classroom_id') // Pastikan siswa sudah dimasukkan/dimapping ke kelas
+            ->whereHas('classroom', function ($q) {
+                $q->where('is_pkl_active', true); // Hanya kelas yang status PKL-nya aktif
+            })
+            ->whereDoesntHave('internships', function ($q) {
+                $q->whereIn('status', ['pending', 'active']);
+            })
+            ->orderBy('name')
+            ->get();
 
         return view('admin.internships.index', compact('internships', 'industries', 'students', 'teachers', 'classrooms'));
     }

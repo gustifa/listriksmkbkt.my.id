@@ -315,168 +315,86 @@ class DatabaseController extends Controller
     
     public function restore(Request $request)
 {
-    // 1. Setup Limit Resource
-    ini_set('max_execution_time', 600); // 10 Menit
+    ini_set('max_execution_time', 600);
     ini_set('memory_limit', '1024M');
 
     $request->validate(['backup_file' => 'required|file']);
 
     $file = $request->file('backup_file');
-    $extension = $file->getClientOriginalExtension();
-    $connection = config('database.default');
+    $extension = strtolower($file->getClientOriginalExtension());
 
-    // Validasi Driver
-    if ($connection !== 'pgsql' || $extension !== 'sql') {
-        return back()->with('error', 'Fitur ini hanya mendukung PostgreSQL dan file .sql');
+    if ($extension !== 'sql') {
+        return back()->with('error', 'Fitur ini hanya mendukung file .sql');
     }
 
     $dbConfig = config('database.connections.pgsql');
     $psqlPath = env('PG_PSQL_PATH', 'psql');
-
-    // Variabel untuk menyimpan path relative (untuk Storage facade)
     $storedPath = null;
 
     try {
-        // =========================================================
-        // STEP 1: VALIDASI & SIMPAN FILE (PERBAIKAN STORAGE)
-        // =========================================================
-        
-        // 1. Simpan file secara eksplisit ke disk 'local' dengan nama unik
+        // 1. Simpan File Temp
         $filename = 'restore_' . time() . '.sql';
-        // 'temp' adalah nama folder di dalam storage/app
         $storedPath = $file->storeAs('temp', $filename, 'local'); 
-
-        // 2. Dapatkan Full Path Absolute dari Driver Storage
-        // Ini solusi untuk error "filesize(): stat failed"
         $fullPath = Storage::disk('local')->path($storedPath);
 
-        // 3. Validasi Keberadaan File Fisik
-        if (!file_exists($fullPath)) {
-            Log::error("File upload hilang. Path dicari: " . $fullPath);
-            return back()->with('error', 'Gagal menyimpan file sementara. Cek izin folder storage.');
+        if (!file_exists($fullPath) || filesize($fullPath) < 50) {
+            if ($storedPath) Storage::disk('local')->delete($storedPath);
+            return back()->with('error', 'File backup tidak valid atau kosong.');
         }
 
-        // 4. Cek Ukuran File
-        if (filesize($fullPath) < 100) { 
-            // Hapus jika file kosong/rusak
-            Storage::disk('local')->delete($storedPath);
-            return back()->with('error', 'File backup tampaknya kosong atau rusak.');
-        }
+        // 2. WIPE TOTAL SCHEMA PUBLIC (Hapus Semua Tabel & Sequence)
+        // Menggunakan CASCADE agar tidak terkendala foreign key
+        DB::statement('DROP SCHEMA public CASCADE');
+        DB::statement('CREATE SCHEMA public');
+        DB::statement('GRANT ALL ON SCHEMA public TO public');
 
-        // 5. Cek psql (Khusus Windows)
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            // Jika path bukan default 'psql', cek apakah file exe-nya ada
-            if ($psqlPath !== 'psql' && !file_exists($psqlPath)) {
-                Storage::disk('local')->delete($storedPath);
-                return back()->with('error', "Path psql tidak ditemukan di: {$psqlPath}. Cek .env");
-            }
-        }
-
-        // =========================================================
-        // STEP 2: SMART WIPE (HAPUS TABEL KECUALI SESSIONS)
-        // =========================================================
-        
-        // Ambil semua tabel publik
-        $tables = DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
-        
-        foreach ($tables as $table) {
-            // JANGAN HAPUS sessions agar user tidak logout
-            if ($table->tablename !== 'sessions') {
-                DB::statement('DROP TABLE IF EXISTS "' . $table->tablename . '" CASCADE');
-            }
-        }
-
-        // =========================================================
-        // STEP 3: EKSEKUSI RESTORE (TIMPA DATA)
-        // =========================================================
-        
+        // 3. Eksekusi Restore via CLI psql
         $output = [];
         $returnVar = 0;
 
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            // Fix path separator untuk cmd.exe Windows
             $cmdPath = str_replace('/', '\\', $fullPath);
-            
-            // Windows: Gunakan pipe "type file | psql"
-            $command = "set PGPASSWORD={$dbConfig['password']} && type \"{$cmdPath}\" | \"{$psqlPath}\" -U {$dbConfig['username']} -h {$dbConfig['host']} -p {$dbConfig['port']} {$dbConfig['database']} 2>&1";
+            $command = "set PGPASSWORD={$dbConfig['password']} && \"{$psqlPath}\" -U {$dbConfig['username']} -h {$dbConfig['host']} -p {$dbConfig['port']} -d {$dbConfig['database']} -f \"{$cmdPath}\" 2>&1";
         } else {
-            // Linux/Mac: Gunakan redirect input "< file"
             putenv("PGPASSWORD={$dbConfig['password']}");
-            $command = "\"{$psqlPath}\" -U {$dbConfig['username']} -h {$dbConfig['host']} -p {$dbConfig['port']} {$dbConfig['database']} < \"{$fullPath}\" 2>&1";
+            $command = "\"{$psqlPath}\" -U {$dbConfig['username']} -h {$dbConfig['host']} -p {$dbConfig['port']} -d {$dbConfig['database']} -f \"{$fullPath}\" 2>&1";
         }
 
-        // Jalankan Command
         exec($command, $output, $returnVar);
 
-        // Bersihkan env password (Linux)
         if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
             putenv("PGPASSWORD=");
         }
-        
-        // Hapus file temp menggunakan Storage Facade
+
         if ($storedPath) {
             Storage::disk('local')->delete($storedPath);
         }
 
-        // =========================================================
-        // STEP 4: ANALISA HASIL & SAFETY NET
-        // =========================================================
-
-        $outputLog = implode("\n", $output);
-        $isSuccess = ($returnVar === 0);
-
-        // Toleransi Error: Jika errornya karena "sessions already exists", kita anggap sukses.
-        $tolerableErrors = [
-            'relation "sessions" already exists',
-            'sessions_pkey', 
-            'duplicate key value violates unique constraint "sessions_pkey"'
-        ];
-
-        foreach ($tolerableErrors as $err) {
-            if (strpos($outputLog, $err) !== false) {
-                $isSuccess = true;
-                break;
-            }
-        }
-
-        // SAFETY NET 1: Cek apakah tabel Sessions MALAH TERHAPUS oleh file SQL?
-        if (!Schema::hasTable('sessions')) {
-             Schema::create('sessions', function (Blueprint $table) {
-                $table->string('id')->primary();
-                $table->foreignId('user_id')->nullable()->index();
-                $table->string('ip_address', 45)->nullable();
-                $table->text('user_agent')->nullable();
-                $table->longText('payload');
-                $table->integer('last_activity')->index();
-            });
-        }
-
-        // SAFETY NET 2: Cek apakah tabel Users ada?
-        // Jika tidak ada, berarti Restore Gagal Total meskipun returnVar 0 (silent fail)
+        // 4. Verifikasi Hasil Restore
         if (!Schema::hasTable('users')) {
-            Log::error("Restore Gagal Fatal: Tabel users hilang. Output: " . $outputLog);
-            
-            // Opsional: Jalankan migrate agar aplikasi tidak error 500
-            Artisan::call('migrate', ['--force' => true]); 
-            
-            return back()->with('error', 'Restore Gagal: Tabel data utama tidak terbentuk. Database di-reset ke default.');
+            Log::error("Restore psql gagal. Output: " . implode("\n", array_slice($output, -10)));
+            Artisan::call('migrate:fresh', ['--force' => true]); 
+            return redirect()->route('login')->with('error', 'Gagal Restore: File SQL tidak dapat dipulihkan. Database di-reset ke default.');
         }
 
-        if ($isSuccess) {
-            // Clear cache agar perubahan struktur DB terbaca
-            DB::reconnect();
-            return back()->with('success', 'Database berhasil dipulihkan.');
-        } else {
-            Log::error("Restore Error Code {$returnVar}: " . $outputLog);
-            return back()->with('error', 'Gagal Restore. Cek Log Laravel.');
-        }
+        // 5. Invalidate / Flush Session Pengguna & Reconnect
+        $request->session()->flush();
+        $request->session()->regenerate();
+        DB::reconnect();
+
+        return redirect()->route('login')->with('success', 'Database berhasil dipulihkan! Silakan login kembali.');
 
     } catch (\Exception $e) {
-        // Hapus file jika terjadi exception dan file sudah sempat terupload
         if ($storedPath) {
             Storage::disk('local')->delete($storedPath);
         }
-        return back()->with('error', 'Exception: ' . $e->getMessage());
+
+        if (!Schema::hasTable('users')) {
+            Artisan::call('migrate:fresh', ['--force' => true]);
+        }
+
+        Log::error("Restore Exception: " . $e->getMessage());
+        return redirect()->route('login')->with('error', 'Gagal Restore Database: ' . $e->getMessage());
     }
 }
 
