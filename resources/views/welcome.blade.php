@@ -380,27 +380,49 @@
             </div>
         </div>
 
-        <!-- Item 3: PRAKERIN / PKL (Hanya Tampil Jika Ada Jadwal PKL Aktif) -->
-        @if($internshipTimeline)
-        <div class="timeline-item">
-            <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
-            <div class="timeline-card">
-                <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
-                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1">
-                        <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> PKL AKTIF
-                    </span>
-                    <small class="text-muted fw-semibold">
-                        @if(isset($internshipTimeline->start_date) && isset($internshipTimeline->end_date))
-                            {{ \Carbon\Carbon::parse($internshipTimeline->start_date)->format('d M Y') }} - {{ \Carbon\Carbon::parse($internshipTimeline->end_date)->format('d M Y') }}
-                        @else
-                            {{ \Carbon\Carbon::parse($internshipTimeline->start_date ?? now())->format('d M Y') }}
-                        @endif
-                    </small>
+        <!-- Item 3: PRAKERIN / PKL AKTIF (Mendukung Multi-Data PKL & Single-Data) -->
+        @if(isset($internshipTimelines) && $internshipTimelines->count() > 0)
+            @foreach($internshipTimelines as $itemPkl)
+            <div class="timeline-item">
+                <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
+                <div class="timeline-card">
+                    <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                        <span class="badge bg-warning text-dark rounded-pill px-2 py-1">
+                            <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> PKL AKTIF
+                        </span>
+                        <small class="text-muted fw-semibold">
+                            @if(isset($itemPkl->start_date) && isset($itemPkl->end_date))
+                                {{ \Carbon\Carbon::parse($itemPkl->start_date)->format('d M Y') }} - {{ \Carbon\Carbon::parse($itemPkl->end_date)->format('d M Y') }}
+                            @else
+                                {{ \Carbon\Carbon::parse($itemPkl->start_date ?? now())->format('d M Y') }}
+                            @endif
+                        </small>
+                    </div>
+                    <h6 class="fw-bold fs-6 mb-1">{{ $itemPkl->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
+                    <p class="text-muted small mb-0 lh-sm">{{ $itemPkl->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan yang sedang berlangsung.' }}</p>
                 </div>
-                <h6 class="fw-bold fs-6 mb-1">{{ $internshipTimeline->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
-                <p class="text-muted small mb-0 lh-sm">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan yang sedang berlangsung.' }}</p>
             </div>
-        </div>
+            @endforeach
+        @elseif(isset($internshipTimeline) && $internshipTimeline)
+            <div class="timeline-item">
+                <div class="timeline-dot"><i class="fas fa-briefcase"></i></div>
+                <div class="timeline-card">
+                    <div class="d-flex justify-content-between align-items-center mb-2 timeline-header">
+                        <span class="badge bg-warning text-dark rounded-pill px-2 py-1">
+                            <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> PKL AKTIF
+                        </span>
+                        <small class="text-muted fw-semibold">
+                            @if(isset($internshipTimeline->start_date) && isset($internshipTimeline->end_date))
+                                {{ \Carbon\Carbon::parse($internshipTimeline->start_date)->format('d M Y') }} - {{ \Carbon\Carbon::parse($internshipTimeline->end_date)->format('d M Y') }}
+                            @else
+                                {{ \Carbon\Carbon::parse($internshipTimeline->start_date ?? now())->format('d M Y') }}
+                            @endif
+                        </small>
+                    </div>
+                    <h6 class="fw-bold fs-6 mb-1">{{ $internshipTimeline->title ?? 'Pelaksanaan PKL / Magang' }}</h6>
+                    <p class="text-muted small mb-0 lh-sm">{{ $internshipTimeline->description ?? 'Jadwal pelaksanaan Praktik Kerja Lapangan yang sedang berlangsung.' }}</p>
+                </div>
+            </div>
         @endif
 
         <!-- Item 4: Jurnal Mengajar -->
@@ -464,6 +486,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.bundle.min.js"></script>
 </body>
 </html>
