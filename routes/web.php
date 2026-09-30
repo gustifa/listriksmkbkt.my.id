@@ -399,10 +399,10 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('/academic-years', [AdminAcademicYearController::class, 'index'])->name('academic-years.index');
             Route::get('/academic-years/create', [AdminAcademicYearController::class, 'create'])->name('academic-years.create');
+            Route::post('/academic-years', [AdminAcademicYearController::class, 'store'])->name('academic-years.store');
             Route::get('/academic-years/edit/{id}', [AdminAcademicYearController::class, 'edit'])->name('academic-years.edit');
             Route::put('/academic-years/update/{academicYear}', [AdminAcademicYearController::class, 'update'])->name('academic-years.update');
             Route::delete('/academic-years/delete/{academicYear}', [AdminAcademicYearController::class, 'destroy'])->name('academic-years.destroy');
-            Route::post('/academic-years', [AdminAcademicYearController::class, 'store'])->name('academic-years.store');
         });
         Route::get('/user/all', [UserController::class, 'allUser'])->name('all.user');
         Route::get('/user/add', [UserController::class, 'addUser'])->name('add.user');
