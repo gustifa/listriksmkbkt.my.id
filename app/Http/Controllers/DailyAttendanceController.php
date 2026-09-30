@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage; // Penting untuk simpan foto
 use Illuminate\Support\Facades\Log;
+use App\Models\AcademicYear;
 
 class DailyAttendanceController extends Controller
 {
@@ -1218,12 +1219,133 @@ class DailyAttendanceController extends Controller
     }
 
 
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'nis' => 'required',
+    //         'image' => 'nullable|string', // Validasi input gambar base64
+    //     ]);
+
+    //     // 1. Cari Siswa
+    //     $student = Student::with('classroom')->where('nis', $request->nis)->first();
+    //     if (!$student) {
+    //         return response()->json(['status' => 'error', 'message' => 'Siswa tidak ditemukan!'], 404);
+    //     }
+
+    //     $date = date('Y-m-d');
+    //     $time = date('H:i:s'); // Format waktu standar H:i:s
+
+    //     // 2. Cek Data Absensi Hari Ini
+    //     $attendance = DailyAttendance::where('student_id', $student->id)
+    //                     ->where('date', $date)
+    //                     ->first();
+
+    //     // 3. AMBIL PENGATURAN DARI DATABASE
+    //     $setting = AttendanceSetting::first();
+
+    //     // Fallback value jika database setting kosong
+    //     $jamMulaiScan = $setting ? $setting->start_check_in_time : '06:00:00';
+    //     $batasTerlambat = $setting ? $setting->late_limit_time : '07:00:00';
+    //     $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
+
+    //     // --- VALIDASI AWAL: JAM BUKA SCAN ---
+    //     if ($time < $jamMulaiScan) {
+    //          return response()->json([
+    //             'status' => 'error',
+    //             'message' => "Absensi belum dibuka. Dimulai pukul " . substr($jamMulaiScan, 0, 5)
+    //         ], 400);
+    //     }
+
+    //     // ==========================================================
+    //     // SKENARIO PULANG (CHECK-OUT)
+    //     // ==========================================================
+    //     if ($attendance) {
+    //         // Jika jam pulang sudah terisi, tolak scan
+    //         if ($attendance->departure_time) {
+    //             return response()->json(['status' => 'error', 'message' => "Siswa {$student->name} sudah absen pulang hari ini!"], 400);
+    //         }
+
+    //         // Validasi Jam Pulang
+    //         if ($time < $batasBolehPulang) {
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'message' => "Belum waktunya pulang! Dibuka pukul " . substr($batasBolehPulang, 0, 5)
+    //             ], 400);
+    //         }
+
+    //         // SIMPAN FOTO PULANG
+    //         $photoPath = $this->saveImage($request->image, $student->nis, 'out', $date);
+
+    //         // Update Data
+    //         $attendance->update([
+    //             'departure_time' => $time,
+    //             'photo_out' => $photoPath, // Simpan path foto
+    //             'updated_at' => now()
+    //         ]);
+
+    //         $this->sendNotification($student, 'pulang', $time);
+
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'type' => 'CHECK_OUT',
+    //             'message' => 'Hati-hati di jalan! (Absen Pulang)',
+    //             'student' => $student,
+    //             'time' => $time
+    //         ]);
+    //     }
+
+    //     // ==========================================================
+    //     // SKENARIO DATANG (CHECK-IN)
+    //     // ==========================================================
+
+    //     $isLate = ($time > $batasTerlambat);
+    //     $statusDB = $isLate ? 'terlambat' : 'hadir';
+
+    //     // SIMPAN FOTO DATANG
+    //     $photoPath = $this->saveImage($request->image, $student->nis, 'in', $date);
+
+    //     DailyAttendance::create([
+    //         'id' => (string) Str::uuid(),
+    //         'student_id' => $student->id,
+    //         'date' => $date,
+    //         'arrival_time' => $time,
+    //         'status' => $statusDB,
+    //         'photo_in' => $photoPath, // Simpan path foto
+    //         'recorded_by' => 'Scanner Gate'
+    //     ]);
+
+    //     $this->sendNotification($student, 'datang', $time, $statusDB);
+
+    //     $message = $isLate
+    //         ? "Anda Terlambat! Batas jam " . substr($batasTerlambat, 0, 5)
+    //         : "Selamat Datang! (Absen Masuk)";
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'type' => 'CHECK_IN',
+    //         'attendance_status' => $isLate ? 'late' : 'present',
+    //         'message' => $message,
+    //         'student' => $student,
+    //         'time' => $time
+    //     ]);
+    // }
+
     public function store(Request $request)
     {
         $request->validate([
-            'nis' => 'required',
+            'nis'   => 'required',
             'image' => 'nullable|string', // Validasi input gambar base64
         ]);
+
+        // --- VALIDASI TAHUN PELAJARAN / SEMESTER AKTIF ---
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+
+        if (!$activeAcademicYear) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Transaksi ditolak! Belum ada Tahun Pelajaran / Semester yang diaktifkan oleh Admin.'
+            ], 400);
+        }
 
         // 1. Cari Siswa
         $student = Student::with('classroom')->where('nis', $request->nis)->first();
@@ -1243,14 +1365,14 @@ class DailyAttendanceController extends Controller
         $setting = AttendanceSetting::first();
 
         // Fallback value jika database setting kosong
-        $jamMulaiScan = $setting ? $setting->start_check_in_time : '06:00:00';
-        $batasTerlambat = $setting ? $setting->late_limit_time : '07:00:00';
-        $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
+        $jamMulaiScan      = $setting ? $setting->start_check_in_time : '06:00:00';
+        $batasTerlambat    = $setting ? $setting->late_limit_time : '07:00:00';
+        $batasBolehPulang  = $setting ? $setting->early_departure_time : '10:00:00';
 
         // --- VALIDASI AWAL: JAM BUKA SCAN ---
         if ($time < $jamMulaiScan) {
-             return response()->json([
-                'status' => 'error',
+            return response()->json([
+                'status'  => 'error',
                 'message' => "Absensi belum dibuka. Dimulai pukul " . substr($jamMulaiScan, 0, 5)
             ], 400);
         }
@@ -1267,7 +1389,7 @@ class DailyAttendanceController extends Controller
             // Validasi Jam Pulang
             if ($time < $batasBolehPulang) {
                 return response()->json([
-                    'status' => 'error',
+                    'status'  => 'error',
                     'message' => "Belum waktunya pulang! Dibuka pukul " . substr($batasBolehPulang, 0, 5)
                 ], 400);
             }
@@ -1278,18 +1400,18 @@ class DailyAttendanceController extends Controller
             // Update Data
             $attendance->update([
                 'departure_time' => $time,
-                'photo_out' => $photoPath, // Simpan path foto
-                'updated_at' => now()
+                'photo_out'      => $photoPath, // Simpan path foto
+                'updated_at'     => now()
             ]);
 
             $this->sendNotification($student, 'pulang', $time);
 
             return response()->json([
-                'status' => 'success',
-                'type' => 'CHECK_OUT',
+                'status'  => 'success',
+                'type'    => 'CHECK_OUT',
                 'message' => 'Hati-hati di jalan! (Absen Pulang)',
                 'student' => $student,
-                'time' => $time
+                'time'    => $time
             ]);
         }
 
@@ -1297,20 +1419,21 @@ class DailyAttendanceController extends Controller
         // SKENARIO DATANG (CHECK-IN)
         // ==========================================================
 
-        $isLate = ($time > $batasTerlambat);
+        $isLate   = ($time > $batasTerlambat);
         $statusDB = $isLate ? 'terlambat' : 'hadir';
 
         // SIMPAN FOTO DATANG
         $photoPath = $this->saveImage($request->image, $student->nis, 'in', $date);
 
         DailyAttendance::create([
-            'id' => (string) Str::uuid(),
-            'student_id' => $student->id,
-            'date' => $date,
-            'arrival_time' => $time,
-            'status' => $statusDB,
-            'photo_in' => $photoPath, // Simpan path foto
-            'recorded_by' => 'Scanner Gate'
+            'id'               => (string) Str::uuid(),
+            'student_id'       => $student->id,
+            'academic_year_id' => $activeAcademicYear->id, // <-- Otomatis terisi ID tahun ajaran aktif
+            'date'             => $date,
+            'arrival_time'     => $time,
+            'status'           => $statusDB,
+            'photo_in'         => $photoPath,
+            'recorded_by'      => 'Scanner Gate'
         ]);
 
         $this->sendNotification($student, 'datang', $time, $statusDB);
@@ -1320,12 +1443,12 @@ class DailyAttendanceController extends Controller
             : "Selamat Datang! (Absen Masuk)";
 
         return response()->json([
-            'status' => 'success',
-            'type' => 'CHECK_IN',
+            'status'            => 'success',
+            'type'              => 'CHECK_IN',
             'attendance_status' => $isLate ? 'late' : 'present',
-            'message' => $message,
-            'student' => $student,
-            'time' => $time
+            'message'           => $message,
+            'student'           => $student,
+            'time'              => $time
         ]);
     }
 
