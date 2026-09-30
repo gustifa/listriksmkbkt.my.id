@@ -13,6 +13,8 @@ use App\Models\Room;      // Tambahkan Import Model Room
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\AcademicYear;
+use App\Rules\ActiveAcademicYearExists;
 
 
 class ScheduleController extends Controller
@@ -30,6 +32,11 @@ class ScheduleController extends Controller
      */
     public function index()
     {
+        // 1. Ambil semua list untuk dropdown pilihan
+        $academicYears = AcademicYear::orderBy('year', 'desc')->get();
+
+        // 2. Ambil ID yang dipilih atau default ke Semester Aktif
+        $activeYear = AcademicYear::active()->first();
         $teacher = $this->getTeacher();
 
         if (!$teacher) {
@@ -86,7 +93,7 @@ class ScheduleController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'classroom_id' => 'required|exists:classrooms,id',
+            'classroom_id' => ['required', 'exists:classrooms,id', new ActiveAcademicYearExists],
             'subject_id'   => 'required|exists:subjects,id',
             'room_id'      => 'nullable|exists:rooms,id', // Validasi Room (Optional/Nullable)
             'day'          => 'required',

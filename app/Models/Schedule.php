@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToActiveAcademicYear;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasUuid; // <--- 1. Import Trait
 
 class Schedule extends Model
 {
-    use HasUuid; // <--- 2. Pasang Trait
+    use HasUuid, BelongsToActiveAcademicYear; // <--- 2. Pasang Trait
     // protected $guarded = [];
      protected $fillable = [
         'teacher_id',
@@ -17,6 +18,7 @@ class Schedule extends Model
         'day',
         'start_time',
         'end_time',
+        'academic_year_id', // Tambahkan ini
         // 'room' // Kolom string lama bisa dihapus atau dibiarkan sebagai fallback
     ];
 
@@ -57,6 +59,19 @@ class Schedule extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    protected static function booted()
+    {
+        // Panggil boot trait jika menggunakan trait
+        static::bootBelongsToActiveAcademicYear();
+
+        // Otomatis isi academic_year_id saat membuat data baru jika belum diisi
+        static::creating(function ($model) {
+            if (empty($model->academic_year_id)) {
+                $model->academic_year_id = AcademicYear::where('is_active', true)->value('id');
+            }
+        });
     }
 
 

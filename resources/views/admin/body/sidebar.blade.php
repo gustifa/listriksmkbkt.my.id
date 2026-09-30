@@ -90,6 +90,7 @@ $status = $guruId->status;
 						<div class="menu-title">Setting</div>
 					</a>
 					<ul>
+						<li> <a href="{{route('settings.academic-years.index')}}"><i class='bx bx-home-smile'></i>Tahun Pelajaran</a></li>
 						<li> <a href="{{route('settings.index')}}"><i class='bx bx-home-smile'></i>Sekolah</a></li>
 						<li> <a href="{{route('all.user')}}"><i class='bx bx-user'></i>User</a></li>
                         <li> <a href="{{route('settings.attendance')}}"><i class='bx bx-barcode-reader'></i>Presensi</a></li>
