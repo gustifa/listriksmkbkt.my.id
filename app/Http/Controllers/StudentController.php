@@ -34,7 +34,7 @@ class StudentController extends Controller
 
         // Ambil data dengan pagination (10 per halaman)
         //$students = $query->orderBy('classroom_id')->orderBy('name')->paginate(10);
-        $students = $query->orderBy('classroom_id')->orderBy('name')->get()->all();
+        $students = $query->orderBy('classroom_id')->orderBy('name')->where('status', 'active')->get()->all();
 
         // Ambil daftar kelas untuk filter
         $classrooms = Classroom::orderBy('name')->get();

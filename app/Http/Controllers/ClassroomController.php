@@ -22,7 +22,7 @@ class ClassroomController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        $classrooms = $query->latest()->paginate(10);
+        $classrooms = $query->latest()->paginate(100);
 
         return view('classrooms.index', compact('classrooms'));
     }
