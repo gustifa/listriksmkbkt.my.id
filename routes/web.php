@@ -8,6 +8,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DailyReportController;
 use App\Models\Student;
 
+use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 
@@ -142,6 +143,10 @@ Route::middleware(['auth'])->group(function () {
 
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/promotions', [ClassPromotionController::class, 'index'])->name('promotions.index');
+    Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
+    Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
+
     Route::middleware(['role:guru'])->group(function () {
         // Halaman Scanner (Hanya bisa diakses Guru yang login)
         Route::get('/scan/{schedule_id}', [AttendanceController::class, 'index'])->name('scan.index');
@@ -690,3 +695,5 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
+
+

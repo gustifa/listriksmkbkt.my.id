@@ -19,7 +19,7 @@
 
         <div class="row">
             <!-- KOLOM KIRI: FORM ABSENSI -->
-            <div class="mb-4 col-md-6">
+            <div class="mb-4 col-md-5">
                 <div class="border-0 shadow-sm card h-100">
                     <div class="py-3 bg-white card-header">
                         <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-clock me-2"></i>Input Absensi Hari Ini</h6>
@@ -95,13 +95,13 @@
                                     <input type="hidden" name="latitude" id="lat_out">
                                     <input type="hidden" name="longitude" id="long_out">
 
-                                    <!-- Jurnal Kegiatan (Diisi saat pulang) -->
+                                    <!-- Jurnal Kegiatan -->
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Jurnal Kegiatan Hari Ini <span class="text-danger">*</span></label>
                                         <textarea name="activity_log" class="form-control" rows="4" placeholder="Jelaskan detail pekerjaan/kegiatan yang Anda lakukan hari ini..." required minlength="10"></textarea>
                                     </div>
 
-                                    <!-- Foto Pulang (Opsional) -->
+                                    <!-- Foto Pulang -->
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Foto Kegiatan/Pulang (Opsional)</label>
                                         <input type="file" name="photo_out" class="form-control" accept="image/*" capture="user">
@@ -158,18 +158,30 @@
                 </div>
             </div>
 
-            <!-- KOLOM KANAN: RIWAYAT -->
-            <div class="col-md-6">
+            <!-- KOLOM KANAN: RIWAYAT + PENCARIAN -->
+            <div class="col-md-7">
                 <div class="border-0 shadow-sm card">
-                    <div class="py-3 bg-white card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold text-dark">Riwayat Kehadiran (Terakhir)</h6>
+                    <div class="py-3 bg-white card-header">
+                        <div class="row align-items-center g-2">
+                            <div class="col-md-5">
+                                <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-history me-1"></i> Riwayat Kehadiran</h6>
+                            </div>
+                            <!-- INPUT PENCARIAN -->
+                            <div class="col-md-7">
+                                <div class="input-group input-group-sm">
+                                    <span class="bg-light input-group-text"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" id="searchAttendance" class="form-control" placeholder="Cari tanggal, tahun, atau jurnal...">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="p-0 card-body">
-                        <div class="table-responsive">
-                            <table class="table mb-0 align-middle table-hover">
-                                <thead class="bg-light">
+                        <!-- Scrollable Container jika data sangat banyak -->
+                        <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                            <table class="table mb-0 align-middle table-hover" id="attendanceTable">
+                                <thead class="bg-light sticky-top">
                                     <tr>
-                                        <th class="ps-4">Tanggal</th>
+                                        <th class="ps-4">Tanggal & Tahun</th>
                                         <th class="text-center">Jam</th>
                                         <th>Jurnal</th>
                                         <th class="text-center">Status</th>
@@ -177,27 +189,38 @@
                                 </thead>
                                 <tbody>
                                     @forelse($history as $item)
-                                    <tr>
+                                    <tr class="attendance-row">
+                                        <!-- TANGGAL LENGKAP DENGAN TAHUN -->
                                         <td class="ps-4">
-                                            <div class="fw-bold text-dark">{{ \Carbon\Carbon::parse($item->date)->format('d M') }}</div>
+                                            <div class="fw-bold text-dark">
+                                                {{ \Carbon\Carbon::parse($item->date)->translatedFormat('d F Y') }}
+                                            </div>
                                             <small class="text-muted">{{ \Carbon\Carbon::parse($item->date)->translatedFormat('l') }}</small>
                                         </td>
+                                        
+                                        <!-- JAM MASUK & PULANG -->
                                         <td class="text-center small">
-                                            <span class="d-block text-success">{{ \Carbon\Carbon::parse($item->time)->format('H:i') }}</span>
-                                            <span class="d-block text-danger">{{ $item->check_out_time ? \Carbon\Carbon::parse($item->check_out_time)->format('H:i') : '-' }}</span>
+                                            <span class="d-block text-success fw-semibold"><i class="fas fa-arrow-down fs-7 me-1"></i>{{ \Carbon\Carbon::parse($item->time)->format('H:i') }}</span>
+                                            <span class="d-block text-danger fw-semibold"><i class="fas fa-arrow-up fs-7 me-1"></i>{{ $item->check_out_time ? \Carbon\Carbon::parse($item->check_out_time)->format('H:i') : '-' }}</span>
                                         </td>
+
+                                        <!-- JURNAL -->
                                         <td>
-                                            <span class="d-inline-block text-truncate small text-muted" style="max-width: 150px;">
+                                            <span class="d-inline-block text-truncate small text-muted search-jurnal" style="max-width: 180px;" title="{{ $item->activity_log }}">
                                                 {{ $item->activity_log ?? '-' }}
                                             </span>
                                         </td>
+
+                                        <!-- STATUS -->
                                         <td class="text-center">
                                             @if($item->status == 'present')
                                                 <span class="badge bg-success">Hadir</span>
                                             @elseif($item->status == 'sick')
                                                 <span class="badge bg-warning text-dark">Sakit</span>
-                                            @else
+                                            @elseif($item->status == 'permit')
                                                 <span class="badge bg-info">Izin</span>
+                                            @else
+                                                <span class="badge bg-danger">Alpa</span>
                                             @endif
 
                                             @if($item->photo_path)
@@ -208,7 +231,7 @@
                                         </td>
                                     </tr>
                                     @empty
-                                    <tr>
+                                    <tr id="emptyRow">
                                         <td colspan="4" class="py-4 text-center text-muted">Belum ada riwayat absensi.</td>
                                     </tr>
                                     @endforelse
@@ -237,23 +260,35 @@
 
     @push('scripts')
     <script>
-        // 1. Geolocator Logic
+        // 1. Fitur Pencarian Realtime
+        document.getElementById('searchAttendance')?.addEventListener('keyup', function() {
+            const searchValue = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#attendanceTable tbody tr.attendance-row');
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(searchValue)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        // 2. Geolocator Logic
         document.addEventListener('DOMContentLoaded', function() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function(position) {
-                    // Set untuk input Masuk
                     const latIn = document.getElementById('lat_in');
                     const longIn = document.getElementById('long_in');
                     if(latIn) latIn.value = position.coords.latitude;
                     if(longIn) longIn.value = position.coords.longitude;
 
-                    // Set untuk input Pulang
                     const latOut = document.getElementById('lat_out');
                     const longOut = document.getElementById('long_out');
                     if(latOut) latOut.value = position.coords.latitude;
                     if(longOut) longOut.value = position.coords.longitude;
 
-                    // Tampilkan indikator lokasi
                     document.querySelectorAll('.location-status').forEach(el => el.style.display = 'block');
                 }, function(error) {
                     console.log("GPS Error: " + error.message);
@@ -261,7 +296,7 @@
             }
         });
 
-        // 2. Toggle Form berdasarkan Status (Hanya untuk Absen Datang)
+        // 3. Toggle Form berdasarkan Status
         function toggleForm() {
             const status = document.getElementById('statusSelect');
             if(!status) return;
@@ -277,26 +312,11 @@
             }
         }
 
-        // 3. Show Photo Modal
+        // 4. Show Photo Modal
         function showPhoto(url) {
             document.getElementById('modalImage').src = url;
             new bootstrap.Modal(document.getElementById('photoModal')).show();
         }
     </script>
     @endpush
-
-    @push('scripts')
-<script>
-    // Ambil koordinat dari PHP
-    const targetLat = {{ $internship->industry->latitude ?? 0 }};
-    const targetLng = {{ $internship->industry->longitude ?? 0 }};
-    const targetRadius = {{ $internship->industry->radius ?? 100 }};
-    const targetName = "{{ $internship->industry->name }}";
-
-    // ... (Kode Leaflet Siswa) ...
-    // Gunakan variabel di atas untuk menggambar Circle dan Marker tujuan di peta siswa
-    // Gantikan hardcoded MasjidLat/Lng dengan targetLat/Lng
-</script>
-@endpush
-
 </x-app-layout>

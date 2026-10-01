@@ -40,10 +40,14 @@ class InternshipAttendanceController extends Controller
             ->first();
 
         // 3. Ambil Riwayat Absensi (10 Hari Terakhir)
-        $history = InternshipAttendance::where('internship_id', $internship->id)
+        // $history = InternshipAttendance::where('internship_id', $internship->id)
+        //     ->orderBy('date', 'desc')
+        //     ->limit(10)
+        //     ->get();
+        $history = InternshipAttendance::where('student_id', $student->id)
+            ->where('internship_id', $internship->id)
             ->orderBy('date', 'desc')
-            ->limit(10)
-            ->get();
+            ->get(); // Gunakan get() agar semua riwayat dapat ditarik
 
         return view('siswa.internships.attendance', compact('internship', 'todayAttendance', 'history'));
     }

@@ -82,5 +82,21 @@ class Student extends Model
         return $this->hasMany(StudentGuidance::class);
     }
 
+    /**
+     * Relasi ke Kelas Terakhir (Sebelum Lulus)
+     */
+    public function lastClassroom()
+    {
+        return $this->belongsTo(Classroom::class, 'last_classroom_id');
+    }
+
+    /**
+     * Relasi ke Data Alumni
+     */
+    public function alumni()
+    {
+        return $this->hasOne(Alumni::class, 'student_id');
+    }
+
 
 }
