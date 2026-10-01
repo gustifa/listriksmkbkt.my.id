@@ -75,6 +75,8 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\InventoryAdminController;
 use App\Http\Controllers\Admin\CapacityReportController;
 use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\AdminAcademicYearController;
+
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
 use App\Http\Controllers\Student\DashboardStudentController;
@@ -328,6 +330,7 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     Route::middleware(['role:admin'])->group(function () {
 
+
         // ... route import siswa yang lama ...
 
         // ROUTE BARU: IMPORT USER
@@ -398,6 +401,13 @@ Route::middleware(['auth'])->group(function () {
             // Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
             Route::get('/attendance', [SettingController::class, 'settingAttendance'])->name('attendance');
             Route::post('/attendance', [SettingController::class, 'updateAttendance'])->name('update.attendance');
+
+            Route::get('/academic-years', [AdminAcademicYearController::class, 'index'])->name('academic-years.index');
+            Route::get('/academic-years/create', [AdminAcademicYearController::class, 'create'])->name('academic-years.create');
+            Route::post('/academic-years', [AdminAcademicYearController::class, 'store'])->name('academic-years.store');
+            Route::get('/academic-years/edit/{id}', [AdminAcademicYearController::class, 'edit'])->name('academic-years.edit');
+            Route::put('/academic-years/update/{academicYear}', [AdminAcademicYearController::class, 'update'])->name('academic-years.update');
+            Route::delete('/academic-years/delete/{academicYear}', [AdminAcademicYearController::class, 'destroy'])->name('academic-years.destroy');
         });
         Route::get('/user/all', [UserController::class, 'allUser'])->name('all.user');
         Route::get('/user/add', [UserController::class, 'addUser'])->name('add.user');
