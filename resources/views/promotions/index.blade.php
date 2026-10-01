@@ -4,7 +4,8 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0 fw-bold">Menu Kenaikan Kelas & Kelulusan</h3>
-        <form action="{{ route('promotions.reset') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin me-reset status kenaikan kelas untuk seluruh siswa aktif?')">
+        
+        <form action="{{ route('promotions.reset') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin me-reset status kenaikan seluruh siswa aktif?')">
             @csrf
             <button type="submit" class="btn btn-outline-warning btn-sm">
                 <i class="bi bi-arrow-counterclockwise"></i> Reset Status Tahun Ajaran Baru
@@ -31,7 +32,7 @@
         </div>
     @endif
 
-    {{-- Filter Kelas --}}
+    {{-- Filter Pilih Kelas --}}
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('promotions.index') }}" class="row g-3 align-items-end">
@@ -58,18 +59,18 @@
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Daftar Siswa Kelas: {{ $currentClassroom->name }}</h5>
-                <span class="badge bg-light text-primary fs-6">Siswa Ditemukan: {{ $students->count() }}</span>
+                <span class="badge bg-light text-primary fs-6">Siswa Siap Diproses: {{ $students->count() }}</span>
             </div>
 
             <div class="card-body">
-                {{-- Panel Aksi Massal --}}
+                {{-- Control Massal --}}
                 <div class="p-3 mb-4 bg-light border rounded">
                     <div class="row g-3 align-items-center">
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Aksi Serentak (Pilih Semua):</label>
                             <select id="bulk_action" class="form-select">
                                 <option value="">-- Pilih Aksi Massal --</option>
-                                <option value="promote">Naik Kelas (Ke Kelas Tujuan)</option>
+                                <option value="promote">Naik Kelas</option>
                                 <option value="graduate">Luluskan Semua</option>
                                 <option value="stay">Tinggal Kelas Semua</option>
                             </select>
@@ -93,15 +94,22 @@
                     </div>
                 </div>
 
-                {{-- Field Tambahan saat ada Lulus --}}
+                {{-- Field Tahun & Tanggal Kelulusan (Mengambil Tahun Ajaran Aktif) --}}
                 <div class="row g-3 mb-4 p-3 border rounded bg-warning bg-opacity-10 d-none" id="graduation_fields">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Tahun Kelulusan</label>
-                        <input type="text" name="graduation_year" class="form-control" placeholder="Contoh: 2025/2026" value="{{ date('Y').'/'.(date('Y')+1) }}">
+                        <input type="text" 
+                               name="graduation_year" 
+                               class="form-control" 
+                               value="{{ old('graduation_year', $defaultGraduationYear) }}" 
+                               placeholder="Contoh: 2025/2026">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Tanggal Kelulusan</label>
-                        <input type="date" name="graduation_date" class="form-control" value="{{ date('Y-m-d') }}">
+                        <input type="date" 
+                               name="graduation_date" 
+                               class="form-control" 
+                               value="{{ old('graduation_date', date('Y-m-d')) }}">
                     </div>
                 </div>
 
@@ -144,7 +152,7 @@
                             @empty
                             <tr>
                                 <td colspan="5" class="text-center py-4 text-muted">
-                                    <em>Tidak ada siswa aktif yang siap diproses di kelas ini (Semua siswa sudah diproses atau kelas kosong).</em>
+                                    <em>Tidak ada siswa di kelas ini yang perlu diproses (Semua siswa di kelas ini telah dinaikkan/diluluskan).</em>
                                 </td>
                             </tr>
                             @endforelse

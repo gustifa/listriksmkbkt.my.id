@@ -16,7 +16,10 @@ class Student extends Model
     'classroom_id',
     'phone', // Pastikan ini ada jika Anda mengimport no_hp
     'user_id',
-    'signature' // Tambahan baru
+    'signature', // Tambahan baru
+    'status',
+    'last_classroom_id',
+    'is_promoted'
 ];
 
     public function user()

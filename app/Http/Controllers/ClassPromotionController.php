@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Models\Classroom;
 use App\Models\Alumni;
+use App\Models\AcademicYear;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -12,12 +13,20 @@ use Illuminate\Support\Str;
 class ClassPromotionController extends Controller
 {
     /**
-     * Menampilkan Halaman Kenaikan Kelas & Kelulusan
+     * Halaman Utama Kenaikan Kelas & Kelulusan
      */
     public function index(Request $request)
     {
         $classrooms = Classroom::orderBy('name', 'asc')->get();
         $selectedClassroomId = $request->query('classroom_id');
+
+        // 1. Ambil Tahun Ajaran Aktif dari database berdasarkan kolom 'is_active' dan 'year'
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first(); //[cite: 10]
+        
+        // Menggunakan kolom 'year' dari tabel academic_years
+        $defaultGraduationYear = $activeAcademicYear 
+            ? $activeAcademicYear->year 
+            : date('Y') . '/' . (date('Y') + 1);
 
         $students = collect();
         $currentClassroom = null;
@@ -25,7 +34,7 @@ class ClassPromotionController extends Controller
         if ($selectedClassroomId) {
             $currentClassroom = Classroom::findOrFail($selectedClassroomId);
 
-            // Menampilkan siswa aktif yang BELUM diproses di periode ini
+            // Filter siswa aktif yang belum diproses kenaikan/kelulusannya (is_promoted = false)
             $students = Student::where('classroom_id', $selectedClassroomId)
                 ->where('status', 'active')
                 ->where('is_promoted', false)
@@ -33,11 +42,17 @@ class ClassPromotionController extends Controller
                 ->get();
         }
 
-        return view('promotions.index', compact('classrooms', 'students', 'currentClassroom', 'selectedClassroomId'));
+        return view('promotions.index', compact(
+            'classrooms', 
+            'students', 
+            'currentClassroom', 
+            'selectedClassroomId',
+            'defaultGraduationYear'
+        ));
     }
 
     /**
-     * Memproses Kenaikan Kelas / Kelulusan Siswa
+     * Memproses Kenaikan Kelas & Kelulusan Siswa
      */
     public function process(Request $request)
     {
@@ -73,7 +88,7 @@ class ClassPromotionController extends Controller
                 $student = Student::findOrFail($studentId);
 
                 if ($data['action'] === 'graduate') {
-                    // Siswa Lulus
+                    // 1. Siswa Lulus
                     $student->update([
                         'status' => 'graduated',
                         'last_classroom_id' => $student->classroom_id,
@@ -91,14 +106,14 @@ class ClassPromotionController extends Controller
                     ]);
 
                 } elseif ($data['action'] === 'promote') {
-                    // Siswa Naik Kelas
+                    // 2. Siswa Naik Kelas
                     $student->update([
                         'classroom_id' => $data['target_classroom_id'],
-                        'is_promoted' => true,
+                        'is_promoted' => true, // Tandai sudah dipindahkan agar tidak muncul di kelas tujuan saat diproses
                     ]);
 
                 } elseif ($data['action'] === 'stay') {
-                    // Siswa Tinggal Kelas
+                    // 3. Siswa Tinggal Kelas
                     $student->update([
                         'is_promoted' => true,
                     ]);
@@ -107,15 +122,15 @@ class ClassPromotionController extends Controller
         });
 
         return redirect()->route('promotions.index', ['classroom_id' => $request->source_classroom_id])
-            ->with('success', 'Proses kenaikan kelas dan kelulusan berhasil diperbarui!');
+            ->with('success', 'Proses kenaikan kelas dan kelulusan berhasil disimpan!');
     }
 
     /**
-     * Me-reset status flag penanda saat memulai Tahun Ajaran Baru
+     * Reset Status Kenaikan (Dipanggil saat memasuki periode/Tahun Ajaran Baru)
      */
     public function resetPromotion()
     {
         Student::where('status', 'active')->update(['is_promoted' => false]);
-        return redirect()->back()->with('success', 'Status proses kenaikan kelas telah di-reset untuk Tahun Ajaran Baru.');
+        return redirect()->back()->with('success', 'Status kenaikan kelas berhasil di-reset untuk Tahun Ajaran Baru.');
     }
 }
