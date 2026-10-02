@@ -30,13 +30,13 @@ return new class extends Migration
 
 
             // Tabel Pivot Ujian Ke Kelas
-            Schema::create('classroom_exam', function (Blueprint $table) {
-                $table->uuid('exam_id');
-                $table->uuid('classroom_id');
+            // Schema::create('classroom_exam', function (Blueprint $table) {
+            //     $table->uuid('exam_id');
+            //     $table->uuid('classroom_id');
 
-                $table->foreign('exam_id')->references('id')->on('exams')->onDelete('cascade');
-                $table->foreign('classroom_id')->references('id')->on('classrooms')->onDelete('cascade');
-            });
+            //     $table->foreign('exam_id')->references('id')->on('exams')->onDelete('cascade');
+            //     $table->foreign('classroom_id')->references('id')->on('classrooms')->onDelete('cascade');
+            // });
         });
     }
 

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->uuid('question_id');
             $table->json('answer')->nullable(); // Pilihan: ["A"] atau ["A", "B"], Essay: ["Jawaban teks..."]
             $table->boolean('is_correct')->nullable();
-            $table->numeric('score_given', 5, 2)->default(0);
+            $table->decimal('score_given', 5, 2)->default(0); // ✅ Gunakan 'decimal'
             $table->timestamps();
 
             $table->foreign('exam_session_id')->references('id')->on('exam_sessions')->onDelete('cascade');

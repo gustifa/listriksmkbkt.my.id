@@ -17,7 +17,7 @@ return new class extends Migration
             $table->uuid('student_id');
             $table->dateTime('start_time');
             $table->dateTime('submit_time')->nullable();
-            $table->numeric('score', 5, 2)->nullable();
+            $table->decimal('score', 5, 2)->nullable(); // ✅ Gunakan 'decimal'
             $table->enum('status', ['ongoing', 'completed'])->default('ongoing');
             $table->timestamps();
 
