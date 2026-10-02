@@ -12,8 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('exam_answers', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+            $table->uuid('exam_session_id');
+            $table->uuid('question_id');
+            $table->json('answer')->nullable(); // Pilihan: ["A"] atau ["A", "B"], Essay: ["Jawaban teks..."]
+            $table->boolean('is_correct')->nullable();
+            $table->numeric('score_given', 5, 2)->default(0);
             $table->timestamps();
+
+            $table->foreign('exam_session_id')->references('id')->on('exam_sessions')->onDelete('cascade');
+            $table->foreign('question_id')->references('id')->on('questions')->onDelete('cascade');
         });
     }
 
