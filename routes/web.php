@@ -6,6 +6,7 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Http\Controllers\StudentImportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DailyReportController;
+use App\Http\Controllers\ExamController;
 use App\Models\Student;
 
 use App\Http\Controllers\ClassPromotionController;
@@ -62,6 +63,8 @@ use App\Http\Controllers\Guru\InternshipAssessmentController;
 use App\Http\Controllers\Guru\DashboardGuruController;
 use App\Http\Controllers\Guru\IndustryGuruController;
 use App\Http\Controllers\Guru\MonitoringController;
+use App\Http\Controllers\Guru\GuruQuestionController;
+
 use App\Http\Controllers\Admin\PrayerSettingController;
 use App\Http\Controllers\Admin\MbgController;
 use App\Http\Controllers\Admin\StudentPermitController;
@@ -154,6 +157,12 @@ Route::middleware(['auth'])->group(function () {
     // Route Siswa
     Route::get('/student/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     Route::post('/student/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
+
+    Route::get('/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])->name('questions.import.form');
+    
+    // Proses Import Excel
+    Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('questions.import');
+
 
     Route::middleware(['role:guru'])->group(function () {
         // Halaman Scanner (Hanya bisa diakses Guru yang login)
