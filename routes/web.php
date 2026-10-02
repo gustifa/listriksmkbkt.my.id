@@ -152,14 +152,16 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
     Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
 
-    Route::post('/teacher/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('teacher.exam.import');
+    Route::get('/exams/create', [ExamController::class, 'create'])->name('exams.create');
+    Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
+    Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('teacher.exam.import');
 
     // Route Siswa
-    Route::get('/student/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
-    Route::post('/student/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
+    Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
+    Route::post('/siswa/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
 
     Route::get('/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])->name('questions.import.form');
-    
+
     // Proses Import Excel
     Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('questions.import');
 
