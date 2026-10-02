@@ -152,6 +152,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
     Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
 
+    // Route untuk Admin & Guru
+    Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
     Route::get('/exams/create', [ExamController::class, 'create'])->name('exams.create');
     Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
     Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('teacher.exam.import');
