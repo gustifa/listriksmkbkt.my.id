@@ -1,0 +1,268 @@
+<?php
+
+namespace App\Http\Controllers\Student;
+
+use App\Http\Controllers\Controller;
+use App\Models\Exam;
+use App\Models\ExamAnswer;
+use App\Models\ExamSession;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class StudentExamController extends Controller
+{
+    /**
+     * Helper untuk mengambil ID Student milik user yang sedang login
+     */
+    private function getStudentId()
+    {
+        $user = Auth::user();
+        return $user->student->id ?? $user->id;
+    }
+
+    /**
+     * 1. Menampilkan Daftar Ujian Siswa (Index)
+     */
+    public function index()
+    {
+        $studentId = $this->getStudentId();
+
+        // Query Ujian Aktif
+        $activeExams = Exam::with(['subject', 'teacher', 'sessions' => function ($q) use ($studentId) {
+                            $q->where('student_id', $studentId);
+                        }])
+                        ->withCount('questions')
+                        ->where('is_active', true)
+                        ->latest()
+                        ->get();
+
+        // Query Ujian Selesai (Riwayat)
+        $completedExams = Exam::with(['subject', 'sessions' => function ($q) use ($studentId) {
+                                $q->where('student_id', $studentId)->where('status', 'completed');
+                            }])
+                            ->whereHas('sessions', function ($q) use ($studentId) {
+                                $q->where('student_id', $studentId)->where('status', 'completed');
+                            })
+                            ->latest()
+                            ->get();
+
+        return view('students.exam.index', compact('activeExams', 'completedExams'));
+    }
+
+    /**
+     * 2. Halaman Konfirmasi Awal Sebelum Mulai Ujian
+     */
+    public function startExam(Exam $exam)
+    {
+        $studentId = $this->getStudentId();
+
+        if (!$exam->is_active) {
+            return redirect()->route('student.exam.index')
+                             ->with('error', 'Ujian ini sedang tidak aktif.');
+        }
+
+        $exam->load(['subject', 'teacher']);
+        $exam->loadCount('questions');
+
+        // Cek sesi yang sudah ada
+        $session = ExamSession::where('exam_id', $exam->id)
+                              ->where('student_id', $studentId)
+                              ->first();
+
+        return view('students.exam.start', compact('exam', 'session'));
+    }
+
+    /**
+     * 3. Memulai Sesi Ujian (Create/Fetch Session)
+     */
+    public function beginExam(Request $request, Exam $exam)
+    {
+        $studentId = $this->getStudentId();
+
+        if (!$exam->is_active) {
+            return redirect()->route('student.exam.index')
+                             ->with('error', 'Ujian sedang tidak aktif.');
+        }
+
+        // Cari atau buat sesi pengerjaan baru
+        $session = ExamSession::firstOrCreate(
+            [
+                'exam_id'   => $exam->id,
+                'student_id' => $studentId,
+            ],
+            [
+                'start_time' => now(),
+                'status'     => 'ongoing', // Menggunakan enum 'ongoing'
+            ]
+        );
+
+        return redirect()->route('student.exam.show', [$exam->id, $session->id])
+                         ->with('success', 'Ujian dimulai. Selamat mengerjakan!');
+    }
+
+    /**
+     * 4. Halaman Lembar Pengerjaan Soal (Show)
+     */
+    public function show(Exam $exam, ExamSession $session)
+    {
+        $studentId = $this->getStudentId();
+
+        // Validasi Pemilik Sesi
+        if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
+            return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
+        }
+
+        // Jika ujian sudah selesai, langsung arahkan ke hasil
+        if ($session->status === 'completed') {
+            return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+        }
+
+        // Load soal ujian
+        $questions = $exam->questions()->get();
+
+        // Hitung sisa waktu pengerjaan (dalam detik)
+        $durationSeconds = $exam->duration_minutes * 60;
+        $elapsedSeconds = now()->diffInSeconds($session->start_time);
+        $remainingSeconds = max(0, $durationSeconds - $elapsedSeconds);
+
+        // Jika waktu sudah habis secara server-side
+        if ($remainingSeconds <= 0) {
+            return $this->autoFinishSession($session);
+        }
+
+        // Ambil jawaban yang sudah pernah disimpan
+        $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+        return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
+    }
+
+    /**
+     * 5. Autosave Jawaban Siswa via AJAX
+     */
+    public function autosave(Request $request, Exam $exam, ExamSession $session)
+    {
+        $request->validate([
+            'question_id' => 'required',
+            'answer'      => 'nullable',
+        ]);
+
+        if ($session->status === 'completed') {
+            return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+        }
+
+        // Format jawaban agar selalu menjadi array untuk kolom JSON 'answer'
+        $answerData = is_array($request->answer) ? $request->answer : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
+
+        ExamAnswer::updateOrCreate(
+            [
+                'exam_session_id' => $session->id,
+                'question_id'     => $request->question_id,
+            ],
+            [
+                'answer' => $answerData, // Disimpan dalam format JSON
+            ]
+        );
+
+        return response()->json(['status' => 'success', 'message' => 'Jawaban tersimpan']);
+    }
+
+    /**
+     * 6. Menyelesaikan Ujian (Finish)
+     */
+    public function finishExam(Exam $exam, ExamSession $session)
+    {
+        if ($session->status === 'completed') {
+            return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+        }
+
+        // Hitung dan simpan nilai
+        $this->calculateScore($exam, $session);
+
+        $session->update([
+            'status'      => 'completed',
+            'submit_time' => now(), // Menggunakan kolom submit_time
+        ]);
+
+        return redirect()->route('student.exam.result', [$exam->id, $session->id])
+                         ->with('success', 'Ujian berhasil diselesaikan!');
+    }
+
+    /**
+     * 7. Halaman Hasil Nilai Ujian (Result)
+     */
+    public function result(Exam $exam, ExamSession $session)
+    {
+        $studentId = $this->getStudentId();
+
+        if ($session->student_id !== $studentId) {
+            abort(403);
+        }
+
+        $session->load(['exam.subject']);
+
+        return view('students.exam.result', compact('exam', 'session'));
+    }
+
+    /**
+     * Helper: Menghitung Nilai Otomatis Ujian
+     */
+    private function calculateScore(Exam $exam, ExamSession $session)
+    {
+        $questions = $exam->questions->keyBy('id');
+        $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+        $totalQuestions = $questions->count();
+        if ($totalQuestions === 0) return;
+
+        $totalScore = 0;
+
+        foreach ($answers as $ans) {
+            $question = $questions->get($ans->question_id);
+            if (!$question) continue;
+
+            $userAns = is_array($ans->answer) ? $ans->answer : json_decode($ans->answer, true) ?? [];
+            $isCorrect = false;
+            $scoreGiven = 0;
+
+            // Memeriksa kunci jawaban dari kolom pada tabel questions (misal: correct_answer)
+            if (isset($question->correct_answer)) {
+                $correctAns = is_array($question->correct_answer) ? $question->correct_answer : [$question->correct_answer];
+
+                // Pengecekan kesamaan isi array jawaban
+                if (!empty($userAns) && empty(array_diff($userAns, $correctAns)) && empty(array_diff($correctAns, $userAns))) {
+                    $isCorrect = true;
+                    $scoreGiven = 100 / $totalQuestions; // Bobot nilai per soal
+                }
+            }
+
+            // Simpan detail per soal ke exam_answers
+            $ans->update([
+                'is_correct'  => $isCorrect,
+                'score_given' => $scoreGiven,
+            ]);
+
+            $totalScore += $scoreGiven;
+        }
+
+        // Simpan total skor akhir ke exam_sessions
+        $session->update([
+            'score' => round($totalScore, 2),
+        ]);
+    }
+
+    /**
+     * Helper: Menutup otomatis sesi jika waktu habis
+     */
+    private function autoFinishSession(ExamSession $session)
+    {
+        $this->calculateScore($session->exam, $session);
+
+        $session->update([
+            'status'      => 'completed',
+            'submit_time' => now(),
+        ]);
+
+        return redirect()->route('student.exam.result', [$session->exam_id, $session->id])
+                         ->with('error', 'Waktu pengerjaan Anda telah habis!');
+    }
+}

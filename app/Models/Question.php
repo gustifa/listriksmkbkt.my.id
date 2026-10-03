@@ -16,4 +16,10 @@ class Question extends Model
     ];
 
     public function exam() { return $this->belongsTo(Exam::class); }
+
+    public function options()
+    {
+        // Sesuaikan 'QuestionOption' dengan nama Model Pilihan Jawaban yang ada di project Anda
+        return $this->hasMany(QuestionOption::class); 
+    }
 }

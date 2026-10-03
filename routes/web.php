@@ -87,6 +87,7 @@ use App\Http\Controllers\Student\PrayerStudentController;
 use App\Http\Controllers\Student\RamadanJournalStudentController;
 use App\Http\Controllers\Student\GuidanceStudentController;
 use App\Http\Controllers\Student\TahfizController;
+use App\Http\Controllers\Student\StudentExamController;
 use App\Services\GithubVersionChecker; // Service Pengecekan Versi
 use App\Http\Controllers\HomeController;
 
@@ -156,17 +157,26 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
     Route::get('/exams/create', [ExamController::class, 'create'])->name('exams.create');
     Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
-    Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('teacher.exam.import');
+    Route::delete('/exams/{exam}', [ExamController::class, 'destroy'])->name('exams.destroy');
+    Route::patch('/exams/{exam}/toggle-status', [ExamController::class, 'toggleStatus'])->name('exams.toggle-status');
 
-    // Route Siswa
-    Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
-    Route::post('/siswa/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
 
-    Route::get('/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])->name('questions.import.form');
-
+    // Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('guru.exam.import');
+    // Tampilan Form Import Soal Excel (guru.questions.import.form)
+    Route::get('/guru/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])
+            ->name('guru.questions.import.form');
     // Proses Import Excel
-    Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('questions.import');
-
+    Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('guru.questions.import');
+    Route::get('/questions/template/download', [GuruQuestionController::class, 'downloadTemplate'])
+            ->name('guru.questions.template.download');
+    Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
+    // Route Siswa
+    // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
+    // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
+    // Route::post('/siswa/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
+    
+    
+   
 
     Route::middleware(['role:guru'])->group(function () {
         // Halaman Scanner (Hanya bisa diakses Guru yang login)
@@ -720,6 +730,26 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/guidance', [GuidanceStudentController::class, 'index'])->name('guidance.index');
             Route::post('/guidance/{id}/upload', [GuidanceStudentController::class, 'uploadAgreement'])->name('guidance.upload');
 
+                    // 1. Halaman Index (Daftar Semua Ujian Siswa)
+            Route::get('/exams', [StudentExamController::class, 'index'])->name('exam.index');
+
+            // 2. Halaman Konfirmasi Awal Sebelum Mulai Ujian
+            Route::get('/exams/{exam}/start', [StudentExamController::class, 'startExam'])->name('exam.start');
+
+            // 3. Action Memulai Sesi Ujian (Submit dari Halaman Start)
+            Route::post('/exams/{exam}/begin', [StudentExamController::class, 'beginExam'])->name('exam.begin');
+
+            // 4. Halaman Lembar Pengerjaan Soal Ujian
+            Route::get('/exams/{exam}/session/{session}', [StudentExamController::class, 'show'])->name('exam.show');
+
+            // 5. Action Auto-Save Jawaban Siswa (AJAX)
+            Route::post('/exams/{exam}/session/{session}/autosave', [StudentExamController::class, 'autosave'])->name('exam.autosave');
+
+            // 6. Action Menyelesaikan Ujian (Submit Akhir)
+            Route::post('/exams/{exam}/session/{session}/finish', [StudentExamController::class, 'finishExam'])->name('exam.finish');
+
+            // 7. Halaman Hasil / Nilai Ujian (Setelah Selesai)
+            Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
 
         });
     });

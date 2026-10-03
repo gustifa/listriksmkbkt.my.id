@@ -17,18 +17,41 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class ExamController extends Controller
 {
     // Indeks Daftar Ujian untuk Admin & Guru
+    // public function index()
+    // {
+    //     $user = Auth::user();
+
+    //     if ($user->hasRole('admin')) {
+    //         // Admin melihat semua ujian
+    //         $exams = Exam::with(['subject', 'teacher', 'classrooms'])
+    //                     ->latest()
+    //                     ->paginate(10);
+    //     } else {
+    //         // Guru hanya melihat ujian yang dibuatnya
+    //         $exams = Exam::with(['subject', 'classrooms'])
+    //                     ->where('teacher_id', $user->teacher->id)
+    //                     ->latest()
+    //                     ->paginate(10);
+    //     }
+
+    //     return view('exams.index', compact('exams'));
+    // }
+
+    // Indeks Daftar Ujian untuk Admin & Guru
     public function index()
     {
         $user = Auth::user();
 
         if ($user->hasRole('admin')) {
-            // Admin melihat semua ujian
+            // Admin melihat semua ujian + hitung jumlah soal
             $exams = Exam::with(['subject', 'teacher', 'classrooms'])
+                        ->withCount('questions') // <-- TAMBAHKAN INI
                         ->latest()
                         ->paginate(10);
         } else {
-            // Guru hanya melihat ujian yang dibuatnya
+            // Guru hanya melihat ujian miliknya + hitung jumlah soal
             $exams = Exam::with(['subject', 'classrooms'])
+                        ->withCount('questions') // <-- TAMBAHKAN INI
                         ->where('teacher_id', $user->teacher->id)
                         ->latest()
                         ->paginate(10);
@@ -103,7 +126,7 @@ class ExamController extends Controller
         $exam->classrooms()->attach($request->classroom_ids);
 
         // Redirect ke halaman import/tambah soal
-        return redirect()->route('teacher.exams.show', $exam->id)
+        return redirect()->route('guru.exams.show', $exam->id)
                          ->with('success', 'Ujian berhasil dibuat. Silakan tambahkan soal.');
     }
     // Upload Soal oleh Guru (Excel Template)
@@ -147,68 +170,121 @@ class ExamController extends Controller
         return redirect()->back()->with('success', 'Soal berhasil diunggah.');
     }
 
-    // Siswa Memulai Ujian
-    public function startExam($examId)
+    // // Siswa Memulai Ujian
+    // public function startExam($examId)
+    // {
+    //     $student = Auth::user()->student; // Relasi ke model Student
+    //     $exam = Exam::with('questions')->findOrFail($examId);
+
+    //     $session = ExamSession::firstOrCreate(
+    //         ['exam_id' => $examId, 'student_id' => $student->id],
+    //         ['start_time' => now(), 'status' => 'ongoing']
+    //     );
+
+    //     return view('student.exam.show', compact('exam', 'session'));
+    // }
+
+    // // Siswa Submit Ujian & Auto Grading
+    // public function submitExam(Request $request, $sessionId)
+    // {
+    //     $session = ExamSession::findOrFail($sessionId);
+    //     $answers = $request->input('answers', []);
+
+    //     $totalScore = 0;
+    //     $maxPossibleScore = 0;
+
+    //     foreach ($session->exam->questions as $question) {
+    //         $userAnswer = $answers[$question->id] ?? null;
+    //         $isCorrect = false;
+    //         $scoreGiven = 0;
+
+    //         if ($question->question_type === 'single') {
+    //             if (is_array($userAnswer) && count($userAnswer) > 0 && $userAnswer[0] === $question->correct_answer[0]) {
+    //                 $isCorrect = true;
+    //                 $scoreGiven = $question->score_weight;
+    //             }
+    //         } elseif ($question->question_type === 'multiple') {
+    //             // Pilihan ganda kompleks / centang banyak
+    //             sort($userAnswer);
+    //             $correct = $question->correct_answer;
+    //             sort($correct);
+    //             if ($userAnswer === $correct) {
+    //                 $isCorrect = true;
+    //                 $scoreGiven = $question->score_weight;
+    //             }
+    //         }
+
+    //         ExamAnswer::updateOrCreate(
+    //             ['exam_session_id' => $session->id, 'question_id' => $question->id],
+    //             ['answer' => (array) $userAnswer, 'is_correct' => $isCorrect, 'score_given' => $scoreGiven]
+    //         );
+
+    //         $totalScore += $scoreGiven;
+    //         $maxPossibleScore += $question->score_weight;
+    //     }
+
+    //     $finalGrade = $maxPossibleScore > 0 ? ($totalScore / $maxPossibleScore) * 100 : 0;
+
+    //     $session->update([
+    //         'submit_time' => now(),
+    //         'score' => $finalGrade,
+    //         'status' => 'completed',
+    //     ]);
+
+    //     return redirect()->route('student.exam.result', $session->id);
+    // }
+
+    /**
+     * Menampilkan halaman konfirmasi sebelum memulai ujian
+     */
+    public function startExam(Exam $exam)
     {
-        $student = Auth::user()->student; // Relasi ke model Student
-        $exam = Exam::with('questions')->findOrFail($examId);
+        $user = Auth::user();
 
-        $session = ExamSession::firstOrCreate(
-            ['exam_id' => $examId, 'student_id' => $student->id],
-            ['start_time' => now(), 'status' => 'ongoing']
-        );
-
-        return view('student.exam.show', compact('exam', 'session'));
-    }
-
-    // Siswa Submit Ujian & Auto Grading
-    public function submitExam(Request $request, $sessionId)
-    {
-        $session = ExamSession::findOrFail($sessionId);
-        $answers = $request->input('answers', []);
-
-        $totalScore = 0;
-        $maxPossibleScore = 0;
-
-        foreach ($session->exam->questions as $question) {
-            $userAnswer = $answers[$question->id] ?? null;
-            $isCorrect = false;
-            $scoreGiven = 0;
-
-            if ($question->question_type === 'single') {
-                if (is_array($userAnswer) && count($userAnswer) > 0 && $userAnswer[0] === $question->correct_answer[0]) {
-                    $isCorrect = true;
-                    $scoreGiven = $question->score_weight;
-                }
-            } elseif ($question->question_type === 'multiple') {
-                // Pilihan ganda kompleks / centang banyak
-                sort($userAnswer);
-                $correct = $question->correct_answer;
-                sort($correct);
-                if ($userAnswer === $correct) {
-                    $isCorrect = true;
-                    $scoreGiven = $question->score_weight;
-                }
-            }
-
-            ExamAnswer::updateOrCreate(
-                ['exam_session_id' => $session->id, 'question_id' => $question->id],
-                ['answer' => (array) $userAnswer, 'is_correct' => $isCorrect, 'score_given' => $scoreGiven]
-            );
-
-            $totalScore += $scoreGiven;
-            $maxPossibleScore += $question->score_weight;
+        // 1. Cek apakah ujian sedang aktif
+        if (!$exam->is_active) {
+            return redirect()->route('student.dashboard')
+                             ->with('error', 'Ujian ini sedang tidak aktif.');
         }
 
-        $finalGrade = $maxPossibleScore > 0 ? ($totalScore / $maxPossibleScore) * 100 : 0;
+        // 2. Load relasi pendukung & hitung jumlah soal
+        $exam->load(['subject', 'teacher']);
+        $exam->loadCount('questions');
 
-        $session->update([
-            'submit_time' => now(),
-            'score' => $finalGrade,
-            'status' => 'completed',
-        ]);
+        // 3. Cek apakah siswa sudah memiliki sesi pengerjaan ujian
+        $session = ExamSession::where('exam_id', $exam->id)
+                              ->where('user_id', $user->id) // atau student_id
+                              ->first();
 
-        return redirect()->route('student.exam.result', $session->id);
+        return view('student.exams.start', compact('exam', 'session'));
+    }
+
+    /**
+     * Memproses / menginisiasi sesi ujian saat siswa menekan tombol Mulai Ujian
+     */
+    public function beginExam(Request $request, Exam $exam)
+    {
+        $user = Auth::user();
+
+        if (!$exam->is_active) {
+            return redirect()->route('student.dashboard')
+                             ->with('error', 'Ujian tidak aktif.');
+        }
+
+        // Cari atau buat sesi pengerjaan baru
+        $session = ExamSession::firstOrCreate(
+            [
+                'exam_id' => $exam->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'start_time' => now(),
+                'status'     => 'in_progress', // atau 'ongoing'
+            ]
+        );
+
+        return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+                         ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
     }
 
 
@@ -223,5 +299,47 @@ class ExamController extends Controller
         $totalScoreWeight = $exam->questions->sum('score_weight');
 
         return view('exams.show', compact('exam', 'totalQuestions', 'totalScoreWeight'));
+    }
+
+
+    public function destroy(Exam $exam)
+    {
+        $user = Auth::user();
+
+        // Keamanan: Jika user adalah Guru, pastikan hanya bisa menghapus ujian miliknya sendiri
+        if (!$user->hasRole('admin') && $exam->teacher_id !== $user->teacher->id) {
+            return redirect()->route('exams.index')
+                             ->with('error', 'Anda tidak memiliki hak akses untuk menghapus ujian ini.');
+        }
+
+        try {
+            // 1. Detach / Hapus relasi pivot dengan kelas di tabel classroom_exam
+            $exam->classrooms()->detach();
+
+            // 2. Hapus semua soal terkait ujian ini (jika tidak menggunakan Cascade on Delete di Database)
+            $exam->questions()->delete();
+
+            // 3. Hapus data ujian utama
+            $exam->delete();
+
+            return redirect()->route('exams.index')
+                             ->with('success', 'Ujian beserta data terkait berhasil dihapus.');
+
+        } catch (\Exception $e) {
+            return redirect()->route('exams.index')
+                             ->with('error', 'Gagal menghapus ujian: ' . $e->getMessage());
+        }
+    }
+
+    public function toggleStatus(Exam $exam)
+    {
+        // Balik status is_active (jika true jadi false, jika false jadi true)
+        $exam->update([
+            'is_active' => !$exam->is_active,
+        ]);
+
+        $statusText = $exam->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+        return redirect()->back()->with('success', "Status ujian '{$exam->title}' berhasil {$statusText}.");
     }
 }
