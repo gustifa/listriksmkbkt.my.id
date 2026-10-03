@@ -49,6 +49,43 @@ class StudentExamController extends Controller
         return view('students.exam.index', compact('activeExams', 'completedExams'));
     }
 
+    // public function index()
+    // {
+    //     $studentId = $this->getStudentId();
+    //     $user = Auth::user();
+
+    //     // Ambil classroom_id milik siswa (sesuaikan nama property jika berbeda)
+    //     $classroomId = $user->student->classroom_id ?? null;
+
+    //     // Base query: Filter ujian yang hanya terhubung dengan kelas siswa ini
+    //     $baseExamQuery = Exam::whereHas('classrooms', function ($q) use ($classroomId) {
+    //         $q->where('classrooms.id', $classroomId);
+    //     });
+
+    //     // 1. Query Ujian Aktif (Sesuai Kelas Siswa)
+    //     $activeExams = (clone $baseExamQuery)
+    //         ->with(['subject', 'teacher', 'sessions' => function ($q) use ($studentId) {
+    //             $q->where('student_id', $studentId);
+    //         }])
+    //         ->withCount('questions')
+    //         ->where('is_active', true)
+    //         ->latest()
+    //         ->get();
+
+    //     // 2. Query Ujian Selesai (Riwayat)
+    //     $completedExams = (clone $baseExamQuery)
+    //         ->with(['subject', 'sessions' => function ($q) use ($studentId) {
+    //             $q->where('student_id', $studentId)->where('status', 'completed');
+    //         }])
+    //         ->whereHas('sessions', function ($q) use ($studentId) {
+    //             $q->where('student_id', $studentId)->where('status', 'completed');
+    //         })
+    //         ->latest()
+    //         ->get();
+
+    //     return view('students.exam.index', compact('activeExams', 'completedExams'));
+    // }
+
     /**
      * 2. Halaman Konfirmasi Awal Sebelum Mulai Ujian
      */
