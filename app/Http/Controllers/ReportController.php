@@ -2353,123 +2353,123 @@ class ReportController extends Controller
         return $pdf->stream('Surat_Tugas_Semua_Guru.pdf');
     }
 
-    private function processSuratTugasData($teacher, $rawSchedules)
-{
-    // 1. Tentukan Semester
-    $bulan = date('n');
-    $tahun = date('Y');
-    if ($bulan >= 7) {
-        $semester = "Ganjil";
-        $tahunAjaran = $tahun . "/" . ($tahun + 1);
-    } else {
-        $semester = "Genap";
-        $tahunAjaran = ($tahun - 1) . "/" . $tahun;
-    }
+//     private function processSuratTugasData($teacher, $rawSchedules)
+// {
+//     // 1. Tentukan Semester
+//     $bulan = date('n');
+//     $tahun = date('Y');
+//     if ($bulan >= 7) {
+//         $semester = "Ganjil";
+//         $tahunAjaran = $tahun . "/" . ($tahun + 1);
+//     } else {
+//         $semester = "Genap";
+//         $tahunAjaran = ($tahun - 1) . "/" . $tahun;
+//     }
 
-    // 2. Grouping Jadwal
-    $groupedSchedules = $rawSchedules->groupBy(function($item) {
-        return strtolower(trim($item->day)) . '-' . $item->classroom_id . '-' . $item->subject_id;
-    });
+//     // 2. Grouping Jadwal
+//     $groupedSchedules = $rawSchedules->groupBy(function($item) {
+//         return strtolower(trim($item->day)) . '-' . $item->classroom_id . '-' . $item->subject_id;
+//     });
 
-    $finalSchedules = collect();
-    $totalJam = 0;
+//     $finalSchedules = collect();
+//     $totalJam = 0;
 
-    foreach ($groupedSchedules as $group) {
-        $schedule = $group->first();
+//     foreach ($groupedSchedules as $group) {
+//         $schedule = $group->first();
 
-        $minStart = null;
-        $maxEnd = null;
-        $totalMinutes = 0;
+//         $minStart = null;
+//         $maxEnd = null;
+//         $totalMinutes = 0;
 
-        // --- FITUR NAMA RUANGAN ---
-        $rooms = $group->map(function($item) {
-            return $item->room->code ?? $item->room ?? null;
-        })
-        ->filter(function($value) { return !empty($value); })
-        ->unique()
-        ->implode(', ');
+//         // --- FITUR NAMA RUANGAN ---
+//         $rooms = $group->map(function($item) {
+//             return $item->room->code ?? $item->room ?? null;
+//         })
+//         ->filter(function($value) { return !empty($value); })
+//         ->unique()
+//         ->implode(', ');
 
-        $schedule->merged_room = $rooms ?: '-';
+//         $schedule->merged_room = $rooms ?: '-';
 
-        // --- HITUNG DURASI & JAM ---
-        foreach ($group as $item) {
-            if ($item->start_time && $item->end_time) {
-                $start = Carbon::parse($item->start_time);
-                $end = Carbon::parse($item->end_time);
+//         // --- HITUNG DURASI & JAM ---
+//         foreach ($group as $item) {
+//             if ($item->start_time && $item->end_time) {
+//                 $start = Carbon::parse($item->start_time);
+//                 $end = Carbon::parse($item->end_time);
 
-                // Cari rentang waktu total untuk grup ini
-                if (is_null($minStart) || $start->lt($minStart)) $minStart = $start;
-                if (is_null($maxEnd) || $end->gt($maxEnd)) $maxEnd = $end;
+//                 // Cari rentang waktu total untuk grup ini
+//                 if (is_null($minStart) || $start->lt($minStart)) $minStart = $start;
+//                 if (is_null($maxEnd) || $end->gt($maxEnd)) $maxEnd = $end;
 
-                $minutes = $end->diffInMinutes($start);
-                $totalMinutes += abs($minutes);
-            }
-        }
+//                 $minutes = $end->diffInMinutes($start);
+//                 $totalMinutes += abs($minutes);
+//             }
+//         }
 
-        // OPSI 1: Hitung JP dari total durasi (45 menit = 1 JP)
-        $jpByTime = 0;
-        if ($totalMinutes > 0) {
-            $jpByTime = round($totalMinutes / 45);
-        }
+//         // OPSI 1: Hitung JP dari total durasi (45 menit = 1 JP)
+//         $jpByTime = 0;
+//         if ($totalMinutes > 0) {
+//             $jpByTime = round($totalMinutes / 45);
+//         }
 
-        // OPSI 2: Hitung JP dari jumlah baris data
-        $jpByCount = $group->count();
+//         // OPSI 2: Hitung JP dari jumlah baris data
+//         $jpByCount = $group->count();
 
-        // Ambil nilai terbesar
-        $finalJP = max($jpByTime, $jpByCount);
+//         // Ambil nilai terbesar
+//         $finalJP = max($jpByTime, $jpByCount);
 
-        // ==========================================================
-        // --- LOGIKA PENGURANGAN JAM ISTIRAHAT (11:45 - 12:30) ---
-        // ==========================================================
-        if ($minStart && $maxEnd) {
-            // Set waktu istirahat pada tanggal yang sama dengan jadwal
-            $breakStart = $minStart->copy()->setTime(12, 30, 0);
-            $breakEnd   = $minStart->copy()->setTime(13, 15, 0);
+//         // ==========================================================
+//         // --- LOGIKA PENGURANGAN JAM ISTIRAHAT (11:45 - 12:30) ---
+//         // ==========================================================
+//         if ($minStart && $maxEnd) {
+//             // Set waktu istirahat pada tanggal yang sama dengan jadwal
+//             $breakStart = $minStart->copy()->setTime(12, 30, 0);
+//             $breakEnd   = $minStart->copy()->setTime(13, 15, 0);
 
-            // Logika: Jika jadwal MULAI sebelum/pas 11:45 DAN SELESAI setelah/pas 12:30
-            // Artinya jadwal tersebut "menelan" waktu istirahat.
-            if ($minStart->lte($breakStart) && $maxEnd->gte($breakEnd)) {
-                $finalJP = $finalJP - 1; // Kurangi 1 JP
-            }
-        }
-        // ==========================================================
+//             // Logika: Jika jadwal MULAI sebelum/pas 11:45 DAN SELESAI setelah/pas 12:30
+//             // Artinya jadwal tersebut "menelan" waktu istirahat.
+//             if ($minStart->lte($breakStart) && $maxEnd->gte($breakEnd)) {
+//                 $finalJP = $finalJP - 1; // Kurangi 1 JP
+//             }
+//         }
+//         // ==========================================================
 
-        // Validasi minimal 1 JP (Mencegah nilai 0 atau negatif jika hasil pengurangan)
-        $schedule->calculated_jp = $finalJP > 0 ? $finalJP : 1;
+//         // Validasi minimal 1 JP (Mencegah nilai 0 atau negatif jika hasil pengurangan)
+//         $schedule->calculated_jp = $finalJP > 0 ? $finalJP : 1;
 
-        // Set jam tampilan
-        if ($minStart && $maxEnd) {
-            $schedule->start_time = $minStart->format('H:i');
-            $schedule->end_time = $maxEnd->format('H:i');
-        }
+//         // Set jam tampilan
+//         if ($minStart && $maxEnd) {
+//             $schedule->start_time = $minStart->format('H:i');
+//             $schedule->end_time = $maxEnd->format('H:i');
+//         }
 
-        $totalJam += $schedule->calculated_jp;
-        $finalSchedules->push($schedule);
-    }
+//         $totalJam += $schedule->calculated_jp;
+//         $finalSchedules->push($schedule);
+//     }
 
-    // 6. Urutkan berdasarkan Hari
-    $schedules = $finalSchedules->sortBy(function($schedule) {
-        $dayMap = [
-            'monday' => 1, 'senin' => 1,
-            'tuesday' => 2, 'selasa' => 2,
-            'wednesday' => 3, 'rabu' => 3,
-            'thursday' => 4, 'kamis' => 4,
-            'friday' => 5, 'jumat' => 5,
-            'saturday' => 6, 'sabtu' => 6,
-            'sunday' => 7, 'minggu' => 7
-        ];
-        $dayIndex = $dayMap[strtolower(trim($schedule->day))] ?? 8;
-        return sprintf('%02d-%s', $dayIndex, $schedule->start_time);
-    });
+//     // 6. Urutkan berdasarkan Hari
+//     $schedules = $finalSchedules->sortBy(function($schedule) {
+//         $dayMap = [
+//             'monday' => 1, 'senin' => 1,
+//             'tuesday' => 2, 'selasa' => 2,
+//             'wednesday' => 3, 'rabu' => 3,
+//             'thursday' => 4, 'kamis' => 4,
+//             'friday' => 5, 'jumat' => 5,
+//             'saturday' => 6, 'sabtu' => 6,
+//             'sunday' => 7, 'minggu' => 7
+//         ];
+//         $dayIndex = $dayMap[strtolower(trim($schedule->day))] ?? 8;
+//         return sprintf('%02d-%s', $dayIndex, $schedule->start_time);
+//     });
 
-    // Nomor Surat
-    $bulanRomawi = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
-    $currMonth = date('n');
-    $romawi = $bulanRomawi[$currMonth] ?? 'I';
-    $nomorSurat = "800.1.11.1/002/SMKN1 BKT/" . $romawi . "/" . date('Y');
+//     // Nomor Surat
+//     $bulanRomawi = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+//     $currMonth = date('n');
+//     $romawi = $bulanRomawi[$currMonth] ?? 'I';
+//     $nomorSurat = "800.1.11.1/002/SMKN1 BKT/" . $romawi . "/" . date('Y');
 
-    return compact('teacher', 'schedules', 'semester', 'tahunAjaran', 'totalJam', 'nomorSurat');
-}
+//     return compact('teacher', 'schedules', 'semester', 'tahunAjaran', 'totalJam', 'nomorSurat');
+// }
 
     // private function processSuratTugasData($teacher, $rawSchedules)
     // {
