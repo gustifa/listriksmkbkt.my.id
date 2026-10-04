@@ -14,6 +14,7 @@ use App\Models\Teacher;
 use App\Models\Setting;
 use App\Models\TeachingJournal; // Import Model Jurnal
 use Illuminate\Support\Facades\Auth;
+use App\Models\TimeSlot;
 
 class ReportController extends Controller
 {
@@ -3227,5 +3228,61 @@ class ReportController extends Controller
         // === JIKA REQUEST BIASA (Loading Halaman Pertama Kali) ===
         $classrooms = Classroom::orderBy('name', 'asc')->get();
         return view('report.kegiatan', compact('classrooms', 'inputDate'));
+    }
+
+    /**
+ * Helper untuk memproses data Surat Tugas per Guru
+ */
+    private function processSuratTugasData($teacher, $schedules)
+    {
+        // 1. Ambil data TimeSlot berjenis 'lesson' (bukan break/istirahat)
+        $lessonSlots = TimeSlot::where('type', 'lesson')
+            ->orderBy('start_time', 'asc')
+            ->get();
+
+        $totalJam = 0;
+
+        // 2. Olah setiap jadwal untuk menghitung JP murni (tanpa istirahat)
+        $processedSchedules = $schedules->map(function ($sched) use ($lessonSlots, &$totalJam) {
+            $schedStart = Carbon::parse($sched->start_time)->format('H:i:s');
+            $schedEnd   = Carbon::parse($sched->end_time)->format('H:i:s');
+
+            // Hitung berapa banyak TimeSlot (lesson) yang berada dalam rentang jadwal ini
+            $jpCount = $lessonSlots->filter(function ($slot) use ($schedStart, $schedEnd) {
+                $slotStart = Carbon::parse($slot->start_time)->format('H:i:s');
+                $slotEnd   = Carbon::parse($slot->end_time)->format('H:i:s');
+
+                // Slot masuk dalam hitungan jika berada di dalam rentang jadwal
+                return ($slotStart >= $schedStart && $slotEnd <= $schedEnd);
+            })->count();
+
+            // Jika tidak cocok dengan TimeSlot dinamis, lakukan fallback kalkulasi durasi (misal: 1 JP = 45 menit)
+            if ($jpCount === 0) {
+                $minutes = Carbon::parse($schedStart)->diffInMinutes(Carbon::parse($schedEnd));
+                $jpCount = floor($minutes / 45); // Sesuaikan standar menit/JP jika perlu
+            }
+
+            // Simpan nilai calculated_jp pada objek schedule
+            $sched->calculated_jp = $jpCount;
+
+            // Akumulasikan ke Total Jam Mengajar
+            $totalJam += $jpCount;
+
+            return $sched;
+        });
+
+        // Ambil info Semester dan Tahun Ajaran Aktif (atau default)
+        $school = $this->getSchoolData();
+        $semester = $school['semester'] ?? 'Ganjil';
+        $tahunAjaran = $school['tahun_ajaran'] ?? date('Y') . '/' . (date('Y') + 1);
+
+        return [
+            'teacher'     => $teacher,
+            'schedules'   => $processedSchedules,
+            'semester'    => $semester,
+            'tahunAjaran' => $tahunAjaran,
+            'totalJam'    => $totalJam,
+            'nomorSurat'  => $school['nomor_surat'] ?? '-',
+        ];
     }
 }
