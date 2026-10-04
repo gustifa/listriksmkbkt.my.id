@@ -279,11 +279,11 @@
                     <tr>
                         <th width="5%">No</th>
                         <th width="15%">Hari</th>
-                        <th width="20%">Kelas</th>
+                        <th width="15%">Kelas</th>
                         <th width="20%">Masuk jam ke s/d ke</th>
                         <th width="10%">Jumlah Jam/Kelas</th>
                         <th>Ruang/Labor/ Bengkel</th>
-                        <th>Ket</th>
+                        <th width="20%">Ket</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -301,7 +301,7 @@
                             <td>{{ $sched->classroom->name ?? '-' }}</td>
                             <td>{{ $jamMulai }} - {{ $jamSelesai }}</td>
                             <td>{{ $sched->calculated_jp ?? 0 }}</td>
-                            <td>{{ $sched->merged_room ?? ($sched->room->name ?? '-') }}</td>
+                            <td>{{ $sched->merged_room ?? ($sched->room->code ?? '-') }}</td>
                             <td>{{ $sched->subject->code ?? 'PBM' }}</td>
                         </tr>
                     @empty
