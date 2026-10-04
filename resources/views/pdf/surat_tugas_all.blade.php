@@ -88,6 +88,27 @@
             width: 10px; 
         }
 
+        /* CSS Tampilan 2 Kolom Mata Pelajaran */
+        .subject-container {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .subject-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .subject-table td {
+            vertical-align: top;
+            padding: 1px 0;
+            font-size: 12pt;
+        }
+        .subject-list {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+
         /* Tabel Jadwal */
         .schedule-table { 
             width: 100%; 
@@ -217,16 +238,48 @@
 
             <div class="content">
                 Untuk mengajar pada Mata pelajaran/mata diklat:
-                <ol style="margin-top: 5px; margin-bottom: 10px; margin-left: -20px;">
-                    @php $uniqueSubjects = $schedules->unique('subject_id'); @endphp
-                    @if($uniqueSubjects->count() > 0)
-                        @foreach($uniqueSubjects as $s)
-                            <li>{{ $s->subject->name ?? '-' }}</li>
+                
+                @php 
+                    $uniqueSubjects = $schedules->unique('subject_id')->pluck('subject.name')->filter()->values();
+                    $totalMapel = $uniqueSubjects->count();
+                @endphp
+
+                @if($totalMapel > 2)
+                    @php
+                        $half = ceil($totalMapel / 2);
+                        $col1 = $uniqueSubjects->slice(0, $half);
+                        $col2 = $uniqueSubjects->slice($half);
+                    @endphp
+                    <div class="subject-container">
+                        <table class="subject-table">
+                            <tr>
+                                <td width="50%">
+                                    <ol class="subject-list" style="margin: 0; padding-left: 20px;">
+                                        @foreach($col1 as $subjectName)
+                                            <li>{{ $subjectName }}</li>
+                                        @endforeach
+                                    </ol>
+                                </td>
+                                <td width="50%">
+                                    <ol class="subject-list" start="{{ $half + 1 }}" style="margin: 0; padding-left: 20px;">
+                                        @foreach($col2 as $subjectName)
+                                            <li>{{ $subjectName }}</li>
+                                        @endforeach
+                                    </ol>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                @elseif($totalMapel > 0)
+                    <ol class="subject-list" style="margin-top: 5px; margin-bottom: 10px; padding-left: 20px;">
+                        @foreach($uniqueSubjects as $subjectName)
+                            <li>{{ $subjectName }}</li>
                         @endforeach
-                    @else
-                        <li>-</li>
-                    @endif
-                </ol>
+                    </ol>
+                @else
+                    <p style="margin-top: 5px; margin-bottom: 10px; padding-left: 20px;">-</p>
+                @endif
+
                 Dengan ketentuan :
             </div>
 
@@ -236,11 +289,11 @@
                     <tr>
                         <th width="5%">No</th>
                         <th width="15%">Hari</th>
-                        <th width="15%">Kelas</th>
+                        <th width="20%">Kelas</th>
                         <th width="20%">Masuk jam ke s/d ke</th>
                         <th width="10%">Jumlah Jam/Kelas</th>
                         <th>Ruang/Labor/ Bengkel</th>
-                        <th width="20%">Ket</th>
+                        <th>Ket</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -258,7 +311,7 @@
                             <td>{{ $sched->classroom->name ?? '-' }}</td>
                             <td>{{ $jamMulai }} - {{ $jamSelesai }}</td>
                             <td>{{ $sched->calculated_jp ?? 0 }}</td>
-                            <td>{{ $sched->merged_room ?? ($sched->room->code ?? '-') }}</td>
+                            <td>{{ $sched->merged_room ?? ($sched->room->name ?? '-') }}</td>
                             <td>{{ $sched->subject->code ?? 'PBM' }}</td>
                         </tr>
                     @empty
