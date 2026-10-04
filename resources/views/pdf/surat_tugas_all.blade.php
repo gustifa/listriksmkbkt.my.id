@@ -88,27 +88,6 @@
             width: 10px; 
         }
 
-        /* CSS Tampilan 2 Kolom Mata Pelajaran */
-        .subject-container {
-            margin-top: 5px;
-            margin-bottom: 10px;
-            width: 100%;
-        }
-        .subject-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .subject-table td {
-            vertical-align: top;
-            padding: 1px 0;
-            font-size: 12pt;
-        }
-        .subject-list {
-            margin-top: 5px;
-            margin-bottom: 10px;
-            padding-left: 20px;
-        }
-
         /* Tabel Jadwal */
         .schedule-table { 
             width: 100%; 
@@ -236,48 +215,59 @@
                 </tr>
             </table>
 
+            <!-- MAPEL 2 KOLOM MURNI -->
             <div class="content">
                 Untuk mengajar pada Mata pelajaran/mata diklat:
                 
                 @php 
-                    $uniqueSubjects = $schedules->unique('subject_id')->pluck('subject.name')->filter()->values();
+                    $uniqueSubjects = $schedules->map(function($s) {
+                        return $s->subject->name ?? null;
+                    })->filter()->unique()->values();
+                    
                     $totalMapel = $uniqueSubjects->count();
                 @endphp
 
                 @if($totalMapel > 2)
                     @php
                         $half = ceil($totalMapel / 2);
-                        $col1 = $uniqueSubjects->slice(0, $half);
-                        $col2 = $uniqueSubjects->slice($half);
+                        $col1 = $uniqueSubjects->slice(0, $half)->values();
+                        $col2 = $uniqueSubjects->slice($half)->values();
                     @endphp
-                    <div class="subject-container">
-                        <table class="subject-table">
-                            <tr>
-                                <td width="50%">
-                                    <ol class="subject-list" style="margin: 0; padding-left: 20px;">
-                                        @foreach($col1 as $subjectName)
-                                            <li>{{ $subjectName }}</li>
-                                        @endforeach
-                                    </ol>
-                                </td>
-                                <td width="50%">
-                                    <ol class="subject-list" start="{{ $half + 1 }}" style="margin: 0; padding-left: 20px;">
-                                        @foreach($col2 as $subjectName)
-                                            <li>{{ $subjectName }}</li>
-                                        @endforeach
-                                    </ol>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
+                    <table style="width: 100%; margin-top: 5px; margin-bottom: 8px; border-collapse: collapse;">
+                        <tr>
+                            <td style="width: 50%; vertical-align: top; padding: 0; border: none;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    @foreach($col1 as $idx => $subjectName)
+                                        <tr>
+                                            <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $idx + 1 }}.</td>
+                                            <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                            <td style="width: 50%; vertical-align: top; padding: 0; border: none;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    @foreach($col2 as $idx => $subjectName)
+                                        <tr>
+                                            <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $half + $idx + 1 }}.</td>
+                                            <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                 @elseif($totalMapel > 0)
-                    <ol class="subject-list" style="margin-top: 5px; margin-bottom: 10px; padding-left: 20px;">
-                        @foreach($uniqueSubjects as $subjectName)
-                            <li>{{ $subjectName }}</li>
+                    <table style="width: 100%; margin-top: 5px; margin-bottom: 8px; border-collapse: collapse;">
+                        @foreach($uniqueSubjects as $idx => $subjectName)
+                            <tr>
+                                <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $idx + 1 }}.</td>
+                                <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                            </tr>
                         @endforeach
-                    </ol>
+                    </table>
                 @else
-                    <p style="margin-top: 5px; margin-bottom: 10px; padding-left: 20px;">-</p>
+                    <p style="margin-top: 5px; margin-bottom: 8px; padding-left: 20px;">-</p>
                 @endif
 
                 Dengan ketentuan :
@@ -322,7 +312,7 @@
                     @if(!empty($teacher->tugas_tambahan))
                         @php
                             $tugasTambahan = $teacher->tugas_tambahan;
-                            $jamTambahan = 2; // Default 2 JP
+                            $jamTambahan = 2;
 
                             if (in_array($tugasTambahan, [
                                 'Ka. Proka Teknik Ketenagalistrikan',
