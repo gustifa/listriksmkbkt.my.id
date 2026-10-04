@@ -236,11 +236,11 @@
                     <tr>
                         <th width="5%">No</th>
                         <th width="15%">Hari</th>
-                        <th width="20%">Kelas</th>
+                        <th width="15%">Kelas</th>
                         <th width="20%">Masuk jam ke s/d ke</th>
                         <th width="10%">Jumlah Jam/Kelas</th>
                         <th>Ruang/Labor/ Bengkel</th>
-                        <th>Ket</th>
+                        <th width="10%">Ket</th>
                     </tr>
                 </thead>
                 <tbody>
