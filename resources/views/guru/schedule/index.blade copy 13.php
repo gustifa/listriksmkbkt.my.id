@@ -1,21 +1,22 @@
-@section('title', 'Jadwal Mengajar Saya')
+@section('title', 'Jadwal Mengajar')
 
 <x-app-layout>
     <div class="page-content">
-        <!--breadcrumb-->
-        <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
-            <div class="breadcrumb-title pe-3">Mapping</div>
-            <div class="ps-3">
-                <nav aria-label="breadcrumb">
-                    <ol class="p-0 mb-0 breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url('/admin/dashboard') }}"><i class="fas fa-calendar-alt me-2"></i></a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Kelola jadwal pelajaran dan pantau absensi harian.</li>
-                    </ol>
-                </nav>
-            </div>
+    <!--breadcrumb-->
+    <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
+        <div class="breadcrumb-title pe-3">Maping</div>
+        <div class="ps-3">
+            <nav aria-label="breadcrumb">
+                <ol class="p-0 mb-0 breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="fas fa-calendar-alt me-2"></i></a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Kelola jadwal pelajaran dan pantau absensi harian.</li>
+                </ol>
+            </nav>
         </div>
-        <!--end breadcrumb-->
 
+    </div>
+    <!--end breadcrumb-->
         <div class="container py-4">
 
             <div class="mb-4 d-flex justify-content-between align-items-center">
@@ -50,11 +51,9 @@
 
             <div class="tab-content" id="scheduleTabsContent">
 
-                <!-- TAMPILAN LIST -->
                 <div class="tab-pane fade show active" id="list-view" role="tabpanel">
                     <div class="row">
-                        @php $activeAlerts = []; @endphp 
-                        @forelse($schedules as $schedule)
+                        @php $activeAlerts = []; @endphp @forelse($schedules as $schedule)
                             @php
                                 $now = \Carbon\Carbon::now();
                                 $isToday = $schedule->day == $now->translatedFormat('l');
@@ -62,8 +61,10 @@
                                 $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($now->year, $now->month, $now->day);
                                 $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($now->year, $now->month, $now->day);
 
+                                // Cek apakah jam sekarang berada di antara jam mulai dan selesai
                                 $isActive = $isToday && $now->between($startTime, $endTime);
 
+                                // Kumpulkan Data Jadwal Aktif untuk Notifikasi Desktop/Toast
                                 if ($isActive) {
                                     $activeAlerts[] = [
                                         'subject' => $schedule->subject->name ?? 'Mapel',
@@ -86,7 +87,7 @@
                             @endphp
 
                             <div class="mb-4 col-md-6 col-lg-4 card-column position-relative">
-                                <div class="card shadow-sm h-100 border-start border-4 {{ $cardBorder }} {{$activeClass }} hover-card">
+                                <div class="card shadow-sm h-100 border-start border-4 {{ $cardBorder }} {{ $activeClass }} hover-card">
                                     <div class="card-body">
                                         <div class="mb-2 d-flex justify-content-between align-items-center">
                                             <span class="badge {{ $badgeBg }} rounded-pill px-3">
@@ -96,7 +97,7 @@
                                                 @endif
                                             </span>
                                             <span class="fw-bold text-dark font-monospace">
-                                                {{ $startTime->format('H:i') }} - {{$endTime->format('H:i') }}
+                                                {{ $startTime->format('H:i') }} - {{ $endTime->format('H:i') }}
                                             </span>
                                         </div>
 
@@ -120,9 +121,10 @@
                                             </div>
 
                                             <div class="gap-1 d-flex">
+
                                                 @if($isActive)
                                                     <div class="btn-group dropdown-container">
-                                                        <button type="button" class="btn btn-sm btn-warning text-dark fw-bold dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <button type="button" class="btn btn-sm btn-warning text-dark fw-bold dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
                                                             <i class="fas fa-camera me-1"></i> Absen
                                                         </button>
                                                         <ul class="shadow dropdown-menu">
@@ -145,6 +147,7 @@
                                                         </ul>
                                                     </div>
                                                 @else
+                                                    {{-- Pastikan route report.schedule menerima parameter ID jadwal --}}
                                                     <a href="{{ route('report.attendance_list' ?? 'report.schedule', $schedule->id) }}" target="_blank" class="text-white btn btn-sm btn-success" title="Lihat Laporan">
                                                         <i class="fas fa-file-alt me-1"></i> Laporan
                                                     </a>
@@ -154,10 +157,12 @@
                                                     <a href="{{ route('schedule.edit', $schedule->id) }}" class="btn btn-sm btn-outline-warning" title="Edit Jadwal">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
+
                                                     <a href="{{ route('schedule.show', $schedule->id) }}" class="btn btn-sm btn-outline-primary" title="Detail">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <form action="{{ route('schedule.destroy', $schedule->id) }}" method="POST">
+
+                                                    <form action="{{ route('schedule.destroy', $schedule->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus jadwal ini? Data absensi terkait mungkin ikut terhapus.');">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete(this.form)">
@@ -185,12 +190,11 @@
                     </div>
                 </div>
 
-                <!-- TAMPILAN KALENDER GURU -->
                 <div class="tab-pane fade" id="calendar-view" role="tabpanel">
                     <div class="border-0 shadow card">
                         <div class="p-0 card-body">
                             <div class="m-3 mb-0 alert alert-info small">
-                                <i class="fas fa-info-circle me-1"></i> <strong>Tips:</strong> Klik pada slot jam pelajaran kosong di kalender untuk membuat jadwal baru.
+                                <i class="fas fa-info-circle me-1"></i> <strong>Tips:</strong> Klik pada area kosong di kalender untuk menambahkan jadwal baru di jam tersebut. Klik jadwal untuk mengedit.
                             </div>
                             <div id="calendar" class="p-3"></div>
                         </div>
@@ -202,14 +206,18 @@
     </div>
 
     @php
-        $events = [];$dayMap = ['minggu' => 0, 'senin' => 1, 'selasa' => 2, 'rabu' => 3, 'kamis' => 4, 'jumat' => 5, 'sabtu' => 6];
+        $events = [];
+        $dayMap = [
+            'minggu' => 0, 'senin' => 1, 'selasa' => 2, 'rabu' => 3,
+            'kamis' => 4, 'jumat' => 5, 'sabtu' => 6
+        ];
 
-        foreach($schedules as$s) {
+        foreach($schedules as $s) {
             $dayKey = strtolower(trim($s->day));
             if (!isset($dayMap[$dayKey])) continue;
 
-            $subjectName =$s->subject->name ?? 'Mapel';
-            $classroomName =$s->classroom->name ?? 'Kelas';
+            $subjectName = $s->subject->name ?? 'Mapel';
+            $classroomName = $s->classroom->name ?? 'Kelas';
 
             $events[] = [
                 'id' => $s->id,
@@ -229,17 +237,44 @@
     @endphp
 
     <style>
-        .hover-card { transition: box-shadow 0.2s, border-color 0.2s; }
-        .hover-card:hover { box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15)!important; z-index: 10; position: relative; }
-        .card-active { box-shadow: 0 0.25rem 0.75rem rgba(255, 193, 7, 0.4) !important; background-color: #fff; border-width: 0 0 0 5px !important; }
-        .z-index-high { z-index: 1050 !important; }
-        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .hover-card {
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .hover-card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15)!important;
+            z-index: 10;
+            position: relative;
+        }
+
+        .card-active {
+            box-shadow: 0 0.25rem 0.75rem rgba(255, 193, 7, 0.4) !important;
+            background-color: #fff;
+            border-width: 0 0 0 5px !important;
+        }
+
+        .z-index-high {
+            z-index: 1050 !important;
+        }
+
+        @keyframes pulse-red {
+            0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
+        }
         .animate-pulse { animation: pulse-red 1.5s infinite; }
+
+        /* FullCalendar Customization */
         #calendar { min-height: 600px; font-family: inherit; }
-        .fc-event { cursor: pointer; border: none; padding: 2px 4px; border-radius: 4px; }
+        .fc-event { cursor: pointer; border: none; padding: 2px 4px; border-radius: 4px; transition: transform 0.1s; }
+        .fc-event:hover { transform: scale(1.02); }
         .fc-toolbar-title { font-size: 1.25rem !important; font-weight: bold; color: #4e73df; }
         .fc-col-header-cell { background-color: #f8f9fa; padding: 10px 0 !important; }
-        .fc-timegrid-slot-label-cushion { white-space: normal !important; width: 60px; }
+
+        /* Style Konten Event di Kalender */
+        .fc-custom-content {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -257,47 +292,47 @@
                 confirmButtonText: 'Ya, Hapus!',
                 cancelButtonText: 'Batal'
             }).then((result) => {
-                if (result.isConfirmed) form.submit();
-            });
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            })
         }
 
+        document.addEventListener('show.bs.dropdown', function (e) {
+            const dropdown = e.target;
+            const cardColumn = dropdown.closest('.card-column');
+            if (cardColumn) {
+                cardColumn.classList.add('z-index-high');
+            }
+        });
+
+        document.addEventListener('hide.bs.dropdown', function (e) {
+            const dropdown = e.target;
+            const cardColumn = dropdown.closest('.card-column');
+            if (cardColumn) {
+                cardColumn.classList.remove('z-index-high');
+            }
+        });
+
+        // --- FULLCALENDAR INIT ---
         document.addEventListener('DOMContentLoaded', function() {
-            const rawTimeSlots = @json($timeSlots ?? []);
-            const scheduleMap = {};
-
-            rawTimeSlots.forEach(slot => {
-                const startKey = slot.start_time.substring(0, 5);
-                scheduleMap[startKey] = {
-                    label: slot.label,
-                    type: slot.type,
-                    end_time: slot.end_time.substring(0, 5)
-                };
-            });
-
             var calendarEl = document.getElementById('calendar');
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
-                headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'timeGridWeek,timeGridDay'
+                },
                 locale: 'id',
-                slotMinTime: '07:00:00',
-                slotMaxTime: '19:00:00',
-                slotDuration: '00:15:00',
-                slotLabelInterval: '00:15:00',
+                slotMinTime: '06:00:00',
+                slotMaxTime: '17:00:00',
                 allDaySlot: false,
                 contentHeight: 'auto',
                 selectable: true,
-                slotLabelContent: function(arg) {
-                    let timeText = arg.date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).replace('.', ':');
-                    if (scheduleMap[timeText]) {
-                        let info = scheduleMap[timeText];
-                        let colorClass = info.type === 'break' ? 'text-danger fw-bold' : 'text-primary fw-bold';
-                        let icon = info.type === 'break' ? '<i class="fas fa-coffee"></i>' : '';
-                        return { html: `<div class="${colorClass}" style="font-size:10px; line-height:1.2;">${icon} ${info.label}</div><div class="small text-muted" style="font-size:9px;">${timeText}</div>` };
-                    }
-                    return { html: '' };
-                },
                 events: @json($events),
 
+                // Custom Event Content
                 eventContent: function(arg) {
                     let subject = arg.event.extendedProps.subject;
                     let classroom = arg.event.extendedProps.classroom;
@@ -308,13 +343,27 @@
                     content.innerHTML = `
                         <div class="fc-event-time" style="font-size:0.75rem; opacity:0.9;">${timeText}</div>
                         <div class="fc-event-title" style="font-weight:bold; font-size:0.65rem; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${subject}</div>
-                        <div style="font-size:0.8rem; font-weight:bold; display:inline-flex; align-items:center; gap:4px; background-color:rgba(255,255,255,0.9); color:#333; padding:2px 6px; border-radius:4px;">
-                            <i class="fas fa-door-open"></i> ${classroom}
+                        <div style="
+                            font-size:0.8rem;
+                            font-weight:bold;
+                            display:inline-flex;
+                            align-items:center;
+                            gap:4px;
+                            background-color:rgba(255,255,255,0.9);
+                            color: #333;
+                            padding:3px 8px;
+                            border-radius:4px;
+                            border:1px solid rgba(0,0,0,0.1);
+                            margin-top: 2px;
+                        ">
+                            <i class="fas fa-door-open" style="font-size:0.8rem;"></i>
+                            ${classroom}
                         </div>
                     `;
                     return { domNodes: [content] };
                 },
 
+                // EVENT: Klik Jadwal
                 eventClick: function(info) {
                     if (info.event.url) {
                         info.jsEvent.preventDefault();
@@ -322,6 +371,7 @@
                     }
                 },
 
+                // EVENT: Klik Slot Kosong
                 dateClick: function(info) {
                     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                     const date = info.date;
@@ -331,14 +381,78 @@
                     const minutes = String(date.getMinutes()).padStart(2, '0');
                     const time = `${hours}:${minutes}`;
 
-                    window.location.href = `{{ route('schedule.create') }}?day=${dayName}&start_time=${time}`;
+                    const url = `{{ route('schedule.create') }}?day=${dayName}&start_time=${time}`;
+                    window.location.href = url;
                 }
             });
 
             var calendarTab = document.getElementById('calendar-tab');
             if (calendarTab) {
-                calendarTab.addEventListener('shown.bs.tab', function () { calendar.render(); });
+                calendarTab.addEventListener('shown.bs.tab', function (e) {
+                    calendar.render();
+                });
+                calendarTab.addEventListener('click', function (e) {
+                    setTimeout(() => { calendar.render(); }, 200);
+                });
+            }
+
+            // --- NOTIFIKASI JADWAL AKTIF (FITUR BARU) ---
+            const activeAlerts = @json($activeAlerts);
+
+            if (activeAlerts.length > 0) {
+                // Request permission untuk notifikasi desktop jika belum
+                if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+
+                activeAlerts.forEach(alert => {
+                    // 1. Tampilkan Toast SweetAlert
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: 'Sedang Berlangsung!',
+                        html: `<b>${alert.subject}</b><br>${alert.classroom} (${alert.time})`,
+                        showConfirmButton: false,
+                        timer: 8000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
+                    });
+
+                    // 2. Tampilkan Notifikasi Desktop (Jika diizinkan)
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        new Notification("Jadwal Mengajar Aktif", {
+                            body: `${alert.subject} di ${alert.classroom}\nJam: ${alert.time}`,
+                            icon: "https://img.icons8.com/color/48/classroom.png" // Ikon opsional
+                        });
+                    }
+                });
             }
         });
+    </script>
+
+    <script>
+        // Cek apakah ada session 'success' yang dikirim dari controller
+        @if(session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: "{{ session('success') }}",
+                showConfirmButton: false,
+                timer: 2000 // Notifikasi hilang otomatis setelah 2 detik
+            });
+        @endif
+
+        // Opsional: Cek jika ada error validasi
+        @if($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Mohon periksa kembali inputan Anda.',
+            });
+        @endif
     </script>
 </x-app-layout>

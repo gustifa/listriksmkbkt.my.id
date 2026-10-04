@@ -3,19 +3,20 @@
 <x-app-layout>
     <div class="page-content">
         <!--breadcrumb-->
-        <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
-            <div class="breadcrumb-title pe-3">Mapping</div>
-            <div class="ps-3">
-                <nav aria-label="breadcrumb">
-                    <ol class="p-0 mb-0 breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url('/admin/dashboard') }}"><i class="fas fa-calendar-alt me-2"></i></a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Kelola jadwal pelajaran dan pantau absensi harian.</li>
-                    </ol>
-                </nav>
-            </div>
+    <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
+        <div class="breadcrumb-title pe-3">Maping</div>
+        <div class="ps-3">
+            <nav aria-label="breadcrumb">
+                <ol class="p-0 mb-0 breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="fas fa-calendar-alt me-2"></i></a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Kelola jadwal pelajaran dan pantau absensi harian.</li>
+                </ol>
+            </nav>
         </div>
-        <!--end breadcrumb-->
 
+    </div>
+    <!--end breadcrumb-->
         <div class="py-4 container-fluid">
 
             <div class="mb-4 d-flex justify-content-between align-items-center">
@@ -47,13 +48,10 @@
             @endif
 
             @if ($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="alert alert-danger">
                     <ul class="mb-0">
-                        @foreach ($errors->all() as $error) 
-                            <li>{{ $error }}</li> 
-                        @endforeach
+                        @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
                     </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
 
@@ -74,9 +72,10 @@
                     <h5 class="modal-title" id="modalTitle"><i class="fas fa-plus-circle"></i> Tambah Jadwal</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                
+                <!-- Form Action akan di-set lewat JS -->
                 <form id="scheduleForm" action="{{ route('schedule.store_admin') }}" method="POST">
                     @csrf
+                    <!-- Container untuk spoofing method PUT saat edit -->
                     <div id="method-spoofing"></div>
 
                     <div class="modal-body">
@@ -134,44 +133,20 @@
                             <div class="form-text text-muted small">Pilih ruangan jika pelajaran dilakukan di Lab/Bengkel.</div>
                         </div>
 
-                        <!-- TIME SLOT JAM MULAI & TIME SLOT JAM SELESAI -->
                         <div class="row">
                             <div class="mb-3 col-6">
                                 <label class="form-label fw-bold">Jam Mulai</label>
-                                <select name="start_time" id="modal_start_time" class="form-select" required onchange="handleStartSlotChange(this.value)">
-                                    <option value="" disabled selected>-- Pilih Jam Mulai --</option>
-                                    @if(isset($timeSlots))
-                                        @foreach($timeSlots as $slot)
-                                            @if($slot->type === 'lesson')
-                                                <option value="{{ \Carbon\Carbon::parse($slot->start_time)->format('H:i') }}" 
-                                                        data-end="{{ \Carbon\Carbon::parse($slot->end_time)->format('H:i') }}"
-                                                        data-label="{{ $slot->label }}">
-                                                    {{ $slot->label }} ({{ \Carbon\Carbon::parse($slot->start_time)->format('H:i') }})
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    @endif
-                                </select>
+                                <input type="time" name="start_time" id="modal_start_time" class="form-control bg-light" readonly required>
                             </div>
-
                             <div class="mb-3 col-6">
                                 <label class="form-label fw-bold">Jam Selesai</label>
-                                <select name="end_time" id="modal_end_time" class="form-select" required onchange="updateDurationLabel()">
-                                    <option value="" disabled selected>-- Pilih Jam Selesai --</option>
-                                    @if(isset($timeSlots))
-                                        @foreach($timeSlots as $slot)
-                                            <option value="{{ \Carbon\Carbon::parse($slot->end_time)->format('H:i') }}"
-                                                    data-label="{{ $slot->label }}">
-                                                Selesai {{ $slot->label }} ({{ \Carbon\Carbon::parse($slot->end_time)->format('H:i') }})
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
+                                <input type="time" name="end_time" id="modal_end_time" class="form-control" required>
                             </div>
                         </div>
 
                     </div>
                     <div class="modal-footer d-flex justify-content-between">
+                        <!-- Tombol Delete (Hanya muncul saat Edit) -->
                         <button type="button" id="btnDelete" class="btn btn-danger d-none" onclick="deleteSchedule()">
                             <i class="fas fa-trash me-1"></i> Hapus
                         </button>
@@ -209,6 +184,7 @@
                 'endTime' => \Carbon\Carbon::parse($s->end_time)->format('H:i'),
                 'daysOfWeek' => [$dayMap[$dayKey]],
                 'color' => $color,
+                // Kita simpan data detail di extendedProps untuk diakses JS
                 'extendedProps' => [
                     'teacher_id' => $s->teacher_id,
                     'classroom_id' => $s->classroom_id,
@@ -221,75 +197,32 @@
     @endphp
 
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Handler saat Jam Mulai dipilih -> otomatis pilihkan Jam Selesai yang sesuai
-        function handleStartSlotChange(startTime) {
-            const startSelect = document.getElementById('modal_start_time');
-            const selectedStartOption = startSelect.options[startSelect.selectedIndex];
-
-            if (selectedStartOption && selectedStartOption.dataset.end) {
-                const targetEnd = selectedStartOption.dataset.end;
-                const endSelect = document.getElementById('modal_end_time');
-
-                // Pilih otomatis option Jam Selesai yang cocok
-                for (let i = 0; i < endSelect.options.length; i++) {
-                    if (endSelect.options[i].value === targetEnd) {
-                        endSelect.selectedIndex = i;
-                        break;
-                    }
-                }
-
-                updateDurationLabel();
-            }
-        }
-
-        // Hitung durasi dan tampilkan label info
-        function updateDurationLabel() {
-            const startVal = document.getElementById('modal_start_time').value;
-            const endVal = document.getElementById('modal_end_time').value;
-            const startSelect = document.getElementById('modal_start_time');
-            const selectedOption = startSelect.options[startSelect.selectedIndex];
-            const labelName = selectedOption ? selectedOption.dataset.label : 'Slot Waktu';
-
-            if (startVal && endVal) {
-                const [sH, sM] = startVal.split(':').map(Number);
-                const [eH, eM] = endVal.split(':').map(Number);
-                const duration = (eH * 60 + eM) - (sH * 60 + sM);
-
-                if (duration > 0) {
-                    document.getElementById('modal_slot_label').innerText = `${labelName} (${startVal} - ${endVal} | ${duration} Menit)`;
-                } else {
-                    document.getElementById('modal_slot_label').innerText = "Waktu selesai harus lebih besar dari waktu mulai!";
-                }
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
 
             // --- DATA ---
             const existingSchedules = @json($schedules);
             const allAssignments = @json($allAssignments);
-            const rawTimeSlots = @json($timeSlots ?? []);
 
-            // --- MAP SLOT JAM DINAMIS ---
-            const scheduleMap = {};
-            rawTimeSlots.forEach(slot => {
-                const startKey = slot.start_time.substring(0, 5);
-                
-                const startArr = slot.start_time.split(':');
-                const endArr = slot.end_time.split(':');
-                const startMin = parseInt(startArr[0]) * 60 + parseInt(startArr[1]);
-                const endMin = parseInt(endArr[0]) * 60 + parseInt(endArr[1]);
-                const durationMin = endMin - startMin;
-
-                scheduleMap[startKey] = {
-                    label: slot.label,
-                    duration: durationMin,
-                    type: slot.type,
-                    end_time: slot.end_time.substring(0, 5)
-                };
-            });
+            // --- DEFINISI SLOT ---
+            const scheduleMap = {
+                '07:00': { label: 'Jam 1', duration: 45, type: 'lesson' },
+                '07:45': { label: 'Jam 2', duration: 45, type: 'lesson' },
+                '08:30': { label: 'Jam 3', duration: 45, type: 'lesson' },
+                '09:15': { label: 'Jam 4', duration: 45, type: 'lesson' },
+                '10:00': { label: 'Istirahat I', duration: 15, type: 'break' },
+                '10:15': { label: 'Jam 5', duration: 45, type: 'lesson' },
+                '11:00': { label: 'Jam 6', duration: 45, type: 'lesson' },
+                '11:45': { label: 'Jam 7', duration: 45, type: 'lesson' },
+                '12:30': { label: 'Ishoma', duration: 45, type: 'break' },
+                '13:15': { label: 'Jam 8', duration: 45, type: 'lesson' },
+                '14:00': { label: 'Jam 9', duration: 45, type: 'lesson' },
+                '14:45': { label: 'Jam 10', duration: 45, type: 'lesson' },
+                '15:30': { label: 'Istirahat III', duration: 15, type: 'break' },
+                '15:45': { label: 'Jam 11', duration: 45, type: 'lesson' },
+                '16:30': { label: 'Jam 12', duration: 45, type: 'lesson' },
+                '17:15': { label: 'Jam 13', duration: 45, type: 'lesson' }
+            };
 
             // --- ELEMEN DOM ---
             const modalEl = document.getElementById('adminScheduleModal');
@@ -316,7 +249,7 @@
                 const map = new Map();
 
                 myAssignments.forEach(item => {
-                    if(item.classroom && !map.has(item.classroom_id)){
+                    if(!map.has(item.classroom_id)){
                         map.set(item.classroom_id, true);
                         uniqueClasses.push({ id: item.classroom_id, name: item.classroom.name });
                     }
@@ -332,6 +265,7 @@
                         classroomSelect.appendChild(opt);
                     });
 
+                    // Jika ada selectedClassId, trigger update subject
                     if(selectedClassId) updateSubjects(teacherId, selectedClassId);
                 } else {
                     classroomSelect.innerHTML = '<option>Guru ini belum di-mapping!</option>';
@@ -349,13 +283,11 @@
                 if (validMapels.length > 0) {
                     subjectSelect.disabled = false;
                     validMapels.forEach(m => {
-                        if(m.subject) {
-                            const opt = document.createElement('option');
-                            opt.value = m.subject_id;
-                            opt.textContent = m.subject.name;
-                            if(selectedSubjectId && m.subject_id == selectedSubjectId) opt.selected = true;
-                            subjectSelect.appendChild(opt);
-                        }
+                        const opt = document.createElement('option');
+                        opt.value = m.subject_id;
+                        opt.textContent = m.subject.name;
+                        if(selectedSubjectId && m.subject_id == selectedSubjectId) opt.selected = true;
+                        subjectSelect.appendChild(opt);
                     });
                 }
             }
@@ -375,7 +307,7 @@
                 headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth' },
                 locale: 'id',
                 slotMinTime: '07:00:00',
-                slotMaxTime: '19:00:00',
+                slotMaxTime: '18:15:00',
                 slotDuration: '00:15:00',
                 slotLabelInterval: '00:15:00',
                 expandRows: true,
@@ -392,7 +324,7 @@
                 },
                 events: @json($events),
 
-                // 1. KLIK SLOT KOSONG (TAMBAH JADWAL ADMIN)
+                // 1. KLIK SLOT KOSONG (TAMBAH DATA)
                 dateClick: function(info) {
                     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                     const date = info.date;
@@ -400,59 +332,66 @@
                     let m = String(date.getMinutes()).padStart(2, '0');
                     let timeKey = `${h}:${m}`;
 
-                    if (!scheduleMap[timeKey]) { alert('Klik tepat pada slot jam pelajaran.'); return; }
+                    if (!scheduleMap[timeKey]) { alert('Klik tepat pada jam mulai.'); return; }
                     const slotInfo = scheduleMap[timeKey];
-                    if (slotInfo.type === 'break') { alert('Tidak bisa memilih jam istirahat.'); return; }
+                    if (slotInfo.type === 'break') { alert('Tidak bisa input di jam istirahat.'); return; }
 
+                    // RESET FORM UNTUK CREATE
                     form.reset();
-                    form.action = "{{ route('schedule.store_admin') }}";
-                    document.getElementById('method-spoofing').innerHTML = '';
-                    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Jadwal (Admin)';
+                    form.action = "{{ route('schedule.store_admin') }}"; // Route Create
+                    document.getElementById('method-spoofing').innerHTML = ''; // Hapus method PUT
+                    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Jadwal';
                     document.getElementById('btnDelete').classList.add('d-none');
                     document.getElementById('btnSave').innerText = 'Simpan';
                     document.getElementById('error-alert').classList.add('d-none');
 
+                    // Reset Dropdowns
                     classroomSelect.innerHTML = '<option value="">-- Pilih Guru Dulu --</option>';
                     classroomSelect.disabled = true;
                     subjectSelect.innerHTML = '<option value="">-- Pilih Kelas Dulu --</option>';
                     subjectSelect.disabled = true;
 
+                    // Isi Data Waktu
                     document.getElementById('modal_day').value = days[date.getDay()];
+                    document.getElementById('modal_start_time').value = timeKey;
+                    document.getElementById('modal_slot_label').innerText = `${slotInfo.label} (${slotInfo.duration} Menit)`;
 
-                    // Pilih Time Slot Jam Mulai otomatis dari slot kalender yang diklik
-                    const startSelect = document.getElementById('modal_start_time');
-                    for (let i = 0; i < startSelect.options.length; i++) {
-                        if (startSelect.options[i].value === timeKey) {
-                            startSelect.selectedIndex = i;
-                            handleStartSlotChange(timeKey);
-                            break;
-                        }
-                    }
+                    let endDate = new Date(date.getTime() + slotInfo.duration * 60000);
+                    const endH = String(endDate.getHours()).padStart(2, '0');
+                    const endM = String(endDate.getMinutes()).padStart(2, '0');
+                    document.getElementById('modal_end_time').value = `${endH}:${endM}`;
 
                     myModal.show();
                 },
 
-                // 2. KLIK EVENT (EDIT JADWAL ADMIN)
+                // 2. KLIK EVENT ADA (EDIT DATA)
                 eventClick: function(info) {
                     info.jsEvent.preventDefault();
 
                     const props = info.event.extendedProps;
                     const eventId = info.event.id;
 
-                    let updateUrl = "{{ route('schedule.update_admin', ':id') }}";
-                    form.action = updateUrl.replace(':id', eventId);
-
+                    // SETUP FORM UNTUK EDIT
+                    // Ganti URL ke route update. Gunakan placeholder ID atau route helper jika tersedia
+                    form.action = "{{ url('/schedule') }}/" + eventId;
                     document.getElementById('method-spoofing').innerHTML = '<input type="hidden" name="_method" value="PUT">';
-                    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Jadwal (Admin)';
+
+                    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Jadwal';
                     document.getElementById('btnDelete').classList.remove('d-none');
                     document.getElementById('btnDelete').setAttribute('data-id', eventId);
                     document.getElementById('btnSave').innerText = 'Update';
                     document.getElementById('error-alert').classList.add('d-none');
 
+                    // Isi Data
                     document.getElementById('modal_day').value = props.day;
                     document.getElementById('modal_teacher_id').value = props.teacher_id;
 
+                    // Trigger update options dan set value (Chained)
                     updateClassrooms(props.teacher_id, props.classroom_id);
+                    // updateSubjects dipanggil otomatis di dalam updateClassrooms jika classId ada
+                    // Tapi kita perlu memastikan subject terseleksi.
+                    // Karena updateClassrooms async? Tidak, ini sync. Jadi aman.
+                    // Namun kita harus panggil updateSubjects manual untuk set selectedSubjectId
                     updateSubjects(props.teacher_id, props.classroom_id, props.subject_id);
 
                     if (props.room_id) {
@@ -461,43 +400,35 @@
                         document.getElementById('modal_room_id').value = "";
                     }
 
+                    // Waktu
+                    // Format dari FullCalendar ISO string ke H:i
                     const start = info.event.start;
                     const end = info.event.end;
                     const sH = String(start.getHours()).padStart(2, '0');
                     const sM = String(start.getMinutes()).padStart(2, '0');
                     const eH = String(end.getHours()).padStart(2, '0');
                     const eM = String(end.getMinutes()).padStart(2, '0');
+
+                    document.getElementById('modal_start_time').value = `${sH}:${sM}`;
+                    document.getElementById('modal_end_time').value = `${eH}:${eM}`;
+
+                    // Cari label slot
                     const timeKey = `${sH}:${sM}`;
-                    const endTimeKey = `${eH}:${eM}`;
-
-                    // Set Jam Mulai
-                    const startSelect = document.getElementById('modal_start_time');
-                    for (let i = 0; i < startSelect.options.length; i++) {
-                        if (startSelect.options[i].value === timeKey) {
-                            startSelect.selectedIndex = i;
-                            break;
-                        }
+                    if(scheduleMap[timeKey]){
+                         document.getElementById('modal_slot_label').innerText = `${scheduleMap[timeKey].label} (Edit Mode)`;
+                    } else {
+                         document.getElementById('modal_slot_label').innerText = "Edit Waktu";
                     }
 
-                    // Set Jam Selesai
-                    const endSelect = document.getElementById('modal_end_time');
-                    for (let i = 0; i < endSelect.options.length; i++) {
-                        if (endSelect.options[i].value === endTimeKey) {
-                            endSelect.selectedIndex = i;
-                            break;
-                        }
-                    }
-
-                    updateDurationLabel();
                     myModal.show();
                 }
             });
             calendar.render();
 
-            // --- DELETE FUNCTION ADMIN ---
+            // --- DELETE FUNCTION ---
             window.deleteSchedule = function() {
                 const id = document.getElementById('btnDelete').getAttribute('data-id');
-                if (!id) return;
+                if(!id) return;
 
                 Swal.fire({
                     title: 'Hapus Jadwal?',
@@ -510,26 +441,33 @@
                     cancelButtonText: 'Batal'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        let deleteUrl = "{{ route('schedule.destroy_admin', ':id') }}";
-                        deleteForm.action = deleteUrl.replace(':id', id);
+                        deleteForm.action = "{{ url('/schedule') }}/" + id;
                         deleteForm.submit();
                     }
-                });
+                })
             };
 
-            // Validasi Conflict Client-side
+            // Validasi Submit (Conflict Check)
             form.addEventListener('submit', function(e) {
+                // Logika validasi client-side bisa ditambahkan di sini jika perlu
+                // Saat ini mengandalkan server-side validation & error return
+                // Tapi kita bisa cek bentrok sederhana dari data existingSchedules di client side
+                // untuk UX yang lebih cepat.
+
                 const inputTeacher = document.getElementById('modal_teacher_id').value;
                 const inputClass = document.getElementById('modal_classroom_id').value;
                 const inputDay = document.getElementById('modal_day').value;
                 const inputStart = document.getElementById('modal_start_time').value;
 
+                // Ambil ID jika sedang edit (dari action form)
+                const isEdit = form.action.includes('?'); // Kasar, tapi PUT spoofing ada di div
                 const methodInput = document.querySelector('input[name="_method"]');
                 const isPut = methodInput && methodInput.value === 'PUT';
+                // Extract ID from action url if needed
                 const currentId = isPut ? form.action.split('/').pop() : null;
 
                 const classBusy = existingSchedules.find(s => {
-                    if(isPut && s.id == currentId) return false;
+                    if(isPut && s.id == currentId) return false; // Skip diri sendiri saat edit
                     const dbStart = s.start_time.substring(0, 5);
                     return s.day.toLowerCase() === inputDay.toLowerCase() &&
                            dbStart === inputStart &&
@@ -550,7 +488,7 @@
                 if (classBusy) {
                     e.preventDefault();
                     let teacherName = classBusy.teacher ? classBusy.teacher.name : 'Guru Lain';
-                    errorMsg.innerHTML = `<strong>BENTROK KELAS:</strong> Kelas ini sedang diisi oleh <u>${teacherName}</u>.`;
+                    errorMsg.innerHTML = `<strong>BENTROK KELAS:</strong> Kelas ini sudah diisi oleh <u>${teacherName}</u>.`;
                     errorBox.classList.remove('d-none');
                     return;
                 }
@@ -564,8 +502,15 @@
                 }
             });
 
+            // Hide error on change
             teacherSelect.addEventListener('change', () => document.getElementById('error-alert').classList.add('d-none'));
             classroomSelect.addEventListener('change', () => document.getElementById('error-alert').classList.add('d-none'));
+
+            // Fix modal z-index for fullcalendar
+            var calendarTab = document.getElementById('calendar-tab');
+            if (calendarTab) {
+                calendarTab.addEventListener('shown.bs.tab', function (e) { calendar.render(); });
+            }
         });
     </script>
 

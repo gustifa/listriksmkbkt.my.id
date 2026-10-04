@@ -7,6 +7,7 @@ use App\Http\Controllers\StudentImportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\TimeSlotController;
 use App\Models\Student;
 
 use App\Http\Controllers\ClassPromotionController;
@@ -409,6 +410,11 @@ Route::middleware(['auth'])->group(function () {
         //     return view('print.all_cards', compact('students'));
         // });
 
+        Route::get('/time-slots', [TimeSlotController::class, 'index'])->name('time_slots.index');
+        Route::post('/time-slots', [TimeSlotController::class, 'store'])->name('time_slots.store');
+        Route::put('/time-slots/{id}', [TimeSlotController::class, 'update'])->name('time_slots.update');
+        Route::delete('/time-slots/{id}', [TimeSlotController::class, 'destroy'])->name('time_slots.destroy');
+
         Route::get('/face/register', [FaceController::class, 'index'])->name('face.index');
         Route::get('/face/register/{id}', [FaceController::class, 'register'])->name('face.register');
         Route::post('/face/register/{id}', [FaceController::class, 'store'])->name('face.store');
@@ -585,7 +591,11 @@ Route::middleware(['auth'])->group(function () {
         // Menu Jadwal Semua Guru (Master Schedule)
         Route::get('/schedule/all', [ScheduleController::class, 'allSchedules'])->name('schedule.all');
         Route::post('/schedule/admin/store', [ScheduleController::class, 'storeAsAdmin'])->name('schedule.store_admin');
-
+        // ROUTE BARU: Update Jadwal oleh Admin
+        // Route::put('/schedule/admin/update/{id}', [ScheduleController::class, 'updateAsAdmin'])->name('schedule.update_admin');
+        // Fitur Edit & Delete Admin (Menggunakan UUID)
+        Route::put('/schedule/admin/{id}', [ScheduleController::class, 'updateAsAdmin'])->name('schedule.update_admin');
+        Route::delete('/schedule/admin/{id}', [ScheduleController::class, 'destroyAsAdmin'])->name('schedule.destroy_admin');
         // --- PENGATURAN DATABASE (BACKUP & RESTORE) ---
         Route::get('/settings/database', [DatabaseController::class, 'index'])->name('database.index');
         Route::post('/settings/database/backup', [DatabaseController::class, 'backup'])->name('database.backup');
