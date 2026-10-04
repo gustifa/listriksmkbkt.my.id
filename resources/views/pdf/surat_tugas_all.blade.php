@@ -258,7 +258,7 @@
                             <td>{{ $sched->classroom->name ?? '-' }}</td>
                             <td>{{ $jamMulai }} - {{ $jamSelesai }}</td>
                             <td>{{ $sched->calculated_jp ?? 0 }}</td>
-                            <td>{{ $sched->merged_room ?? ($sched->room->name ?? '-') }}</td>
+                            <td>{{ $sched->merged_room ?? ($sched->room->code ?? '-') }}</td>
                             <td>{{ $sched->subject->code ?? 'PBM' }}</td>
                         </tr>
                     @empty
