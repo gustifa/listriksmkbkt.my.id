@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Question extends Model
 {
@@ -13,13 +14,18 @@ class Question extends Model
     protected $casts = [
         'options' => 'array',
         'correct_answer' => 'array',
+        'score_weight'   => 'integer',
     ];
 
     public function exam() { return $this->belongsTo(Exam::class); }
 
-    public function options()
+    protected static function boot()
     {
-        // Sesuaikan 'QuestionOption' dengan nama Model Pilihan Jawaban yang ada di project Anda
-        return $this->hasMany(QuestionOption::class); 
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->id)) {
+                $model->id = (string) Str::uuid();
+            }
+        });
     }
 }

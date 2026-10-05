@@ -8,6 +8,8 @@ use App\Models\ExamAnswer;
 use App\Models\ExamSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use App\Models\Student;
 
 class StudentExamController extends Controller
 {
@@ -23,28 +25,62 @@ class StudentExamController extends Controller
     /**
      * 1. Menampilkan Daftar Ujian Siswa (Index)
      */
+    // public function index()
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     // Query Ujian Aktif
+    //     $activeExams = Exam::with(['subject', 'teacher', 'sessions' => function ($q) use ($studentId) {
+    //                         $q->where('student_id', $studentId);
+    //                     }])
+    //                     ->withCount('questions')
+    //                     ->where('is_active', true)
+    //                     ->latest()
+    //                     ->get();
+
+    //     // Query Ujian Selesai (Riwayat)
+    //     $completedExams = Exam::with(['subject', 'sessions' => function ($q) use ($studentId) {
+    //                             $q->where('student_id', $studentId)->where('status', 'completed');
+    //                         }])
+    //                         ->whereHas('sessions', function ($q) use ($studentId) {
+    //                             $q->where('student_id', $studentId)->where('status', 'completed');
+    //                         })
+    //                         ->latest()
+    //                         ->get();
+
+    //     return view('students.exam.index', compact('activeExams', 'completedExams'));
+    // }
+
     public function index()
     {
         $studentId = $this->getStudentId();
 
-        // Query Ujian Aktif
-        $activeExams = Exam::with(['subject', 'teacher', 'sessions' => function ($q) use ($studentId) {
-                            $q->where('student_id', $studentId);
-                        }])
-                        ->withCount('questions')
-                        ->where('is_active', true)
-                        ->latest()
-                        ->get();
+        // 1. Ambil data siswa yang sedang login beserta ID kelasnya
+        $student = \App\Models\Student::findOrFail($studentId);
+        $classroomId = $student->classroom_id;
 
-        // Query Ujian Selesai (Riwayat)
-        $completedExams = Exam::with(['subject', 'sessions' => function ($q) use ($studentId) {
-                                $q->where('student_id', $studentId)->where('status', 'completed');
+        // 2. Query Ujian Aktif (Hanya untuk kelas siswa)
+        $activeExams = Exam::with(['subject', 'teacher', 'classrooms', 'sessions' => function ($q) use ($studentId) {
+                                $q->where('student_id', $studentId);
                             }])
-                            ->whereHas('sessions', function ($q) use ($studentId) {
-                                $q->where('student_id', $studentId)->where('status', 'completed');
+                            ->withCount('questions')
+                            ->where('is_active', true)
+                            // Filter agar hanya mengambil ujian yang mendaftarkan kelas siswa
+                            ->whereHas('classrooms', function ($q) use ($classroomId) {
+                                $q->where('classrooms.id', $classroomId);
                             })
                             ->latest()
                             ->get();
+
+        // 3. Query Ujian Selesai / Riwayat
+        $completedExams = Exam::with(['subject', 'teacher', 'classrooms', 'sessions' => function ($q) use ($studentId) {
+                                    $q->where('student_id', $studentId)->where('status', 'completed');
+                                }])
+                                ->whereHas('sessions', function ($q) use ($studentId) {
+                                    $q->where('student_id', $studentId)->where('status', 'completed');
+                                })
+                                ->latest()
+                                ->get();
 
         return view('students.exam.index', compact('activeExams', 'completedExams'));
     }
@@ -140,34 +176,131 @@ class StudentExamController extends Controller
     /**
      * 4. Halaman Lembar Pengerjaan Soal (Show)
      */
+    // public function show(Exam $exam, ExamSession $session)
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     // Validasi Pemilik Sesi
+    //     if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
+    //         return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
+    //     }
+
+    //     // Jika ujian sudah selesai, langsung arahkan ke hasil
+    //     if ($session->status === 'completed') {
+    //         return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+    //     }
+
+    //     // Load soal ujian
+    //     $questions = $exam->questions()->get();
+
+    //     // Hitung sisa waktu pengerjaan (dalam detik)
+    //     $durationSeconds = $exam->duration_minutes * 60;
+    //     $elapsedSeconds = now()->diffInSeconds($session->start_time);
+    //     $remainingSeconds = max(0, $durationSeconds - $elapsedSeconds);
+
+    //     // Jika waktu sudah habis secara server-side
+    //     if ($remainingSeconds <= 0) {
+    //         return $this->autoFinishSession($session);
+    //     }
+
+    //     // Ambil jawaban yang sudah pernah disimpan
+    //     $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+    //     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
+    // }
+
+//     public function show(Exam $exam, ExamSession $session)
+// {
+//     $studentId = $this->getStudentId();
+
+//     // 1. Validasi Pemilik Sesi
+//     if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
+//         return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
+//     }
+
+//     // 2. Jika ujian sudah selesai, langsung arahkan ke hasil
+//     if ($session->status === 'completed') {
+//         return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+//     }
+
+//     // 3. Pastikan start_time tercatat saat pertama kali membuka ujian
+//     if (!$session->start_time) {
+//         $session->update([
+//             'start_time' => now(),
+//         ]);
+//         $startTime = now();
+//     } else {
+//         $startTime = Carbon::parse($session->start_time);
+//     }
+
+//     // 4. Hitung Waktu Selesai yang Pasti (Deadline = start_time + durasi)
+//     $deadline = $startTime->copy()->addMinutes($exam->duration_minutes);
+//     $now = now();
+
+//     // 5. Hitung Sisa Detik Aktual
+//     if ($now->greaterThanOrEqualTo($deadline)) {
+//         // Jika waktu sudah lewat dari deadline, otomatis selesaikan sesi
+//         return $this->autoFinishSession($session);
+//     }
+
+//     // Hitung selisih detik yang tersisa menuju deadline
+//     $remainingSeconds = $now->diffInSeconds($deadline);
+
+//     // 6. Load soal ujian & jawaban siswa
+//     $questions = $exam->questions()->get();
+//     $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+//     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
+// }
+
     public function show(Exam $exam, ExamSession $session)
     {
         $studentId = $this->getStudentId();
 
-        // Validasi Pemilik Sesi
+        // 1. Validasi Pemilik Sesi
         if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
             return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
         }
 
-        // Jika ujian sudah selesai, langsung arahkan ke hasil
+        // 2. Validasi Target Kelas Siswa
+        $student = Student::findOrFail($studentId);
+        $isTargetClass = $exam->classrooms()->where('classrooms.id', $student->classroom_id)->exists();
+
+        if (!$isTargetClass) {
+            return redirect()->route('student.exam.index')
+                            ->with('error', 'Anda tidak terdaftar sebagai peserta pada kelas ujian ini.');
+        }
+
+        // 3. Jika ujian sudah selesai, langsung arahkan ke hasil
         if ($session->status === 'completed') {
             return redirect()->route('student.exam.result', [$exam->id, $session->id]);
         }
 
-        // Load soal ujian
-        $questions = $exam->questions()->get();
+        // 4. Pastikan start_time tercatat saat pertama kali membuka ujian
+        if (!$session->start_time) {
+            $session->update([
+                'start_time' => now(),
+            ]);
+            $startTime = now();
+        } else {
+            $startTime = Carbon::parse($session->start_time);
+        }
 
-        // Hitung sisa waktu pengerjaan (dalam detik)
-        $durationSeconds = $exam->duration_minutes * 60;
-        $elapsedSeconds = now()->diffInSeconds($session->start_time);
-        $remainingSeconds = max(0, $durationSeconds - $elapsedSeconds);
+        // 5. Hitung Waktu Selesai yang Pasti (Deadline = start_time + durasi)
+        $deadline = $startTime->copy()->addMinutes($exam->duration_minutes);
+        $now = now();
 
-        // Jika waktu sudah habis secara server-side
-        if ($remainingSeconds <= 0) {
+        // 6. Hitung Sisa Detik Aktual
+        if ($now->greaterThanOrEqualTo($deadline)) {
+            // Jika waktu sudah lewat dari deadline, otomatis selesaikan sesi
             return $this->autoFinishSession($session);
         }
 
-        // Ambil jawaban yang sudah pernah disimpan
+        // Hitung selisih detik yang tersisa menuju deadline
+        $remainingSeconds = $now->diffInSeconds($deadline);
+
+        // 7. Load soal ujian & jawaban siswa
+        $questions = $exam->questions()->get();
         $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
 
         return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));

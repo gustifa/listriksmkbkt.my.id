@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="container-fluid py-3">
-    <!-- Navigation Header -->
+    <!-- Navigation Header & Action Buttons -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <a href="{{ route('exams.index') }}" class="btn btn-outline-secondary btn-sm mb-2">
@@ -13,11 +13,37 @@
             <h3 class="fw-bold text-dark mb-0">{{ $exam->title }}</h3>
         </div>
         <div class="d-flex gap-2">
+            <!-- Tombol Tambah Soal Manual -->
+            <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-primary fw-semibold">
+                <i class="fas fa-plus me-1"></i> Tambah Soal Manual
+            </a>
+
+            <!-- Tombol Import Excel -->
             <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-success fw-semibold">
-                Import Excel
+                <i class="fas fa-file-excel me-1"></i> Import Excel
+            </a>
+
+            <!-- Tombol Export Excel -->
+            <a href="{{ route('guru.questions.export', $exam->id) }}" class="btn btn-outline-success fw-semibold">
+                <i class="fas fa-file-download me-1"></i> Export Excel
             </a>
         </div>
     </div>
+
+    <!-- Alert Notifikasi Sukses / Error -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     <!-- Informasi Ringkas Ujian -->
     <div class="row g-3 mb-4">
@@ -89,30 +115,71 @@
     <div class="card border-0 shadow-sm rounded-3">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0 text-dark">Daftar Soal</h5>
+            <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                <i class="fas fa-plus me-1"></i> Tambah Soal
+            </a>
         </div>
         <div class="card-body p-4">
             @forelse($exam->questions as $index => $q)
                 <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold text-primary">Soal #{{ $index + 1 }}</span>
-                        <div>
-                            <span class="badge bg-secondary-subtle text-secondary me-1">Tipe: {{ strtoupper($q->question_type) }}</span>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Bobot: {{ $q->score_weight }}</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="badge bg-secondary-subtle text-secondary me-1">
+                                Tipe: {{ strtoupper($q->question_type ?? $q->type) }}
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-2">
+                                Bobot: {{ $q->score_weight ?? $q->score }}
+                            </span>
+
+                            <!-- Tombol Copy / Duplikat Soal -->
+                            <form action="{{ route('guru.questions.duplicate', $q->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menduplikasi soal ini?');">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-info py-0 px-2 fw-semibold" title="Duplikat Soal">
+                                    <i class="fas fa-copy me-1"></i> Copy
+                                </button>
+                            </form>
+
+                            <!-- Tombol Edit Soal -->
+                            <a href="{{ route('guru.questions.edit', $q->id) }}" class="btn btn-sm btn-outline-warning py-0 px-2 fw-semibold" title="Edit Soal">
+                                <i class="fas fa-edit me-1"></i> Edit
+                            </a>
+
+                            <!-- Tombol Hapus Soal -->
+                            <form action="{{ route('guru.questions.destroy', $q->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus soal ini secara permanen?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2 fw-semibold" title="Hapus Soal">
+                                    <i class="fas fa-trash me-1"></i> Hapus
+                                </button>
+                            </form>
                         </div>
                     </div>
 
-                    <p class="fs-6 text-dark mb-3">{{ $q->question_text }}</p>
+                    <p class="fs-6 text-dark mb-3">{!! nl2br(e($q->question_text)) !!}</p>
 
-                    <!-- Pilihan Jawaban jika ada -->
-                    @if($q->question_type !== 'essay' && !empty($q->options))
+                    <!-- Handling Parsing Data Opsi & Kunci Jawaban -->
+                    @php
+                        $optionsData = is_string($q->options) ? json_decode($q->options, true) : $q->options;
+                        $correctAnswer = is_string($q->correct_answer) ? json_decode($q->correct_answer, true) : $q->correct_answer;
+                        if (!is_array($correctAnswer)) {
+                            $correctAnswer = explode(',', (string)$q->correct_answer);
+                        }
+                        $qType = strtolower($q->question_type ?? $q->type ?? '');
+                    @endphp
+
+                    <!-- Opsi Jawaban (Pilihan Ganda / Multiple Choice) -->
+                    @if(in_array($qType, ['single', 'multiple', 'pilihan_ganda', 'multiple_choice', 'pg', 'mc']) && !empty($optionsData))
                         <div class="row g-2">
-                            @foreach($q->options as $opt)
+                            @foreach($optionsData as $item)
                                 @php
-                                    $isCorrect = is_array($q->correct_answer) && in_array($opt['key'], $q->correct_answer);
+                                    $optionKey = is_array($item) ? ($item['key'] ?? '') : '';
+                                    $optionText = is_array($item) ? ($item['text'] ?? '') : $item;
+                                    $isCorrect = is_array($correctAnswer) && in_array($optionKey, $correctAnswer);
                                 @endphp
                                 <div class="col-md-6">
                                     <div class="p-2 border rounded-3 text-dark {{ $isCorrect ? 'bg-success text-white fw-medium' : 'bg-white' }}">
-                                        <strong>{{ $opt['key'] }}.</strong> {{ $opt['text'] }}
+                                        <strong>{{ $optionKey }}.</strong> {{ $optionText }}
                                         @if($isCorrect)
                                             <span class="badge bg-light text-success float-end mt-1">Kunci Jawaban</span>
                                         @endif
@@ -120,14 +187,25 @@
                                 </div>
                             @endforeach
                         </div>
+                    <!-- Display Kunci Jawaban Essay -->
+                    @elseif($qType === 'essay' && !empty($correctAnswer))
+                        <div class="p-2 border rounded-3 bg-white text-dark">
+                            <small class="text-muted d-block fw-bold mb-1">Pedoman / Kunci Jawaban Essay:</small>
+                            <span>{{ is_array($correctAnswer) ? ($correctAnswer[0] ?? '-') : $correctAnswer }}</span>
+                        </div>
                     @endif
                 </div>
             @empty
                 <div class="text-center py-5 text-muted">
-                    <p class="mb-2">Belum ada soal yang ditambahkan pada ujian ini.</p>
-                    <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-sm btn-success fw-semibold">
-                        Import Excel Sekarang
-                    </a>
+                    <p class="mb-3">Belum ada soal yang ditambahkan pada ujian ini.</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-sm btn-primary fw-semibold">
+                            <i class="fas fa-plus me-1"></i> Tambah Soal Manual
+                        </a>
+                        <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-sm btn-success fw-semibold">
+                            <i class="fas fa-file-excel me-1"></i> Import Excel
+                        </a>
+                    </div>
                 </div>
             @endforelse
         </div>

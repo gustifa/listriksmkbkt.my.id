@@ -11,23 +11,12 @@
                 <h5 class="fw-bold mb-0 text-dark">{{ $exam->title }}</h5>
                 <small class="text-muted">{{ $exam->subject->name ?? 'Mata Pelajaran' }}</small>
             </div>
-
-            <!-- Font Size Control & Countdown Timer -->
-            <div class="d-flex align-items-center gap-3">
-                <!-- Control Ukuran Huruf -->
-                <div class="btn-group border rounded-3 bg-light p-1" role="group" aria-label="Font Size Controls">
-                    <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0" onclick="changeFontSize(-1)" title="Perkecil Teks">A-</button>
-                    <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0" onclick="resetFontSize()" title="Ukuran Normal">A</button>
-                    <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0" onclick="changeFontSize(1)" title="Perbesar Teks">A+</button>
-                </div>
-
-                <!-- Countdown Timer -->
-                <div class="d-flex align-items-center gap-2 bg-danger text-white px-3 py-2 rounded-3 shadow-sm">
-                    <i class="bi bi-clock-history fs-5"></i>
-                    <div>
-                        <small class="d-block text-white-50" style="font-size: 10px; line-height: 1;">SISA WAKTU</small>
-                        <span id="exam-timer" class="fw-bold fs-5 font-monospace">00:00:00</span>
-                    </div>
+            <!-- Countdown Timer -->
+            <div class="d-flex align-items-center gap-2 bg-danger text-white px-3 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-clock-history fs-5"></i>
+                <div>
+                    <small class="d-block text-white-50" style="font-size: 10px; line-height: 1;">SISA WAKTU</small>
+                    <span id="exam-timer" class="fw-bold fs-5 font-monospace">00:00:00</span>
                 </div>
             </div>
         </div>
@@ -45,16 +34,16 @@
                         Pilihan Ganda
                     </span>
                 </div>
-
+                
                 <div class="card-body p-4">
                     <!-- Teks Pertanyaan -->
-                    <div id="question-text" class="fs-5 text-dark mb-4 question-content" style="font-size: 1.1rem; line-height: 1.6;">
+                    <div id="question-text" class="fs-5 text-dark mb-4">
                         Loading soal...
                     </div>
 
                     <!-- Form / Pilihan Jawaban -->
-                    <div id="options-container" class="mb-4 question-content">
-                        <!-- Pilihan jawaban A, B, C, D, E atau Input Essay akan di-render via JavaScript -->
+                    <div id="options-container" class="mb-4">
+                        <!-- Pilihan jawaban A, B, C, D, E atau Input Essay akan di-render via JavaScript / Blade -->
                     </div>
                 </div>
 
@@ -85,12 +74,13 @@
                     <i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Navigasi Soal
                 </div>
                 <div class="card-body p-3">
-                    <!-- Grid Tombol Nomor Soal (CSS Grid Fixed Layout) -->
-                    <div class="question-grid-container mb-4" id="question-navigation-grid">
+                    <!-- Grid Tombol Nomor Soal -->
+                    <div class="d-flex flex-wrap gap-2 justify-content-start mb-4" id="question-navigation-grid">
                         @foreach($questions as $index =>$q)
-                            <button type="button"
-                                    class="btn btn-outline-secondary nav-q-btn"
-                                    id="nav-btn-{{ $index }}"
+                            <button type="button" 
+                                    class="btn btn-outline-secondary nav-q-btn" 
+                                    id="nav-btn-{{ $index }}" 
+                                    style="width: 45px; height: 45px; font-weight: 600;"
                                     onclick="jumpToQuestion({{ $index }})">
                                 {{ $index + 1 }}
                             </button>
@@ -134,52 +124,28 @@
 <script>
     // Data Soal & Sesi dari Server
     const questions = @json($questions);
-    const answersData = @json($answers ?? []);
+    const answersData = @json($answers ?? []); // Format: { question_id: { answer: ..., is_doubtful: ... } }
     const durationSeconds = {{ $remainingSeconds ?? ($exam->duration_minutes * 60) }};
 
     let currentIndex = 0;
     let userAnswers = {};
-    let baseFontSize = 1.1; // Rem unit
 
     // Inisialisasi awal saat DOM siap
     document.addEventListener('DOMContentLoaded', function () {
-        if (Array.isArray(answersData)) {
-            answersData.forEach(ans => {
-                userAnswers[ans.question_id] = {
-                    answer: ans.answer,
-                    is_doubtful: ans.is_doubtful || false
-                };
-            });
-        }
+        // Populasikan jawaban sebelumnya jika ada
+        answersData.forEach(ans => {
+            userAnswers[ans.question_id] = {
+                answer: ans.answer,
+                is_doubtful: ans.is_doubtful || false
+            };
+        });
 
         startTimer(durationSeconds);
         renderQuestion(currentIndex);
         updateNavGrid();
     });
 
-    // Fitur Mengubah Ukuran Huruf
-    function changeFontSize(direction) {
-        if (direction === 1 && baseFontSize < 1.6) {
-            baseFontSize += 0.15;
-        } else if (direction === -1 && baseFontSize > 0.85) {
-            baseFontSize -= 0.15;
-        }
-        applyFontSize();
-    }
-
-    function resetFontSize() {
-        baseFontSize = 1.1;
-        applyFontSize();
-    }
-
-    function applyFontSize() {
-        document.getElementById('question-text').style.fontSize = `${baseFontSize}rem`;
-        document.querySelectorAll('.option-text-content').forEach(el => {
-            el.style.fontSize = `${baseFontSize}rem`;
-        });
-    }
-
-    // Timer Hitung Mundur
+    // 1. Fungsi Timer Hitung Mundur
     function startTimer(seconds) {
         let timer = seconds;
         const timerDisplay = document.getElementById('exam-timer');
@@ -199,7 +165,7 @@
                 clearInterval(interval);
                 Swal.fire({
                     title: 'Waktu Habis!',
-                    text: 'Waktu pengerjaan ujian Anda telah selesai. Sistem akan menyimpan jawaban Anda secara otomatis.',
+                    text: 'Waktu pengerjaan ujian Anda telah selesai. System akan menyimpan jawaban Anda secara otomatis.',
                     icon: 'warning',
                     allowOutsideClick: false,
                     confirmButtonText: 'OK'
@@ -210,12 +176,12 @@
         }, 1000);
     }
 
-    // Render Soal Aktif
+    // 2. Render Soal Aktif
     function renderQuestion(index) {
         const q = questions[index];
         document.getElementById('question-number').textContent = index + 1;
         document.getElementById('question-text').innerHTML = q.question_text;
-
+        
         const typeBadge = document.getElementById('question-type-badge');
         typeBadge.textContent = q.question_type === 'essay' ? 'Essay' : (q.question_type === 'multiple' ? 'Pilihan Ganda Kompleks' : 'Pilihan Ganda');
 
@@ -228,18 +194,19 @@
 
         if (q.question_type === 'essay') {
             optionsContainer.innerHTML = `
-                <textarea class="form-control option-text-content" rows="5" placeholder="Tuliskan jawaban Anda di sini..." onchange="saveAnswer('${q.id}', this.value)">${currentAns || ''}</textarea>
+                <textarea class="form-control" rows="5" placeholder="Tuliskan jawaban Anda di sini..." onchange="saveAnswer('${q.id}', this.value)">${currentAns || ''}</textarea>
             `;
         } else {
+            // Render Pilihan Ganda / Multiple Choice
             const options = q.options || [];
             options.forEach(opt => {
                 const isChecked = Array.isArray(currentAns) ? currentAns.includes(opt.key) : currentAns === opt.key;
                 const inputType = q.question_type === 'multiple' ? 'checkbox' : 'radio';
 
                 optionsContainer.innerHTML += `
-                    <div class="option-card p-3 border rounded-3 mb-2 d-flex align-items-center" onclick="selectOption('opt_${opt.key}')">
-                        <input class="form-check-input me-3 my-0 flex-shrink-0" type="${inputType}" name="option_choice" id="opt_${opt.key}" value="${opt.key}" ${isChecked ? 'checked' : ''} onchange="handleOptionChange('${q.id}', '${q.question_type}')">
-                        <label class="form-check-label w-100 text-dark fw-medium option-text-content my-0" for="opt_${opt.key}">
+                    <div class="form-check p-3 border rounded-3 mb-2 option-box hover-shadow">
+                        <input class="form-check-input ms-1 me-3" type="${inputType}" name="option_choice" id="opt_${opt.key}" value="${opt.key}" ${isChecked ? 'checked' : ''} onchange="handleOptionChange('${q.id}', '${q.question_type}')">
+                        <label class="form-check-label w-100 text-dark fw-medium" for="opt_${opt.key}">
                             <strong>${opt.key}.</strong> ${opt.text}
                         </label>
                     </div>
@@ -247,21 +214,14 @@
             });
         }
 
+        // Atur Status Tombol Navigasi
         document.getElementById('btn-prev').disabled = index === 0;
         document.getElementById('btn-next').disabled = index === questions.length - 1;
-
-        applyFontSize();
+        
         updateNavGrid();
     }
 
-    function selectOption(inputId) {
-        const input = document.getElementById(inputId);
-        if (input && !input.checked) {
-            input.checked = true;
-            input.dispatchEvent(new Event('change'));
-        }
-    }
-
+    // 3. Simpan Jawaban ke State & Send via AJAX (Auto-save)
     function handleOptionChange(questionId, type) {
         if (type === 'multiple') {
             const checkedBoxes = Array.from(document.querySelectorAll('input[name="option_choice"]:checked')).map(cb => cb.value);
@@ -279,6 +239,7 @@
         userAnswers[questionId].answer = value;
         updateNavGrid();
 
+        // Kirim autosave ke backend via Fetch API
         fetch("{{ route('student.exam.autosave', [$exam->id,$session->id]) }}", {
             method: "POST",
             headers: {
@@ -293,6 +254,7 @@
         });
     }
 
+    // 4. Toggle Ragu-Ragu
     function toggleDoubtful() {
         const qId = questions[currentIndex].id;
         const isChecked = document.getElementById('check-doubtful').checked;
@@ -304,6 +266,7 @@
         saveAnswer(qId, userAnswers[qId].answer || null);
     }
 
+    // 5. Pindah Nomor Soal
     function navigateQuestion(direction) {
         currentIndex += direction;
         renderQuestion(currentIndex);
@@ -314,16 +277,15 @@
         renderQuestion(currentIndex);
     }
 
+    // 6. Update Visual Grid Navigasi (Kanan)
     function updateNavGrid() {
         questions.forEach((q, idx) => {
             const btn = document.getElementById(`nav-btn-${idx}`);
-            if (!btn) return;
-
             const ansState = userAnswers[q.id];
-
+            
             btn.className = "btn nav-q-btn ";
             if (idx === currentIndex) {
-                btn.classList.add('border-2', 'border-dark', 'fw-bold');
+                btn.classList.add('border-2', 'border-dark');
             }
 
             if (ansState?.is_doubtful) {
@@ -336,6 +298,7 @@
         });
     }
 
+    // 7. SweetAlert Konfirmasi Selesai Ujian
     function confirmFinishExam() {
         Swal.fire({
             title: 'Selesaikan Ujian?',
@@ -360,51 +323,9 @@
 </script>
 
 <style>
-    /* 1. Perbaikan Grid Navigasi Soal */
-    .question-grid-container {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-        max-height: 320px;
-        overflow-y: auto;
-        padding-right: 4px;
-    }
-
-    .nav-q-btn {
-        width: 100%;
-        height: 42px;
-        font-size: 14px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-    }
-
-    /* 2. Perbaikan Opsi Jawaban & Alignment Input Radio/Checkbox */
-    .option-card {
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-        background-color: #ffffff;
-    }
-
-    .option-card:hover {
+    .option-box:hover {
         background-color: #f8f9fa;
-        border-color: #0d6efd !important;
-    }
-
-    .form-check-input {
-        width: 1.25em;
-        height: 1.25em;
         cursor: pointer;
-    }
-
-    .btn-white {
-        background-color: #fff;
-    }
-
-    .btn-white:hover {
-        background-color: #e9ecef;
     }
 </style>
 @endsection

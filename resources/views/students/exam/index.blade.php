@@ -1,92 +1,124 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Ujian Saya')
+@section('title', 'Daftar Ujian Siswa')
 
 @section('content')
-<div class="container py-4">
+<div class="container-fluid py-4">
     <!-- Header Page -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1">Daftar Ujian Saya</h3>
-            <p class="text-muted small mb-0">Pilih ujian yang tersedia untuk mulai atau melanjutkan pengerjaan</p>
+            <h3 class="fw-bold text-dark mb-1">Daftar Ujian</h3>
+            <p class="text-muted small mb-0">Kelola dan kerjakan ujian yang tersedia untuk kelas Anda.</p>
         </div>
     </div>
 
-    <!-- Filter Tab: Ujian Aktif & Riwayat Selesai -->
-    <ul class="nav nav-pills mb-4 gap-2" id="examTabs" role="tablist">
+    <!-- Alert Notifikasi -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <!-- Navigasi Tab Ujian -->
+    <ul class="nav nav-pills mb-4 gap-2 border-bottom pb-3" id="examTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-semibold px-4" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-exams" type="button" role="tab">
-                <i class="bi bi-clock-history me-1"></i> Ujian Tersedia / Berlangsung
-                <span class="badge bg-primary text-white ms-1">{{ $activeExams->count() }}</span>
+            <button class="nav-link active fw-semibold px-4 py-2" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-exams" type="button" role="tab">
+                <i class="bi bi-journal-text me-2"></i> Ujian Aktif
+                <span class="badge bg-white text-primary ms-2">{{ $activeExams->count() }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-semibold px-4" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-exams" type="button" role="tab">
-                <i class="bi bi-check2-all me-1"></i> Riwayat Ujian Selesai
-                <span class="badge bg-secondary text-white ms-1">{{ $completedExams->count() }}</span>
+            <button class="nav-link fw-semibold px-4 py-2" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-exams" type="button" role="tab">
+                <i class="bi bi-check2-circle me-2"></i> Riwayat Ujian
+                <span class="badge bg-secondary ms-2">{{ $completedExams->count() }}</span>
             </button>
         </li>
     </ul>
 
+    <!-- Konten Tab -->
     <div class="tab-content" id="examTabsContent">
-        <!-- TAB 1: UJIAN TERSAAT INI / BERLANGSUNG -->
+        <!-- 1. TAB UJIAN AKTIF -->
         <div class="tab-pane fade show active" id="active-exams" role="tabpanel">
             <div class="row g-4">
                 @forelse($activeExams as $exam)
                     @php
-                        $studentId = Auth::user()->student->id ?? Auth::id();
-                        // Ambil status pengerjaan siswa menggunakan student_id
-                        $session = $exam->sessions->where('student_id', $studentId)->first();
-                        $isOngoing = $session && $session->status === 'ongoing';
+                        // Ambil sesi ujian siswa jika ada
+                        $session = $exam->sessions->first();
+                        $hasSession = !is_null($session);
+                        $isCompleted = $hasSession && $session->status === 'completed';
                     @endphp
+
                     <div class="col-md-6 col-lg-4">
-                        <div class="card border-0 shadow-sm h-100 rounded-3 position-relative overflow-hidden">
-                            <!-- Indicator Strip Banner -->
-                            <div class="position-absolute top-0 start-0 end-0 py-1 {{ $isOngoing ? 'bg-warning' : 'bg-primary' }}"></div>
-
-                            <div class="card-body d-flex flex-column p-4 pt-4">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                        {{ $exam->subject->name ?? 'Mata Pelajaran' }}
-                                    </span>
-
-                                    @if($isOngoing)
-                                        <span class="badge bg-warning text-dark border border-warning px-2 py-1 fw-bold">
-                                            <i class="bi bi-arrow-repeat me-1"></i> Sedang Berlangsung
+                        <div class="card border-0 shadow-sm rounded-3 h-100 hover-shadow transition-all">
+                            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                                <div>
+                                    <!-- Header Card: Subject & Status Badges -->
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold">
+                                            {{ $exam->subject->name ?? 'Mata Pelajaran' }}
                                         </span>
-                                    @else
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                            Tersedia
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <h5 class="fw-bold text-dark mb-1">{{ $exam->title }}</h5>
-                                <p class="text-muted small mb-3">
-                                    <i class="bi bi-person me-1"></i> Pengajar: {{ $exam->teacher->name ?? '-' }}
-                                </p>
-
-                                <!-- Summary Info Durasi & Soal -->
-                                <div class="row text-center border-top border-bottom py-2 my-auto bg-light rounded-2">
-                                    <div class="col-6 border-end">
-                                        <small class="text-muted d-block" style="font-size: 11px;">DURASI</small>
-                                        <strong class="text-dark">{{ $exam->duration_minutes }} Menit</strong>
+                                        @if($isCompleted)
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Selesai</span>
+                                        @elseif($hasSession)
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Sedang Dikerjakan</span>
+                                        @else
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Tersedia</span>
+                                        @endif
                                     </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 11px;">JUMLAH SOAL</small>
-                                        <strong class="text-dark">{{ $exam->questions_count ?? 0 }} Soal</strong>
+
+                                    <!-- Judul Ujian & Guru -->
+                                    <h5 class="fw-bold text-dark mb-1">{{ $exam->title }}</h5>
+                                    <p class="text-muted small mb-3">
+                                        <i class="bi bi-person me-1"></i> Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong>
+                                    </p>
+
+                                    <!-- Target Kelas -->
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @forelse($exam->classrooms as $cls)
+                                                <span class="badge bg-light text-dark border">{{ $cls->name }}</span>
+                                            @empty
+                                                <span class="text-muted small">-</span>
+                                            @endforelse
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Action Button -->
-                                <div class="pt-3 mt-3 border-top">
-                                    @if($isOngoing && $session)
-                                        <a href="{{ route('student.exam.show', [$exam->id, $session->id]) }}" class="btn btn-warning text-dark fw-bold w-100 py-2">
-                                            Lanjutkan Ujian <i class="bi bi-arrow-right ms-1"></i>
+                                <div>
+                                    <!-- Durasi & Jumlah Soal -->
+                                    <div class="bg-light rounded-3 p-2 d-flex justify-content-around text-center mb-3 border">
+                                        <div>
+                                            <small class="text-muted d-block">Durasi</small>
+                                            <span class="fw-bold text-dark">{{ $exam->duration_minutes }} Menit</span>
+                                        </div>
+                                        <div class="border-end"></div>
+                                        <div>
+                                            <small class="text-muted d-block">Jumlah Soal</small>
+                                            <span class="fw-bold text-dark">{{ $exam->questions_count }} Soal</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Action Button -->
+                                    @if($isCompleted)
+                                        <a href="{{ route('student.exam.result', [$exam->id, $session->id]) }}" class="btn btn-outline-success w-100 fw-bold py-2">
+                                            <i class="bi bi-eye me-1"></i> Lihat Hasil
+                                        </a>
+                                    @elseif($hasSession)
+                                        <a href="{{ route('student.exam.show', [$exam->id, $session->id]) }}" class="btn btn-warning text-white w-100 fw-bold py-2">
+                                            <i class="bi bi-play-circle me-1"></i> Lanjutkan Ujian
                                         </a>
                                     @else
-                                        <a href="{{ route('student.exam.start', $exam->id) }}" class="btn btn-primary fw-bold w-100 py-2">
-                                            Mulai Kerjakan <i class="bi bi-play-circle ms-1"></i>
+                                        <a href="{{ route('student.exam.start', $exam->id) }}" class="btn btn-primary w-100 fw-bold py-2">
+                                            <i class="bi bi-pencil-square me-1"></i> Mulai Ujian
                                         </a>
                                     @endif
                                 </div>
@@ -94,53 +126,55 @@
                         </div>
                     </div>
                 @empty
-                    <div class="col-12 py-5 text-center text-muted">
-                        <i class="bi bi-journal-x display-4 d-block mb-2 text-secondary"></i>
-                        Tidak ada ujian yang sedang aktif atau perlu dikerjakan saat ini.
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm rounded-3 py-5 text-center text-muted">
+                            <i class="bi bi-journal-x fs-1 mb-2 text-secondary"></i>
+                            <h6 class="fw-bold mb-1">Tidak Ada Ujian Aktif</h6>
+                            <p class="small mb-0">Saat ini belum ada ujian aktif yang didaftarkan untuk kelas Anda.</p>
+                        </div>
                     </div>
                 @endforelse
             </div>
         </div>
 
-        <!-- TAB 2: RIWAYAT UJIAN SELESAI -->
-        <div class="tab-pane fade" id="history-exams" role="tabpanel">
+        <!-- 2. TAB RIWAYAT UJIAN -->
+        <div class="tab-pane fade" id="completed-exams" role="tabpanel">
             <div class="row g-4">
                 @forelse($completedExams as $exam)
                     @php
-                        $studentId = Auth::user()->student->id ?? Auth::id();
-                        $session = $exam->sessions->where('student_id', $studentId)->first();
+                        $session = $exam->sessions->first();
                     @endphp
+
                     <div class="col-md-6 col-lg-4">
-                        <div class="card border-0 shadow-sm h-100 rounded-3">
-                            <div class="card-body d-flex flex-column p-4">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
-                                        {{ $exam->subject->name ?? 'Mata Pelajaran' }}
-                                    </span>
-                                    <span class="badge bg-success border border-success px-2 py-1">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Selesai
-                                    </span>
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 fw-semibold">
+                                            {{ $exam->subject->name ?? 'Mata Pelajaran' }}
+                                        </span>
+                                        <span class="badge bg-success">Selesai</span>
+                                    </div>
+
+                                    <h5 class="fw-bold text-dark mb-1">{{ $exam->title }}</h5>
+                                    <p class="text-muted small mb-3">
+                                        Selesai pada: {{ $session && $session->finished_at ? \Carbon\Carbon::parse($session->finished_at)->format('d M Y, H:i') : '-' }}
+                                    </p>
+
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach($exam->classrooms as $cls)
+                                                <span class="badge bg-light text-dark border">{{ $cls->name }}</span>
+                                            @endforeach
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <h5 class="fw-bold text-dark mb-1">{{ $exam->title }}</h5>
-
-                                <!-- Menampilkan Waktu Selesai dengan Safe Nullsafe Operator (?->) -->
-                                <p class="text-muted small mb-3">
-                                    Selesai pada: {{ $session?->submit_time ? \Carbon\Carbon::parse($session->submit_time)->translatedFormat('d M Y, H:i') : ($session?->updated_at ? $session->updated_at->translatedFormat('d M Y, H:i') : '-') }}
-                                </p>
-
-                                <!-- Score Display jika ada -->
-                                @if(isset($session?->score))
-                                    <div class="alert alert-light border text-center py-2 mb-3 rounded-2">
-                                        <small class="text-muted d-block" style="font-size: 11px;">NILAI AKHIR</small>
-                                        <span class="display-6 fw-bold text-primary">{{ number_format($session->score, 2) }}</span>
-                                    </div>
-                                @endif
-
-                                <div class="mt-auto pt-2">
+                                <div>
                                     @if($session)
-                                        <a href="{{ route('student.exam.result', [$exam->id, $session->id]) }}" class="btn btn-outline-info w-100 fw-semibold">
-                                            <i class="bi bi-eye me-1"></i> Lihat Detail Hasil
+                                        <a href="{{ route('student.exam.result', [$exam->id, $session->id]) }}" class="btn btn-outline-primary w-100 fw-bold py-2">
+                                            <i class="bi bi-bar-chart-line me-1"></i> Lihat Hasil Nilai
                                         </a>
                                     @endif
                                 </div>
@@ -148,9 +182,12 @@
                         </div>
                     </div>
                 @empty
-                    <div class="col-12 py-5 text-center text-muted">
-                        <i class="bi bi-archive display-4 d-block mb-2 text-secondary"></i>
-                        Belum ada riwayat ujian yang telah diselesaikan.
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm rounded-3 py-5 text-center text-muted">
+                            <i class="bi bi-clock-history fs-1 mb-2 text-secondary"></i>
+                            <h6 class="fw-bold mb-1">Belum Ada Riwayat Ujian</h6>
+                            <p class="small mb-0">Ujian yang telah Anda selesaikan akan muncul di sini.</p>
+                        </div>
                     </div>
                 @endforelse
             </div>
@@ -158,33 +195,13 @@
     </div>
 </div>
 
-<!-- SweetAlert2 CDN -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Flash Message Success
-        @if(session('success'))
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: "{{ session('success') }}",
-                timer: 3000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-            });
-        @endif
-
-        // Flash Message Error
-        @if(session('error'))
-            Swal.fire({
-                icon: 'error',
-                title: 'Perhatian!',
-                text: "{{ session('error') }}",
-                confirmButtonColor: '#dc3545'
-            });
-        @endif
-    });
-</script>
+<style>
+    .transition-all {
+        transition: all 0.2s ease-in-out;
+    }
+    .hover-shadow:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.08)!important;
+    }
+</style>
 @endsection

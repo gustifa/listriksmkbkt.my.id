@@ -5,66 +5,107 @@ namespace App\Imports;
 use App\Models\Question;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithValidation;
 
-class QuestionsImport implements ToModel, WithHeadingRow
+class QuestionsImport implements ToModel, WithHeadingRow, WithValidation
 {
     protected $examId;
-    protected $type;
 
-    public function __construct($examId, $type)
+    public function __construct($examId)
     {
         $this->examId = $examId;
-
-        // Pemetaan (Mapping) tipe soal agar sesuai dengan CHECK Constraint PostgreSQL
-        $this->type = match ($type) {
-            'pilihan_ganda'   => 'single',   // Ubah sesuai yang diizinkan database (misal: 'single' atau 'pg')
-            'multiple_choice' => 'multiple', // Ubah 'multiple_choice' menjadi 'multiple' (atau 'pg_kompleks')
-            'essay'           => 'essay',
-            default           => $type,
-        };
     }
 
+    /**
+     * Mengonversi tiap baris Excel ke Model Question
+     */
     public function model(array $row)
     {
-        // Skip jika kolom soal_pertanyaan kosong
-        if (empty($row['soal_pertanyaan'])) {
-            return null;
+        // 1. Mapping Tipe Soal ke Constraint Database ('single', 'multiple', 'essay')
+        $rawType = strtolower(trim($row['tipe_soal'] ?? 'pilihan ganda'));
+        $typeMapping = [
+            'pilihan ganda'   => 'single',
+            'pilihan_ganda'   => 'single',
+            'single'          => 'single',
+            'pg'              => 'single',
+            'multiple choice' => 'multiple',
+            'multiple_choice' => 'multiple',
+            'multiple'        => 'multiple',
+            'mc'              => 'multiple',
+            'essay'           => 'essay',
+            'uraian'          => 'essay',
+        ];
+        $questionType = $typeMapping[$rawType] ?? 'single';
+
+        // 2. Format Opsi Jawaban (JSON) untuk Pilihan Ganda & Multiple Choice
+        $optionsData = null;
+        if (in_array($questionType, ['single', 'multiple'])) {
+            $formattedOptions = [];
+            foreach (['A', 'B', 'C', 'D', 'E'] as $key) {
+                $columnName = 'opsi_' . strtolower($key);
+                $optionVal = trim((string)($row[$columnName] ?? ''));
+
+                if (!empty($optionVal) && $optionVal !== '-') {
+                    $formattedOptions[] = [
+                        'key'  => $key,
+                        'text' => $optionVal
+                    ];
+                }
+            }
+            $optionsData = $formattedOptions;
         }
 
-        // Susun opsi A-E jika bukan tipe essay
-        $options = null;
-        if ($this->type !== 'essay') {
-            $options = [
-                ['key' => 'A', 'text' => $row['opsi_a'] ?? ''],
-                ['key' => 'B', 'text' => $row['opsi_b'] ?? ''],
-                ['key' => 'C', 'text' => $row['opsi_c'] ?? ''],
-                ['key' => 'D', 'text' => $row['opsi_d'] ?? ''],
-                ['key' => 'E', 'text' => $row['opsi_e'] ?? ''],
-            ];
+        // 3. Format Kunci Jawaban (JSON Array)
+        $rawAnswer = trim((string)($row['kunci_jawaban'] ?? ''));
+        $correctAnswerData = [];
 
-            // Filter opsi yang kosong
-            $options = array_values(array_filter($options, fn($opt) => !empty($opt['text'])));
-        }
-
-        // Format Kunci Jawaban
-        $correctAnswer = null;
-        if ($this->type === 'essay') {
-            $correctAnswer = $row['pedoman_kunci_jawaban'] ?? null;
-        } elseif (!empty($row['kunci_jawaban'])) {
-            $correctAnswer = array_map('trim', explode(',', strtoupper($row['kunci_jawaban'])));
-            
-            if ($this->type === 'single' && count($correctAnswer) === 1) {
-                $correctAnswer = $correctAnswer[0];
+        if ($questionType === 'essay') {
+            $correctAnswerData = [$rawAnswer];
+        } else {
+            // Pisahkan jika ada multiple choice (contoh: "A,B" atau "A, C")
+            if ($rawAnswer !== '-' && $rawAnswer !== '') {
+                $answers = explode(',', $rawAnswer);
+                foreach ($answers as $ans) {
+                    $cleaned = strtoupper(trim($ans));
+                    if (!empty($cleaned) && $cleaned !== '-') {
+                        $correctAnswerData[] = $cleaned;
+                    }
+                }
             }
         }
 
+        // 4. Create Record Question
         return new Question([
             'exam_id'        => $this->examId,
-            'question_type'  => $this->type,
-            'question_text'  => $row['soal_pertanyaan'],
-            'options'        => $options,
-            'correct_answer' => $correctAnswer,
-            'score_weight'   => $row['bobot_nilai'] ?? 1,
+            'question_type'  => $questionType,
+            'question_text'  => $row['pertanyaan_soal'],
+            'options'        => $optionsData,
+            'correct_answer' => $correctAnswerData,
+            'score_weight'   => (int) ($row['bobot_nilai'] ?? 1),
         ]);
+    }
+
+    /**
+     * Aturan Validasi per Baris File Excel
+     */
+    public function rules(): array
+    {
+        return [
+            'pertanyaan_soal' => 'required|string',
+            'kunci_jawaban'   => 'required',
+            'bobot_nilai'     => 'required|numeric|min:1',
+        ];
+    }
+
+    /**
+     * Pesan Kustom Jika Validasi Excel Gagal
+     */
+    public function customValidationMessages()
+    {
+        return [
+            'pertanyaan_soal.required' => 'Baris dalam file Excel memiliki Pertanyaan Soal yang kosong.',
+            'kunci_jawaban.required'   => 'Baris dalam file Excel memiliki Kunci Jawaban yang kosong.',
+            'bobot_nilai.required'     => 'Baris dalam file Excel memiliki Bobot Nilai yang kosong.',
+        ];
     }
 }

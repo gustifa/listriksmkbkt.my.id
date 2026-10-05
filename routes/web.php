@@ -170,14 +170,28 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('guru.questions.import');
     Route::get('/questions/template/download', [GuruQuestionController::class, 'downloadTemplate'])
             ->name('guru.questions.template.download');
+
+    // ROUTE TAMBAH SOAL MANUAL (BARU)
+    Route::get('/exams/{exam}/questions/create', [GuruQuestionController::class, 'create'])->name('guru.questions.create');
+    Route::post('/exams/{exam}/questions', [GuruQuestionController::class, 'store'])->name('guru.questions.store');
+
+    // ROUTE EDIT & UPDATE SOAL (BARU)
+    Route::get('/questions/{question}/edit', [GuruQuestionController::class, 'edit'])->name('guru.questions.edit');
+    Route::put('/questions/{question}', [GuruQuestionController::class, 'update'])->name('guru.questions.update');
+    // ROUTE EXPORT SOAL (BARU)
+    Route::get('/exams/{exam}/questions/export', [GuruQuestionController::class, 'export'])->name('guru.questions.export');
+    // ROUTE BARU: Copy & Hapus Soal
+    Route::post('/questions/{question}/duplicate', [GuruQuestionController::class, 'duplicate'])->name('guru.questions.duplicate');
+    Route::delete('/questions/{question}', [GuruQuestionController::class, 'destroy'])->name('guru.questions.destroy');
+    Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
     Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
     // Route::post('/siswa/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
-    
-    
-   
+
+
+
 
     Route::middleware(['role:guru'])->group(function () {
         // Halaman Scanner (Hanya bisa diakses Guru yang login)
