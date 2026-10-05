@@ -233,6 +233,21 @@ $status = $guruId->status;
 
 				<!-- MENU PENGATURAN (Hanya muncul untuk Super Selain Admin & Admin) -->
 				@hasanyrole('piket|guru|admin')
+                <li class="menu-label">CBT</li>
+				<li>
+					<a class="has-arrow" href="javascript:;">
+						<div class="parent-icon"><i class='bx bxs-barcode'></i>
+						</div>
+						<div class="menu-title">CBT</div>
+					</a>
+					<ul>
+						<li> <a href="{{url('/exams')}}"><i class='bx bx-barcode'></i>Manage CBT</a>
+
+						</li>
+
+					</ul>
+				</li>
+
                 <li class="menu-label">Presensi & Laporan</li>
 				<li>
 					<a class="has-arrow" href="javascript:;">
@@ -249,6 +264,7 @@ $status = $guruId->status;
 
 					</ul>
 				</li>
+
 
                 <li>
 					<a class="has-arrow" href="javascript:;">
