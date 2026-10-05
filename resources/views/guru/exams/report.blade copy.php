@@ -4,8 +4,8 @@
 
 @section('content')
 <div class="container-fluid py-4">
-    <!-- Header Page -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-outline-secondary btn-sm mb-2">
                 &larr; Kembali ke Detail Ujian
@@ -20,21 +20,6 @@
         </div>
     </div>
 
-    <!-- Alert Notifikasi -->
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
-            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
     <!-- Ringkasan Statistik -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
@@ -46,19 +31,19 @@
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
                 <small class="text-muted d-block fw-semibold mb-1">Rata-Rata Nilai</small>
-                <h3 class="fw-bold text-info mb-0">{{ number_format($averageScore ?? 0, 1) }}</h3>
+                <h3 class="fw-bold text-info mb-0">{{ number_format($averageScore, 1) }}</h3>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
                 <small class="text-muted d-block fw-semibold mb-1">Nilai Tertinggi</small>
-                <h3 class="fw-bold text-success mb-0">{{ number_format($highestScore ?? 0, 1) }}</h3>
+                <h3 class="fw-bold text-success mb-0">{{ number_format($highestScore, 1) }}</h3>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
                 <small class="text-muted d-block fw-semibold mb-1">Nilai Terendah</small>
-                <h3 class="fw-bold text-danger mb-0">{{ number_format($lowestScore ?? 0, 1) }}</h3>
+                <h3 class="fw-bold text-danger mb-0">{{ number_format($lowestScore, 1) }}</h3>
             </div>
         </div>
     </div>
@@ -78,8 +63,7 @@
                             <th>Kelas</th>
                             <th>Waktu Pengerjaan</th>
                             <th class="text-center">Status</th>
-                            <th class="text-end">Nilai</th>
-                            <th class="text-center pe-4">Aksi</th>
+                            <th class="text-end pe-4">Nilai</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -88,7 +72,7 @@
                                 <td class="ps-4 fw-semibold">{{ $index + 1 }}</td>
                                 <td>
                                     <div class="fw-bold text-dark">{{ $s->student->name ?? '-' }}</div>
-                                    <small class="text-muted">NIS: {{ $s->student->nis ?? $s->student->nisn ?? '-' }}</small>
+                                    <small class="text-muted">NIS: {{ $s->student->nis ?? '-' }}</small>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border">{{ $s->student->classroom->name ?? '-' }}</span>
@@ -98,7 +82,7 @@
                                         {{ $s->start_time ? \Carbon\Carbon::parse($s->start_time)->format('d M Y, H:i') : '-' }}
                                     </small>
                                     <small class="text-muted">
-                                        s/d {{ $s->end_time ? \Carbon\Carbon::parse($s->end_time)->format('H:i') : ($s->updated_at ? \Carbon\Carbon::parse($s->updated_at)->format('H:i') : '-') }}
+                                        s/d {{ $s->finished_at ? \Carbon\Carbon::parse($s->finished_at)->format('H:i') : '-' }}
                                     </small>
                                 </td>
                                 <td class="text-center">
@@ -108,23 +92,15 @@
                                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1">Sedang Mengerjakan</span>
                                     @endif
                                 </td>
-                                <td class="text-end fw-bold fs-6 {{ ($s->total_score ?? $s->score ?? 0) >= 75 ? 'text-success' : 'text-danger' }}">
-                                    {{ number_format($s->total_score ?? $s->score ?? 0, 1) }}
-                                </td>
-                                <td class="text-center pe-4">
-                                    <!-- Form Reset Sesi Ujian Siswa -->
-                                    <form action="{{ route('guru.exam-sessions.reset', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus/mereset ujian siswa ini? Semua jawaban akan dihapus dan siswa bisa ujian kembali dari awal.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="Reset Ujian Siswa">
-                                            <i class="fas fa-redo me-1"></i> Reset Ujian
-                                        </button>
-                                    </form>
+                                <td class="text-end pe-4">
+                                    <span class="fs-5 fw-bold {{ $s->total_score >= 75 ? 'text-success' : 'text-danger' }}">
+                                        {{ number_format($s->total_score ?? $s->score ?? 0, 1) }}
+                                    </span>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
+                                <td colspan="6" class="text-center py-5 text-muted">
                                     Belum ada siswa yang mengerjakan ujian ini.
                                 </td>
                             </tr>

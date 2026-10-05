@@ -390,4 +390,19 @@ class ExamController extends Controller
 
         return Excel::download(new ExamResultsExport($exam), $filename);
     }
+
+    public function resetSession(ExamSession $session)
+{
+    try {
+        // 1. Hapus semua jawaban siswa yang terkait dengan sesi ini
+        ExamAnswer::where('exam_session_id', $session->id)->delete();
+
+        // 2. Hapus record sesi ujian
+        $session->delete();
+
+        return redirect()->back()->with('success', 'Sesi ujian siswa berhasil di-reset. Siswa dapat mengerjakan ujian kembali.');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Gagal mereset sesi ujian: ' . $e->getMessage());
+    }
+}
 }
