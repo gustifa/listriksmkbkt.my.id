@@ -14,7 +14,7 @@
             <p class="text-muted small mb-0">Ujian: <strong>{{ $exam->title }}</strong> | Mapel: <strong>{{ $exam->subject->name ?? '-' }}</strong></p>
         </div>
         <div>
-            <a href="{{ route('guru.exams.report.export', $exam->id) }}" class="btn btn-success fw-bold">
+            <a href="{{ route('exams.report.export', $exam->id) }}" class="btn btn-success fw-bold">
                 <i class="fas fa-file-excel me-1"></i> Export Excel
             </a>
         </div>

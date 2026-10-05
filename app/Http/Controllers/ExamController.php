@@ -353,10 +353,15 @@ class ExamController extends Controller
         // Total Bobot Soal Ujian
         $totalMaxScore = $exam->questions()->sum('score_weight');
 
+        // // Ambil Hasil Sesi Ujian Siswa
+        // $sessions = ExamSession::with(['student.classroom', 'answers'])
+        //     ->where('exam_id', $exam->id)
+        //     ->orderBy('finished_at', 'desc')
+        //     ->get();
         // Ambil Hasil Sesi Ujian Siswa
         $sessions = ExamSession::with(['student.classroom', 'answers'])
             ->where('exam_id', $exam->id)
-            ->orderBy('finished_at', 'desc')
+            ->orderBy('updated_at', 'desc') // Menggunakan updated_at atau end_time
             ->get();
 
         // Statistik Ringkas
