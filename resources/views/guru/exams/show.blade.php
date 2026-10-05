@@ -13,7 +13,7 @@
             <h3 class="fw-bold text-dark mb-0">{{ $exam->title }}</h3>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <!-- Tombol Rekap Nilai -->
+            <!-- Tombol Rekap Nilai Ujian -->
             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-info text-white fw-semibold">
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
