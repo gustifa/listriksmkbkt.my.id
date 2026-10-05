@@ -185,6 +185,10 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/questions/{question}', [GuruQuestionController::class, 'destroy'])->name('guru.questions.destroy');
     Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
     Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
+    // Route Laporan Rekap Nilai Ujian
+    Route::get('/exams/{exam}/report', [ExamController::class, 'showReport'])->name('exams.report');
+    Route::get('/exams/{exam}/report/export', [ExamController::class, 'exportExcel'])->name('exams.report.export');
+
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');

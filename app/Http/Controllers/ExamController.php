@@ -13,6 +13,8 @@ use App\Models\AcademicYear;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use App\Exports\ExamResultsExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ExamController extends Controller
 {
@@ -341,5 +343,46 @@ class ExamController extends Controller
         $statusText = $exam->is_active ? 'diaktifkan' : 'dinonaktifkan';
 
         return redirect()->back()->with('success', "Status ujian '{$exam->title}' berhasil {$statusText}.");
+    }
+
+    /**
+     * Tampilan Laporan Rekap Nilai Ujian
+     */
+    public function showReport(Exam $exam)
+    {
+        // Total Bobot Soal Ujian
+        $totalMaxScore = $exam->questions()->sum('score_weight');
+
+        // Ambil Hasil Sesi Ujian Siswa
+        $sessions = ExamSession::with(['student.classroom', 'answers'])
+            ->where('exam_id', $exam->id)
+            ->orderBy('finished_at', 'desc')
+            ->get();
+
+        // Statistik Ringkas
+        $completedSessions = $sessions->where('status', 'completed');
+        $averageScore = $completedSessions->avg('total_score') ?? 0;
+        $highestScore = $completedSessions->max('total_score') ?? 0;
+        $lowestScore = $completedSessions->min('total_score') ?? 0;
+
+        return view('guru.exams.report', compact(
+            'exam',
+            'sessions',
+            'totalMaxScore',
+            'averageScore',
+            'highestScore',
+            'lowestScore'
+        ));
+    }
+
+    /**
+     * Export Rekap Nilai ke Excel
+     */
+    public function exportExcel(Exam $exam)
+    {
+        $safeTitle = preg_replace('/[^A-Za-z0-9_\-]/', '_', $exam->title);
+        $filename = 'Rekap_Nilai_' . $safeTitle . '_' . date('Ymd_His') . '.xlsx';
+
+        return Excel::download(new ExamResultsExport($exam), $filename);
     }
 }
