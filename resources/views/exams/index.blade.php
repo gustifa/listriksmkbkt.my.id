@@ -1,248 +1,311 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Kelola Ujian')
+@section('title', 'Daftar Ujian Guru')
 
 @section('content')
 <div class="container-fluid py-3">
-    <!-- Header Page & View Toggle -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- Header Page & Swicther Tampilan -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1">Daftar Kelola Ujian</h3>
-            <p class="text-muted small mb-0">Kelola seluruh data jadwal dan informasi ujian di sistem</p>
+            <h3 class="fw-bold text-dark mb-0">Kelola Ujian</h3>
+            <p class="text-muted small mb-0">Kelola seluruh data jadwal, durasi, dan informasi ujian di sistem.</p>
         </div>
-        <div class="d-flex align-items-center gap-3">
-            <!-- Toggle Switch Table / Card -->
-            <div class="btn-group" role="group" aria-label="Layout Switcher">
-                <button type="button" class="btn btn-outline-primary active" id="btn-table-view" onclick="switchView('table')">
-                    <i class="bi bi-table me-1"></i> Tabel
+        
+        <div class="d-flex align-items-center gap-2">
+            <!-- Toggle Switcher View: Card vs Tabel -->
+            <div class="btn-group bg-white p-1 rounded-3 border shadow-sm" role="group" aria-label="View Switcher">
+                <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0 active" id="btn-view-card" onclick="switchView('card')">
+                    <i class="fas fa-th-large me-1"></i> Card
                 </button>
-                <button type="button" class="btn btn-outline-primary" id="btn-card-view" onclick="switchView('card')">
-                    <i class="bi bi-grid-fill me-1"></i> Card
+                <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0" id="btn-view-table" onclick="switchView('table')">
+                    <i class="fas fa-list me-1"></i> Tabel
                 </button>
             </div>
 
             <!-- Tombol Buat Ujian -->
-            <a href="{{ route('exams.create') }}" class="btn btn-primary px-3 py-2 fw-semibold">
-                + Buat Ujian Baru
+            <a href="{{ route('exams.create') }}" class="btn btn-primary fw-semibold">
+                <i class="fas fa-plus me-1"></i> Buat Ujian Baru
             </a>
         </div>
     </div>
 
-    <!-- Alert Status -->
+    <!-- Alert Notifikasi -->
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
-    <!-- ========================================== -->
-    <!-- MODE 1: TAMPILAN TABEL (DEFAULT)           -->
-    <!-- ========================================== -->
-    <div id="table-view-container" class="card border-0 shadow-sm rounded-3">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small text-uppercase fw-semibold">
-                        <tr>
-                            <th class="ps-4 py-3" style="width: 5%;">No</th>
-                            <th class="py-3">Nama Ujian</th>
-                            <th class="py-3">Mata Pelajaran</th>
-                            @if(Auth::user()->hasRole('admin'))
-                                <th class="py-3">Guru Pengampu</th>
-                            @endif
-                            <th class="py-3">Kelas</th>
-                            <th class="py-3">Durasi</th>
-                            <th class="py-3">Status</th>
-                            <th class="text-end pe-4 py-3" style="width: 18%;">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="border-top-0">
-                        @forelse($exams as $index => $exam)
-                            <tr>
-                                <td class="ps-4 fw-semibold text-secondary">{{ $exams->firstItem() + $index }}</td>
-                                <td>
-                                    <div class="fw-bold text-dark">{{ $exam->title }}</div>
-                                    <span class="badge bg-light text-secondary border small mt-1">
-                                        {{ strtoupper(str_replace('_', ' ', $exam->type)) }}
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <!-- 1. TAMPILAN BENTUK CARD -->
+    <div id="view-card-container">
+        <div class="row g-4">
+            @forelse($exams as $exam)
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body p-4 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                                        {{ $exam->subject->name ?? 'Mata Pelajaran' }}
                                     </span>
-                                </td>
-                                <td><span class="fw-medium text-dark">{{ $exam->subject->name ?? '-' }}</span></td>
-                                @if(Auth::user()->hasRole('admin'))
-                                    <td>{{ $exam->teacher->name ?? '-' }}</td>
-                                @endif
-                                <td>
+                                    <span class="badge {{ $exam->is_active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }}">
+                                        {{ $exam->is_active ? 'Aktif' : 'Nonaktif' }}
+                                    </span>
+                                </div>
+
+                                <h4 class="fw-bold text-dark mb-1">{{ $exam->title }}</h4>
+                                <small class="text-muted d-block mb-3">Guru: {{ $exam->teacher->name ?? '-' }}</small>
+
+                                <div class="mb-3">
+                                    <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
                                     <div class="d-flex flex-wrap gap-1">
-                                        @foreach($exam->classrooms as $cls)
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ $cls->name }}</span>
-                                        @endforeach
+                                        @forelse($exam->classrooms as $cls)
+                                            <span class="badge bg-light text-dark border">{{ $cls->name }}</span>
+                                        @empty
+                                            <span class="text-muted small">-</span>
+                                        @endforelse
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="fw-semibold text-dark">{{ $exam->duration_minutes }}</span>
-                                    <small class="text-muted">menit</small>
-                                </td>
-                                <td>
-                                    <!-- Form Toggle Status Tabel -->
-                                    <form action="{{ route('exams.toggle-status', $exam->id) }}" method="POST" class="d-inline">
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="bg-light rounded-3 p-2 d-flex justify-content-around text-center mb-3 border">
+                                    <div>
+                                        <small class="text-muted d-block">Durasi</small>
+                                        <span class="fw-bold text-dark">{{ $exam->duration_minutes }} Menit</span>
+                                    </div>
+                                    <div class="border-end"></div>
+                                    <div>
+                                        <small class="text-muted d-block">Jumlah Soal</small>
+                                        <span class="fw-bold text-dark">{{ $exam->questions_count ?? ($exam->questions ? $exam->questions->count() : 0) }} Soal</span>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-outline-primary btn-sm flex-fill fw-semibold">
+                                        Detail
+                                    </a>
+                                    <button type="button" class="btn btn-outline-warning btn-sm flex-fill fw-semibold" data-bs-toggle="modal" data-bs-target="#editExamModal-{{ $exam->id }}">
+                                        Edit
+                                    </button>
+                                    <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-outline-success btn-sm flex-fill fw-semibold">
+                                        Import
+                                    </a>
+                                    <form action="{{ route('exams.destroy', $exam->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus ujian ini?');">
                                         @csrf
-                                        @method('PATCH')
-                                        <button type="submit" 
-                                                class="badge border-0 px-2 py-1 {{ $exam->is_active ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle' }}"
-                                                style="cursor: pointer;"
-                                                title="Klik untuk {{ $exam->is_active ? 'non-aktifkan' : 'aktifkan' }} ujian">
-                                            <i class="bi {{ $exam->is_active ? 'bi-check-circle-fill' : 'bi-x-circle-fill' }} me-1"></i>
-                                            {{ $exam->is_active ? 'Aktif' : 'Non-Aktif' }}
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm fw-semibold">
+                                            Hapus
                                         </button>
                                     </form>
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-outline-info" title="Detail">Detail</a>
-                                        <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-outline-success" title="Import Soal">Import</a>
-                                        <form action="{{ route('exams.destroy', $exam->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus ujian ini?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger">Hapus</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="{{ Auth::user()->hasRole('admin') ? 8 : 7 }}" class="text-center py-5 text-muted">
-                                    Belum ada data ujian yang dibuat.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODE 2: TAMPILAN CARD (GRID)              -->
-    <!-- ========================================== -->
-    <div id="card-view-container" class="row g-3 d-none">
-        @forelse($exams as $exam)
-            <div class="col-md-6 col-lg-4">
-                <div class="card border-0 shadow-sm h-100 rounded-3">
-                    <div class="card-body d-flex flex-column p-4">
-                        <!-- Top Metadata & Toggle Status Button -->
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                {{ $exam->subject->name ?? 'Mata Pelajaran' }}
-                            </span>
-                            
-                            <!-- Form Toggle Status Card -->
-                            <form action="{{ route('exams.toggle-status', $exam->id) }}" method="POST" class="d-inline">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" 
-                                        class="badge border-0 px-2 py-1 {{ $exam->is_active ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle' }}"
-                                        style="cursor: pointer;"
-                                        title="Klik untuk {{ $exam->is_active ? 'non-aktifkan' : 'aktifkan' }} ujian">
-                                    <i class="bi {{ $exam->is_active ? 'bi-check-circle-fill' : 'bi-x-circle-fill' }} me-1"></i>
-                                    {{ $exam->is_active ? 'Aktif' : 'Non-Aktif' }}
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- Judul Ujian -->
-                        <h5 class="fw-bold text-dark mb-1">{{ $exam->title }}</h5>
-                        <p class="text-muted small mb-3">
-                            <i class="bi bi-person me-1"></i> Guru: {{ $exam->teacher->name ?? '-' }}
-                        </p>
-
-                        <!-- Detail Kelas -->
-                        <div class="mb-3">
-                            <small class="text-muted d-block mb-1">Target Kelas:</small>
-                            <div class="d-flex flex-wrap gap-1 mb-2">
-                                @foreach($exam->classrooms as $cls)
-                                    <span class="badge bg-secondary-subtle text-secondary border">{{ $cls->name }}</span>
-                                @endforeach
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Info Durasi & Jumlah Soal -->
-                        <div class="row text-center border-top border-bottom py-2 mb-3 bg-light-subtle rounded-2">
-                            <div class="col-6 border-end">
-                                <small class="text-muted d-block">Durasi</small>
-                                <strong class="text-dark">{{ $exam->duration_minutes }} Menit</strong>
-                            </div>
-                            <div class="col-6">
-                                <small class="text-muted d-block">Jumlah Soal</small>
-                                <strong class="text-dark">{{ $exam->questions_count ?? 0 }} Soal</strong>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons di Footer Card -->
-                        <div class="mt-auto d-flex justify-content-between gap-1 pt-2">
-                            <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-sm btn-outline-info flex-fill">
-                                Detail
-                            </a>
-                            <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-sm btn-outline-success flex-fill">
-                                Import
-                            </a>
-                            <form action="{{ route('exams.destroy', $exam->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus ujian ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
-                            </form>
                         </div>
                     </div>
                 </div>
-            </div>
-        @empty
-            <div class="col-12 text-center py-5 text-muted">
-                Belum ada data ujian yang dibuat.
-            </div>
-        @endforelse
+            @empty
+                <div class="col-12 text-center py-5 text-muted">
+                    <p class="mb-0">Belum ada data ujian yang tersedia.</p>
+                </div>
+            @endforelse
+        </div>
     </div>
 
-    <!-- Pagination -->
-    @if($exams->hasPages())
-        <div class="mt-4">
-            {{ $exams->links() }}
+    <!-- 2. TAMPILAN BENTUK TABEL -->
+    <div id="view-table-container" class="d-none">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">No</th>
+                                <th>Informasi Ujian</th>
+                                <th>Target Kelas</th>
+                                <th>Durasi</th>
+                                <th>Jumlah Soal</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center pe-4">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($exams as $index => $exam)
+                                <tr>
+                                    <td class="ps-4 fw-semibold">{{ $index + 1 }}</td>
+                                    <td>
+                                        <span class="badge bg-primary-subtle text-primary border me-1">{{ $exam->subject->name ?? 'Mapel' }}</span>
+                                        <div class="fw-bold text-dark fs-6 mt-1">{{ $exam->title }}</div>
+                                        <small class="text-muted">Guru: {{ $exam->teacher->name ?? '-' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @forelse($exam->classrooms as $cls)
+                                                <span class="badge bg-light text-dark border">{{ $cls->name }}</span>
+                                            @empty
+                                                <span class="text-muted small">-</span>
+                                            @endforelse
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">{{ $exam->duration_minutes }}</span> <small class="text-muted">Menit</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">{{ $exam->questions_count ?? ($exam->questions ? $exam->questions->count() : 0) }}</span> <small class="text-muted">Soal</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {{ $exam->is_active ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border' }} px-3 py-1">
+                                            {{ $exam->is_active ? 'Aktif' : 'Nonaktif' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-sm btn-outline-primary fw-semibold" title="Detail & Soal">
+                                                Detail
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-warning fw-semibold" data-bs-toggle="modal" data-bs-target="#editExamModal-{{ $exam->id }}" title="Edit Waktu / Data">
+                                                Edit
+                                            </button>
+                                            <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-sm btn-outline-info fw-semibold" title="Rekap Nilai">
+                                                Nilai
+                                            </a>
+                                            <a href="{{ route('guru.questions.import.form', $exam->id) }}" class="btn btn-sm btn-outline-success fw-semibold" title="Import Soal">
+                                                Import
+                                            </a>
+                                            <form action="{{ route('exams.destroy', $exam->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus ujian ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="Hapus Ujian">
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        Belum ada data ujian yang tersedia.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    @endif
+    </div>
+
+    <!-- MODAL POPUP EDIT UJIAN (SHARED UNTUK CARD & TABEL) -->
+    @foreach($exams as $exam)
+        <div class="modal fade" id="editExamModal-{{ $exam->id }}" tabindex="-1" aria-labelledby="editExamModalLabel-{{ $exam->id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 shadow">
+                    <form action="{{ route('guru.exams.update', $exam->id) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        
+                        <div class="modal-header bg-light">
+                            <h5 class="modal-title fw-bold text-dark" id="editExamModalLabel-{{ $exam->id }}">
+                                <i class="fas fa-clock text-warning me-2"></i>Edit Waktu & Informasi Ujian
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Judul Ujian <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control" value="{{ $exam->title }}" required>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-dark">Durasi Pengerjaan (Menit) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" name="duration_minutes" class="form-control" value="{{ $exam->duration_minutes }}" min="1" required>
+                                        <span class="input-group-text">Menit</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="is_active" id="is_active_{{ $exam->id }}" value="1" {{ $exam->is_active ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold text-dark" for="is_active_{{ $exam->id }}">
+                                            Status Ujian Aktif
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-dark">Jadwal Mulai Ujian</label>
+                                    <input type="datetime-local" name="start_time" class="form-control" value="{{ $exam->start_time ? \Carbon\Carbon::parse($exam->start_time)->format('Y-m-d\TH:i') : '' }}">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-dark">Jadwal Selesai Ujian</label>
+                                    <input type="datetime-local" name="end_time" class="form-control" value="{{ $exam->end_time ? \Carbon\Carbon::parse($exam->end_time)->format('Y-m-d\TH:i') : '' }}">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap gap-2 border rounded-3 p-3 bg-light">
+                                    @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
+                                        <div class="form-check me-3">
+                                            <input class="form-check-input" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-medium text-dark" for="cls_{{ $exam->id }}_{{ $cls->id }}">
+                                                {{ $cls->name }}
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary fw-semibold" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary fw-semibold">
+                                <i class="fas fa-save me-1"></i> Simpan Perubahan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endforeach
 </div>
 
-<!-- JavaScript Switcher -->
 <script>
-    function switchView(view) {
-        const tableView = document.getElementById('table-view-container');
-        const cardView = document.getElementById('card-view-container');
-        const btnTable = document.getElementById('btn-table-view');
-        const btnCard = document.getElementById('btn-card-view');
+    // JavaScript untuk Switcher Tampilan Card vs Tabel
+    function switchView(mode) {
+        const cardContainer = document.getElementById('view-card-container');
+        const tableContainer = document.getElementById('view-table-container');
+        const btnCard = document.getElementById('btn-view-card');
+        const btnTable = document.getElementById('btn-view-table');
 
-        if (view === 'card') {
-            tableView.classList.add('d-none');
-            cardView.classList.remove('d-none');
-            btnCard.classList.add('active');
-            btnTable.classList.remove('active');
-            localStorage.setItem('exam_view_pref', 'card');
+        if (mode === 'card') {
+            cardContainer.classList.remove('d-none');
+            tableContainer.classList.add('d-none');
+            btnCard.classList.add('active', 'bg-primary', 'text-white');
+            btnTable.classList.remove('active', 'bg-primary', 'text-white');
         } else {
-            cardView.classList.add('d-none');
-            tableView.classList.remove('d-none');
-            btnTable.classList.add('active');
-            btnCard.classList.remove('active');
-            localStorage.setItem('exam_view_pref', 'table');
+            tableContainer.classList.remove('d-none');
+            cardContainer.classList.add('d-none');
+            btnTable.classList.add('active', 'bg-primary', 'text-white');
+            btnCard.classList.remove('active', 'bg-primary', 'text-white');
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const savedView = localStorage.getItem('exam_view_pref');
-        if (savedView === 'card') {
-            switchView('card');
-        }
+    // Default Tampilan: Card Mode
+    document.addEventListener('DOMContentLoaded', function() {
+        switchView('card');
     });
 </script>
 @endsection

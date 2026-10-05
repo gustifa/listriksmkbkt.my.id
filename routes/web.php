@@ -189,6 +189,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/exams/{exam}/report', [ExamController::class, 'showReport'])->name('guru.exams.report');
     Route::get('/exams/{exam}/report/export', [ExamController::class, 'exportExcel'])->name('exams.report.export');
     Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
+    Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');

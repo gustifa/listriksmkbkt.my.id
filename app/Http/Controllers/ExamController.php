@@ -405,4 +405,32 @@ class ExamController extends Controller
         return redirect()->back()->with('error', 'Gagal mereset sesi ujian: ' . $e->getMessage());
     }
 }
+
+    /**
+     * Memperbarui data ujian (waktu, durasi, target kelas, dll.)
+     */
+    public function update(Request $request, Exam $exam)
+    {
+        $request->validate([
+            'title'            => 'required|string|max:255',
+            'duration_minutes' => 'required|numeric|min:1',
+            'start_time'       => 'nullable|date',
+            'end_time'         => 'nullable|date|after_or_equal:start_time',
+            'classroom_ids'    => 'required|array',
+        ]);
+
+        // 1. Update atribut utama ujian
+        $exam->update([
+            'title'            => $request->title,
+            'duration_minutes' => $request->duration_minutes,
+            'start_time'       => $request->start_time,
+            'end_time'         => $request->end_time,
+            'is_active'        => $request->has('is_active') ? true : false,
+        ]);
+
+        // 2. Sync relasi target kelas (Pivot: classroom_exam)
+        $exam->classrooms()->sync($request->classroom_ids);
+
+        return redirect()->back()->with('success', 'Jadwal dan informasi ujian berhasil diperbarui!');
+    }
 }
