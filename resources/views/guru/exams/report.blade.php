@@ -72,7 +72,7 @@
                                 <td class="ps-4 fw-semibold">{{ $index + 1 }}</td>
                                 <td>
                                     <div class="fw-bold text-dark">{{ $s->student->name ?? '-' }}</div>
-                                    <small class="text-muted">NISN: {{ $s->student->nisn ?? '-' }}</small>
+                                    <small class="text-muted">NIS: {{ $s->student->nis ?? '-' }}</small>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border">{{ $s->student->classroom->name ?? '-' }}</span>
