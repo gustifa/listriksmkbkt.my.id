@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use App\Exports\ExamResultsExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Str;
+
 
 class ExamController extends Controller
 {
@@ -42,6 +44,7 @@ class ExamController extends Controller
     // Indeks Daftar Ujian untuk Admin & Guru
     public function index()
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
         if ($user->hasRole('admin')) {
@@ -65,6 +68,7 @@ class ExamController extends Controller
     // Form Tambah Ujian
     public function create()
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         $academicYears = AcademicYear::where('is_active', true)->get();
 
@@ -496,4 +500,16 @@ class ExamController extends Controller
 
         return redirect()->back()->with('success', 'Jadwal dan informasi ujian berhasil diperbarui!');
     }
+
+    public function generateToken(Request $request, Exam $exam)
+{
+    // Generasi 6 Karakter Acak Kapital (Misal: X7K9PQ)
+    $newToken = strtoupper(Str::random(6));
+
+    $exam->update([
+        'token' => $newToken
+    ]);
+
+    return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
+}
 }
