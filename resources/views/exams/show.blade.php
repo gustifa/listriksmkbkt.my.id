@@ -116,6 +116,33 @@
                                 @endif
                             </div>
                         </div>
+
+                        <!-- INFORMASI BARU: STATUS ACAK SOAL & JAWABAN -->
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Pengaturan Acak Soal</small>
+                            @if($exam->randomize_questions)
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="fas fa-random me-1"></i> Soal Diacak
+                                </span>
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary border">
+                                    <i class="fas fa-sort-numeric-down me-1"></i> Soal Urut (Tidak Diacak)
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Pengaturan Acak Jawaban</small>
+                            @if($exam->randomize_options)
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="fas fa-sort-alpha-down-alt me-1"></i> Opsi Jawaban Diacak
+                                </span>
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary border">
+                                    <i class="fas fa-list-ol me-1"></i> Opsi Jawaban Urut (Tidak Diacak)
+                                </span>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -191,6 +218,19 @@
                                 <span class="badge bg-secondary-subtle text-secondary me-1">
                                     Tipe: {{ strtoupper($q->question_type ?? $q->type ?? '-') }}
                                 </span>
+
+                                <!-- STATUS ACAK PADA CARD SOAL -->
+                                @if($exam->randomize_questions)
+                                    <span class="badge bg-primary-subtle text-primary border me-1" title="Soal ini akan muncul acak pada layar siswa">
+                                        <i class="fas fa-random"></i> Soal Acak
+                                    </span>
+                                @endif
+
+                                @if($exam->randomize_options)
+                                    <span class="badge bg-success-subtle text-success border me-1" title="Opsi pilihan A, B, C, D, E akan diacak pada layar siswa">
+                                        <i class="fas fa-sort-alpha-down-alt"></i> Opsi Acak
+                                    </span>
+                                @endif
 
                                 <!-- Quick Edit Bobot Per Soal -->
                                 <form action="{{ route('guru.questions.update-weight', $q->id) }}" method="POST" class="d-inline-flex align-items-center gap-1 me-2">

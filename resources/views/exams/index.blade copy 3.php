@@ -214,7 +214,7 @@
                         
                         <div class="modal-header bg-light">
                             <h5 class="modal-title fw-bold text-dark" id="editExamModalLabel-{{ $exam->id }}">
-                                <i class="fas fa-edit text-warning me-2"></i>Edit Waktu & Informasi Ujian
+                                <i class="fas fa-clock text-warning me-2"></i>Edit Waktu & Informasi Ujian
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -235,9 +235,9 @@
                                 </div>
 
                                 <div class="col-md-6 d-flex align-items-end">
-                                    <div class="form-check form-switch d-flex align-items-center gap-2 p-2 ps-0 mb-1">
-                                        <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" name="is_active" id="is_active_{{ $exam->id }}" value="1" {{ $exam->is_active ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-semibold text-dark cursor-pointer mb-0" for="is_active_{{ $exam->id }}">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="is_active" id="is_active_{{ $exam->id }}" value="1" {{ $exam->is_active ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold text-dark" for="is_active_{{ $exam->id }}">
                                             Status Ujian Aktif
                                         </label>
                                     </div>
@@ -254,57 +254,19 @@
                                 </div>
                             </div>
 
-                            <!-- Target Kelas -->
                             <div class="mb-3">
                                 <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
-                                <div class="border rounded-3 p-3 bg-light">
-                                    <div class="row g-2">
-                                        @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
-                                            <div class="col-md-4 col-6">
-                                                <div class="form-check bg-white p-2 border rounded d-flex align-items-center">
-                                                    <input class="form-check-input ms-1 me-2" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
-                                                    <label class="form-check-label fw-medium text-dark cursor-pointer mb-0" for="cls_{{ $exam->id }}_{{ $cls->id }}">
-                                                        {{ $cls->name }}
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                                <div class="d-flex flex-wrap gap-2 border rounded-3 p-3 bg-light">
+                                    @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
+                                        <div class="form-check me-3">
+                                            <input class="form-check-input" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-medium text-dark" for="cls_{{ $exam->id }}_{{ $cls->id }}">
+                                                {{ $cls->name }}
+                                            </label>
+                                        </div>
+                                    @endforeach
                                 </div>
                             </div>
-
-                            <!-- Pengaturan Acak Ujian -->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
-                                <div class="row g-3">
-                                    <!-- Switch Acak Soal -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_questions_{{ $exam->id }}" name="randomize_questions" value="1" {{ $exam->randomize_questions ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_questions_{{ $exam->id }}">
-                                                    <i class="fas fa-random text-primary me-1"></i> Acak Urutan Soal
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Urutan nomor soal akan diacak secara berbeda untuk setiap siswa.</small>
-                                        </div>
-                                    </div>
-
-                                    <!-- Switch Acak Jawaban -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_options_{{ $exam->id }}" name="randomize_options" value="1" {{ $exam->randomize_options ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_options_{{ $exam->id }}">
-                                                    <i class="fas fa-sort-alpha-down-alt text-success me-1"></i> Acak Pilihan Jawaban
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Pilihan jawaban (A, B, C, D, E) akan diacak saat siswa mengerjakan.</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                         </div>
 
                         <div class="modal-footer bg-light">

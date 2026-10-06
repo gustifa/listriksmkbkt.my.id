@@ -117,15 +117,17 @@ class ExamController extends Controller
 
         // Simpan data Ujian
         $exam = Exam::create([
-            'title'            => $validated['title'],
-            'type'             => $validated['type'],
-            'subject_id'       => $validated['subject_id'],
-            'teacher_id'       => $teacherId,
-            'academic_year_id' => $validated['academic_year_id'] ?? null,
-            'duration_minutes' => $validated['duration_minutes'],
-            'start_time'       => $validated['start_time'],
-            'end_time'         => $validated['end_time'],
-            'is_active'        => $request->has('is_active'),
+            'title'               => $validated['title'],
+            'type'                => $validated['type'],
+            'subject_id'          => $validated['subject_id'],
+            'teacher_id'          => $teacherId,
+            'academic_year_id'    => $validated['academic_year_id'] ?? null,
+            'duration_minutes'    => $validated['duration_minutes'],
+            'start_time'          => $validated['start_time'],
+            'end_time'            => $validated['end_time'],
+            'is_active'           => $request->has('is_active'),
+            'randomize_questions' => $request->has('randomize_questions'), // <-- Simpan Fitur Acak Soal
+            'randomize_options'   => $request->has('randomize_options'),   // <-- Simpan Fitur Acak Jawaban
         ]);
 
         // Attach relasi ke banyak kelas (Tabel Pivot classroom_exam)
@@ -488,11 +490,13 @@ class ExamController extends Controller
 
         // 1. Update atribut utama ujian
         $exam->update([
-            'title'            => $request->title,
-            'duration_minutes' => $request->duration_minutes,
-            'start_time'       => $request->start_time,
-            'end_time'         => $request->end_time,
-            'is_active'        => $request->has('is_active') ? true : false,
+            'title'               => $request->title,
+            'duration_minutes'    => $request->duration_minutes,
+            'start_time'          => $request->start_time,
+            'end_time'            => $request->end_time,
+            'is_active'           => $request->has('is_active') ? true : false,
+            'randomize_questions' => $request->has('randomize_questions') ? true : false, // <-- Update
+            'randomize_options'   => $request->has('randomize_options') ? true : false,   // <-- Update
         ]);
 
         // 2. Sync relasi target kelas (Pivot: classroom_exam)

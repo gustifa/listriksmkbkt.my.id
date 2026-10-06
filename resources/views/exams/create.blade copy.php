@@ -75,10 +75,10 @@
                             <div class="row g-2">
                                 @foreach($classrooms as $classroom)
                                     <div class="col-md-3 col-6">
-                                        <div class="form-check bg-white p-2 border rounded d-flex align-items-center">
+                                        <div class="form-check bg-white p-2 border rounded">
                                             <input class="form-check-input ms-1 me-2" type="checkbox" name="classroom_ids[]" value="{{ $classroom->id }}" id="class_{{ $classroom->id }}"
                                                 {{ is_array(old('classroom_ids')) && in_array($classroom->id, old('classroom_ids')) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-medium text-dark cursor-pointer mb-0" for="class_{{ $classroom->id }}">
+                                            <label class="form-check-label fw-medium text-dark" for="class_{{ $classroom->id }}">
                                                 {{ $classroom->name }}
                                             </label>
                                         </div>
@@ -110,43 +110,11 @@
                         @error('end_time') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <!-- Pengaturan Acak Soal & Opsi Jawaban -->
-                    <div class="col-12 mt-4">
-                        <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
-                        <div class="row g-3">
-                            <!-- Switch Acak Soal -->
-                            <div class="col-md-6">
-                                <div class="p-3 border rounded-3 bg-light h-100">
-                                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                        <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_questions" name="randomize_questions" value="1" {{ old('randomize_questions') ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_questions">
-                                            <i class="fas fa-random text-primary me-1"></i> Acak Urutan Soal
-                                        </label>
-                                    </div>
-                                    <small class="text-muted d-block ms-1">Urutan nomor soal akan diacak secara berbeda untuk setiap siswa.</small>
-                                </div>
-                            </div>
-
-                            <!-- Switch Acak Jawaban -->
-                            <div class="col-md-6">
-                                <div class="p-3 border rounded-3 bg-light h-100">
-                                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                        <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_options" name="randomize_options" value="1" {{ old('randomize_options') ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_options">
-                                            <i class="fas fa-sort-alpha-down-alt text-success me-1"></i> Acak Pilihan Jawaban (Opsi)
-                                        </label>
-                                    </div>
-                                    <small class="text-muted d-block ms-1">Pilihan jawaban (A, B, C, D, E) akan diacak secara otomatis saat siswa mengerjakan.</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Status Switch -->
-                    <div class="col-12 mt-3">
-                        <div class="form-check form-switch d-flex align-items-center gap-2 p-2 ps-0">
-                            <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" name="is_active" id="is_active" value="1" checked>
-                            <label class="form-check-label fw-semibold text-dark cursor-pointer mb-0" for="is_active">Aktifkan Ujian Ini</label>
+                    <div class="col-12 mt-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" checked>
+                            <label class="form-check-label fw-semibold text-dark" for="is_active">Aktifkan Ujian Ini</label>
                         </div>
                     </div>
                 </div>

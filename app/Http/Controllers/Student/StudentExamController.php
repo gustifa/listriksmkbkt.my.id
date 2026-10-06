@@ -386,6 +386,62 @@ class StudentExamController extends Controller
 //     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
 // }
 
+    // public function show(Exam $exam, ExamSession $session)
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     // 1. Validasi Pemilik Sesi
+    //     if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
+    //         return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
+    //     }
+
+    //     // 2. Validasi Target Kelas Siswa
+    //     $student = Student::findOrFail($studentId);
+    //     $isTargetClass = $exam->classrooms()->where('classrooms.id', $student->classroom_id)->exists();
+
+    //     if (!$isTargetClass) {
+    //         return redirect()->route('student.exam.index')
+    //                         ->with('error', 'Anda tidak terdaftar sebagai peserta pada kelas ujian ini.');
+    //     }
+
+    //     // 3. Jika ujian sudah selesai, langsung arahkan ke hasil
+    //     if ($session->status === 'completed') {
+    //         return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+    //     }
+
+    //     // 4. Pastikan start_time tercatat saat pertama kali membuka ujian
+    //     if (!$session->start_time) {
+    //         $session->update([
+    //             'start_time' => now(),
+    //         ]);
+    //         $startTime = now();
+    //     } else {
+    //         $startTime = Carbon::parse($session->start_time);
+    //     }
+
+    //     // 5. Hitung Waktu Selesai yang Pasti (Deadline = start_time + durasi)
+    //     $deadline = $startTime->copy()->addMinutes($exam->duration_minutes);
+    //     $now = now();
+
+    //     // 6. Hitung Sisa Detik Aktual
+    //     if ($now->greaterThanOrEqualTo($deadline)) {
+    //         // Jika waktu sudah lewat dari deadline, otomatis selesaikan sesi
+    //         return $this->autoFinishSession($session);
+    //     }
+
+    //     // Hitung selisih detik yang tersisa menuju deadline
+    //     $remainingSeconds = $now->diffInSeconds($deadline);
+
+    //     // 7. Load soal ujian & jawaban siswa
+    //     $questions = $exam->questions()->get();
+    //     $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+    //     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
+    // }
+
+    /**
+     * 4. Halaman Lembar Pengerjaan Soal (Show dengan Fitur Acak Soal & Opsi)
+     */
     public function show(Exam $exam, ExamSession $session)
     {
         $studentId = $this->getStudentId();
@@ -432,8 +488,32 @@ class StudentExamController extends Controller
         // Hitung selisih detik yang tersisa menuju deadline
         $remainingSeconds = $now->diffInSeconds($deadline);
 
-        // 7. Load soal ujian & jawaban siswa
-        $questions = $exam->questions()->get();
+        // 7. Load Soal Ujian (Dengan Logika Acak Soal jika Diaktifkan)
+        $questionsQuery = $exam->questions();
+
+        if ($exam->randomize_questions) {
+            // Mengacak soal dengan seed ID Sesi agar urutan acak tetap konsisten per siswa saat direfresh
+            $questionsQuery->inRandomOrder($session->id);
+        } else {
+            $questionsQuery->orderBy('created_at', 'asc');
+        }
+
+        $questions = $questionsQuery->get();
+
+        // 8. Logika Acak Opsi Jawaban (jika Diaktifkan)
+        if ($exam->randomize_options) {
+            foreach ($questions as $q) {
+                $optionsData = is_string($q->options) ? json_decode($q->options, true) : $q->options;
+
+                if (is_array($optionsData) && !empty($optionsData)) {
+                    // Acak urutan array opsi untuk setiap soal
+                    shuffle($optionsData);
+                    $q->options = $optionsData;
+                }
+            }
+        }
+
+        // 9. Ambil Jawaban Siswa
         $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
 
         return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
