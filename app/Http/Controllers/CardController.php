@@ -21,6 +21,32 @@ class CardController extends Controller
         return view('print.select_class', compact('classrooms'));
     }
 
+    public function printAccountsAll()
+{
+    // Eager load relasi 'user' dan 'classroom'
+    $students = \App\Models\Student::with(['user', 'classroom'])
+        ->orderBy('name')
+        ->get();
+
+    $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+
+    return view('print.accounts', compact('students', 'settings'));
+}
+
+public function printAccountsClass($classroomId)
+{
+    $classroom = \App\Models\Classroom::findOrFail($classroomId);
+
+    $students = \App\Models\Student::with(['user', 'classroom'])
+        ->where('classroom_id', $classroomId)
+        ->orderBy('name')
+        ->get();
+
+    $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+
+    return view('print.accounts', compact('students', 'classroom', 'settings'));
+}
+
     /**
      * Cetak Kartu Berdasarkan Kelas Spesifik
      */

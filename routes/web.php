@@ -174,7 +174,12 @@ Route::middleware(['auth'])->group(function () {
     // ROUTE TAMBAH SOAL MANUAL (BARU)
     Route::get('/exams/{exam}/questions/create', [GuruQuestionController::class, 'create'])->name('guru.questions.create');
     Route::post('/exams/{exam}/questions', [GuruQuestionController::class, 'store'])->name('guru.questions.store');
+    Route::post('/exams/{exam}/update-bulk-weight', [GuruQuestionController::class, 'updateBulkWeight'])
+        ->name('guru.exams.update-bulk-weight');
 
+    // Route Quick Edit Bobot Per Soal
+    Route::patch('/questions/{question}/update-weight', [GuruQuestionController::class, 'updateSingleWeight'])
+        ->name('guru.questions.update-weight');
     // ROUTE EDIT & UPDATE SOAL (BARU)
     Route::get('/questions/{question}/edit', [GuruQuestionController::class, 'edit'])->name('guru.questions.edit');
     Route::put('/questions/{question}', [GuruQuestionController::class, 'update'])->name('guru.questions.update');
@@ -183,7 +188,9 @@ Route::middleware(['auth'])->group(function () {
     // ROUTE BARU: Copy & Hapus Soal
     Route::post('/questions/{question}/duplicate', [GuruQuestionController::class, 'duplicate'])->name('guru.questions.duplicate');
     Route::delete('/questions/{question}', [GuruQuestionController::class, 'destroy'])->name('guru.questions.destroy');
-    Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
+    // Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
+    Route::match(['delete', 'patch'], '/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])
+    ->name('guru.questions.bulkDestroy');
     Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
     // Route Laporan Rekap Nilai Ujian
     Route::get('/exams/{exam}/report', [ExamController::class, 'showReport'])->name('guru.exams.report');
@@ -555,6 +562,14 @@ Route::middleware(['auth'])->group(function () {
 
         // --- 4. MANAJEMEN KARTU SISWA ---
         Route::get('/print-cards', [CardController::class, 'index'])->name('print.index');
+
+        // Route Cetak Akun Seluruh Sekolah
+        Route::get('/print-accounts/all', [CardController::class, 'printAccountsAll'])
+            ->name('print.accounts.all');
+
+        // Route Cetak Akun Per Kelas
+        Route::get('/print-accounts/class/{classroom}', [CardController::class, 'printAccountsClass'])
+        ->name('print.accounts.class');
 
         // Cetak Full 1 Kelas
         Route::get('/print-cards/class/{id}', [CardController::class, 'printByClass'])->name('print.class');

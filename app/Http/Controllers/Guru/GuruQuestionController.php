@@ -453,5 +453,55 @@ public function bulkDestroy(Request $request)
     }
 }
 
+/**
+ * Memperbarui bobot secara massal/rata untuk seluruh soal dalam ujian
+ */
+public function updateBulkWeight(Request $request, Exam $exam)
+{
+    $request->validate([
+        'target_total_score'   => 'nullable|numeric|min:1',
+        'weight_per_question'  => 'nullable|numeric|min:0.1',
+    ]);
+
+    $totalQuestions = $exam->questions()->count();
+
+    if ($totalQuestions === 0) {
+        return redirect()->back()->with('error', 'Belum ada soal pada ujian ini.');
+    }
+
+    if ($request->filled('target_total_score')) {
+        // Opsi A: Bagi Rata Target Total Nilai (Misal: Total 100 / 10 Soal = Bobot 10)
+        $weightPerQuestion = round($request->target_total_score / $totalQuestions, 2);
+    } elseif ($request->filled('weight_per_question')) {
+        // Opsi B: Bobot Spesifik per soal
+        $weightPerQuestion = $request->weight_per_question;
+    } else {
+        return redirect()->back()->with('error', 'Pilih salah satu metode pengisian bobot.');
+    }
+
+    // Update kolom score_weight untuk seluruh soal
+    $exam->questions()->update([
+        'score_weight' => $weightPerQuestion
+    ]);
+
+    return redirect()->back()->with('success', "Bobot berhasil diperbarui! Setiap soal memiliki bobot {$weightPerQuestion}.");
+}
+
+/**
+ * Memperbarui bobot untuk 1 soal secara spesifik
+ */
+public function updateSingleWeight(Request $request, Question $question)
+{
+    $request->validate([
+        'score_weight' => 'required|numeric|min:0.1'
+    ]);
+
+    $question->update([
+        'score_weight' => $request->score_weight
+    ]);
+
+    return redirect()->back()->with('success', 'Bobot soal berhasil diperbarui.');
+}
+
 
 }
