@@ -66,32 +66,8 @@
                     <!-- Form Aksi Mulai Ujian -->
                     <form action="{{ route('student.exam.begin', $exam->id) }}" method="POST" id="form-start-exam">
                         @csrf
-
-                        <!-- Field Input Token Ujian -->
-                        @if(!empty($exam->token))
-                            <div class="mb-4 text-start">
-                                <label for="token" class="form-label fw-bold text-dark">
-                                    Masukkan Token Ujian <span class="text-danger">*</span>
-                                </label>
-                                <input type="text" 
-                                       name="token" 
-                                       id="token" 
-                                       class="form-control form-control-lg text-center fw-bold text-uppercase border-primary @error('token') is-invalid @enderror" 
-                                       placeholder="CONTOH: X7K9PQ" 
-                                       maxlength="10" 
-                                       required 
-                                       autocomplete="off">
-                                @error('token')
-                                    <div class="invalid-feedback fw-semibold">
-                                        {{ $message }}
-                                    </div>
-                                @enderror
-                                <small class="text-muted">Minta token ujian kepada guru pengawas sebelum memulainya.</small>
-                            </div>
-                        @endif
-
                         <div class="d-flex justify-content-between align-items-center pt-2">
-                            <a href="{{ route('student.exam.index') }}" class="btn btn-outline-secondary px-4">
+                            <a href="{{ url()->previous() }}" class="btn btn-outline-secondary px-4">
                                 <i class="bi bi-arrow-left me-1"></i> Kembali
                             </a>
 
@@ -147,19 +123,6 @@
             btnStart.addEventListener('click', function (e) {
                 e.preventDefault();
                 const form = document.getElementById('form-start-exam');
-                const tokenInput = document.getElementById('token');
-
-                // Validasi sederhana pada field token jika wajib diisi
-                if (tokenInput && tokenInput.value.trim() === '') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Token Belum Diisi!',
-                        text: 'Silakan masukkan token ujian terlebih dahulu.',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                    tokenInput.focus();
-                    return;
-                }
 
                 Swal.fire({
                     title: 'Siap Dimulai?',
@@ -173,6 +136,7 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        // Tampilkan loading saat redirect/submit
                         Swal.fire({
                             title: 'Menyiapkan Soal...',
                             text: 'Harap tunggu sebentar',

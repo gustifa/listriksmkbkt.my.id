@@ -57,6 +57,23 @@
                 <div class="card-header bg-white border-bottom py-3">
                     <h5 class="fw-bold mb-0 text-dark">Informasi Ujian</h5>
                 </div>
+                <!-- Kartu Tampilan & Generate Token -->
+                <div class="col-md-12 mt-3">
+                    <div class="p-3 bg-light border rounded-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted d-block fw-semibold">Token Ujian Saat Ini:</small>
+                            <span class="fs-4 fw-bold text-primary tracking-wider">
+                                {{ $exam->token ?? 'BELUM SET' }}
+                            </span>
+                        </div>
+                        <form action="{{ route('exams.generate-token', $exam->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-warning fw-bold text-dark btn-sm">
+                                <i class="fas fa-sync-alt me-1"></i> Generate Token Baru
+                            </button>
+                        </form>
+                    </div>
+                </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">

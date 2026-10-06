@@ -148,29 +148,162 @@ class StudentExamController extends Controller
     /**
      * 3. Memulai Sesi Ujian (Create/Fetch Session)
      */
+    // public function beginExam(Request $request, Exam $exam)
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     if (!$exam->is_active) {
+    //         return redirect()->route('student.exam.index')
+    //                          ->with('error', 'Ujian sedang tidak aktif.');
+    //     }
+
+    //     // Cari atau buat sesi pengerjaan baru
+    //     $session = ExamSession::firstOrCreate(
+    //         [
+    //             'exam_id'   => $exam->id,
+    //             'student_id' => $studentId,
+    //         ],
+    //         [
+    //             'start_time' => now(),
+    //             'status'     => 'ongoing', // Menggunakan enum 'ongoing'
+    //         ]
+    //     );
+
+    //     return redirect()->route('student.exam.show', [$exam->id, $session->id])
+    //                      ->with('success', 'Ujian dimulai. Selamat mengerjakan!');
+    // }
+
+//     public function beginExam(Request $request, Exam $exam)
+// {
+//     $user = Auth::user();
+
+//     if (!$exam->is_active) {
+//         return redirect()->route('student.dashboard')
+//                          ->with('error', 'Ujian sedang tidak aktif.');
+//     }
+
+//     // Pengecekan Token Ujian (jika ujian memiliki token)
+//     if (!empty($exam->token)) {
+//         $request->validate([
+//             'token' => 'required|string',
+//         ], [
+//             'token.required' => 'Token ujian wajib diisi.'
+//         ]);
+
+//         if (strtoupper($request->token) !== strtoupper($exam->token)) {
+//             return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+//         }
+//     }
+
+//     // Buat atau ambil sesi ujian
+//     $session = ExamSession::firstOrCreate(
+//         [
+//             'exam_id' => $exam->id,
+//             'student_id' => $student->id,
+//         ],
+//         [
+//             'start_time' => now(),
+//             'status'     => 'in_progress',
+//         ]
+//     );
+
+//     return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+//                      ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
+// }
+
+// public function beginExam(Request $request, Exam $exam)
+// {
+//     /** @var \App\Models\User $user */
+//     $user = Auth::user();
+
+//     // 1. Ambil relasi data student dari user yang login
+//     $student = $user->student; 
+
+//     // Jika akun user tidak terhubung ke tabel student
+//     if (!$student) {
+//         return redirect()->back()->with('error', 'Data siswa tidak ditemukan untuk akun ini.');
+//     }
+
+//     // 2. Cek apakah ujian sedang aktif
+//     if (!$exam->is_active) {
+//         return redirect()->route('student.dashboard')
+//                          ->with('error', 'Ujian sedang tidak aktif.');
+//     }
+
+//     // 3. Validasi Token Ujian (jika ujian menggunakan token)
+//     if (!empty($exam->token)) {
+//         $request->validate([
+//             'token' => 'required|string',
+//         ], [
+//             'token.required' => 'Token ujian wajib diisi.'
+//         ]);
+
+//         if (strtoupper($request->token) !== strtoupper($exam->token)) {
+//             return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+//         }
+//     }
+
+//     // 4. Buat atau ambil sesi pengerjaan ujian
+//     $session = ExamSession::firstOrCreate(
+//         [
+//             'exam_id'    => $exam->id,
+//             'student_id' => $student->id, // Deklarasi $student sudah ada di atas
+//         ],
+//         [
+//             'start_time' => now(),
+//             'status'     => 'in_progress', // Atau 'ongoing'
+//         ]
+//     );
+
+//     return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+//                      ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
+// }
+
+// 3. Memulai Ujian (Submit Form Token & Mulai Sesi)
     public function beginExam(Request $request, Exam $exam)
     {
-        $studentId = $this->getStudentId();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Ambil relasi student dari user login
+        $student = $user->student;
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'Data siswa tidak ditemukan untuk akun ini.');
+        }
 
         if (!$exam->is_active) {
             return redirect()->route('student.exam.index')
                              ->with('error', 'Ujian sedang tidak aktif.');
         }
 
-        // Cari atau buat sesi pengerjaan baru
+        // Validasi Token Ujian jika ada
+        if (!empty($exam->token)) {
+            $request->validate([
+                'token' => 'required|string',
+            ], [
+                'token.required' => 'Token ujian wajib diisi.'
+            ]);
+
+            if (strtoupper(trim($request->token)) !== strtoupper(trim($exam->token))) {
+                return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+            }
+        }
+
+        // Buat atau ambil sesi pengerjaan ujian
         $session = ExamSession::firstOrCreate(
             [
-                'exam_id'   => $exam->id,
-                'student_id' => $studentId,
+                'exam_id'    => $exam->id,
+                'student_id' => $student->id,
             ],
             [
                 'start_time' => now(),
-                'status'     => 'ongoing', // Menggunakan enum 'ongoing'
+                'status'     => 'ongoing',
             ]
         );
 
-        return redirect()->route('student.exam.show', [$exam->id, $session->id])
-                         ->with('success', 'Ujian dimulai. Selamat mengerjakan!');
+        return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+                         ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
     }
 
     /**
