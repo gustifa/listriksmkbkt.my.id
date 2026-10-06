@@ -291,17 +291,80 @@ class ExamController extends Controller
 
 
     // Halaman Show / Detail Ujian untuk Admin & Guru
+    // public function show(Exam $exam)
+    // {
+    //     // Load relasi beserta soal-soalnya
+    //     $exam->load(['subject', 'teacher', 'classrooms', 'questions']);
+
+    //     // Menghitung ringkasan statistik sederhana
+    //     $totalQuestions = $exam->questions->count();
+    //     $totalScoreWeight = $exam->questions->sum('score_weight');
+
+    //     return view('exams.show', compact('exam', 'totalQuestions', 'totalScoreWeight'));
+    // }
+
     public function show(Exam $exam)
-    {
-        // Load relasi beserta soal-soalnya
-        $exam->load(['subject', 'teacher', 'classrooms', 'questions']);
+{
+    // Load relasi beserta soal-soalnya
+    $exam->load(['subject', 'teacher', 'classrooms', 'questions']);
 
-        // Menghitung ringkasan statistik sederhana
-        $totalQuestions = $exam->questions->count();
-        $totalScoreWeight = $exam->questions->sum('score_weight');
+    // Menghitung ringkasan statistik sederhana
+    $totalQuestions = $exam->questions->count();
+    $totalScoreWeight = $exam->questions->sum('score_weight');
 
-        return view('exams.show', compact('exam', 'totalQuestions', 'totalScoreWeight'));
+    // Memproses rekapitulasi pilihan jawaban siswa per soal
+    foreach ($exam->questions as $question) {
+        // Ambil semua jawaban siswa dari tabel exam_answers
+        $answers = \App\Models\ExamAnswer::where('question_id', $question->id)->get();
+
+        $recap = [
+            'A' => 0, 'B' => 0, 'C' => 0, 'D' => 0, 'E' => 0,
+            'kosong' => 0,
+            'correct_count' => 0,
+            'wrong_count' => 0,
+            'total_answered' => $answers->count()
+        ];
+
+        foreach ($answers as $ans) {
+            // Kolom 'answer' menyimpan JSON seperti ["A"] atau ["A", "B"]
+            $rawAnswer = $ans->answer;
+
+            // Lakukan decoding jika masih berbentuk string JSON
+            if (is_string($rawAnswer)) {
+                $rawAnswer = json_decode($rawAnswer, true);
+            }
+
+            // Hitung distribusi pilihan opsi
+            if (is_array($rawAnswer) && !empty($rawAnswer)) {
+                foreach ($rawAnswer as $chosenOpt) {
+                    $optKey = strtoupper(trim($chosenOpt));
+                    if (array_key_exists($optKey, $recap)) {
+                        $recap[$optKey]++;
+                    }
+                }
+            } elseif (!empty($rawAnswer) && is_string($rawAnswer)) {
+                $optKey = strtoupper(trim($rawAnswer));
+                if (array_key_exists($optKey, $recap)) {
+                    $recap[$optKey]++;
+                }
+            } else {
+                $recap['kosong']++;
+            }
+
+            // Hitung statistik jawaban benar / salah
+            if ($ans->is_correct) {
+                $recap['correct_count']++;
+            } else {
+                $recap['wrong_count']++;
+            }
+        }
+
+        // Lampirkan data rekap ke objek $question
+        $question->recap = $recap;
     }
+
+    return view('exams.show', compact('exam', 'totalQuestions', 'totalScoreWeight'));
+}
 
 
     public function destroy(Exam $exam)
