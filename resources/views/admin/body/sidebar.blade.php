@@ -103,6 +103,7 @@ $status = $guruId->status;
 						</li>
                         <li> <a href="{{route('roles.index')}}"><i class='bx bx-radio-circle'></i>Role</a>
                         <li> <a href="{{route('admin.inventory.index')}}"><i class='bx bx-radio-circle'></i>Inventaris</a>
+                        <li> <a href="{{route('admin.prayer.settings')}}"><i class='bx bx-radio-circle'></i>Sholat</a>
 					</li>
 
 					</ul>
@@ -139,6 +140,8 @@ $status = $guruId->status;
 						<li> <a href="{{route('admin.internships.index')}}"><i class='bx bx-radio-circle'></i>03.Penempatan</a></li>
 					</ul>
 				</li>
+
+
 
                 <li class="menu-label">Absensi</li>
 				<li>
