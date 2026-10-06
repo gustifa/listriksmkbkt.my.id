@@ -18,6 +18,11 @@
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
 
+            <!-- Tombol Ambil dari Bank Soal (BARU) -->
+            <a href="{{ route('guru.questions.bank', $exam->id) }}" class="btn btn-warning text-dark fw-semibold">
+                <i class="fas fa-database me-1"></i> Ambil dari Bank Soal
+            </a>
+
             <!-- Tombol Tambah Soal Manual -->
             <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-primary fw-semibold">
                 <i class="fas fa-plus me-1"></i> Tambah Soal Manual
@@ -117,7 +122,7 @@
                             </div>
                         </div>
 
-                        <!-- INFORMASI BARU: STATUS ACAK SOAL & JAWABAN -->
+                        <!-- INFORMASI STATUS ACAK SOAL & JAWABAN -->
                         <div class="col-md-6">
                             <small class="text-muted d-block mb-1">Pengaturan Acak Soal</small>
                             @if($exam->randomize_questions)
@@ -352,6 +357,9 @@
                     <div class="text-center py-5 text-muted">
                         <p class="mb-3">Belum ada soal yang ditambahkan pada ujian ini.</p>
                         <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ route('guru.questions.bank', $exam->id) }}" class="btn btn-sm btn-warning text-dark fw-semibold">
+                                <i class="fas fa-database me-1"></i> Ambil dari Bank Soal
+                            </a>
                             <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-sm btn-primary fw-semibold">
                                 <i class="fas fa-plus me-1"></i> Tambah Soal Manual
                             </a>

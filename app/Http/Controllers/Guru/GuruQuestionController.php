@@ -504,4 +504,63 @@ public function updateSingleWeight(Request $request, Question $question)
 }
 
 
+/**
+ * Halaman Bank Soal (Melihat & Memilih Soal dari Guru Lain / Ujian Lain)
+ */
+public function bankIndex(Request $request, Exam $exam)
+{
+    // Ambil keyword pencarian atau filter mata pelajaran jika ada
+    $search = $request->query('search');
+    
+    $query = Question::with(['exam.subject', 'exam.teacher'])
+        ->where('exam_id', '!=', $exam->id); // Jangan tampilkan soal dari ujian ini sendiri
+
+    if (!empty($search)) {
+        $query->where('question_text', 'like', '%' . $search . '%');
+    }
+
+    $questions = $query->latest()->paginate(15);
+
+    return view('guru.questions.bank', compact('exam', 'questions', 'search'));
+}
+
+/**
+ * Menyalin Soal yang Dipilih dari Bank Soal ke Ujian Ini
+ */
+public function copyFromBank(Request $request, Exam $exam)
+{
+    $request->validate([
+        'question_ids'   => 'required|array',
+        'question_ids.*' => 'exists:questions,id',
+    ], [
+        'question_ids.required' => 'Pilih minimal satu soal yang ingin disalin.'
+    ]);
+
+    $selectedQuestions = Question::whereIn('id', $request->question_ids)->get();
+
+    // Deteksi nama kolom tipe soal di tabel questions
+    $typeColumn = \Schema::hasColumn('questions', 'question_type') ? 'question_type' : 'type';
+
+    foreach ($selectedQuestions as $q) {
+        $typeValue = $q->question_type ?? $q->type ?? 'single';
+
+        $dataToInsert = [
+            'exam_id'        => $exam->id,
+            'question_text'  => $q->question_text,
+            'options'        => $q->options,
+            'correct_answer' => $q->correct_answer,
+            'score_weight'   => $q->score_weight ?? $q->score ?? 1,
+        ];
+
+        // Masukkan field tipe soal sesuai nama kolom database yang terdeteksi
+        $dataToInsert[$typeColumn] = $typeValue;
+
+        Question::create($dataToInsert);
+    }
+
+    return redirect()->route('guru.exams.show', $exam->id)
+                     ->with('success', count($selectedQuestions) . ' soal berhasil disalin dari bank soal!');
+}
+
+
 }

@@ -199,6 +199,14 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
     Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
+    
+    // Route Bank Soal (Mengambil Soal yang Sudah Ada)
+    Route::get('/guru/exams/{exam}/bank-soal', [GuruQuestionController::class, 'bankIndex'])
+        ->name('guru.questions.bank');
+
+    Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])
+    ->name('guru.questions.copy_bank');
+    
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
