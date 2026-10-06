@@ -515,47 +515,84 @@ class ExamController extends Controller
 
 public function getStudentsByAnswer(Question $question, Request $request)
 {
-    $option = $request->query('option'); // Mengambil parameter opsi (A, B, C, D, E, KOSONG)
+    try {
+        $option = strtoupper(trim($request->query('option', '')));
 
-    // Ambil semua jawaban untuk soal ini beserta data sesi & siswa
-    $answers = ExamAnswer::where('question_id', $question->id)
-        ->with(['examSession.user', 'examSession.student.classroom'])
-        ->get();
+        // Menggunakan relasi 'session' (bukan examSession)
+        $answers = ExamAnswer::where('question_id', $question->id)
+            ->with(['session.student.classroom'])
+            ->get();
 
-    $students = [];
+        $students = [];
 
-    foreach ($answers as $ans) {
-        $rawAnswer = $ans->answer;
-        if (is_string($rawAnswer)) {
-            $rawAnswer = json_decode($rawAnswer, true);
+        foreach ($answers as $ans) {
+            // Ambil sesi pengerjaan (mencoba relasi session atau examSession)
+            $session = $ans->session ?? $ans->examSession ?? null;
+            if (!$session) {
+                continue;
+            }
+
+            // Ambil data siswa
+            $student = $session->student ?? null;
+
+            // Ambil nama siswa dan kelas
+            $studentName = optional($student)->name 
+                ?? optional(optional($session)->user)->name 
+                ?? 'Siswa Tanpa Nama';
+
+            $className = optional(optional($student)->classroom)->name 
+                ?? optional(optional(optional($session)->user)->classroom)->name 
+                ?? '-';
+
+            // Parsing jawaban siswa
+            $rawAnswer = $ans->answer;
+            if (is_string($rawAnswer)) {
+                $decoded = json_decode($rawAnswer, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $rawAnswer = $decoded;
+                }
+            }
+
+            // Pengecekan kecocokan opsi jawaban
+            $isMatch = false;
+
+            if ($option === 'KOSONG') {
+                if (empty($rawAnswer)) {
+                    $isMatch = true;
+                }
+            } else {
+                if (is_array($rawAnswer)) {
+                    $normalized = array_map(function($v) {
+                        return strtoupper(trim((string)$v));
+                    }, $rawAnswer);
+                    $isMatch = in_array($option, $normalized, true);
+                } elseif (!empty($rawAnswer)) {
+                    $isMatch = (strtoupper(trim((string)$rawAnswer)) === $option);
+                }
+            }
+
+            if ($isMatch) {
+                $students[] = [
+                    'name'  => $studentName,
+                    'class' => $className,
+                ];
+            }
         }
 
-        // Ambil nama siswa dan kelas
-        $studentName = $ans->examSession->user->name 
-            ?? $ans->examSession->student->name 
-            ?? 'Siswa Tanpa Nama';
-        $className = $ans->examSession->student->classroom->name 
-            ?? $ans->examSession->user->classroom->name 
-            ?? '-';
+        return response()->json([
+            'status'   => 'success',
+            'option'   => $option,
+            'students' => $students
+        ]);
 
-        if ($option === 'KOSONG') {
-            if (empty($rawAnswer)) {
-                $students[] = ['name' => $studentName, 'class' => $className];
-            }
-        } else {
-            if (is_array($rawAnswer) && in_array($option, $rawAnswer)) {
-                $students[] = ['name' => $studentName, 'class' => $className];
-            } elseif (is_string($rawAnswer) && strtoupper(trim($rawAnswer)) === $option) {
-                $students[] = ['name' => $studentName, 'class' => $className];
-            }
-        }
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine()
+        ], 500);
     }
-
-    return response()->json([
-        'option' => $option,
-        'students' => $students
-    ]);
 }
-
 
 }
