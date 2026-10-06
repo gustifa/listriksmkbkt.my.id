@@ -198,6 +198,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
     Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
+    Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');

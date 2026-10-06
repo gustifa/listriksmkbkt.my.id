@@ -58,7 +58,7 @@
                     <h5 class="fw-bold mb-0 text-dark">Informasi Ujian</h5>
                 </div>
                 <!-- Kartu Tampilan & Generate Token -->
-                <div class="col-md-12 mt-3">
+                <div class="col-md-12 mt-3 px-3">
                     <div class="p-3 bg-light border rounded-3 d-flex justify-content-between align-items-center">
                         <div>
                             <small class="text-muted d-block fw-semibold">Token Ujian Saat Ini:</small>
@@ -193,7 +193,7 @@
                                 </span>
 
                                 <!-- Quick Edit Bobot Per Soal -->
-                                <form action="" method="POST" class="d-inline-flex align-items-center gap-1 me-2">
+                                <form action="{{ route('guru.questions.update-weight', $q->id) }}" method="POST" class="d-inline-flex align-items-center gap-1 me-2">
                                     @csrf
                                     @method('PATCH')
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Bobot:</span>
@@ -270,16 +270,19 @@
                                 </span>
                             </div>
 
-                            <!-- Distribusi Pilihan Opsi A, B, C, D, E, & Kosong -->
+                            <!-- Distribusi Pilihan Opsi A, B, C, D, E, & Kosong (Setiap Box Bisa Diklik) -->
                             <div class="row g-2 text-center">
                                 @foreach(['A', 'B', 'C', 'D', 'E'] as $optKey)
                                     @php
                                         $isKey = is_array($correctAnswer) && in_array($optKey, $correctAnswer);
                                         $countChosen = $q->recap[$optKey] ?? 0;
-                                        $percentage =$totalAns > 0 ? round(($countChosen / $totalAns) * 100, 1) : 0;
+                                        $percentage = $totalAns > 0 ? round(($countChosen / $totalAns) * 100, 1) : 0;
                                     @endphp
                                     <div class="col">
-                                        <div class="p-2 rounded border {{ $isKey ? 'border-success bg-success-subtle fw-bold' : 'bg-white' }}">
+                                        <div class="p-2 rounded border option-box {{ $isKey ? 'border-success bg-success-subtle fw-bold' : 'bg-white' }}"
+                                             style="cursor: pointer;"
+                                             onclick="showStudentList('{{ $q->id }}', '{{ $optKey }}')"
+                                             title="Klik untuk melihat nama siswa yang memilih Opsi {{ $optKey }}">
                                             <small class="text-muted d-block fw-semibold">
                                                 Opsi {{ $optKey }} @if($isKey)<i class="fas fa-check-circle text-success ms-1"></i>@endif
                                             </small>
@@ -290,11 +293,14 @@
                                 @endforeach
 
                                 <div class="col">
-                                    <div class="p-2 rounded border bg-white">
+                                    <div class="p-2 rounded border bg-white option-box"
+                                         style="cursor: pointer;"
+                                         onclick="showStudentList('{{ $q->id }}', 'KOSONG')"
+                                         title="Klik untuk melihat nama siswa yang tidak menjawab">
                                         <small class="text-muted d-block fw-semibold">Kosong</small>
                                         <span class="fs-6 fw-bold text-danger">{{ $q->recap['kosong'] ?? 0 }}</span>
                                         <small class="d-block text-muted" style="font-size: 10px;">
-                                            ({{ $totalAns > 0 ? round((($q->recap['kosong'] ?? 0) /$totalAns) * 100, 1) : 0 }}%)
+                                            ({{ $totalAns > 0 ? round((($q->recap['kosong'] ?? 0) / $totalAns) * 100, 1) : 0 }}%)
                                         </small>
                                     </div>
                                 </div>
@@ -324,7 +330,7 @@
 <div class="modal fade" id="modalBulkWeight" tabindex="-1" aria-labelledby="modalBulkWeightLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <form action="" method="POST">
+            <form action="{{ route('guru.exams.update-bulk-weight', $exam->id) }}" method="POST">
                 @csrf
                 <div class="modal-header bg-light">
                     <h5 class="modal-title fw-bold text-dark" id="modalBulkWeightLabel">
@@ -363,6 +369,42 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL POPUP DAFTAR SISWA YANG MEMILIH OPSI -->
+<div class="modal fade" id="modalStudentAnswers" tabindex="-1" aria-labelledby="modalStudentAnswersLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark" id="modalStudentAnswersLabel">
+                    <i class="fas fa-users text-primary me-2"></i>Daftar Siswa - <span id="modalOptionTitle" class="text-primary">Opsi</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Loading State -->
+                <div id="loadingStudentList" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">Memuat data siswa...</p>
+                </div>
+
+                <!-- Container List Siswa -->
+                <ul class="list-group list-group-flush d-none" id="studentListContainer">
+                    <!-- Data siswa di-render via JavaScript -->
+                </ul>
+
+                <!-- Empty State -->
+                <div id="emptyStudentList" class="text-center py-4 d-none">
+                    <p class="text-muted mb-0">Tidak ada siswa yang memilih opsi ini.</p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">Tutup</button>
+            </div>
         </div>
     </div>
 </div>
@@ -420,7 +462,7 @@
     function duplicateSingleQuestion(questionId) {
         if (confirm('Apakah Anda yakin ingin menduplikasi soal ini?')) {
             const form = document.getElementById('singleActionForm');
-            form.action = `/guru/questions/${questionId}/duplicate`;
+            form.action = `/questions/${questionId}/duplicate`;
             document.getElementById('singleActionMethod').value = 'POST';
             form.submit();
         }
@@ -429,10 +471,71 @@
     function deleteSingleQuestion(questionId) {
         if (confirm('Apakah Anda yakin ingin menghapus soal ini secara permanen?')) {
             const form = document.getElementById('singleActionForm');
-            form.action = `/guru/questions/${questionId}`;
+            form.action = `/questions/${questionId}`;
             document.getElementById('singleActionMethod').value = 'DELETE';
             form.submit();
         }
     }
+
+    // Fungsi Popup Modal Daftar Siswa
+    function showStudentList(questionId, optionKey) {
+        const modalElement = new bootstrap.Modal(document.getElementById('modalStudentAnswers'));
+        const modalTitle = document.getElementById('modalOptionTitle');
+        const loading = document.getElementById('loadingStudentList');
+        const container = document.getElementById('studentListContainer');
+        const emptyState = document.getElementById('emptyStudentList');
+
+        // Set judul modal
+        modalTitle.innerText = optionKey === 'KOSONG' ? 'Tidak Menjawab (Kosong)' : `Opsi ${optionKey}`;
+        
+        // Reset state
+        loading.classList.remove('d-none');
+        container.classList.add('d-none');
+        emptyState.classList.add('d-none');
+        container.innerHTML = '';
+
+        modalElement.show();
+
+        // Mengambil data siswa via AJAX
+        fetch(`/questions/${questionId}/students?option=${optionKey}`)
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.add('d-none');
+
+                if (data.students && data.students.length > 0) {
+                    data.students.forEach((student, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
+                        li.innerHTML = `
+                            <div>
+                                <span class="fw-semibold text-dark">${index + 1}. ${student.name}</span>
+                            </div>
+                            <span class="badge bg-secondary-subtle text-secondary border">${student.class}</span>
+                        `;
+                        container.appendChild(li);
+                    });
+                    container.classList.remove('d-none');
+                } else {
+                    emptyState.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching students:', error);
+                loading.classList.add('d-none');
+                emptyState.classList.remove('d-none');
+                emptyState.innerHTML = '<p class="text-danger mb-0">Gagal memuat data siswa.</p>';
+            });
+    }
 </script>
+
+<style>
+    .option-box {
+        transition: all 0.2s ease-in-out;
+    }
+    .option-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        border-color: #0d6efd !important;
+    }
+</style>
 @endsection

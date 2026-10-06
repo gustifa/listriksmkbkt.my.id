@@ -512,4 +512,50 @@ class ExamController extends Controller
 
     return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
 }
+
+public function getStudentsByAnswer(Question $question, Request $request)
+{
+    $option = $request->query('option'); // Mengambil parameter opsi (A, B, C, D, E, KOSONG)
+
+    // Ambil semua jawaban untuk soal ini beserta data sesi & siswa
+    $answers = ExamAnswer::where('question_id', $question->id)
+        ->with(['examSession.user', 'examSession.student.classroom'])
+        ->get();
+
+    $students = [];
+
+    foreach ($answers as $ans) {
+        $rawAnswer = $ans->answer;
+        if (is_string($rawAnswer)) {
+            $rawAnswer = json_decode($rawAnswer, true);
+        }
+
+        // Ambil nama siswa dan kelas
+        $studentName = $ans->examSession->user->name 
+            ?? $ans->examSession->student->name 
+            ?? 'Siswa Tanpa Nama';
+        $className = $ans->examSession->student->classroom->name 
+            ?? $ans->examSession->user->classroom->name 
+            ?? '-';
+
+        if ($option === 'KOSONG') {
+            if (empty($rawAnswer)) {
+                $students[] = ['name' => $studentName, 'class' => $className];
+            }
+        } else {
+            if (is_array($rawAnswer) && in_array($option, $rawAnswer)) {
+                $students[] = ['name' => $studentName, 'class' => $className];
+            } elseif (is_string($rawAnswer) && strtoupper(trim($rawAnswer)) === $option) {
+                $students[] = ['name' => $studentName, 'class' => $className];
+            }
+        }
+    }
+
+    return response()->json([
+        'option' => $option,
+        'students' => $students
+    ]);
+}
+
+
 }
