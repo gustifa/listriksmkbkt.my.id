@@ -547,35 +547,32 @@ public function unsubmittedStudents(Exam $exam)
 }
 
 /**
- * Menyelesaikan ujian siswa secara paksa oleh Admin / Guru
- */
-public function finishSessionByAdmin(ExamSession $session)
-{
-    try {
-        // Ambil relasi exam dan questions
-        $exam = $session->exam()->with('questions')->first();
+     * Menyelesaikan ujian siswa secara paksa oleh Admin / Guru
+     */
+    public function finishSessionByAdmin(ExamSession $session)
+    {
+        try {
+            // Ambil semua jawaban yang sudah disubmit oleh siswa di sesi ini
+            $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
 
-        // Hitung total nilai berdasarkan jawaban yang sudah tersimpan
-        $totalScore = 0;
-        $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+            // Hitung total skor dari akumulasi nilai jawaban
+            $totalScore = 0;
+            foreach ($answers as $ans) {
+                $totalScore += $ans->score_given ?? 0;
+            }
 
-        foreach ($answers as $ans) {
-            $totalScore += $ans->score_given ?? 0;
+            // Update status sesi menjadi completed/selesai, catat waktu submit, dan simpan skornya
+            $session->update([
+                'status'      => 'completed',
+                'submit_time' => now(),
+                'score'       => $totalScore,
+            ]);
+
+            return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan oleh Admin/Guru.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
         }
-
-        // Update status sesi ujian menjadi selesai
-        $session->update([
-            'status'     => 'completed',
-            'end_time'   => now(),
-            'score'      => $totalScore,
-            'total_score' => $totalScore,
-        ]);
-
-        return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan oleh Admin/Guru.');
-    } catch (\Exception $e) {
-        return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
     }
-}
 
 
 public function getStudentsByAnswer(Question $question, Request $request)

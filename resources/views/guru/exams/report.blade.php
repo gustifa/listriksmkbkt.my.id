@@ -101,7 +101,7 @@
                                         {{ $s->start_time ? \Carbon\Carbon::parse($s->start_time)->format('d M Y, H:i') : '-' }}
                                     </small>
                                     <small class="text-muted">
-                                        s/d {{ $s->end_time ? \Carbon\Carbon::parse($s->end_time)->format('H:i') : ($s->updated_at ? \Carbon\Carbon::parse($s->updated_at)->format('H:i') : '-') }}
+                                        s/d {{ $s->submit_time ? \Carbon\Carbon::parse($s->submit_time)->format('H:i') : ($s->updated_at ? \Carbon\Carbon::parse($s->updated_at)->format('H:i') : '-') }}
                                     </small>
                                 </td>
                                 <td class="text-center">
@@ -111,8 +111,8 @@
                                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1">Sedang Mengerjakan</span>
                                     @endif
                                 </td>
-                                <td class="text-end fw-bold fs-6 {{ ($s->total_score ?? $s->score ?? 0) >= 75 ? 'text-success' : 'text-danger' }}">
-                                    {{ number_format($s->total_score ?? $s->score ?? 0, 1) }}
+                                <td class="text-end fw-bold fs-6 {{ ($s->score ?? 0) >= 75 ? 'text-success' : 'text-danger' }}">
+                                    {{ number_format($s->score ?? 0, 1) }}
                                 </td>
                                 <td class="text-center pe-4">
                                     <div class="d-flex justify-content-center gap-1">
