@@ -198,12 +198,11 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
     Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
-<<<<<<< HEAD
+
     // Route Rekap Siswa Belum Ujian
     Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
     // Route Force Selesai Ujian oleh Admin / Guru
     Route::post('/exam-sessions/{session}/finish', [ExamController::class, 'finishSessionByAdmin'])->name('guru.exam-sessions.finish');
-=======
     Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
 
     // Route Bank Soal (Mengambil Soal yang Sudah Ada)
@@ -213,7 +212,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])
     ->name('guru.questions.copy_bank');
 
->>>>>>> 08790f9d215ab4dcc2767af491894899bd0205b0
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');

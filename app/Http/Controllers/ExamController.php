@@ -517,10 +517,6 @@ class ExamController extends Controller
     return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
 }
 
-<<<<<<< HEAD
-/**
- * Tampilan & Rekap Siswa yang Belum / Sedang Mengikuti Ujian
- */
 public function unsubmittedStudents(Exam $exam)
 {
     // Load relasi kelas target ujian
@@ -582,7 +578,6 @@ public function finishSessionByAdmin(ExamSession $session)
 }
 
 
-=======
 public function getStudentsByAnswer(Question $question, Request $request)
 {
     try {
@@ -606,12 +601,12 @@ public function getStudentsByAnswer(Question $question, Request $request)
             $student = $session->student ?? null;
 
             // Ambil nama siswa dan kelas
-            $studentName = optional($student)->name 
-                ?? optional(optional($session)->user)->name 
+            $studentName = optional($student)->name
+                ?? optional(optional($session)->user)->name
                 ?? 'Siswa Tanpa Nama';
 
-            $className = optional(optional($student)->classroom)->name 
-                ?? optional(optional(optional($session)->user)->classroom)->name 
+            $className = optional(optional($student)->classroom)->name
+                ?? optional(optional(optional($session)->user)->classroom)->name
                 ?? '-';
 
             // Parsing jawaban siswa
@@ -665,5 +660,4 @@ public function getStudentsByAnswer(Question $question, Request $request)
     }
 }
 
->>>>>>> 08790f9d215ab4dcc2767af491894899bd0205b0
 }
