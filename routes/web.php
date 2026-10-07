@@ -359,7 +359,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('/izin/store', [StudentPermissionController::class, 'store'])->name('izin.store');
         Route::post('/izin/show', [StudentPermissionController::class, 'show'])->name('izin.show');
-        Route::post('/izin/check', [StudentPermissionController::class, 'check'])->name('izin.check');
+
         Route::post('/izin/return', [StudentPermissionController::class, 'markReturn'])->name('izin.return');
         Route::get('/izin/print/{id}', [StudentPermissionController::class, 'print'])->name('izin.print');
         // ROUTE BARU: Rekap & Export Laporan Izin Siswa
@@ -824,6 +824,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/daily-face-scan', [FaceController::class, 'dailyScan'])->name('daily.face.scan');
         Route::post('/daily-attendance', [DailyAttendanceController::class, 'store'])->name('daily.store');
         Route::get('/face/all-descriptors', [FaceController::class, 'getAllDescriptors'])->name('face.descriptors.all');
+        Route::post('/izin/check', [StudentPermissionController::class, 'check'])->name('izin.check');
     });
 });
 
