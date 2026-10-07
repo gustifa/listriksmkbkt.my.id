@@ -13,6 +13,10 @@ class AttendanceSetting extends Model
     protected $fillable = [
         'start_check_in_time',
         'late_limit_time',
-        'early_departure_time'
+        'end_check_in_time',
+        'early_departure_time',
+        'latitude',
+        'longitude',
+        'radius_meters',
     ];
 }

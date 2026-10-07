@@ -2,22 +2,24 @@
    Pengaturan Kop Surat & Sekolah
 @endsection
 <x-app-layout>
+    <!-- Tambahkan CSS Leaflet di Atas -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
     <div class="page-content">
         <!--breadcrumb-->
-    <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
-        <div class="breadcrumb-title pe-3">Setting</div>
-        <div class="ps-3">
-            <nav aria-label="breadcrumb">
-                <ol class="p-0 mb-0 breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="bx bx-home-alt"></i></a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">Setting Aplikasi</li>
-                </ol>
-            </nav>
+        <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
+            <div class="breadcrumb-title pe-3">Setting</div>
+            <div class="ps-3">
+                <nav aria-label="breadcrumb">
+                    <ol class="p-0 mb-0 breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="bx bx-home-alt"></i></a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Setting Aplikasi</li>
+                    </ol>
+                </nav>
+            </div>
         </div>
+        <!--end breadcrumb-->
 
-    </div>
-    <!--end breadcrumb-->
         <div class="row justify-content-center">
             <div class="col-md-12">
                 <div class="border-0 shadow card">
@@ -25,13 +27,6 @@
                         <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> Pengaturan Aplikasi</h5>
                     </div>
                     <div class="card-body">
-
-                        {{-- @if(session('success'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        @endif --}}
 
                         <form action="{{ route('settings.update') }}" method="POST" enctype="multipart/form-data">
                             @csrf
@@ -54,16 +49,19 @@
                                         <i class="fas fa-file-pdf me-2"></i> Kertas & Tanda Tangan
                                     </button>
                                 </li>
-
-                                 <li class="nav-item">
+                                <li class="nav-item">
                                     <button class="nav-link fw-bold" id="surat-tab" data-bs-toggle="tab" data-bs-target="#surat" type="button">
                                         <i class="fas fa-file-pdf me-2"></i> Surat Tugas
                                     </button>
                                 </li>
-
                                 <li class="nav-item">
                                     <button class="nav-link fw-bold" id="absensi-tab" data-bs-toggle="tab" data-bs-target="#absensi" type="button">
-                                        <i class="fas fa-file-pdf me-2"></i> Info Absensi
+                                        <i class="fas fa-info-circle me-2"></i> Info Absensi
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link fw-bold" id="location-tab" data-bs-toggle="tab" data-bs-target="#location" type="button">
+                                        <i class="fas fa-map-marker-alt me-2"></i> Titik Lokasi
                                     </button>
                                 </li>
                             </ul>
@@ -73,11 +71,10 @@
                                 <!-- TAB 1: IDENTITAS SEKOLAH (Kop Surat) -->
                                 <div class="tab-pane fade show active" id="general">
                                     <div class="pb-4 mb-4 row border-bottom">
-                                        <!-- Logo Kiri -->
                                         <div class="text-center col-md-6 border-end">
                                             <label class="form-label fw-bold">Logo Kiri (Kop Surat)</label>
                                             <div class="mb-2 d-flex justify-content-center">
-                                                @if(isset($settings['logo_left']) && $settings['logo_left'])
+                                                @if(isset($settings['logo_left']) &&$settings['logo_left'])
                                                     <img src="{{ asset('storage/'.$settings['logo_left']) }}" style="height: 80px; border: 1px solid #ddd; padding: 5px;">
                                                 @else
                                                     <div class="p-3 border rounded text-muted" style="height: 80px; width: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
@@ -87,11 +84,10 @@
                                             </div>
                                             <input type="file" name="logo_left" class="form-control form-control-sm accept-image">
                                         </div>
-                                        <!-- Logo Kanan -->
                                         <div class="text-center col-md-6">
                                             <label class="form-label fw-bold">Logo Kanan (Kop Surat)</label>
                                             <div class="mb-2 d-flex justify-content-center">
-                                                @if(isset($settings['logo_right']) && $settings['logo_right'])
+                                                @if(isset($settings['logo_right']) &&$settings['logo_right'])
                                                     <img src="{{ asset('storage/'.$settings['logo_right']) }}" style="height: 80px; border: 1px solid #ddd; padding: 5px;">
                                                 @else
                                                     <div class="p-3 border rounded text-muted" style="height: 80px; width: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
@@ -134,15 +130,13 @@
 
                                 </div>
 
-                                <!-- TAB 2: TAMPILAN APLIKASI (Favicon & Sidebar) -->
+                                <!-- TAB 2: TAMPILAN APLIKASI -->
                                 <div class="tab-pane fade" id="branding">
                                     <div class="row">
-                                        <!-- Sidebar Logo -->
                                         <div class="mb-4 text-center col-md-6">
                                             <label class="form-label fw-bold d-block">Logo Sidebar (Pojok Kiri Atas)</label>
                                             <div class="p-3 mb-2 rounded bg-primary d-inline-block">
-                                                <!-- Preview di atas background biru (seperti navbar) -->
-                                                @if(isset($settings['app_logo']) && $settings['app_logo'])
+                                                @if(isset($settings['app_logo']) &&$settings['app_logo'])
                                                     <img src="{{ asset('storage/'.$settings['app_logo']) }}" style="height: 40px;">
                                                 @else
                                                     <i class="text-white fas fa-qrcode fa-2x"></i>
@@ -152,11 +146,10 @@
                                             <div class="form-text">Format PNG transparan disarankan. Max 2MB.</div>
                                         </div>
 
-                                        <!-- Favicon -->
                                         <div class="mb-4 text-center col-md-6">
                                             <label class="form-label fw-bold d-block">Favicon (Browser Tab)</label>
                                             <div class="mb-2">
-                                                @if(isset($settings['app_favicon']) && $settings['app_favicon'])
+                                                @if(isset($settings['app_favicon']) &&$settings['app_favicon'])
                                                     <img src="{{ asset('storage/'.$settings['app_favicon']) }}" style="height: 32px; width: 32px;">
                                                 @else
                                                     <i class="fas fa-globe fa-2x text-secondary"></i>
@@ -233,11 +226,10 @@
                                             <input type="text" name="signature_nip" class="form-control" value="{{ $settings['signature_nip'] ?? '' }}">
                                         </div>
 
-                                        <!-- INPUT TANDA TANGAN (GAMBAR) -->
                                         <div class="mb-3 col-12">
                                             <label class="form-label fw-bold">Scan Tanda Tangan (Opsional)</label>
                                             <div class="d-flex align-items-center">
-                                                @if(isset($settings['signature_image']) && $settings['signature_image'])
+                                                @if(isset($settings['signature_image']) &&$settings['signature_image'])
                                                     <div class="p-1 border rounded me-3">
                                                         <img src="{{ asset('storage/'.$settings['signature_image']) }}" style="height: 60px;">
                                                     </div>
@@ -278,51 +270,46 @@
                                         <input type="date" name="tanggal_surat" class="form-control" value="{{ $settings['tanggal_surat'] ?? '01-01-2026' }}">
                                     </div>
 
-
-
-                                     <div class="mb-3">
+                                    <div class="mb-3">
                                         <label class="form-label fw-bold">NIP Penanda Tangan</label>
                                         <input type="text" name="nip_surat" class="form-control" value="{{ $settings['nip_surat'] ?? '19860802023211016' }}">
                                     </div>
 
-                                    <!-- INPUT TANDA TANGAN PEJABAT -->
-                                        <div class="mb-3 col-12">
-                                            <label class="form-label fw-bold">Scan Tanda Tangan (Opsional)</label>
-                                            <div class="d-flex align-items-center">
-                                                @if(isset($settings['ttd_pejabat']) && $settings['ttd_pejabat'])
-                                                    <div class="p-1 border rounded me-3">
-                                                        <img src="{{ asset('storage/'.$settings['ttd_pejabat']) }}" style="height: 60px;">
-                                                    </div>
-                                                @endif
-                                                <div class="flex-grow-1">
-                                                    <input type="file" name="ttd_pejabat" class="form-control form-control-sm accept-image">
-                                                    <div class="form-text">Upload gambar tanda tangan (PNG transparan) jika ingin muncul otomatis di PDF.</div>
+                                    <div class="mb-3 col-12">
+                                        <label class="form-label fw-bold">Scan Tanda Tangan (Opsional)</label>
+                                        <div class="d-flex align-items-center">
+                                            @if(isset($settings['ttd_pejabat']) &&$settings['ttd_pejabat'])
+                                                <div class="p-1 border rounded me-3">
+                                                    <img src="{{ asset('storage/'.$settings['ttd_pejabat']) }}" style="height: 60px;">
                                                 </div>
+                                            @endif
+                                            <div class="flex-grow-1">
+                                                <input type="file" name="ttd_pejabat" class="form-control form-control-sm accept-image">
+                                                <div class="form-text">Upload gambar tanda tangan (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <!-- INPUT STEMPEL -->
-                                        <div class="mb-3 col-12">
-                                            <label class="form-label fw-bold">Scan Stempel (Opsional)</label>
-                                            <div class="d-flex align-items-center">
-                                                @if(isset($settings['stempel']) && $settings['stempel'])
-                                                    <div class="p-1 border rounded me-3">
-                                                        <img src="{{ asset('storage/'.$settings['stempel']) }}" style="height: 60px;">
-                                                    </div>
-                                                @endif
-                                                <div class="flex-grow-1">
-                                                    <input type="file" name="stempel" class="form-control form-control-sm accept-image">
-                                                    <div class="form-text">Upload Stempel (PNG transparan) jika ingin muncul otomatis di PDF.</div>
+                                    <div class="mb-3 col-12">
+                                        <label class="form-label fw-bold">Scan Stempel (Opsional)</label>
+                                        <div class="d-flex align-items-center">
+                                            @if(isset($settings['stempel']) &&$settings['stempel'])
+                                                <div class="p-1 border rounded me-3">
+                                                    <img src="{{ asset('storage/'.$settings['stempel']) }}" style="height: 60px;">
                                                 </div>
+                                            @endif
+                                            <div class="flex-grow-1">
+                                                <input type="file" name="stempel" class="form-control form-control-sm accept-image">
+                                                <div class="form-text">Upload Stempel (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div class="pb-4 mb-4 row border-bottom">
-                                        <!-- Logo Kiri -->
+                                    <div class="pb-4 mb-4 row border-bottom">
                                         <div class="text-center col-md-6 border-end">
                                             <label class="form-label fw-bold">Logo Kiri (Kop Surat)</label>
                                             <div class="mb-2 d-flex justify-content-center">
-                                                @if(isset($settings['logo_left_st']) && $settings['logo_left_st'])
+                                                @if(isset($settings['logo_left_st']) &&$settings['logo_left_st'])
                                                     <img src="{{ asset('storage/'.$settings['logo_left_st']) }}" style="height: 80px; border: 1px solid #ddd; padding: 5px;">
                                                 @else
                                                     <div class="p-3 border rounded text-muted" style="height: 80px; width: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
@@ -332,11 +319,10 @@
                                             </div>
                                             <input type="file" name="logo_left_st" class="form-control form-control-sm accept-image">
                                         </div>
-                                        <!-- Logo Kanan -->
                                         <div class="text-center col-md-6">
                                             <label class="form-label fw-bold">Logo Kanan (Kop Surat)</label>
                                             <div class="mb-2 d-flex justify-content-center">
-                                                @if(isset($settings['logo_right_st']) && $settings['logo_right_st'])
+                                                @if(isset($settings['logo_right_st']) &&$settings['logo_right_st'])
                                                     <img src="{{ asset('storage/'.$settings['logo_right_st']) }}" style="height: 80px; border: 1px solid #ddd; padding: 5px;">
                                                 @else
                                                     <div class="p-3 border rounded text-muted" style="height: 80px; width: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
@@ -349,6 +335,7 @@
                                     </div>
 
                                 </div>
+
                                 <!-- TAB 5: Info Aplikasi -->
                                 <div class="tab-pane fade" id="absensi">
                                     <div class="mb-3">
@@ -356,6 +343,53 @@
                                         <input type="text" name="inf_app" class="form-control" value="{{ $settings['inf_app'] ?? 'Sistem Absensi Sekolah.' }}">
                                     </div>
                                 </div>
+
+                                <!-- TAB 6: TITIK LOKASI ABSENSI (GEOFENCING WITH LEAFLET MAP) -->
+                                <div class="tab-pane fade" id="location">
+                                    <h5 class="mb-3 text-primary fw-bold">
+                                        <i class="fas fa-map-marked-alt me-2"></i> Lokasi Absensi (Geofencing)
+                                    </h5>
+                                    <hr>
+
+                                    <!-- PENCARIAN LOKASI -->
+                                    <div class="mb-3 input-group">
+                                        <input type="text" id="map_search_input" class="form-control form-control-lg" placeholder="Cari lokasi masjid/sekolah...">
+                                        <button class="btn btn-outline-primary" type="button" onclick="searchLocation()">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- WIDGET MAP LEAFLET -->
+                                    <div id="map" style="height: 380px; width: 100%; border-radius: 12px; border: 1px solid #ddd;" class="mb-3"></div>
+
+                                    <!-- INPUT FORM LATITUDE & LONGITUDE & RADIUS -->
+                                    <div class="row">
+                                        <div class="mb-3 col-md-4">
+                                            <label class="form-label fw-bold">Latitude</label>
+                                            <input type="text" id="latitude_input" name="school_latitude" class="form-control" value="{{ $settings['school_latitude'] ?? '-0.30512300' }}" required readonly>
+                                        </div>
+
+                                        <div class="mb-3 col-md-4">
+                                            <label class="form-label fw-bold">Longitude</label>
+                                            <input type="text" id="longitude_input" name="school_longitude" class="form-control" value="{{ $settings['school_longitude'] ?? '100.36912300' }}" required readonly>
+                                        </div>
+
+                                        <div class="mb-3 col-md-4">
+                                            <label class="form-label fw-bold">Radius Absensi (Meter)</label>
+                                            <div class="input-group">
+                                                <input type="number" id="radius_input" name="school_radius" class="form-control" value="{{ $settings['school_radius'] ?? '100' }}" min="10" required>
+                                                <span class="input-group-text">Meter</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="getCurrentLocation()">
+                                            <i class="fas fa-crosshairs me-1"></i> Ambil Lokasi Saya Sekarang (GPS)
+                                        </button>
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div class="mt-4 d-grid">
@@ -370,20 +404,22 @@
             </div>
         </div>
     </div>
+
+    <!-- JS DEPENDENCIES -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
-        // Cek apakah ada session 'success' yang dikirim dari controller
         @if(session('success'))
             Swal.fire({
                 icon: 'success',
                 title: 'Berhasil!',
                 text: "{{ session('success') }}",
                 showConfirmButton: false,
-                timer: 2000 // Notifikasi hilang otomatis setelah 2 detik
+                timer: 2000
             });
         @endif
 
-        // Opsional: Cek jika ada error validasi
         @if($errors->any())
             Swal.fire({
                 icon: 'error',
@@ -391,5 +427,122 @@
                 text: 'Mohon periksa kembali inputan Anda.',
             });
         @endif
+
+        // LOGIKA LEAFLET MAP & GEOFENCING
+        let map, marker, circle;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const defaultLat = parseFloat(document.getElementById('latitude_input').value) || -0.30512300;
+            const defaultLng = parseFloat(document.getElementById('longitude_input').value) || 100.36912300;
+            const defaultRadius = parseInt(document.getElementById('radius_input').value) || 100;
+
+            // Inisialisasi Map
+            map = L.map('map').setView([defaultLat, defaultLng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; Leaflet | OpenStreetMap'
+            }).addTo(map);
+
+            // Marker Lokasi
+            marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+            // Lingkaran Radius Geofence
+            circle = L.circle([defaultLat, defaultLng], {
+                color: '#0d6efd',
+                fillColor: '#0d6efd',
+                fillOpacity: 0.2,
+                radius: defaultRadius
+            }).addTo(map);
+
+            // Event Marker Dragged
+            marker.on('dragend', function (e) {
+                const position = marker.getLatLng();
+                updateCoordinates(position.lat, position.lng);
+            });
+
+            // Event Click di Map
+            map.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                updateCoordinates(e.latlng.lat, e.latlng.lng);
+            });
+
+            // Event Input Radius Berubah
+            document.getElementById('radius_input').addEventListener('input', function () {
+                const newRadius = parseInt(this.value) || 10;
+                circle.setRadius(newRadius);
+            });
+
+            // Re-render map saat tab lokasi diklik (Mencegah map blank/grey)
+            const locationTab = document.getElementById('location-tab');
+            if (locationTab) {
+                locationTab.addEventListener('shown.bs.tab', function () {
+                    setTimeout(() => { map.invalidateSize(); }, 200);
+                });
+            }
+        });
+
+        function updateCoordinates(lat, lng) {
+            document.getElementById('latitude_input').value = lat.toFixed(8);
+            document.getElementById('longitude_input').value = lng.toFixed(8);
+            const latLng = new L.LatLng(lat, lng);
+            marker.setLatLng(latLng);
+            circle.setLatLng(latLng);
+            map.panTo(latLng);
+        }
+
+        // Cari Lokasi Via OpenStreetMap Nominatim API
+        function searchLocation() {
+            const query = document.getElementById('map_search_input').value;
+            if (!query) return;
+
+            Swal.fire({
+                title: 'Mencari Lokasi...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    Swal.close();
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lon = parseFloat(data[0].lon);
+                        updateCoordinates(lat, lon);
+                        map.setView([lat, lon], 17);
+                    } else {
+                        Swal.fire('Tidak Ditemukan', 'Lokasi tidak dapat ditemukan.', 'warning');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Error', 'Gagal terhubung ke layanan peta.', 'error');
+                });
+        }
+
+        // Ambil GPS HP/Browser
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                Swal.fire({
+                    title: 'Mendapatkan Lokasi...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
+                        updateCoordinates(position.coords.latitude, position.coords.longitude);
+                        map.setView([position.coords.latitude, position.coords.longitude], 18);
+                    },
+                    function (error) {
+                        Swal.fire('Gagal!', 'Tidak dapat mengambil GPS: ' + error.message, 'error');
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                Swal.fire('Error!', 'Browser tidak mendukung Geolocation.', 'error');
+            }
+        }
     </script>
 </x-app-layout>

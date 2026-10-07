@@ -116,22 +116,50 @@ class SettingController extends Controller
     /**
      * Proses Simpan / Update Jam Operasional Absensi
      */
+    // public function updateAttendance(Request $request)
+    // {
+    //     $request->validate([
+    //         'start_check_in_time'  => 'required',
+    //         'late_limit_time'       => 'required|after:start_check_in_time',
+    //         'early_departure_time' => 'required',
+    //     ]);
+
+    //     $data = $request->only([
+    //         'start_check_in_time',
+    //         'late_limit_time',
+    //         'early_departure_time',
+    //     ]);
+
+    //     AttendanceSetting::updateOrCreate(['id' => 1], $data);
+
+    //     return back()->with('success', 'Jam operasional absensi berhasil diperbarui!');
+    // }
+
     public function updateAttendance(Request $request)
-    {
-        $request->validate([
-            'start_check_in_time'  => 'required',
-            'late_limit_time'       => 'required|after:start_check_in_time',
-            'early_departure_time' => 'required',
-        ]);
+{
+    // 1. Validasi Input Jam & Geofencing
+    $request->validate([
+        'start_check_in_time'  => 'required',
+        'late_limit_time'       => 'required|after:start_check_in_time',
+        'early_departure_time' => 'required',
+        'latitude'             => 'required|numeric',
+        'longitude'            => 'required|numeric',
+        'radius_meters'        => 'required|integer|min:10',
+    ]);
 
-        $data = $request->only([
-            'start_check_in_time',
-            'late_limit_time',
-            'early_departure_time',
-        ]);
+    // 2. Ambil data yang akan disimpan
+    $data = $request->only([
+        'start_check_in_time',
+        'late_limit_time',
+        'early_departure_time',
+        'latitude',
+        'longitude',
+        'radius_meters',
+    ]);
 
-        AttendanceSetting::updateOrCreate(['id' => 1], $data);
+    // 3. Simpan atau Update ke ID 1
+    AttendanceSetting::updateOrCreate(['id' => 1], $data);
 
-        return back()->with('success', 'Jam operasional absensi berhasil diperbarui!');
-    }
+    return back()->with('success', 'Jam operasional & lokasi geofencing absensi berhasil diperbarui!');
+}
 }

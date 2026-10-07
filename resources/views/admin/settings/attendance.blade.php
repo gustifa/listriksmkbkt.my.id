@@ -1,15 +1,19 @@
-@section('title', 'Pengaturan Jadwal Absensi')
-
+@section('title')
+   Pengaturan Jam Masuk, Pulang & Geofencing
+@endsection
 <x-app-layout>
+    <!-- CSS Leaflet Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
     <div class="page-content">
         <!--breadcrumb-->
-        <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
+        <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
             <div class="breadcrumb-title pe-3">Setting</div>
             <div class="ps-3">
                 <nav aria-label="breadcrumb">
-                    <ol class="p-0 mb-0 breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url('/admin/dashboard') }}"><i class="bx bx-home-alt"></i></a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Jadwal Masuk & Pulang</li>
+                    <ol class="breadcrumb mb-0 p-0">
+                        <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="bx bx-home-alt"></i></a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Jadwal & Geofencing</li>
                     </ol>
                 </nav>
             </div>
@@ -17,85 +21,105 @@
         <!--end breadcrumb-->
 
         <div class="row justify-content-center">
-            <!-- Form Pengaturan -->
-            <div class="col-md-8">
-                <div class="border-0 shadow card">
-                    <div class="text-white card-header bg-primary">
-                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Pengaturan Jam Absensi</h5>
+            <div class="col-md-12">
+                <div class="card shadow border-0">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> Pengaturan Jam Operasional & Titik Lokasi Absensi</h5>
                     </div>
+                    <div class="card-body">
 
-                    <div class="p-4 card-body">
                         <form action="{{ route('settings.update.attendance') }}" method="POST">
                             @csrf
+                            <div class="card-body p-0">
 
-                            <!-- BAGIAN 1: JAM MASUK -->
-                            <h6 class="pb-2 mb-3 text-primary fw-bold border-bottom">Aturan Kedatangan (Check-In)</h6>
+                                <h6 class="text-primary fw-bold mb-3"><i class="fas fa-clock me-2"></i> Jam Operasional Scan</h6>
+                                <div class="row">
+                                    <div class="mb-3 col-md-4 form-group">
+                                        <label class="form-label fw-bold">Jam Buka Scan Masuk</label>
+                                        <input type="time" name="start_check_in_time" class="form-control"
+                                            value="{{ $setting->start_check_in_time ?? '06:00' }}" required>
+                                        <div class="form-text">Cegah siswa absen terlalu pagi.</div>
+                                    </div>
 
-                            <div class="mb-3 row">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Jam Mulai Scan Dibuka</label>
-                                    <input type="time" name="start_check_in_time" class="form-control"
-                                           value="{{ $setting->start_check_in_time ?? '06:00' }}" required>
-                                    <div class="form-text text-muted small">Siswa tidak bisa absen sebelum jam ini.</div>
+                                    <div class="mb-3 col-md-4 form-group">
+                                        <label class="form-label fw-bold">Batas Jam Masuk (Batas Terlambat)</label>
+                                        <input type="time" name="late_limit_time" class="form-control"
+                                            value="{{ $setting->late_limit_time ?? '07:00' }}" required>
+                                        <div class="form-text">Lewat dari jam ini dianggap Terlambat.</div>
+                                    </div>
+
+                                    <div class="mb-3 col-md-4 form-group">
+                                        <label class="form-label fw-bold">Batas Awal Jam Pulang</label>
+                                        <input type="time" name="early_departure_time" class="form-control"
+                                            value="{{ $setting->early_departure_time ?? '10:00' }}" required>
+                                        <div class="form-text">Sebelum jam ini siswa tidak bisa scan pulang.</div>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-danger">Batas Keterlambatan</label>
-                                    <input type="time" name="late_limit_time" class="form-control border-danger"
-                                           value="{{ $setting->late_limit_time ?? '07:00' }}" required>
-                                    <div class="form-text text-danger small">Lewat jam ini status otomatis <b>TERLAMBAT</b>.</div>
+
+                                <hr class="my-4">
+
+                                <!-- PENGATURAN GEOFENCING / PETA -->
+                                <h6 class="text-primary fw-bold mb-3"><i class="fas fa-map-marked-alt me-2"></i> Lokasi Absensi (Geofencing)</h6>
+
+                                <!-- SEARCH BOX -->
+                                <div class="mb-3 input-group">
+                                    <input type="text" id="map_search_input" class="form-control form-control-lg" placeholder="Cari lokasi sekolah/masjid...">
+                                    <button class="btn btn-outline-primary" type="button" onclick="searchLocation()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
                                 </div>
-                            </div>
 
-                            <!-- BAGIAN 2: JAM PULANG -->
-                            <h6 class="pb-2 mt-4 mb-3 text-primary fw-bold border-bottom">Aturan Kepulangan (Check-Out)</h6>
+                                <!-- CONTAINER MAP -->
+                                <div id="map" style="height: 380px; width: 100%; border-radius: 12px; border: 1px solid #ddd;" class="mb-3"></div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Batas Awal Jam Pulang</label>
-                                <input type="time" name="early_departure_time" class="form-control"
-                                       value="{{ $setting->early_departure_time ?? '14:00' }}" required>
-                                <div class="form-text text-muted small">Siswa tidak bisa scan pulang sebelum jam ini.</div>
-                            </div>
+                                <div class="row">
+                                    <div class="mb-3 col-md-4">
+                                        <label class="form-label fw-bold">Latitude</label>
+                                        <input type="text" id="latitude_input" name="latitude" class="form-control"
+                                            value="{{ $setting->latitude ?? '-0.30512300' }}" required readonly>
+                                    </div>
 
-                            <!-- TOMBOL SIMPAN -->
-                            <div class="mt-4 d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="bx bx-save me-2"></i> Simpan Perubahan
-                                </button>
+                                    <div class="mb-3 col-md-4">
+                                        <label class="form-label fw-bold">Longitude</label>
+                                        <input type="text" id="longitude_input" name="longitude" class="form-control"
+                                            value="{{ $setting->longitude ?? '100.36912300' }}" required readonly>
+                                    </div>
+
+                                    <div class="mb-3 col-md-4">
+                                        <label class="form-label fw-bold">Radius Toleransi (Meter)</label>
+                                        <div class="input-group">
+                                            <input type="number" id="radius_input" name="radius_meters" class="form-control"
+                                                value="{{ $setting->radius_meters ?? '100' }}" min="10" required>
+                                            <span class="input-group-text">Meter</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="getCurrentLocation()">
+                                        <i class="fas fa-crosshairs me-1"></i> Deteksi GPS HP/Laptop Saya
+                                    </button>
+                                </div>
+
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bx bx-save me-2"></i> Simpan Pengaturan
+                                    </button>
+                                </div>
                             </div>
                         </form>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Panel Informasi / Simulasi -->
-            <div class="col-md-4">
-                <div class="border-0 shadow-sm card bg-light">
-                    <div class="card-body">
-                        <h6 class="mb-3 fw-bold"><i class="fas fa-info-circle me-1"></i> Simulasi Logika</h6>
-                        <ul class="bg-transparent list-group list-group-flush">
-                            <li class="px-0 py-2 bg-transparent list-group-item">
-                                <small class="text-muted d-block">00:00 - {{ substr($setting->start_check_in_time ?? '06:00', 0, 5) }}</small>
-                                <span class="badge bg-secondary">Absen Ditolak (Belum Buka)</span>
-                            </li>
-                            <li class="px-0 py-2 bg-transparent list-group-item">
-                                <small class="text-muted d-block">{{ substr($setting->start_check_in_time ?? '06:00', 0, 5) }} - {{ substr($setting->late_limit_time ?? '07:00', 0, 5) }}</small>
-                                <span class="badge bg-success">Hadir Tepat Waktu</span>
-                            </li>
-                            <li class="px-0 py-2 bg-transparent list-group-item">
-                                <small class="text-muted d-block">> {{ substr($setting->late_limit_time ?? '07:00', 0, 5) }}</small>
-                                <span class="badge bg-warning text-dark">Terlambat</span>
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SweetAlert Script -->
+    <!-- SCRIPT DEPENDENCIES -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
-        // Notifikasi Sukses
         @if(session('success'))
             Swal.fire({
                 icon: 'success',
@@ -106,13 +130,121 @@
             });
         @endif
 
-        // Notifikasi Error Validasi (Misal jam pulang < jam masuk)
         @if($errors->any())
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal!',
-                html: '<ul style="text-align: left;">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
+                text: 'Mohon periksa kembali inputan Anda.',
             });
         @endif
+
+        // LEAFLET MAP LOGIC
+        let map, marker, circle;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const defaultLat = parseFloat(document.getElementById('latitude_input').value) || -0.30512300;
+            const defaultLng = parseFloat(document.getElementById('longitude_input').value) || 100.36912300;
+            const defaultRadius = parseInt(document.getElementById('radius_input').value) || 100;
+
+            // Inisialisasi Peta
+            map = L.map('map').setView([defaultLat, defaultLng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; Leaflet | OpenStreetMap'
+            }).addTo(map);
+
+            // Marker Lokasi
+            marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+            // Lingkaran Radius Geofence
+            circle = L.circle([defaultLat, defaultLng], {
+                color: '#0d6efd',
+                fillColor: '#0d6efd',
+                fillOpacity: 0.2,
+                radius: defaultRadius
+            }).addTo(map);
+
+            // Event Marker Dragged
+            marker.on('dragend', function (e) {
+                const position = marker.getLatLng();
+                updateCoordinates(position.lat, position.lng);
+            });
+
+            // Event Klik di Map
+            map.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                updateCoordinates(e.latlng.lat, e.latlng.lng);
+            });
+
+            // Event Ubah Input Radius
+            document.getElementById('radius_input').addEventListener('input', function () {
+                const newRadius = parseInt(this.value) || 10;
+                circle.setRadius(newRadius);
+            });
+        });
+
+        function updateCoordinates(lat, lng) {
+            document.getElementById('latitude_input').value = lat.toFixed(8);
+            document.getElementById('longitude_input').value = lng.toFixed(8);
+            const latLng = new L.LatLng(lat, lng);
+            marker.setLatLng(latLng);
+            circle.setLatLng(latLng);
+            map.panTo(latLng);
+        }
+
+        // Cari Lokasi
+        function searchLocation() {
+            const query = document.getElementById('map_search_input').value;
+            if (!query) return;
+
+            Swal.fire({
+                title: 'Mencari Lokasi...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    Swal.close();
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lon = parseFloat(data[0].lon);
+                        updateCoordinates(lat, lon);
+                        map.setView([lat, lon], 17);
+                    } else {
+                        Swal.fire('Tidak Ditemukan', 'Lokasi tidak dapat ditemukan.', 'warning');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Error', 'Gagal terhubung ke layanan peta.', 'error');
+                });
+        }
+
+        // Ambil GPS Device
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                Swal.fire({
+                    title: 'Mendapatkan Lokasi...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
+                        updateCoordinates(position.coords.latitude, position.coords.longitude);
+                        map.setView([position.coords.latitude, position.coords.longitude], 18);
+                    },
+                    function (error) {
+                        Swal.fire('Gagal!', 'Tidak dapat mengambil GPS: ' + error.message, 'error');
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                Swal.fire('Error!', 'Browser tidak mendukung Geolocation.', 'error');
+            }
+        }
     </script>
 </x-app-layout>
