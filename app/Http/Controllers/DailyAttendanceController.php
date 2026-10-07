@@ -1495,7 +1495,8 @@ public function storeStudentSelfScan(Request $request)
     }
 
     // 3. Validasi Jarak Geofence (Rumus Haversine)
-    $setting = AttendanceSetting::first();
+    // $setting = AttendanceSetting::first();
+    $setting = Setting::pluck('value', 'key')->toArray();
     $schoolLat = $setting->latitude ?? -0.30512300;
     $schoolLng = $setting->longitude ?? 100.36912300;
     $maxRadius = $setting->radius_meters ?? 100; // dalam meter
