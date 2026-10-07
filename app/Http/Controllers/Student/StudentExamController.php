@@ -633,6 +633,32 @@ class StudentExamController extends Controller
         ]);
     }
 
+public function review($examId, $sessionId)
+{
+    $exam = Exam::findOrFail($examId);
+
+    // Cek apakah guru mengizinkan review
+    if (!$exam->allow_review) {
+        return redirect()->back()->with('error', 'Guru tidak mengizinkan review jawaban untuk ujian ini.');
+    }
+
+    $student = auth()->user()->student;
+
+    $session = ExamSession::where('id', $sessionId)
+        ->where('student_id', $student->id)
+        ->firstOrFail();
+
+    // Load soal ujian tanpa eager loading relasi 'answers' yang tidak ada
+    $questions = $exam->questions;
+
+    // Ambil semua jawaban siswa pada sesi ini dari tabel exam_answers
+    $studentAnswers = \App\Models\ExamAnswer::where('exam_session_id', $session->id)
+        ->get()
+        ->keyBy('question_id');
+
+    return view('students.exam.review', compact('exam', 'session', 'questions', 'studentAnswers'));
+}
+
     /**
      * Helper: Menutup otomatis sesi jika waktu habis
      */

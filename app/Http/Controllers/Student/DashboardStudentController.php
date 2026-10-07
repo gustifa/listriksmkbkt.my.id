@@ -52,8 +52,15 @@ class DashboardStudentController extends Controller
             'alpa'  => DailyAttendance::where('student_id', $student->id)->whereMonth('date', Carbon::now()->month)->where('status', 'alpa')->count(),
         ];
 
-        // 5. Ujian/Evaluasi Aktif Hari Ini
-        $activeExams = Exam::where('is_active', 1)->get();
+        // 5. Ujian/Evaluasi Aktif Hari Ini (Hanya sesuai Kelas Siswa)
+        $activeExams = [];
+        if ($student->classroom_id) {
+            $activeExams = Exam::where('is_active', 1)
+                ->whereHas('classrooms', function ($query) use ($student) {
+                    $query->where('classroom_id', $student->classroom_id);
+                })
+                ->get();
+        }
 
         // 6. Timeline PKL / Kegiatan
         $timelines = InternshipTimeline::orderBy('start_date', 'asc')->get();

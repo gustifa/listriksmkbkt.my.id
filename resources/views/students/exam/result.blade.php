@@ -64,6 +64,12 @@
                         <a href="{{ route('student.exam.index') }}" class="btn btn-primary btn-lg fw-bold rounded-3">
                             <i class="bi bi-arrow-left me-2"></i> Kembali ke Daftar Ujian
                         </a>
+                        <!-- Tombol Review Jawaban (Hanya jika Guru mengizinkan) -->
+                        @if($exam->allow_review)
+                            <a href="{{ route('student.exams.review', ['exam' => $exam->id, 'session' => $session->id]) }}" class="btn btn-primary px-4 py-2">
+                                <i class="fas fa-eye me-1"></i> Review Jawaban
+                            </a>
+                        @endif
                     </div>
                 </div>
             </div>

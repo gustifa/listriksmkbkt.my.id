@@ -821,6 +821,7 @@ Route::middleware(['auth'])->group(function () {
 
             // 7. Halaman Hasil / Nilai Ujian (Setelah Selesai)
             Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
+            Route::get('/exams/{exam}/session/{session}/review', [StudentExamController::class, 'review'])->name('exams.review');
 
         });
     });
