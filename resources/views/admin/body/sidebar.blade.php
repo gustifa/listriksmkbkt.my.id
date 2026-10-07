@@ -342,7 +342,7 @@ $status = $guruId->status;
 					</a>
 					<ul>
 						<li> <a href="{{route('student.prayer.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
-                        <!-- <li> <a href="{{route('daily.face.scan')}}"><i class='bx bx-face'></i>Face</a> -->
+                        <li> <a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Face</a>
 
 					</ul>
 				</li>
