@@ -19,8 +19,7 @@
                     <table class="table mb-0 align-middle table-hover">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4">Siswa & Kelas</th>
-                                <th>Mapel & Guru (Saat Izin)</th>
+                                <th class="ps-4">Siswa</th>
                                 <th>Alasan</th>
                                 <th>Keluar</th>
                                 <th>Kembali</th>
@@ -35,18 +34,15 @@
                                 <td class="ps-4">
                                     <div class="fw-bold">
                                         @if($p->image_evidence)
-                                            <a href="javascript:void(0)" onclick="showImg('{{ Storage::url($p->image_evidence) }}', '{{ $p->student->name }}')" class="text-decoration-none text-dark" title="Klik untuk lihat foto">
+                                            {{-- Klik Nama untuk lihat Foto --}}
+                                            <a href="javascript:void(0)" onclick="showImg('{{ asset('storage/'.$p->image_evidence) }}', '{{ $p->student->name }}')" class="text-decoration-none text-dark" title="Klik untuk lihat foto">
                                                 {{ $p->student->name }} <i class="opacity-50 fas fa-camera text-primary small ms-1"></i>
                                             </a>
                                         @else
                                             {{ $p->student->name }}
                                         @endif
                                     </div>
-                                    <small class="text-muted">{{ $p->student->nis }} • <span class="badge bg-secondary-subtle text-dark">{{ $p->student->classroom->name ?? '-' }}</span></small>
-                                </td>
-                                <td>
-                                    <div class="fw-semibold text-primary"><i class="fas fa-book me-1"></i>{{ $p->subject_name }}</div>
-                                    <small class="text-muted"><i class="fas fa-chalkboard-teacher me-1"></i>{{ $p->teacher_name }}</small>
+                                    <small class="text-muted">{{ $p->student->nis }}</small>
                                 </td>
                                 <td><span class="badge bg-secondary">{{ $p->reason }}</span></td>
                                 <td class="text-danger fw-bold">{{ \Carbon\Carbon::parse($p->time_out)->format('H:i') }}</td>
@@ -72,7 +68,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="8" class="py-5 text-center">Tidak ada data izin.</td></tr>
+                            <tr><td colspan="7" class="py-5 text-center">Tidak ada data izin.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

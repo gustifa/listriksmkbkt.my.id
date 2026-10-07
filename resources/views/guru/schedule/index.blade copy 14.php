@@ -53,7 +53,7 @@
                 <!-- TAMPILAN LIST -->
                 <div class="tab-pane fade show active" id="list-view" role="tabpanel">
                     <div class="row">
-                        @php $activeAlerts = []; @endphp
+                        @php $activeAlerts = []; @endphp 
                         @forelse($schedules as $schedule)
                             @php
                                 $now = \Carbon\Carbon::now();

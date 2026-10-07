@@ -15,6 +15,7 @@ use App\Models\AcademicYear;
 use App\Rules\ActiveAcademicYearExists;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Models\StudentPermit; // Pastikan Model StudentPermit di-import di atas
 
 class ScheduleController extends Controller
 {
@@ -23,34 +24,153 @@ class ScheduleController extends Controller
         return Teacher::where('user_id', Auth::id())->first();
     }
 
-    public function index()
-    {
-        $teacher = $this->getTeacher();
+    // public function index()
+    // {
+    //     $teacher = $this->getTeacher();
 
-        if (!$teacher) {
-            return redirect()->back()->with('error', 'Akun Anda tidak terdaftar sebagai Guru.');
-        }
+    //     if (!$teacher) {
+    //         return redirect()->back()->with('error', 'Akun Anda tidak terdaftar sebagai Guru.');
+    //     }
 
-        $schedules = Schedule::with(['classroom', 'subject', 'room'])
-            ->withCount(['attendances' => function ($query) {
-                $query->whereDate('created_at', Carbon::today());
-            }])
-            ->where('teacher_id', $teacher->id)
-            ->get();
+    //     $schedules = Schedule::with(['classroom', 'subject', 'room'])
+    //         ->withCount(['attendances' => function ($query) {
+    //             $query->whereDate('created_at', Carbon::today());
+    //         }])
+    //         ->where('teacher_id', $teacher->id)
+    //         ->get();
 
-        $daysOrder = [
-            'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3,
-            'Kamis' => 4, 'Jumat' => 5, 'Sabtu' => 6, 'Minggu' => 7
-        ];
+    //     $daysOrder = [
+    //         'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3,
+    //         'Kamis' => 4, 'Jumat' => 5, 'Sabtu' => 6, 'Minggu' => 7
+    //     ];
 
-        $schedules = $schedules->sortBy(function ($schedule) use ($daysOrder) {
-            return ($daysOrder[$schedule->day] ?? 99) * 10000 + (int)str_replace(':', '', $schedule->start_time);
-        });
+    //     $schedules = $schedules->sortBy(function ($schedule) use ($daysOrder) {
+    //         return ($daysOrder[$schedule->day] ?? 99) * 10000 + (int)str_replace(':', '', $schedule->start_time);
+    //     });
 
-        $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
+    //     $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
 
-        return view('guru.schedule.index', compact('schedules', 'timeSlots'));
+    //     return view('guru.schedule.index', compact('schedules', 'timeSlots'));
+    // }
+//     public function index()
+// {
+//     $teacher = $this->getTeacher();
+
+//     if (!$teacher) {
+//         return redirect()->back()->with('error', 'Akun Anda tidak terdaftar sebagai Guru.');
+//     }
+
+//     $today = Carbon::today()->format('Y-m-d');
+
+//     $schedules = Schedule::with(['classroom', 'subject', 'room'])
+//         ->withCount(['attendances' => function ($query) {
+//             $query->whereDate('created_at', Carbon::today());
+//         }])
+//         // AMBIL SISWA KELAS INI YANG SEDANG IZIN (STATUS ACTIVE) HARI INI
+//         ->with(['classroom.students.permits' => function ($query) use ($today) {
+//             $query->whereDate('date', $today)
+//                   ->where('status', 'active');
+//         }])
+//         ->where('teacher_id', $teacher->id)
+//         ->get();
+
+//     $daysOrder = [
+//         'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3,
+//         'Kamis' => 4, 'Jumat' => 5, 'Sabtu' => 6, 'Minggu' => 7
+//     ];
+
+//     $schedules = $schedules->sortBy(function ($schedule) use ($daysOrder) {
+//         return ($daysOrder[$schedule->day] ?? 99) * 10000 + (int)str_replace(':', '', $schedule->start_time);
+//     });
+
+//     $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
+
+//     return view('guru.schedule.index', compact('schedules', 'timeSlots'));
+// }
+
+public function index()
+{
+    $teacher = $this->getTeacher();
+
+    if (!$teacher) {
+        return redirect()->back()->with('error', 'Akun Anda tidak terdaftar sebagai Guru.');
     }
+
+    $today = Carbon::today()->format('Y-m-d');
+
+    $schedules = Schedule::with([
+            'classroom.students.permits' => function ($query) use ($today) {
+                $query->whereDate('date', $today)->where('status', 'active');
+            },
+            'subject',
+            'room'
+        ])
+        ->withCount(['attendances' => function ($query) {
+            $query->whereDate('created_at', Carbon::today());
+        }])
+        ->where('teacher_id', $teacher->id)
+        ->get();
+
+    // 1. Olah data active_permits di Controller
+    $schedules->transform(function ($schedule) {
+        $permits = collect();
+        if ($schedule->classroom && $schedule->classroom->students) {
+            foreach ($schedule->classroom->students as $student) {
+                if ($student->permits) {
+                    foreach ($student->permits as $permit) {
+                        $permits->push([
+                            'student_name' => $student->name,
+                            'reason'       => $permit->reason,
+                            'time_out'     => Carbon::parse($permit->time_out)->format('H:i')
+                        ]);
+                    }
+                }
+            }
+        }
+        $schedule->active_permits = $permits;
+        return $schedule;
+    });
+
+    // 2. Olah data events untuk FullCalendar di Controller
+    $events = [];
+    $dayMap = ['minggu' => 0, 'senin' => 1, 'selasa' => 2, 'rabu' => 3, 'kamis' => 4, 'jumat' => 5, 'sabtu' => 6];
+
+    foreach ($schedules as $s) {
+        $dayKey = strtolower(trim($s->day));
+        if (!isset($dayMap[$dayKey])) continue;
+
+        $subjectName = $s->subject->name ?? 'Mapel';
+        $classroomName = $s->classroom->name ?? 'Kelas';
+
+        $events[] = [
+            'id' => $s->id,
+            'title' => $subjectName . " (" . $classroomName . ")",
+            'startTime' => Carbon::parse($s->start_time)->format('H:i'),
+            'endTime' => Carbon::parse($s->end_time)->format('H:i'),
+            'daysOfWeek' => [$dayMap[$dayKey]],
+            'color' => '#4e73df',
+            'url' => route('schedule.edit', $s->id),
+            'allDay' => false,
+            'extendedProps' => [
+                'subject' => $subjectName,
+                'classroom' => $classroomName
+            ]
+        ];
+    }
+
+    $daysOrder = [
+        'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3,
+        'Kamis' => 4, 'Jumat' => 5, 'Sabtu' => 6, 'Minggu' => 7
+    ];
+
+    $schedules = $schedules->sortBy(function ($schedule) use ($daysOrder) {
+        return ($daysOrder[$schedule->day] ?? 99) * 10000 + (int)str_replace(':', '', $schedule->start_time);
+    });
+
+    $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
+
+    return view('guru.schedule.index', compact('schedules', 'timeSlots', 'events'));
+}
 
     public function create()
     {
@@ -63,7 +183,7 @@ class ScheduleController extends Controller
 
         $classrooms = $assignments->pluck('classroom')->unique('id')->sortBy('name');
         $rooms = Room::orderBy('name')->get();
-        
+
         // Tambahkan pengambil data TimeSlot
         $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
 
@@ -84,7 +204,7 @@ class ScheduleController extends Controller
 
         $classrooms = $assignments->pluck('classroom')->unique('id')->sortBy('name');
         $rooms = Room::orderBy('name')->get();
-        
+
         // Tambahkan pengambil data TimeSlot
         $timeSlots = TimeSlot::orderBy('sort_order', 'asc')->orderBy('start_time', 'asc')->get();
 
@@ -332,7 +452,7 @@ class ScheduleController extends Controller
         return redirect()->back()->with('success', 'Jadwal berhasil dihapus oleh Admin!');
     }
 
-    private function checkConflict($teacherId, $request, $ignoreId = null) 
+    private function checkConflict($teacherId, $request, $ignoreId = null)
     {
         $queryTeacher = Schedule::where('teacher_id', $teacherId)
             ->where('day', $request->day)
