@@ -511,7 +511,7 @@ public function bankIndex(Request $request, Exam $exam)
 {
     // Ambil keyword pencarian atau filter mata pelajaran jika ada
     $search = $request->query('search');
-    
+
     $query = Question::with(['exam.subject', 'exam.teacher'])
         ->where('exam_id', '!=', $exam->id); // Jangan tampilkan soal dari ujian ini sendiri
 
@@ -560,6 +560,47 @@ public function copyFromBank(Request $request, Exam $exam)
 
     return redirect()->route('guru.exams.show', $exam->id)
                      ->with('success', count($selectedQuestions) . ' soal berhasil disalin dari bank soal!');
+}
+
+/**
+ * Update teks soal secara instan (AJAX)
+ */
+public function updateQuestionText(Request $request, Question $question)
+{
+    $request->validate([
+        'question_text' => 'required|string',
+    ]);
+
+    $question->update([
+        'question_text' => $request->question_text,
+    ]);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Teks soal berhasil diperbarui.'
+    ]);
+}
+
+/**
+ * Update kunci jawaban secara instan (AJAX)
+ */
+public function updateCorrectAnswer(Request $request, Question $question)
+{
+    $request->validate([
+        'correct_answer' => 'required',
+    ]);
+
+    // Mengubah nilai kunci jawaban menjadi format array JSON yang sesuai di DB
+    $newKey = is_array($request->correct_answer) ? $request->correct_answer : [$request->correct_answer];
+
+    $question->update([
+        'correct_answer' => $newKey,
+    ]);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Kunci jawaban berhasil diperbarui.'
+    ]);
 }
 
 

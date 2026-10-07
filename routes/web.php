@@ -212,6 +212,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])
     ->name('guru.questions.copy_bank');
 
+    Route::patch('/questions/{question}/update-text', [GuruQuestionController::class, 'updateQuestionText'])->name('guru.questions.update-text');
+    Route::patch('/questions/{question}/update-key', [GuruQuestionController::class, 'updateCorrectAnswer'])->name('guru.questions.update-key');
+
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
