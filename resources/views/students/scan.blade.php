@@ -41,10 +41,16 @@
         <div class="row justify-content-center">
             <div class="col-12 col-md-6 text-center">
 
+                <!-- CARD HEADER DENGAN TOMBOL KEMBALI KE DASHBOARD -->
                 <div class="card border-0 shadow-sm rounded-4 mb-3">
-                    <div class="card-body p-3">
-                        <h5 class="fw-bold text-primary mb-1"><i class="fas fa-user-check me-2"></i>Absensi Mandiri</h5>
-                        <p class="text-muted small mb-0">{{ $student->name }} ({{$student->nis }})</p>
+                    <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            <h5 class="fw-bold text-primary mb-0"><i class="fas fa-user-check me-2"></i>Absensi Mandiri</h5>
+                            <small class="text-muted">{{ $student->name }} ({{$student->nis }})</small>
+                        </div>
+                        <a href="{{ route('student.dashboard') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold">
+                            <i class="fas fa-arrow-left me-1"></i> Dashboard
+                        </a>
                     </div>
                 </div>
 
@@ -98,7 +104,7 @@
         const btnScan = document.getElementById('btn-scan');
         const distanceBadge = document.getElementById('distance-badge');
 
-        // KOORDINAT PUSAT & RADIUS SEKOLAH (Diambil dari $setting)
+        // KOORDINAT PUSAT & RADIUS SEKOLAH (Diambil dari database)
         const schoolLat = parseFloat("{{ $setting->latitude ?? '-0.30512300' }}");
         const schoolLng = parseFloat("{{ $setting->longitude ?? '100.36912300' }}");
         const schoolRadius = parseInt("{{ $setting->radius_meters ?? 100 }}");
@@ -109,7 +115,7 @@
         let studentMap = null;
         let userMarker = null;
 
-        // Inisialisasi Map Terkunci (Drag, Zoom, & Touch Interaction Dimatikan)
+        // Inisialisasi Map Terkunci (Read-Only)
         function initStudentMap() {
             studentMap = L.map('student-map', {
                 zoomControl: false,
@@ -141,7 +147,7 @@
 
         initStudentMap();
 
-        // Formula Haversine (Hitung Jarak dalam Meter)
+        // Formula Haversine (Hitung Jarak)
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371000;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -163,7 +169,6 @@
                     const distance = calculateDistance(userLat, userLng, schoolLat, schoolLng);
                     distanceBadge.innerText = `Jarak: ${distance} Meter`;
 
-                    // Update / Buat Marker Posisi Siswa di Peta
                     if (!userMarker) {
                         userMarker = L.circleMarker([userLat, userLng], {
                             radius: 8,
@@ -177,14 +182,12 @@
                         userMarker.setLatLng([userLat, userLng]);
                     }
 
-                    // Posisikan Kamera Peta Menampilkan Posisi Sekolah & Siswa
                     const bounds = L.latLngBounds([
                         [schoolLat, schoolLng],
                         [userLat, userLng]
                     ]);
                     studentMap.fitBounds(bounds, { padding: [30, 30] });
 
-                    // Check Validasi Jarak Geofencing
                     if (distance <= schoolRadius) {
                         geoStatus.className = 'alert alert-success py-2 small fw-bold mb-3';
                         geoStatus.innerHTML = `<i class="fas fa-check-circle me-1"></i> Lokasi Valid! Anda berada ${distance}m dari sekolah.`;
@@ -261,7 +264,6 @@
 
             const imageBase64 = takeScreenshot();
 
-            // Kirim Data Absensi ke Server
             $.ajax({
                 url: "{{ route('student.scan.store') }}",
                 type: "POST",
