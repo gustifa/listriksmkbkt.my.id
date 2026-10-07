@@ -13,10 +13,7 @@
             <h3 class="fw-bold text-dark mb-0">Rekap Nilai Ujian</h3>
             <p class="text-muted small mb-0">Ujian: <strong>{{ $exam->title }}</strong> | Mapel: <strong>{{ $exam->subject->name ?? '-' }}</strong></p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ route('guru.exams.unsubmitted', $exam->id) }}" class="btn btn-warning text-dark fw-bold">
-                <i class="fas fa-user-clock me-1"></i> Belum Ujian
-            </a>
+        <div>
             <a href="{{ route('exams.report.export', $exam->id) }}" class="btn btn-success fw-bold">
                 <i class="fas fa-file-excel me-1"></i> Export Excel
             </a>
@@ -115,26 +112,14 @@
                                     {{ number_format($s->total_score ?? $s->score ?? 0, 1) }}
                                 </td>
                                 <td class="text-center pe-4">
-                                    <div class="d-flex justify-content-center gap-1">
-                                        <!-- Tombol Selesai Ujian Force oleh Admin/Guru -->
-                                        @if($s->status !== 'completed')
-                                            <form action="{{ route('guru.exam-sessions.finish', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menyelesaikan ujian siswa ini secara paksa? Nilai akan dihitung dari jawaban yang telah diisi.');">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-success fw-semibold" title="Paksa Selesai Ujian">
-                                                    <i class="fas fa-check-circle me-1"></i> Selesai
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        <!-- Form Reset Sesi Ujian Siswa -->
-                                        <form action="{{ route('guru.exam-sessions.reset', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus/mereset ujian siswa ini? Semua jawaban akan dihapus dan siswa bisa ujian kembali dari awal.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="Reset Ujian Siswa">
-                                                <i class="fas fa-redo me-1"></i> Reset
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <!-- Form Reset Sesi Ujian Siswa -->
+                                    <form action="{{ route('guru.exam-sessions.reset', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus/mereset ujian siswa ini? Semua jawaban akan dihapus dan siswa bisa ujian kembali dari awal.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="Reset Ujian Siswa">
+                                            <i class="fas fa-redo me-1"></i> Reset Ujian
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty

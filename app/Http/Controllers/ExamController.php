@@ -512,4 +512,69 @@ class ExamController extends Controller
 
     return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
 }
+
+/**
+ * Tampilan & Rekap Siswa yang Belum / Sedang Mengikuti Ujian
+ */
+public function unsubmittedStudents(Exam $exam)
+{
+    // Load relasi kelas target ujian
+    $exam->load('classrooms');
+
+    // Ambil semua ID kelas target
+    $classroomIds = $exam->classrooms->pluck('id');
+
+    // Ambil daftar ID siswa yang sudah membuat sesi ujian (baik sedang mengerjakan / sudah selesai)
+    $participatedStudentIds = ExamSession::where('exam_id', $exam->id)
+        ->pluck('student_id')
+        ->toArray();
+
+    // Ambil data siswa yang terdaftar di kelas target tetapi ID-nya TIDAK ADA di $participatedStudentIds
+    $unsubmittedStudents = \App\Models\Student::with('classroom')
+        ->whereIn('classroom_id', $classroomIds)
+        ->whereNotIn('id', $participatedStudentIds)
+        ->orderBy('classroom_id')
+        ->orderBy('name')
+        ->get();
+
+    // Mengelompokkan siswa berdasarkan kelas
+    $groupedByClass = $unsubmittedStudents->groupBy(function($student) {
+        return $student->classroom->name ?? 'Tanpa Kelas';
+    });
+
+    return view('guru.exams.unsubmitted', compact('exam', 'groupedByClass', 'unsubmittedStudents'));
+}
+
+/**
+ * Menyelesaikan ujian siswa secara paksa oleh Admin / Guru
+ */
+public function finishSessionByAdmin(ExamSession $session)
+{
+    try {
+        // Ambil relasi exam dan questions
+        $exam = $session->exam()->with('questions')->first();
+
+        // Hitung total nilai berdasarkan jawaban yang sudah tersimpan
+        $totalScore = 0;
+        $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+        foreach ($answers as $ans) {
+            $totalScore += $ans->score_given ?? 0;
+        }
+
+        // Update status sesi ujian menjadi selesai
+        $session->update([
+            'status'     => 'completed',
+            'end_time'   => now(),
+            'score'      => $totalScore,
+            'total_score' => $totalScore,
+        ]);
+
+        return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan oleh Admin/Guru.');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
+    }
+}
+
+
 }
