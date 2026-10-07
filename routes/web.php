@@ -291,7 +291,7 @@ Route::middleware(['auth'])->group(function () {
 
 
         Route::get('/daily-attendance', [DailyAttendanceController::class, 'index'])->name('daily.index');
-        Route::post('/daily-attendance', [DailyAttendanceController::class, 'store'])->name('daily.store');
+
 
         // 1. Route Menampilkan Form Manual (GET)
         // Sesuai dengan method create() di controller
@@ -312,7 +312,7 @@ Route::middleware(['auth'])->group(function () {
         // --- B. ABSENSI HARIAN (GERBANG WAJAH) [BARU] ---
         // Scan Masuk & Pulang via Wajah
 
-        Route::get('/face/all-descriptors', [FaceController::class, 'getAllDescriptors'])->name('face.descriptors.all');
+
 
         // Route simpan absensi gerbang massal (Bantuan Guru)
         Route::post('/daily-attendance/bulk', [DailyAttendanceController::class, 'storeBulk'])->name('daily.store_bulk');
@@ -822,6 +822,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:admin|guru|piket|siswa'])->group(function () {
         Route::get('/daily-face-scan', [FaceController::class, 'dailyScan'])->name('daily.face.scan');
+        Route::post('/daily-attendance', [DailyAttendanceController::class, 'store'])->name('daily.store');
+        Route::get('/face/all-descriptors', [FaceController::class, 'getAllDescriptors'])->name('face.descriptors.all');
     });
 });
 
