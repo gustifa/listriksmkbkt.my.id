@@ -16,7 +16,6 @@
             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-info text-white fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
-<<<<<<< HEAD
 
             <!-- TOMBOL BARU: Rekap Siswa Belum Ujian -->
             <a href="{{ route('guru.exams.unsubmitted', $exam->id) }}" class="btn btn-warning text-dark fw-semibold">
@@ -26,10 +25,9 @@
             <!-- Tombol Tambah Soal Manual -->
             <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-primary fw-semibold">
                 <i class="fas fa-plus me-1"></i> Tambah Soal Manual
-=======
+
             <a href="{{ route('guru.questions.bank', $exam->id) }}" class="btn btn-warning text-dark fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-database me-1"></i> Bank Soal
->>>>>>> 08790f9d215ab4dcc2767af491894899bd0205b0
             </a>
             <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-primary fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-plus me-1"></i> Tambah Soal
@@ -159,7 +157,7 @@
 
                 @forelse($exam->questions as $index => $q)
                     <div class="border rounded-3 p-2 p-md-3 mb-3 bg-light-subtle shadow-sm overflow-hidden">
-                        
+
                         <!-- Header Kartu Soal (Layout Responsif) -->
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
                             <div class="d-flex align-items-center gap-2">
@@ -406,7 +404,7 @@
     function showStudentList(questionId, optionKey) {
         const modalElement = new bootstrap.Modal(document.getElementById('modalStudentAnswers'));
         document.getElementById('modalOptionTitle').innerText = optionKey === 'KOSONG' ? 'N/A (Kosong)' : `Opsi ${optionKey}`;
-        
+
         const loading = document.getElementById('loadingStudentList');
         const container = document.getElementById('studentListContainer');
         const emptyState = document.getElementById('emptyStudentList');
