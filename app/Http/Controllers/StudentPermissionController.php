@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Classroom;
 
 class StudentPermissionController extends Controller
 {
@@ -177,4 +178,139 @@ class StudentPermissionController extends Controller
             'sign_nip'   => Setting::value('signature_nip', '-'),
         ];
     }
+
+    /**
+     * Menampilkan Halaman Rekap Laporan Izin Keluar Sekolah
+     */
+    public function recap(Request $request)
+    {
+        $startDate = $request->input('start_date', date('Y-m-01'));
+        $endDate   = $request->input('end_date', date('Y-m-d'));
+        $classId   = $request->input('classroom_id');
+        $status    = $request->input('status');
+
+        $query = StudentPermission::with(['student.classroom'])
+            ->whereBetween('date', [$startDate, $endDate]);
+
+        if ($classId) {
+            $query->whereHas('student', function ($q) use ($classId) {
+                $q->where('classroom_id', $classId);
+            });
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $permissions = $query->orderBy('date', 'desc')
+                            ->orderBy('time_out', 'desc')
+                            ->get();
+
+        $classrooms = Classroom::all();
+
+        // Ringkasan Statistik
+        $totalIzin = $permissions->count();
+        $totalKembali = $permissions->whereNotNull('time_back')->count();
+        $totalBelumKembali = $permissions->whereNull('time_back')->count();
+
+        return view('admin.permit.recap', compact(
+            'permissions',
+            'classrooms',
+            'startDate',
+            'endDate',
+            'classId',
+            'status',
+            'totalIzin',
+            'totalKembali',
+            'totalBelumKembali'
+        ));
+    }
+
+    /**
+     * Export / Cetak Laporan Rekap Izin ke PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        $startDate = $request->input('start_date', date('Y-m-01'));
+        $endDate   = $request->input('end_date', date('Y-m-d'));
+        $classId   = $request->input('classroom_id');
+        $status    = $request->input('status');
+
+        $query = StudentPermission::with(['student.classroom'])
+            ->whereBetween('date', [$startDate, $endDate]);
+
+        if ($classId) {
+            $query->whereHas('student', function ($q) use ($classId) {
+                $q->where('classroom_id', $classId);
+            });
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $permissions = $query->orderBy('date', 'asc')->get();
+        $selectedClass = $classId ? Classroom::find($classId) : null;
+        $school = $this->getSchoolData();
+
+        $pdf = Pdf::loadView('report.permission_recap_pdf', compact('permissions', 'startDate', 'endDate', 'selectedClass', 'school'))
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download('Rekap_Izin_Siswa_' . $startDate . '_s-d_' . $endDate . '.pdf');
+    }
+
+    /**
+     * Export Rekap Izin ke Format CSV/Excel Sederhana
+     */
+    public function exportExcel(Request $request)
+    {
+        $startDate = $request->input('start_date', date('Y-m-01'));
+        $endDate   = $request->input('end_date', date('Y-m-d'));
+        $classId   = $request->input('classroom_id');
+
+        $query = StudentPermission::with(['student.classroom'])
+            ->whereBetween('date', [$startDate, $endDate]);
+
+        if ($classId) {
+            $query->whereHas('student', function ($q) use ($classId) {
+                $q->where('classroom_id', $classId);
+            });
+        }
+
+        $permissions = $query->orderBy('date', 'asc')->get();
+
+        $filename = "Rekap_Izin_Keluar_Siswa_{$startDate}_sd_{$endDate}.csv";
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($permissions) {
+            $file = fopen('php://output', 'w');
+            // Header Kolom
+            fputcsv($file, ['No', 'Tanggal', 'NIS', 'Nama Siswa', 'Kelas', 'Jam Keluar', 'Jam Kembali', 'Alasan', 'Status']);
+
+            foreach ($permissions as $idx => $p) {
+                fputcsv($file, [
+                    $idx + 1,
+                    $p->date,
+                    $p->student->nis ?? '-',
+                    $p->student->name ?? '-',
+                    $p->student->classroom->name ?? '-',
+                    $p->time_out,
+                    $p->time_back ?? 'Belum Kembali',
+                    $p->reason,
+                    $p->time_back ? 'Selesai' : 'Di Luar'
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
 }

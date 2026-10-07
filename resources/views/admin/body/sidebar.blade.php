@@ -176,6 +176,7 @@ $status = $guruId->status;
 			<li> <a href="{{route('daily_attendance.report')}}"><i class='bx bx-border-all'></i>Gerbang</a>
 			<li> <a href="{{url('/transkrip')}}"><i class='bx bx-border-all'></i>Transkip</a>
 			<li> <a href="{{route('recap.index')}}"><i class='bx bx-id-card'></i>Rekap</a>
+			<li> <a href="{{route('admin.permit.recap')}}"><i class='bx bx-id-card'></i>Izin</a>
 		</li>
 
 					</ul>
