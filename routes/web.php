@@ -310,8 +310,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/realtime-stats', [DashboardController::class, 'getRealtimeStats'])->name('api.stats');
 
         // --- B. ABSENSI HARIAN (GERBANG WAJAH) [BARU] ---
-    // Scan Masuk & Pulang via Wajah
-        Route::get('/daily-face-scan', [FaceController::class, 'dailyScan'])->name('daily.face.scan');
+        // Scan Masuk & Pulang via Wajah
+
         Route::get('/face/all-descriptors', [FaceController::class, 'getAllDescriptors'])->name('face.descriptors.all');
 
         // Route simpan absensi gerbang massal (Bantuan Guru)
@@ -818,6 +818,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
 
         });
+    });
+
+    Route::middleware(['role:admin|guru|piket|siswa'])->group(function () {
+        Route::get('/daily-face-scan', [FaceController::class, 'dailyScan'])->name('daily.face.scan');
     });
 });
 
