@@ -363,9 +363,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/izin/return', [StudentPermissionController::class, 'markReturn'])->name('izin.return');
         Route::get('/izin/print/{id}', [StudentPermissionController::class, 'print'])->name('izin.print');
         // ROUTE BARU: Rekap & Export Laporan Izin Siswa
-        Route::get('rekap-izin', [StudentPermissionController::class, 'recap'])->name('admin.permit.recap');
-        Route::get('rekap-izin-pdf', [StudentPermissionController::class, 'exportPdf'])->name('admin.permit.recap.pdf');
-        Route::get('rekap-izin-excel', [StudentPermissionController::class, 'exportExcel'])->name('admin.permit.recap.excel');
+        Route::get('laporan-izin', [StudentPermissionController::class, 'recap'])->name('admin.permit.recap');
+        Route::get('laporan-izin-pdf', [StudentPermissionController::class, 'exportPdf'])->name('admin.permit.recap.pdf');
+        Route::get('laporan-izin-excel', [StudentPermissionController::class, 'exportExcel'])->name('admin.permit.recap.excel');
 
         // Route Tahfiz
         Route::get('/tahfiz', [TahfizController::class, 'index'])->name('tahfiz.index');
