@@ -26,6 +26,7 @@ class SettingController extends Controller
     public function update(Request $request)
     {
         // 1. Validasi Input
+        // 1. Validasi Input
         $request->validate([
             // Data Sekolah & Logo
             'school_name'     => 'required|string|max:255',
@@ -54,6 +55,11 @@ class SettingController extends Controller
             'signature_name'  => 'required|string',
             'signature_nip'   => 'nullable|string',
             'info_aplikasi'   => 'nullable|string',
+
+            // Fitur Titik Lokasi / Geofencing (TAMBAHKAN INI)
+            'school_latitude'  => 'nullable|numeric',
+            'school_longitude' => 'nullable|numeric',
+            'school_radius'    => 'nullable|integer|min:10',
         ]);
 
         // 2. Daftar semua input berjenis File/Gambar/Logo

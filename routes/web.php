@@ -759,6 +759,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:siswa'])->group(function () {
         Route::prefix('student')->name('student.')->group(function() {
 
+            Route::get('scan', [DailyAttendanceController::class, 'studentScanView'])->name('scan');
+            Route::post('scan', [DailyAttendanceController::class, 'storeStudentSelfScan'])->name('scan.store');
+
             // Profil Siswa (Edit No HP & Alamat)
             Route::get('/dashboard', [DashboardStudentController::class, 'index'])->name('dashboard');
             // Route::get('/dashboard', [SiswaDashboardController::class, 'dashboard'])->name('dashboard');

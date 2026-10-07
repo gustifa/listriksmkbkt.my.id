@@ -26,6 +26,13 @@
                     </div>
                     <div class="card-body">
 
+                        {{-- @if(session('success'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif --}}
+
                         <form action="{{ route('settings.update') }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             @method('PUT')
@@ -47,19 +54,16 @@
                                         <i class="fas fa-file-pdf me-2"></i> Kertas & Tanda Tangan
                                     </button>
                                 </li>
-                                <li class="nav-item">
+
+                                 <li class="nav-item">
                                     <button class="nav-link fw-bold" id="surat-tab" data-bs-toggle="tab" data-bs-target="#surat" type="button">
                                         <i class="fas fa-file-pdf me-2"></i> Surat Tugas
                                     </button>
                                 </li>
+
                                 <li class="nav-item">
                                     <button class="nav-link fw-bold" id="absensi-tab" data-bs-toggle="tab" data-bs-target="#absensi" type="button">
-                                        <i class="fas fa-info-circle me-2"></i> Info Absensi
-                                    </button>
-                                </li>
-                                <li class="nav-item">
-                                    <button class="nav-link fw-bold" id="location-tab" data-bs-toggle="tab" data-bs-target="#location" type="button">
-                                        <i class="fas fa-map-marker-alt me-2"></i> Titik Lokasi
+                                        <i class="fas fa-file-pdf me-2"></i> Info Absensi
                                     </button>
                                 </li>
                             </ul>
@@ -137,6 +141,7 @@
                                         <div class="mb-4 text-center col-md-6">
                                             <label class="form-label fw-bold d-block">Logo Sidebar (Pojok Kiri Atas)</label>
                                             <div class="p-3 mb-2 rounded bg-primary d-inline-block">
+                                                <!-- Preview di atas background biru (seperti navbar) -->
                                                 @if(isset($settings['app_logo']) && $settings['app_logo'])
                                                     <img src="{{ asset('storage/'.$settings['app_logo']) }}" style="height: 40px;">
                                                 @else
@@ -273,44 +278,46 @@
                                         <input type="date" name="tanggal_surat" class="form-control" value="{{ $settings['tanggal_surat'] ?? '01-01-2026' }}">
                                     </div>
 
-                                    <div class="mb-3">
+
+
+                                     <div class="mb-3">
                                         <label class="form-label fw-bold">NIP Penanda Tangan</label>
                                         <input type="text" name="nip_surat" class="form-control" value="{{ $settings['nip_surat'] ?? '19860802023211016' }}">
                                     </div>
 
                                     <!-- INPUT TANDA TANGAN PEJABAT -->
-                                    <div class="mb-3 col-12">
-                                        <label class="form-label fw-bold">Scan Tanda Tangan (Opsional)</label>
-                                        <div class="d-flex align-items-center">
-                                            @if(isset($settings['ttd_pejabat']) && $settings['ttd_pejabat'])
-                                                <div class="p-1 border rounded me-3">
-                                                    <img src="{{ asset('storage/'.$settings['ttd_pejabat']) }}" style="height: 60px;">
+                                        <div class="mb-3 col-12">
+                                            <label class="form-label fw-bold">Scan Tanda Tangan (Opsional)</label>
+                                            <div class="d-flex align-items-center">
+                                                @if(isset($settings['ttd_pejabat']) && $settings['ttd_pejabat'])
+                                                    <div class="p-1 border rounded me-3">
+                                                        <img src="{{ asset('storage/'.$settings['ttd_pejabat']) }}" style="height: 60px;">
+                                                    </div>
+                                                @endif
+                                                <div class="flex-grow-1">
+                                                    <input type="file" name="ttd_pejabat" class="form-control form-control-sm accept-image">
+                                                    <div class="form-text">Upload gambar tanda tangan (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                                 </div>
-                                            @endif
-                                            <div class="flex-grow-1">
-                                                <input type="file" name="ttd_pejabat" class="form-control form-control-sm accept-image">
-                                                <div class="form-text">Upload gambar tanda tangan (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <!-- INPUT STEMPEL -->
-                                    <div class="mb-3 col-12">
-                                        <label class="form-label fw-bold">Scan Stempel (Opsional)</label>
-                                        <div class="d-flex align-items-center">
-                                            @if(isset($settings['stempel']) && $settings['stempel'])
-                                                <div class="p-1 border rounded me-3">
-                                                    <img src="{{ asset('storage/'.$settings['stempel']) }}" style="height: 60px;">
+                                        <!-- INPUT STEMPEL -->
+                                        <div class="mb-3 col-12">
+                                            <label class="form-label fw-bold">Scan Stempel (Opsional)</label>
+                                            <div class="d-flex align-items-center">
+                                                @if(isset($settings['stempel']) && $settings['stempel'])
+                                                    <div class="p-1 border rounded me-3">
+                                                        <img src="{{ asset('storage/'.$settings['stempel']) }}" style="height: 60px;">
+                                                    </div>
+                                                @endif
+                                                <div class="flex-grow-1">
+                                                    <input type="file" name="stempel" class="form-control form-control-sm accept-image">
+                                                    <div class="form-text">Upload Stempel (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                                 </div>
-                                            @endif
-                                            <div class="flex-grow-1">
-                                                <input type="file" name="stempel" class="form-control form-control-sm accept-image">
-                                                <div class="form-text">Upload Stempel (PNG transparan) jika ingin muncul otomatis di PDF.</div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div class="pb-4 mb-4 row border-bottom">
+                                        <div class="pb-4 mb-4 row border-bottom">
                                         <!-- Logo Kiri -->
                                         <div class="text-center col-md-6 border-end">
                                             <label class="form-label fw-bold">Logo Kiri (Kop Surat)</label>
@@ -342,7 +349,6 @@
                                     </div>
 
                                 </div>
-
                                 <!-- TAB 5: Info Aplikasi -->
                                 <div class="tab-pane fade" id="absensi">
                                     <div class="mb-3">
@@ -350,47 +356,6 @@
                                         <input type="text" name="inf_app" class="form-control" value="{{ $settings['inf_app'] ?? 'Sistem Absensi Sekolah.' }}">
                                     </div>
                                 </div>
-
-                                <!-- TAB 6: TITIK LOKASI ABSENSI (GEOFENCING) -->
-                                <div class="tab-pane fade" id="location">
-                                    <h6 class="pb-2 mb-3 text-primary fw-bold border-bottom">
-                                        <i class="fas fa-map-marked-alt me-2"></i> Pengaturan Geofencing & Koordinat Sekolah
-                                    </h6>
-
-                                    <div class="mb-3 alert alert-info small">
-                                        <i class="fas fa-info-circle me-1"></i> <strong>Petunjuk:</strong> Buka Google Maps, klik kanan pada titik lokasi sekolah Anda, lalu salin koordinat <strong>Latitude</strong> dan <strong>Longitude</strong> atau klik tombol GPS di bawah.
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="mb-3 col-md-4">
-                                            <label class="form-label fw-bold">Latitude</label>
-                                            <input type="text" id="latitude_input" name="school_latitude" class="form-control" value="{{ $settings['school_latitude'] ?? '-0.30512300' }}" required>
-                                            <div class="form-text">Contoh: -0.30512300</div>
-                                        </div>
-
-                                        <div class="mb-3 col-md-4">
-                                            <label class="form-label fw-bold">Longitude</label>
-                                            <input type="text" id="longitude_input" name="school_longitude" class="form-control" value="{{ $settings['school_longitude'] ?? '100.36912300' }}" required>
-                                            <div class="form-text">Contoh: 100.36912300</div>
-                                        </div>
-
-                                        <div class="mb-3 col-md-4">
-                                            <label class="form-label fw-bold">Radius Absensi (Meter)</label>
-                                            <div class="input-group">
-                                                <input type="number" name="school_radius" class="form-control" value="{{ $settings['school_radius'] ?? '100' }}" min="10" required>
-                                                <span class="input-group-text">Meter</span>
-                                            </div>
-                                            <div class="form-text">Jarak maksimal siswa dapat melakukan scan mandiri.</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-2">
-                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="getCurrentLocation()">
-                                            <i class="fas fa-crosshairs me-1"></i> Ambil Lokasi Saya Sekarang (GPS)
-                                        </button>
-                                    </div>
-                                </div>
-
                             </div>
 
                             <div class="mt-4 d-grid">
@@ -418,7 +383,7 @@
             });
         @endif
 
-        // Cek jika ada error validasi
+        // Opsional: Cek jika ada error validasi
         @if($errors->any())
             Swal.fire({
                 icon: 'error',
@@ -426,37 +391,5 @@
                 text: 'Mohon periksa kembali inputan Anda.',
             });
         @endif
-
-        // Fungsi Deteksi Geolocation via Browser
-        function getCurrentLocation() {
-            if (navigator.geolocation) {
-                Swal.fire({
-                    title: 'Mendapatkan Lokasi...',
-                    text: 'Mohon izinkan akses lokasi pada browser Anda.',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
-
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        document.getElementById('latitude_input').value = position.coords.latitude;
-                        document.getElementById('longitude_input').value = position.coords.longitude;
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Lokasi Terdeteksi!',
-                            text: 'Koordinat Latitude & Longitude telah diperbarui.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                    },
-                    function(error) {
-                        Swal.fire('Gagal!', 'Tidak dapat mengambil lokasi GPS Anda: ' + error.message, 'error');
-                    },
-                    { enableHighAccuracy: true }
-                );
-            } else {
-                Swal.fire('Error!', 'Browser Anda tidak mendukung fitur Geolocation.', 'error');
-            }
-        }
     </script>
 </x-app-layout>

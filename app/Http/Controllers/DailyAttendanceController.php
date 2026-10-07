@@ -1453,6 +1453,149 @@ class DailyAttendanceController extends Controller
     }
 
     /**
+ * Halaman Absensi Mandiri Siswa via HP
+ * Route: GET /student/scan
+ */
+public function studentScanView()
+{
+    $student = Auth::user()->student; // Asumsi relasi user ke student
+    if (!$student) {
+        return redirect()->route('dashboard')->with('error', 'Akun Anda tidak terhubung dengan data siswa.');
+    }
+
+    $setting = AttendanceSetting::first();
+
+    return view('students.scan', compact('student', 'setting'));
+}
+
+/**
+ * Proses Simpan Absensi Wajah & Geolocation dari HP Siswa
+ * Route: POST /student/scan
+ */
+public function storeStudentSelfScan(Request $request)
+{
+    $request->validate([
+        'latitude'  => 'required|numeric',
+        'longitude' => 'required|numeric',
+        'image'     => 'required|string',
+    ]);
+
+    // 1. Cek User & Siswa
+    $user = Auth::user();
+    $student = $user->student ?? Student::where('user_id', $user->id)->first();
+
+    if (!$student) {
+        return response()->json(['status' => 'error', 'message' => 'Data siswa tidak ditemukan!'], 404);
+    }
+
+    // 2. Cek Tahun Ajaran Aktif
+    $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+    if (!$activeAcademicYear) {
+        return response()->json(['status' => 'error', 'message' => 'Tahun Pelajaran belum diaktifkan Admin.'], 400);
+    }
+
+    // 3. Validasi Jarak Geofence (Rumus Haversine)
+    $setting = AttendanceSetting::first();
+    $schoolLat = $setting->latitude ?? -0.30512300;
+    $schoolLng = $setting->longitude ?? 100.36912300;
+    $maxRadius = $setting->radius_meters ?? 100; // dalam meter
+
+    $distance = $this->calculateDistance($request->latitude, $request->longitude, $schoolLat, $schoolLng);
+
+    if ($distance > $maxRadius) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Gagal Absen! Anda berada di luar area sekolah. Jarak Anda: ' . round($distance) . ' meter dari sekolah (Batas max: ' . $maxRadius . 'm).'
+        ], 400);
+    }
+
+    $date = date('Y-m-d');
+    $time = date('H:i:s');
+
+    // 4. Pengaturan Waktu Masuk/Pulang
+    $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';
+    $batasTerlambat   = $setting ? $setting->late_limit_time : '07:00:00';
+    $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
+
+    if ($time < $jamMulaiScan) {
+        return response()->json(['status' => 'error', 'message' => 'Absensi belum dibuka.'], 400);
+    }
+
+    $attendance = DailyAttendance::where('student_id', $student->id)->where('date', $date)->first();
+
+    // --- SKENARIO PULANG ---
+    if ($attendance) {
+        if ($attendance->departure_time) {
+            return response()->json(['status' => 'error', 'message' => 'Anda sudah absen pulang hari ini!'], 400);
+        }
+
+        if ($time < $batasBolehPulang) {
+            return response()->json(['status' => 'error', 'message' => 'Belum waktunya pulang!'], 400);
+        }
+
+        $photoPath = $this->saveImage($request->image, $student->nis, 'out_hp', $date);
+
+        $attendance->update([
+            'departure_time' => $time,
+            'photo_out'      => $photoPath,
+            'updated_at'     => now()
+        ]);
+
+        $this->sendNotification($student, 'pulang', $time);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Berhasil Absen Pulang dari HP!',
+            'time'    => $time
+        ]);
+    }
+
+    // --- SKENARIO DATANG ---
+    $isLate   = ($time > $batasTerlambat);
+    $statusDB = $isLate ? 'terlambat' : 'hadir';
+
+    $photoPath = $this->saveImage($request->image, $student->nis, 'in_hp', $date);
+
+    DailyAttendance::create([
+        'id'               => (string) Str::uuid(),
+        'student_id'       => $student->id,
+        'academic_year_id' => $activeAcademicYear->id,
+        'date'             => $date,
+        'arrival_time'     => $time,
+        'status'           => $statusDB,
+        'photo_in'         => $photoPath,
+        'recorded_by'      => 'HP Mandiri Siswa'
+    ]);
+
+    $this->sendNotification($student, 'datang', $time, $statusDB);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => $isLate ? 'Absen Masuk Berhasil (TERLAMBAT)' : 'Absen Masuk Berhasil (HADIR)',
+        'time'    => $time
+    ]);
+}
+
+/**
+ * Helper Menghitung Jarak Antara 2 Titik Koordinat (Dalam Meter)
+ */
+private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+{
+    $earthRadius = 6371000; // Radius bumi dalam meter
+
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLon = deg2rad($lon2 - $lon1);
+
+    $a = sin($dLat / 2) * sin($dLat / 2) +
+         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+         sin($dLon / 2) * sin($dLon / 2);
+
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+    return $earthRadius * $c;
+}
+
+    /**
      * Helper untuk menyimpan gambar Base64 ke Storage
      */
     private function saveImage($base64Image, $nis, $type, $date)
