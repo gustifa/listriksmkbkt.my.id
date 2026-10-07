@@ -8,6 +8,7 @@
 
     <link href="{{ asset('backend/assets/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
         body { background-color: #f4f6f9; }
@@ -26,6 +27,13 @@
         #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #overlay { position: absolute; top:0; left:0; width:100%; height:100%; transform: scaleX(-1); }
         #capture-canvas { display: none; }
+        #student-map {
+            height: 220px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+            border: 2px solid #dee2e6;
+        }
     </style>
 </head>
 <body>
@@ -43,6 +51,17 @@
                 <!-- Status Geolocation & Jarak -->
                 <div id="geo-status" class="alert alert-info py-2 small fw-bold mb-3">
                     <i class="fas fa-spinner fa-spin me-1"></i> Mengambil Lokasi GPS...
+                </div>
+
+                <!-- TAMPILAN MAP DENGAN GEOFENCING (READ-ONLY) -->
+                <div class="card border-0 shadow-sm rounded-4 mb-3 text-start">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center px-2 mb-2">
+                            <span class="fw-bold small text-secondary"><i class="fas fa-map-marked-alt text-primary me-1"></i> Posisi Anda & Area Sekolah</span>
+                            <span id="distance-badge" class="badge bg-secondary small">Menghitung Jarak...</span>
+                        </div>
+                        <div id="student-map"></div>
+                    </div>
                 </div>
 
                 <div class="webcam-box mb-3">
@@ -63,6 +82,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         $.ajaxSetup({
@@ -76,27 +96,114 @@
         const captureCanvas = document.getElementById('capture-canvas');
         const geoStatus = document.getElementById('geo-status');
         const btnScan = document.getElementById('btn-scan');
+        const distanceBadge = document.getElementById('distance-badge');
+
+        // KOORDINAT PUSAT & RADIUS SEKOLAH (Diambil dari $setting)
+        const schoolLat = parseFloat("{{ $setting->latitude ?? '-0.30512300' }}");
+        const schoolLng = parseFloat("{{ $setting->longitude ?? '100.36912300' }}");
+        const schoolRadius = parseInt("{{ $setting->radius_meters ?? 100 }}");
 
         let userLat = null;
         let userLng = null;
-        let faceDescriptor = null;
         let isModelLoaded = false;
+        let studentMap = null;
+        let userMarker = null;
 
-        // 1. Dapatkan Geolocation HP
+        // Inisialisasi Map Terkunci (Drag, Zoom, & Touch Interaction Dimatikan)
+        function initStudentMap() {
+            studentMap = L.map('student-map', {
+                zoomControl: false,
+                dragging: false,
+                touchZoom: false,
+                doubleClickZoom: false,
+                scrollWheelZoom: false,
+                boxZoom: false,
+                keyboard: false
+            }).setView([schoolLat, schoolLng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(studentMap);
+
+            // 1. Lingkaran Radius Sekolah
+            L.circle([schoolLat, schoolLng], {
+                color: '#28a745',
+                fillColor: '#28a745',
+                fillOpacity: 0.2,
+                radius: schoolRadius
+            }).addTo(studentMap);
+
+            // 2. Marker Titik Sekolah
+            L.marker([schoolLat, schoolLng]).addTo(studentMap)
+                .bindPopup('<b>Titik Sekolah</b>').openPopup();
+        }
+
+        initStudentMap();
+
+        // Formula Haversine (Hitung Jarak dalam Meter)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return Math.round(R * c);
+        }
+
+        // 1. Dapatkan Geolocation HP Siswa
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
+            navigator.geolocation.watchPosition(
                 (pos) => {
                     userLat = pos.coords.latitude;
                     userLng = pos.coords.longitude;
-                    geoStatus.className = 'alert alert-success py-2 small fw-bold mb-3';
-                    geoStatus.innerHTML = `<i class="fas fa-map-marker-alt me-1"></i> Lokasi GPS Terdeteksi!`;
-                    checkReady();
+
+                    const distance = calculateDistance(userLat, userLng, schoolLat, schoolLng);
+                    distanceBadge.innerText = `Jarak: ${distance} Meter`;
+
+                    // Update / Buat Marker Posisi Siswa di Peta
+                    if (!userMarker) {
+                        userMarker = L.circleMarker([userLat, userLng], {
+                            radius: 8,
+                            fillColor: '#0d6efd',
+                            color: '#ffffff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.9
+                        }).addTo(studentMap).bindPopup('<b>Lokasi Anda</b>');
+                    } else {
+                        userMarker.setLatLng([userLat, userLng]);
+                    }
+
+                    // Posisikan Kamera Peta Menampilkan Posisi Sekolah & Siswa
+                    const bounds = L.latLngBounds([
+                        [schoolLat, schoolLng],
+                        [userLat, userLng]
+                    ]);
+                    studentMap.fitBounds(bounds, { padding: [30, 30] });
+
+                    // Check Validasi Jarak Geofencing
+                    if (distance <= schoolRadius) {
+                        geoStatus.className = 'alert alert-success py-2 small fw-bold mb-3';
+                        geoStatus.innerHTML = `<i class="fas fa-check-circle me-1"></i> Lokasi Valid! Anda berada ${distance}m dari sekolah.`;
+                        distanceBadge.className = 'badge bg-success small';
+                    } else {
+                        geoStatus.className = 'alert alert-danger py-2 small fw-bold mb-3';
+                        geoStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> Di Luar Area! Jarak Anda ${distance}m (Batas: ${schoolRadius}m).`;
+                        distanceBadge.className = 'badge bg-danger small';
+                    }
+
+                    checkReady(distance <= schoolRadius);
                 },
                 (err) => {
                     geoStatus.className = 'alert alert-danger py-2 small fw-bold mb-3';
                     geoStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> Akses GPS Ditolak! Harap aktifkan Lokasi/GPS HP Anda.`;
+                    distanceBadge.className = 'badge bg-danger small';
+                    distanceBadge.innerText = 'GPS Terkunci';
                 },
-                { enableHighAccuracy: true }
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
             );
         } else {
             geoStatus.innerHTML = 'Browser Anda tidak mendukung Geolocation.';
@@ -110,7 +217,7 @@
         ]).then(() => {
             isModelLoaded = true;
             startCamera();
-            checkReady();
+            checkReady(true);
         });
 
         function startCamera() {
@@ -121,9 +228,11 @@
                 });
         }
 
-        function checkReady() {
-            if (userLat && userLng && isModelLoaded) {
+        function checkReady(isWithinDistance = true) {
+            if (userLat && userLng && isModelLoaded && isWithinDistance) {
                 btnScan.disabled = false;
+            } else {
+                btnScan.disabled = true;
             }
         }
 
