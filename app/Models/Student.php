@@ -101,5 +101,10 @@ class Student extends Model
         return $this->hasOne(Alumni::class, 'student_id');
     }
 
+    public function permits()
+    {
+        return $this->hasMany(StudentPermission::class, 'student_id');
+    }
+
 
 }
