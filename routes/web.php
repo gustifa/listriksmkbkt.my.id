@@ -502,7 +502,9 @@ Route::middleware(['auth'])->group(function () {
 
         // Memproses update (POST)
         Route::post('/system/update', [UpdateController::class, 'doUpdate'])->name('system.update.run');
-
+        // Web Terminal AJAX
+        Route::post('/system/update/terminal', [UpdateController::class, 'executeTerminal'])->name('system.update.terminal');
+        Route::post('/system/update/paths', [UpdateController::class, 'savePaths'])->name('system.update.paths');
         // Import Skedule
         Route::get('/import-jadwal', [ScheduleImportController::class, 'index'])->name('jadwal.import');
         Route::post('/import-jadwal', [ScheduleImportController::class, 'store'])->name('jadwal.import.store');
