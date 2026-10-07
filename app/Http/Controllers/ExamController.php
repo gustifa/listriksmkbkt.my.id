@@ -126,6 +126,8 @@ class ExamController extends Controller
             'start_time'          => $validated['start_time'],
             'end_time'            => $validated['end_time'],
             'is_active'           => $request->has('is_active'),
+            'allow_review'        => $request->has('allow_review'),        // Permisi akses review
+            'show_correct_answer' => $request->has('show_correct_answer'), // Permisi tampil kunci jawaban
             'randomize_questions' => $request->has('randomize_questions'), // <-- Simpan Fitur Acak Soal
             'randomize_options'   => $request->has('randomize_options'),   // <-- Simpan Fitur Acak Jawaban
         ]);
@@ -495,6 +497,8 @@ class ExamController extends Controller
             'start_time'          => $request->start_time,
             'end_time'            => $request->end_time,
             'is_active'           => $request->has('is_active') ? true : false,
+            'allow_review'        => $request->has('allow_review'),        // Permisi akses review
+            'show_correct_answer' => $request->has('show_correct_answer'), // Permisi tampil kunci jawaban
             'randomize_questions' => $request->has('randomize_questions') ? true : false, // <-- Update
             'randomize_options'   => $request->has('randomize_options') ? true : false,   // <-- Update
         ]);

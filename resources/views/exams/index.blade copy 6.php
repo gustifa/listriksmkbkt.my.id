@@ -44,7 +44,7 @@
         </div>
     @endif
 
-    <!-- FORM FILTER NAMA UJIAN, GURU, & STATUS -->
+    <!-- FORM FILTER NAMA UJIAN, GURU, & STATUS (DIPERBAHARUI) -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
@@ -58,7 +58,7 @@
                     </div>
                 </div>
 
-                <!-- Filter Input Nama Guru -->
+                <!-- Filter Input Nama Guru (BARU) -->
                 <div class="col-md-4 col-12">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted">
@@ -349,38 +349,6 @@
                                                 </label>
                                             </div>
                                             <small class="text-muted d-block ms-1">Pilihan jawaban (A, B, C, D, E) akan diacak saat siswa mengerjakan.</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Pengaturan Hasil & Review Siswa -->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold text-dark mb-2">Pengaturan Hasil & Review Siswa</label>
-                                <div class="row g-3">
-                                    <!-- Switch Izinkan Review -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="allow_review_{{ $exam->id }}" name="allow_review" value="1" {{ $exam->allow_review ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="allow_review_{{ $exam->id }}">
-                                                    <i class="fas fa-eye text-info me-1"></i> Izinkan Review Ujian
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Siswa diizinkan membuka kembali lembar pengerjaan setelah selesai.</small>
-                                        </div>
-                                    </div>
-
-                                    <!-- Switch Tampilkan Jawaban Benar -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="show_correct_answer_{{ $exam->id }}" name="show_correct_answer" value="1" {{ $exam->show_correct_answer ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="show_correct_answer_{{ $exam->id }}">
-                                                    <i class="fas fa-check-circle text-warning me-1"></i> Tampilkan Kunci Jawaban
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Menampilkan indikator benar/salah dan kunci jawaban pada halaman review.</small>
                                         </div>
                                     </div>
                                 </div>

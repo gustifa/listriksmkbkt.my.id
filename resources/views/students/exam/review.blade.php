@@ -33,10 +33,14 @@
                 <div class="p-3 mb-4 border rounded-3 bg-light">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="fw-bold text-dark mb-0">Soal No. {{ $index + 1 }}</h6>
-                        @if($ansRecord && $ansRecord->is_correct)
-                            <span class="badge bg-success"><i class="fas fa-check me-1"></i> Benar</span>
-                        @else
-                            <span class="badge bg-danger"><i class="fas fa-times me-1"></i> Salah / Belum Dijawab</span>
+                        
+                        <!-- PERUBAHAN 1: Tampilkan status Benar/Salah hanya jika show_correct_answer bernilai TRUE -->
+                        @if($exam->show_correct_answer)
+                            @if($ansRecord && $ansRecord->is_correct)
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i> Benar</span>
+                            @else
+                                <span class="badge bg-danger"><i class="fas fa-times me-1"></i> Salah / Belum Dijawab</span>
+                            @endif
                         @endif
                     </div>
 
@@ -52,13 +56,21 @@
                                     $isSelected = in_array($key, $userAnswers);
                                     $isCorrect = in_array($key, $correctAnswers);
 
+                                    // PERUBAHAN 2: Penentuan Class Background berdasarkan sakelar show_correct_answer
                                     $bgClass = '';
-                                    if ($isSelected && $isCorrect) {
-                                        $bgClass = 'list-group-item-success';
-                                    } elseif ($isSelected && !$isCorrect) {
-                                        $bgClass = 'list-group-item-danger';
-                                    } elseif ($isCorrect) {
-                                        $bgClass = 'list-group-item-warning';
+                                    if ($exam->show_correct_answer) {
+                                        if ($isSelected && $isCorrect) {
+                                            $bgClass = 'list-group-item-success';
+                                        } elseif ($isSelected && !$isCorrect) {
+                                            $bgClass = 'list-group-item-danger';
+                                        } elseif ($isCorrect) {
+                                            $bgClass = 'list-group-item-warning';
+                                        }
+                                    } else {
+                                        // Mode Sembunyi Kunci: Hanya tandai pilihan siswa dengan warna biru netral
+                                        if ($isSelected) {
+                                            $bgClass = 'list-group-item-primary';
+                                        }
                                     }
                                 @endphp
 
@@ -67,12 +79,20 @@
                                         <strong>{{ $key }}.</strong> {{ $text }}
                                     </div>
                                     <div>
-                                        @if($isSelected && $isCorrect)
-                                            <span class="badge bg-success">Jawaban Anda (Benar)</span>
-                                        @elseif($isSelected && !$isCorrect)
-                                            <span class="badge bg-danger">Jawaban Anda (Salah)</span>
-                                        @elseif($isCorrect)
-                                            <span class="badge bg-warning text-dark">Kunci Jawaban</span>
+                                        <!-- PERUBAHAN 3: Penentuan Badge Jawaban berdasarkan sakelar show_correct_answer -->
+                                        @if($exam->show_correct_answer)
+                                            @if($isSelected && $isCorrect)
+                                                <span class="badge bg-success">Jawaban Anda (Benar)</span>
+                                            @elseif($isSelected && !$isCorrect)
+                                                <span class="badge bg-danger">Jawaban Anda (Salah)</span>
+                                            @elseif($isCorrect)
+                                                <span class="badge bg-warning text-dark">Kunci Jawaban</span>
+                                            @endif
+                                        @else
+                                            <!-- Mode Sembunyi Kunci: Hanya tampilkan badge netral pada pilihan siswa -->
+                                            @if($isSelected)
+                                                <span class="badge bg-primary">Jawaban Anda</span>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
