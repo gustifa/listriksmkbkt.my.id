@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="container-fluid py-3">
-    <!-- Header Page & Switcher Tampilan -->
+    <!-- Header Page & Swicther Tampilan -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-0">Kelola Ujian</h3>
@@ -44,57 +44,11 @@
         </div>
     @endif
 
-    <!-- FORM FILTER NAMA UJIAN, GURU, & STATUS (DIPERBAHARUI) -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-body p-3">
-            <div class="row g-2 align-items-center">
-                <!-- Filter Input Nama Ujian -->
-                <div class="col-md-4 col-12">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" id="filter-search" class="form-control border-start-0" placeholder="Cari nama / judul ujian..." onkeyup="filterExams()">
-                    </div>
-                </div>
-
-                <!-- Filter Input Nama Guru (BARU) -->
-                <div class="col-md-4 col-12">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="fas fa-user-tie"></i>
-                        </span>
-                        <input type="text" id="filter-teacher" class="form-control border-start-0" placeholder="Cari nama guru pengampu..." onkeyup="filterExams()">
-                    </div>
-                </div>
-
-                <!-- Filter Dropdown Status -->
-                <div class="col-md-2 col-7">
-                    <select id="filter-status" class="form-select" onchange="filterExams()">
-                        <option value="all">-- Semua Status --</option>
-                        <option value="aktif">Aktif</option>
-                        <option value="nonaktif">Nonaktif</option>
-                    </select>
-                </div>
-
-                <!-- Tombol Reset Filter -->
-                <div class="col-md-2 col-5 d-grid">
-                    <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="resetFilter()">
-                        <i class="fas fa-undo me-1"></i> Reset
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- 1. TAMPILAN BENTUK CARD -->
     <div id="view-card-container">
-        <div class="row g-4" id="card-exam-list">
+        <div class="row g-4">
             @forelse($exams as $exam)
-                <div class="col-md-6 col-lg-4 exam-card-item" 
-                     data-title="{{ strtolower($exam->title) }}" 
-                     data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
-                     data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
+                <div class="col-md-6 col-lg-4">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-body p-4 d-flex flex-column justify-content-between">
                             <div>
@@ -107,8 +61,8 @@
                                     </span>
                                 </div>
 
-                                <h4 class="fw-bold text-dark mb-1 exam-title-text">{{ $exam->title }}</h4>
-                                <small class="text-muted d-block mb-3">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                <h4 class="fw-bold text-dark mb-1">{{ $exam->title }}</h4>
+                                <small class="text-muted d-block mb-3">Guru: {{ $exam->teacher->name ?? '-' }}</small>
 
                                 <div class="mb-3">
                                     <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
@@ -158,7 +112,7 @@
                     </div>
                 </div>
             @empty
-                <div class="col-12 text-center py-5 text-muted" id="empty-card-message">
+                <div class="col-12 text-center py-5 text-muted">
                     <p class="mb-0">Belum ada data ujian yang tersedia.</p>
                 </div>
             @endforelse
@@ -182,17 +136,14 @@
                                 <th class="text-center pe-4">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody id="table-exam-list">
+                        <tbody>
                             @forelse($exams as $index => $exam)
-                                <tr class="exam-row-item" 
-                                    data-title="{{ strtolower($exam->title) }}" 
-                                    data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
-                                    data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
-                                    <td class="ps-4 fw-semibold row-number">{{ $index + 1 }}</td>
+                                <tr>
+                                    <td class="ps-4 fw-semibold">{{ $index + 1 }}</td>
                                     <td>
                                         <span class="badge bg-primary-subtle text-primary border me-1">{{ $exam->subject->name ?? 'Mapel' }}</span>
-                                        <div class="fw-bold text-dark fs-6 mt-1 exam-title-text">{{ $exam->title }}</div>
-                                        <small class="text-muted">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                        <div class="fw-bold text-dark fs-6 mt-1">{{ $exam->title }}</div>
+                                        <small class="text-muted">Guru: {{ $exam->teacher->name ?? '-' }}</small>
                                     </td>
                                     <td>
                                         <div class="d-flex flex-wrap gap-1">
@@ -388,62 +339,6 @@
             btnTable.classList.add('active', 'bg-primary', 'text-white');
             btnCard.classList.remove('active', 'bg-primary', 'text-white');
         }
-    }
-
-    // JavaScript Logika Multi-Filter (Nama Ujian, Nama Guru, & Status)
-    function filterExams() {
-        const searchInput = document.getElementById('filter-search').value.toLowerCase().trim();
-        const teacherInput = document.getElementById('filter-teacher').value.toLowerCase().trim();
-        const statusSelect = document.getElementById('filter-status').value;
-
-        // 1. Filter untuk Tampilan Card
-        const cardItems = document.querySelectorAll('.exam-card-item');
-        cardItems.forEach(item => {
-            const title = item.getAttribute('data-title') || '';
-            const teacher = item.getAttribute('data-teacher') || '';
-            const status = item.getAttribute('data-status') || '';
-
-            const matchTitle = title.includes(searchInput);
-            const matchTeacher = teacher.includes(teacherInput);
-            const matchStatus = (statusSelect === 'all') || (status === statusSelect);
-
-            if (matchTitle && matchTeacher && matchStatus) {
-                item.classList.remove('d-none');
-            } else {
-                item.classList.add('d-none');
-            }
-        });
-
-        // 2. Filter untuk Tampilan Tabel
-        const tableRows = document.querySelectorAll('.exam-row-item');
-        let visibleIndex = 1;
-
-        tableRows.forEach(row => {
-            const title = row.getAttribute('data-title') || '';
-            const teacher = row.getAttribute('data-teacher') || '';
-            const status = row.getAttribute('data-status') || '';
-
-            const matchTitle = title.includes(searchInput);
-            const matchTeacher = teacher.includes(teacherInput);
-            const matchStatus = (statusSelect === 'all') || (status === statusSelect);
-
-            if (matchTitle && matchTeacher && matchStatus) {
-                row.classList.remove('d-none');
-                // Re-index nomor urut tabel
-                const numCell = row.querySelector('.row-number');
-                if (numCell) numCell.innerText = visibleIndex++;
-            } else {
-                row.classList.add('d-none');
-            }
-        });
-    }
-
-    // Fungsi Reset Filter
-    function resetFilter() {
-        document.getElementById('filter-search').value = '';
-        document.getElementById('filter-teacher').value = '';
-        document.getElementById('filter-status').value = 'all';
-        filterExams();
     }
 
     // Default Tampilan: Card Mode

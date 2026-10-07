@@ -3,79 +3,87 @@
 @section('title', 'Import Soal Excel')
 
 @section('content')
-<div class="page-content">
-    <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
-        <div class="breadcrumb-title pe-3">Ujian</div>
-        <div class="ps-3">
-            <nav aria-label="breadcrumb">
-                <ol class="p-0 mb-0 breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('guru.exams.show', $exam->id) }}">
-                            <i class="fas fa-file-alt me-2"></i>Detail Ujian
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">Import Soal</li>
-                </ol>
-            </nav>
+<div class="container-fluid py-3 px-2 px-md-4">
+    
+    <!-- Header Page Responsif (Judul & Tombol Kembali Rapi) -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
+        <div>
+            <h4 class="fw-bold text-success mb-1 fs-5 fs-md-4">
+                <i class="fas fa-file-excel me-2"></i>Import Soal Excel
+            </h4>
+            <p class="text-muted small mb-0">
+                Ujian: <strong>{{ $exam->title ?? 'Assesmen' }}</strong>
+            </p>
         </div>
+        <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-outline-secondary btn-sm fw-semibold align-self-start align-self-sm-auto">
+            <i class="fas fa-arrow-left me-1"></i> Kembali
+        </a>
     </div>
 
-    <div class="container-fluid py-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
+    <!-- Alert Notifikasi -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
-                <div class="mb-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0 text-success fw-bold"><i class="fas fa-file-excel me-2"></i> Import Soal Excel</h4>
-                        <p class="mb-0 text-muted small">Ujian: <strong>{{ $exam->title }}</strong></p>
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-9">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-body p-3 p-md-4">
+                    
+                    <!-- Box Petunjuk Import -->
+                    <div class="alert alert-info border-0 shadow-none mb-4 p-3 rounded-3" style="background-color: #e0f2fe; color: #0369a1;">
+                        <h6 class="fw-bold mb-2 fs-6">
+                            <i class="fas fa-info-circle me-2"></i>Petunjuk Import Soal:
+                        </h6>
+                        <ul class="mb-0 ps-3 small" style="line-height: 1.6;">
+                            <li>Format file menggunakan kolom: <code class="bg-white px-1 py-0.5 rounded text-danger">No</code>, <code class="bg-white px-1 py-0.5 rounded text-danger">Tipe Soal</code>, <code class="bg-white px-1 py-0.5 rounded text-danger">Pertanyaan Soal</code>, <code class="bg-white px-1 py-0.5 rounded text-danger">Opsi A</code> - <code class="bg-white px-1 py-0.5 rounded text-danger">E</code>, <code class="bg-white px-1 py-0.5 rounded text-danger">Kunci Jawaban</code>, <code class="bg-white px-1 py-0.5 rounded text-danger">Bobot Nilai</code>.</li>
+                            <li>Isi <strong>Tipe Soal</strong> dengan: <span class="badge bg-white text-dark border">Pilihan Ganda</span>, <span class="badge bg-white text-dark border">Multiple Choice</span>, atau <span class="badge bg-white text-dark border">Essay</span>.</li>
+                            <li>Untuk Multiple Choice dengan banyak kunci jawaban, pisahkan dengan koma (contoh: <code class="bg-white px-1 rounded text-primary">A,B</code>).</li>
+                        </ul>
                     </div>
-                    <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i> Kembali
-                    </a>
-                </div>
 
-                @if(session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-
-                <div class="border-0 shadow-sm card">
-                    <div class="card-body p-4">
-
-                        <div class="alert alert-info mb-4">
-                            <h6 class="fw-bold mb-2"><i class="fas fa-info-circle me-1"></i> Petunjuk Import Soal:</h6>
-                            <ul class="mb-0 small ps-3">
-                                <li>Format file menggunakan kolom: <code>No</code>, <code>Tipe Soal</code>, <code>Pertanyaan Soal</code>, <code>Opsi A</code>, <code>Opsi B</code>, <code>Opsi C</code>, <code>Opsi D</code>, <code>Opsi E</code>, <code>Kunci Jawaban</code>, <code>Bobot Nilai</code>.</li>
-                                <li>Isi <strong>Tipe Soal</strong> dengan: <code>Pilihan Ganda</code>, <code>Multiple Choice</code>, atau <code>Essay</code>.</li>
-                                <li>Untuk Multiple Choice dengan banyak kunci jawaban, pisahkan dengan koma (contoh: <code>A,B</code>).</li>
-                            </ul>
+                    <!-- Form Upload Excel -->
+                    <form action="{{ route('guru.questions.import', $exam->id) }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-dark mb-2">
+                                Pilih File Excel / CSV <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" name="file" class="form-control form-control-md" accept=".xlsx, .xls, .csv" required>
+                            <small class="text-muted d-block mt-1" style="font-size: 11px;">
+                                Format yang didukung: .xlsx, .xls, .csv (Maksimal 5MB)
+                            </small>
                         </div>
 
-                        <form action="{{ route('guru.questions.import', $exam->id) }}" method="POST" enctype="multipart/form-data">
-                            @csrf
+                        <!-- Baris Tombol Aksi Responsif (Vertikal di HP, Horisontal di Desktop) -->
+                        <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
+                            <!-- Download Template -->
+                            <a href="{{ route('guru.questions.template.download') }}" class="btn btn-outline-primary fw-semibold py-2 px-3 flex-fill text-center">
+                                <i class="fas fa-download me-1"></i> Download Template
+                            </a>
 
-                            <div class="mb-4">
-                                <label class="form-label fw-bold">Pilih File Excel / CSV <span class="text-danger">*</span></label>
-                                <input type="file" name="file" class="form-control form-control-lg" accept=".xlsx,.xls,.csv" required>
-                            </div>
+                            <!-- Tombol Submit / Upload -->
+                            <button type="submit" class="btn btn-success fw-bold py-2 px-4 flex-fill text-center">
+                                <i class="fas fa-file-upload me-1"></i> Unggah & Import Soal
+                            </button>
+                        </div>
+                    </form>
 
-                            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                                <a href="{{ route('guru.questions.export', $exam->id) }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-download me-1"></i> Download File Export / Template
-                                </a>
-                                <button type="submit" class="btn btn-success fw-bold px-4">
-                                    <i class="fas fa-upload me-1"></i> Unggah & Import Soal
-                                </button>
-                            </div>
-                        </form>
-
-                    </div>
                 </div>
-
             </div>
         </div>
     </div>
+
 </div>
 @endsection

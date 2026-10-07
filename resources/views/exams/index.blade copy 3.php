@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="container-fluid py-3">
-    <!-- Header Page & Switcher Tampilan -->
+    <!-- Header Page & Swicther Tampilan -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-0">Kelola Ujian</h3>
@@ -44,57 +44,11 @@
         </div>
     @endif
 
-    <!-- FORM FILTER NAMA UJIAN, GURU, & STATUS (DIPERBAHARUI) -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-body p-3">
-            <div class="row g-2 align-items-center">
-                <!-- Filter Input Nama Ujian -->
-                <div class="col-md-4 col-12">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" id="filter-search" class="form-control border-start-0" placeholder="Cari nama / judul ujian..." onkeyup="filterExams()">
-                    </div>
-                </div>
-
-                <!-- Filter Input Nama Guru (BARU) -->
-                <div class="col-md-4 col-12">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="fas fa-user-tie"></i>
-                        </span>
-                        <input type="text" id="filter-teacher" class="form-control border-start-0" placeholder="Cari nama guru pengampu..." onkeyup="filterExams()">
-                    </div>
-                </div>
-
-                <!-- Filter Dropdown Status -->
-                <div class="col-md-2 col-7">
-                    <select id="filter-status" class="form-select" onchange="filterExams()">
-                        <option value="all">-- Semua Status --</option>
-                        <option value="aktif">Aktif</option>
-                        <option value="nonaktif">Nonaktif</option>
-                    </select>
-                </div>
-
-                <!-- Tombol Reset Filter -->
-                <div class="col-md-2 col-5 d-grid">
-                    <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="resetFilter()">
-                        <i class="fas fa-undo me-1"></i> Reset
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- 1. TAMPILAN BENTUK CARD -->
     <div id="view-card-container">
-        <div class="row g-4" id="card-exam-list">
+        <div class="row g-4">
             @forelse($exams as $exam)
-                <div class="col-md-6 col-lg-4 exam-card-item" 
-                     data-title="{{ strtolower($exam->title) }}" 
-                     data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
-                     data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
+                <div class="col-md-6 col-lg-4">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-body p-4 d-flex flex-column justify-content-between">
                             <div>
@@ -107,8 +61,8 @@
                                     </span>
                                 </div>
 
-                                <h4 class="fw-bold text-dark mb-1 exam-title-text">{{ $exam->title }}</h4>
-                                <small class="text-muted d-block mb-3">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                <h4 class="fw-bold text-dark mb-1">{{ $exam->title }}</h4>
+                                <small class="text-muted d-block mb-3">Guru: {{ $exam->teacher->name ?? '-' }}</small>
 
                                 <div class="mb-3">
                                     <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
@@ -158,7 +112,7 @@
                     </div>
                 </div>
             @empty
-                <div class="col-12 text-center py-5 text-muted" id="empty-card-message">
+                <div class="col-12 text-center py-5 text-muted">
                     <p class="mb-0">Belum ada data ujian yang tersedia.</p>
                 </div>
             @endforelse
@@ -182,17 +136,14 @@
                                 <th class="text-center pe-4">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody id="table-exam-list">
+                        <tbody>
                             @forelse($exams as $index => $exam)
-                                <tr class="exam-row-item" 
-                                    data-title="{{ strtolower($exam->title) }}" 
-                                    data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
-                                    data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
-                                    <td class="ps-4 fw-semibold row-number">{{ $index + 1 }}</td>
+                                <tr>
+                                    <td class="ps-4 fw-semibold">{{ $index + 1 }}</td>
                                     <td>
                                         <span class="badge bg-primary-subtle text-primary border me-1">{{ $exam->subject->name ?? 'Mapel' }}</span>
-                                        <div class="fw-bold text-dark fs-6 mt-1 exam-title-text">{{ $exam->title }}</div>
-                                        <small class="text-muted">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                        <div class="fw-bold text-dark fs-6 mt-1">{{ $exam->title }}</div>
+                                        <small class="text-muted">Guru: {{ $exam->teacher->name ?? '-' }}</small>
                                     </td>
                                     <td>
                                         <div class="d-flex flex-wrap gap-1">
@@ -263,7 +214,7 @@
                         
                         <div class="modal-header bg-light">
                             <h5 class="modal-title fw-bold text-dark" id="editExamModalLabel-{{ $exam->id }}">
-                                <i class="fas fa-edit text-warning me-2"></i>Edit Waktu & Informasi Ujian
+                                <i class="fas fa-clock text-warning me-2"></i>Edit Waktu & Informasi Ujian
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -284,9 +235,9 @@
                                 </div>
 
                                 <div class="col-md-6 d-flex align-items-end">
-                                    <div class="form-check form-switch d-flex align-items-center gap-2 p-2 ps-0 mb-1">
-                                        <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" name="is_active" id="is_active_{{ $exam->id }}" value="1" {{ $exam->is_active ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-semibold text-dark cursor-pointer mb-0" for="is_active_{{ $exam->id }}">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="is_active" id="is_active_{{ $exam->id }}" value="1" {{ $exam->is_active ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold text-dark" for="is_active_{{ $exam->id }}">
                                             Status Ujian Aktif
                                         </label>
                                     </div>
@@ -303,57 +254,19 @@
                                 </div>
                             </div>
 
-                            <!-- Target Kelas -->
                             <div class="mb-3">
                                 <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
-                                <div class="border rounded-3 p-3 bg-light">
-                                    <div class="row g-2">
-                                        @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
-                                            <div class="col-md-4 col-6">
-                                                <div class="form-check bg-white p-2 border rounded d-flex align-items-center">
-                                                    <input class="form-check-input ms-1 me-2" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
-                                                    <label class="form-check-label fw-medium text-dark cursor-pointer mb-0" for="cls_{{ $exam->id }}_{{ $cls->id }}">
-                                                        {{ $cls->name }}
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                                <div class="d-flex flex-wrap gap-2 border rounded-3 p-3 bg-light">
+                                    @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
+                                        <div class="form-check me-3">
+                                            <input class="form-check-input" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-medium text-dark" for="cls_{{ $exam->id }}_{{ $cls->id }}">
+                                                {{ $cls->name }}
+                                            </label>
+                                        </div>
+                                    @endforeach
                                 </div>
                             </div>
-
-                            <!-- Pengaturan Acak Ujian -->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
-                                <div class="row g-3">
-                                    <!-- Switch Acak Soal -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_questions_{{ $exam->id }}" name="randomize_questions" value="1" {{ $exam->randomize_questions ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_questions_{{ $exam->id }}">
-                                                    <i class="fas fa-random text-primary me-1"></i> Acak Urutan Soal
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Urutan nomor soal akan diacak secara berbeda untuk setiap siswa.</small>
-                                        </div>
-                                    </div>
-
-                                    <!-- Switch Acak Jawaban -->
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light h-100">
-                                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="randomize_options_{{ $exam->id }}" name="randomize_options" value="1" {{ $exam->randomize_options ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="randomize_options_{{ $exam->id }}">
-                                                    <i class="fas fa-sort-alpha-down-alt text-success me-1"></i> Acak Pilihan Jawaban
-                                                </label>
-                                            </div>
-                                            <small class="text-muted d-block ms-1">Pilihan jawaban (A, B, C, D, E) akan diacak saat siswa mengerjakan.</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                         </div>
 
                         <div class="modal-footer bg-light">
@@ -388,62 +301,6 @@
             btnTable.classList.add('active', 'bg-primary', 'text-white');
             btnCard.classList.remove('active', 'bg-primary', 'text-white');
         }
-    }
-
-    // JavaScript Logika Multi-Filter (Nama Ujian, Nama Guru, & Status)
-    function filterExams() {
-        const searchInput = document.getElementById('filter-search').value.toLowerCase().trim();
-        const teacherInput = document.getElementById('filter-teacher').value.toLowerCase().trim();
-        const statusSelect = document.getElementById('filter-status').value;
-
-        // 1. Filter untuk Tampilan Card
-        const cardItems = document.querySelectorAll('.exam-card-item');
-        cardItems.forEach(item => {
-            const title = item.getAttribute('data-title') || '';
-            const teacher = item.getAttribute('data-teacher') || '';
-            const status = item.getAttribute('data-status') || '';
-
-            const matchTitle = title.includes(searchInput);
-            const matchTeacher = teacher.includes(teacherInput);
-            const matchStatus = (statusSelect === 'all') || (status === statusSelect);
-
-            if (matchTitle && matchTeacher && matchStatus) {
-                item.classList.remove('d-none');
-            } else {
-                item.classList.add('d-none');
-            }
-        });
-
-        // 2. Filter untuk Tampilan Tabel
-        const tableRows = document.querySelectorAll('.exam-row-item');
-        let visibleIndex = 1;
-
-        tableRows.forEach(row => {
-            const title = row.getAttribute('data-title') || '';
-            const teacher = row.getAttribute('data-teacher') || '';
-            const status = row.getAttribute('data-status') || '';
-
-            const matchTitle = title.includes(searchInput);
-            const matchTeacher = teacher.includes(teacherInput);
-            const matchStatus = (statusSelect === 'all') || (status === statusSelect);
-
-            if (matchTitle && matchTeacher && matchStatus) {
-                row.classList.remove('d-none');
-                // Re-index nomor urut tabel
-                const numCell = row.querySelector('.row-number');
-                if (numCell) numCell.innerText = visibleIndex++;
-            } else {
-                row.classList.add('d-none');
-            }
-        });
-    }
-
-    // Fungsi Reset Filter
-    function resetFilter() {
-        document.getElementById('filter-search').value = '';
-        document.getElementById('filter-teacher').value = '';
-        document.getElementById('filter-status').value = 'all';
-        filterExams();
     }
 
     // Default Tampilan: Card Mode

@@ -117,15 +117,17 @@ class ExamController extends Controller
 
         // Simpan data Ujian
         $exam = Exam::create([
-            'title'            => $validated['title'],
-            'type'             => $validated['type'],
-            'subject_id'       => $validated['subject_id'],
-            'teacher_id'       => $teacherId,
-            'academic_year_id' => $validated['academic_year_id'] ?? null,
-            'duration_minutes' => $validated['duration_minutes'],
-            'start_time'       => $validated['start_time'],
-            'end_time'         => $validated['end_time'],
-            'is_active'        => $request->has('is_active'),
+            'title'               => $validated['title'],
+            'type'                => $validated['type'],
+            'subject_id'          => $validated['subject_id'],
+            'teacher_id'          => $teacherId,
+            'academic_year_id'    => $validated['academic_year_id'] ?? null,
+            'duration_minutes'    => $validated['duration_minutes'],
+            'start_time'          => $validated['start_time'],
+            'end_time'            => $validated['end_time'],
+            'is_active'           => $request->has('is_active'),
+            'randomize_questions' => $request->has('randomize_questions'), // <-- Simpan Fitur Acak Soal
+            'randomize_options'   => $request->has('randomize_options'),   // <-- Simpan Fitur Acak Jawaban
         ]);
 
         // Attach relasi ke banyak kelas (Tabel Pivot classroom_exam)
@@ -488,11 +490,13 @@ class ExamController extends Controller
 
         // 1. Update atribut utama ujian
         $exam->update([
-            'title'            => $request->title,
-            'duration_minutes' => $request->duration_minutes,
-            'start_time'       => $request->start_time,
-            'end_time'         => $request->end_time,
-            'is_active'        => $request->has('is_active') ? true : false,
+            'title'               => $request->title,
+            'duration_minutes'    => $request->duration_minutes,
+            'start_time'          => $request->start_time,
+            'end_time'            => $request->end_time,
+            'is_active'           => $request->has('is_active') ? true : false,
+            'randomize_questions' => $request->has('randomize_questions') ? true : false, // <-- Update
+            'randomize_options'   => $request->has('randomize_options') ? true : false,   // <-- Update
         ]);
 
         // 2. Sync relasi target kelas (Pivot: classroom_exam)
@@ -513,6 +517,7 @@ class ExamController extends Controller
     return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
 }
 
+<<<<<<< HEAD
 /**
  * Tampilan & Rekap Siswa yang Belum / Sedang Mengikuti Ujian
  */
@@ -577,4 +582,88 @@ public function finishSessionByAdmin(ExamSession $session)
 }
 
 
+=======
+public function getStudentsByAnswer(Question $question, Request $request)
+{
+    try {
+        $option = strtoupper(trim($request->query('option', '')));
+
+        // Menggunakan relasi 'session' (bukan examSession)
+        $answers = ExamAnswer::where('question_id', $question->id)
+            ->with(['session.student.classroom'])
+            ->get();
+
+        $students = [];
+
+        foreach ($answers as $ans) {
+            // Ambil sesi pengerjaan (mencoba relasi session atau examSession)
+            $session = $ans->session ?? $ans->examSession ?? null;
+            if (!$session) {
+                continue;
+            }
+
+            // Ambil data siswa
+            $student = $session->student ?? null;
+
+            // Ambil nama siswa dan kelas
+            $studentName = optional($student)->name 
+                ?? optional(optional($session)->user)->name 
+                ?? 'Siswa Tanpa Nama';
+
+            $className = optional(optional($student)->classroom)->name 
+                ?? optional(optional(optional($session)->user)->classroom)->name 
+                ?? '-';
+
+            // Parsing jawaban siswa
+            $rawAnswer = $ans->answer;
+            if (is_string($rawAnswer)) {
+                $decoded = json_decode($rawAnswer, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $rawAnswer = $decoded;
+                }
+            }
+
+            // Pengecekan kecocokan opsi jawaban
+            $isMatch = false;
+
+            if ($option === 'KOSONG') {
+                if (empty($rawAnswer)) {
+                    $isMatch = true;
+                }
+            } else {
+                if (is_array($rawAnswer)) {
+                    $normalized = array_map(function($v) {
+                        return strtoupper(trim((string)$v));
+                    }, $rawAnswer);
+                    $isMatch = in_array($option, $normalized, true);
+                } elseif (!empty($rawAnswer)) {
+                    $isMatch = (strtoupper(trim((string)$rawAnswer)) === $option);
+                }
+            }
+
+            if ($isMatch) {
+                $students[] = [
+                    'name'  => $studentName,
+                    'class' => $className,
+                ];
+            }
+        }
+
+        return response()->json([
+            'status'   => 'success',
+            'option'   => $option,
+            'students' => $students
+        ]);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine()
+        ], 500);
+    }
+}
+
+>>>>>>> 08790f9d215ab4dcc2767af491894899bd0205b0
 }

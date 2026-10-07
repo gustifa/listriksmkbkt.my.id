@@ -148,29 +148,162 @@ class StudentExamController extends Controller
     /**
      * 3. Memulai Sesi Ujian (Create/Fetch Session)
      */
+    // public function beginExam(Request $request, Exam $exam)
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     if (!$exam->is_active) {
+    //         return redirect()->route('student.exam.index')
+    //                          ->with('error', 'Ujian sedang tidak aktif.');
+    //     }
+
+    //     // Cari atau buat sesi pengerjaan baru
+    //     $session = ExamSession::firstOrCreate(
+    //         [
+    //             'exam_id'   => $exam->id,
+    //             'student_id' => $studentId,
+    //         ],
+    //         [
+    //             'start_time' => now(),
+    //             'status'     => 'ongoing', // Menggunakan enum 'ongoing'
+    //         ]
+    //     );
+
+    //     return redirect()->route('student.exam.show', [$exam->id, $session->id])
+    //                      ->with('success', 'Ujian dimulai. Selamat mengerjakan!');
+    // }
+
+//     public function beginExam(Request $request, Exam $exam)
+// {
+//     $user = Auth::user();
+
+//     if (!$exam->is_active) {
+//         return redirect()->route('student.dashboard')
+//                          ->with('error', 'Ujian sedang tidak aktif.');
+//     }
+
+//     // Pengecekan Token Ujian (jika ujian memiliki token)
+//     if (!empty($exam->token)) {
+//         $request->validate([
+//             'token' => 'required|string',
+//         ], [
+//             'token.required' => 'Token ujian wajib diisi.'
+//         ]);
+
+//         if (strtoupper($request->token) !== strtoupper($exam->token)) {
+//             return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+//         }
+//     }
+
+//     // Buat atau ambil sesi ujian
+//     $session = ExamSession::firstOrCreate(
+//         [
+//             'exam_id' => $exam->id,
+//             'student_id' => $student->id,
+//         ],
+//         [
+//             'start_time' => now(),
+//             'status'     => 'in_progress',
+//         ]
+//     );
+
+//     return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+//                      ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
+// }
+
+// public function beginExam(Request $request, Exam $exam)
+// {
+//     /** @var \App\Models\User $user */
+//     $user = Auth::user();
+
+//     // 1. Ambil relasi data student dari user yang login
+//     $student = $user->student; 
+
+//     // Jika akun user tidak terhubung ke tabel student
+//     if (!$student) {
+//         return redirect()->back()->with('error', 'Data siswa tidak ditemukan untuk akun ini.');
+//     }
+
+//     // 2. Cek apakah ujian sedang aktif
+//     if (!$exam->is_active) {
+//         return redirect()->route('student.dashboard')
+//                          ->with('error', 'Ujian sedang tidak aktif.');
+//     }
+
+//     // 3. Validasi Token Ujian (jika ujian menggunakan token)
+//     if (!empty($exam->token)) {
+//         $request->validate([
+//             'token' => 'required|string',
+//         ], [
+//             'token.required' => 'Token ujian wajib diisi.'
+//         ]);
+
+//         if (strtoupper($request->token) !== strtoupper($exam->token)) {
+//             return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+//         }
+//     }
+
+//     // 4. Buat atau ambil sesi pengerjaan ujian
+//     $session = ExamSession::firstOrCreate(
+//         [
+//             'exam_id'    => $exam->id,
+//             'student_id' => $student->id, // Deklarasi $student sudah ada di atas
+//         ],
+//         [
+//             'start_time' => now(),
+//             'status'     => 'in_progress', // Atau 'ongoing'
+//         ]
+//     );
+
+//     return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+//                      ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
+// }
+
+// 3. Memulai Ujian (Submit Form Token & Mulai Sesi)
     public function beginExam(Request $request, Exam $exam)
     {
-        $studentId = $this->getStudentId();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Ambil relasi student dari user login
+        $student = $user->student;
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'Data siswa tidak ditemukan untuk akun ini.');
+        }
 
         if (!$exam->is_active) {
             return redirect()->route('student.exam.index')
                              ->with('error', 'Ujian sedang tidak aktif.');
         }
 
-        // Cari atau buat sesi pengerjaan baru
+        // Validasi Token Ujian jika ada
+        if (!empty($exam->token)) {
+            $request->validate([
+                'token' => 'required|string',
+            ], [
+                'token.required' => 'Token ujian wajib diisi.'
+            ]);
+
+            if (strtoupper(trim($request->token)) !== strtoupper(trim($exam->token))) {
+                return redirect()->back()->with('error', 'Token ujian yang Anda masukkan salah!');
+            }
+        }
+
+        // Buat atau ambil sesi pengerjaan ujian
         $session = ExamSession::firstOrCreate(
             [
-                'exam_id'   => $exam->id,
-                'student_id' => $studentId,
+                'exam_id'    => $exam->id,
+                'student_id' => $student->id,
             ],
             [
                 'start_time' => now(),
-                'status'     => 'ongoing', // Menggunakan enum 'ongoing'
+                'status'     => 'ongoing',
             ]
         );
 
-        return redirect()->route('student.exam.show', [$exam->id, $session->id])
-                         ->with('success', 'Ujian dimulai. Selamat mengerjakan!');
+        return redirect()->route('student.exam.show', [$exam->id, 'session' => $session->id])
+                         ->with('success', 'Ujian berhasil dimulai. Selamat mengerjakan!');
     }
 
     /**
@@ -253,6 +386,62 @@ class StudentExamController extends Controller
 //     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
 // }
 
+    // public function show(Exam $exam, ExamSession $session)
+    // {
+    //     $studentId = $this->getStudentId();
+
+    //     // 1. Validasi Pemilik Sesi
+    //     if ($session->student_id !== $studentId || $session->exam_id !== $exam->id) {
+    //         return redirect()->route('student.exam.index')->with('error', 'Akses sesi ujian tidak valid.');
+    //     }
+
+    //     // 2. Validasi Target Kelas Siswa
+    //     $student = Student::findOrFail($studentId);
+    //     $isTargetClass = $exam->classrooms()->where('classrooms.id', $student->classroom_id)->exists();
+
+    //     if (!$isTargetClass) {
+    //         return redirect()->route('student.exam.index')
+    //                         ->with('error', 'Anda tidak terdaftar sebagai peserta pada kelas ujian ini.');
+    //     }
+
+    //     // 3. Jika ujian sudah selesai, langsung arahkan ke hasil
+    //     if ($session->status === 'completed') {
+    //         return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+    //     }
+
+    //     // 4. Pastikan start_time tercatat saat pertama kali membuka ujian
+    //     if (!$session->start_time) {
+    //         $session->update([
+    //             'start_time' => now(),
+    //         ]);
+    //         $startTime = now();
+    //     } else {
+    //         $startTime = Carbon::parse($session->start_time);
+    //     }
+
+    //     // 5. Hitung Waktu Selesai yang Pasti (Deadline = start_time + durasi)
+    //     $deadline = $startTime->copy()->addMinutes($exam->duration_minutes);
+    //     $now = now();
+
+    //     // 6. Hitung Sisa Detik Aktual
+    //     if ($now->greaterThanOrEqualTo($deadline)) {
+    //         // Jika waktu sudah lewat dari deadline, otomatis selesaikan sesi
+    //         return $this->autoFinishSession($session);
+    //     }
+
+    //     // Hitung selisih detik yang tersisa menuju deadline
+    //     $remainingSeconds = $now->diffInSeconds($deadline);
+
+    //     // 7. Load soal ujian & jawaban siswa
+    //     $questions = $exam->questions()->get();
+    //     $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+    //     return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
+    // }
+
+    /**
+     * 4. Halaman Lembar Pengerjaan Soal (Show dengan Fitur Acak Soal & Opsi)
+     */
     public function show(Exam $exam, ExamSession $session)
     {
         $studentId = $this->getStudentId();
@@ -299,8 +488,32 @@ class StudentExamController extends Controller
         // Hitung selisih detik yang tersisa menuju deadline
         $remainingSeconds = $now->diffInSeconds($deadline);
 
-        // 7. Load soal ujian & jawaban siswa
-        $questions = $exam->questions()->get();
+        // 7. Load Soal Ujian (Dengan Logika Acak Soal jika Diaktifkan)
+        $questionsQuery = $exam->questions();
+
+        if ($exam->randomize_questions) {
+            // Mengacak soal dengan seed ID Sesi agar urutan acak tetap konsisten per siswa saat direfresh
+            $questionsQuery->inRandomOrder($session->id);
+        } else {
+            $questionsQuery->orderBy('created_at', 'asc');
+        }
+
+        $questions = $questionsQuery->get();
+
+        // 8. Logika Acak Opsi Jawaban (jika Diaktifkan)
+        if ($exam->randomize_options) {
+            foreach ($questions as $q) {
+                $optionsData = is_string($q->options) ? json_decode($q->options, true) : $q->options;
+
+                if (is_array($optionsData) && !empty($optionsData)) {
+                    // Acak urutan array opsi untuk setiap soal
+                    shuffle($optionsData);
+                    $q->options = $optionsData;
+                }
+            }
+        }
+
+        // 9. Ambil Jawaban Siswa
         $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
 
         return view('students.exam.show', compact('exam', 'session', 'questions', 'answers', 'remainingSeconds'));
