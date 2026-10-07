@@ -549,30 +549,81 @@ public function unsubmittedStudents(Exam $exam)
 /**
      * Menyelesaikan ujian siswa secara paksa oleh Admin / Guru
      */
-    public function finishSessionByAdmin(ExamSession $session)
-    {
-        try {
-            // Ambil semua jawaban yang sudah disubmit oleh siswa di sesi ini
-            $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+    // public function finishSessionByAdmin(ExamSession $session)
+    // {
+    //     try {
+    //         // Ambil semua jawaban yang sudah disubmit oleh siswa di sesi ini
+    //         $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
 
-            // Hitung total skor dari akumulasi nilai jawaban
-            $totalScore = 0;
-            foreach ($answers as $ans) {
-                $totalScore += $ans->score_given ?? 0;
+    //         // Hitung total skor dari akumulasi nilai jawaban
+    //         $totalScore = 0;
+    //         foreach ($answers as $ans) {
+    //             $totalScore += $ans->score_given ?? 0;
+    //         }
+
+    //         // Update status sesi menjadi completed/selesai, catat waktu submit, dan simpan skornya
+    //         $session->update([
+    //             'status'      => 'completed',
+    //             'submit_time' => now(),
+    //             'score'       => $totalScore,
+    //         ]);
+
+    //         return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan oleh Admin/Guru.');
+    //     } catch (\Exception $e) {
+    //         return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
+    //     }
+    // }
+
+    public function finishSessionByAdmin(ExamSession $session)
+{
+    try {
+        // Load relasi jawaban beserta detail soalnya
+        $answers = ExamAnswer::with('question')->where('exam_session_id', $session->id)->get();
+
+        $totalScore = 0;
+
+        foreach ($answers as $ans) {
+            $question = $ans->question;
+            $scoreGiven = 0;
+
+            if ($question) {
+                // Decode jawaban siswa (karena di DB bertipe json)
+                $studentAnswer = is_string($ans->answer) ? json_decode($ans->answer, true) : $ans->answer;
+
+                // Jika soal Pilihan Ganda / PG Kompleks
+                if (isset($question->correct_answer)) {
+                    $correctAnswer = is_string($question->correct_answer)
+                        ? json_decode($question->correct_answer, true)
+                        : $question->correct_answer;
+
+                    // Cocokkan jawaban siswa dengan kunci jawaban
+                    if ($studentAnswer == $correctAnswer) {
+                        $scoreGiven = $question->score ?? $question->weight ?? 10; // Sesuaikan bobot nilai per soal
+                    }
+                }
             }
 
-            // Update status sesi menjadi completed/selesai, catat waktu submit, dan simpan skornya
-            $session->update([
-                'status'      => 'completed',
-                'submit_time' => now(),
-                'score'       => $totalScore,
+            // Update score_given pada masing-masing jawaban jika belum ada
+            $ans->update([
+                'score_given' => $scoreGiven,
+                'is_correct'  => $scoreGiven > 0 ? true : false,
             ]);
 
-            return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan oleh Admin/Guru.');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
+            $totalScore += $scoreGiven;
         }
+
+        // Update status sesi exam_sessions
+        $session->update([
+            'status'      => 'completed',
+            'submit_time' => now(),
+            'score'       => $totalScore,
+        ]);
+
+        return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan dan nilai berhasil dihitung.');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
     }
+}
 
 
 public function getStudentsByAnswer(Question $question, Request $request)
