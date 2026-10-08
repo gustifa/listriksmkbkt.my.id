@@ -435,11 +435,11 @@ class ExamController extends Controller
             ->orderBy('updated_at', 'desc') // Menggunakan updated_at atau end_time
             ->get();
 
-        // Statistik Ringkas
+        // Statistik Ringkas (Ubah 'total_score' menjadi 'score')
         $completedSessions = $sessions->where('status', 'completed');
-        $averageScore = $completedSessions->avg('total_score') ?? 0;
-        $highestScore = $completedSessions->max('total_score') ?? 0;
-        $lowestScore = $completedSessions->min('total_score') ?? 0;
+        $averageScore = $completedSessions->avg('score') ?? 0;
+        $highestScore = $completedSessions->max('score') ?? 0;
+        $lowestScore = $completedSessions->min('score') ?? 0;
 
         return view('guru.exams.report', compact(
             'exam',
