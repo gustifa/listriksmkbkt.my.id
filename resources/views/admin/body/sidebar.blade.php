@@ -264,6 +264,7 @@ $status = $guruId->status;
 						<li> <a href="{{url('/daily-attendance/manual')}}"><i class='bx bx-border-all'></i>Manual</a>
 						<li> <a href="{{url('/daily-attendance')}}"><i class='bx bx-barcode'></i>QR</a>
 						<li> <a href="{{route('daily.face.scan')}}"><i class='bx bx-face'></i>Face</a>
+						<li> <a href="{{route('face.index')}}"><i class='bx bx-face'></i>Multi-Descriptor</a>
 						</li>
 
 					</ul>

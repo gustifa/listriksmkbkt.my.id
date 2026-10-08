@@ -13,6 +13,8 @@ use App\Models\Student;
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\FaceRegistrationController;
+use App\Http\Controllers\GateMonitorController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -129,6 +131,21 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING REALTIME (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+    // Group Route Registrasi & Management Wajah (CRUD)
+    Route::prefix('face-registration')->group(function () {
+        Route::get('/', [FaceRegistrationController::class, 'index'])->name('face.index');
+        Route::get('/create/{student_id}', [FaceRegistrationController::class, 'create'])->name('face.create');
+        Route::post('/store', [FaceRegistrationController::class, 'store'])->name('face.store');
+        Route::get('/edit/{student_id}', [FaceRegistrationController::class, 'edit'])->name('face.edit');
+        Route::delete('/destroy/{descriptor_id}', [FaceRegistrationController::class, 'destroy'])->name('face.destroy');
+    });
+
+    // Route API Fetch Descriptors untuk Scanner
+    Route::get('/face-descriptors-all', [FaceRegistrationController::class, 'getAllDescriptors'])->name('face.descriptors.all');
+
+    // Route Monitor Gerbang (Scan)
+    Route::get('/monitor-gerbang', [GateMonitorController::class, 'index'])->name('gate.monitor');
+
     // Halaman Monitor Dashboard (AJAX Polling)
     //Route::get('/daily-attendance/monitor', [DailyAttendanceController::class, 'monitor'])->name('daily.monitor');
     Route::get('/daily-attendance/monitor-kelas', [DailyAttendanceController::class, 'monitorKelas'])->name('daily.monitor.kelas');

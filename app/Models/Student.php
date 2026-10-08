@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 // use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Traits\HasUuid; // <--- 1. Import Trait
 
@@ -104,6 +105,16 @@ class Student extends Model
     public function permits()
     {
         return $this->hasMany(StudentPermission::class, 'student_id');
+    }
+
+    /**
+     * Relasi ke FaceDescriptor
+     */
+
+
+    public function faceDescriptors(): HasMany
+    {
+        return $this->hasMany(StudentFaceDescriptor::class, 'student_id', 'id');
     }
 
 
