@@ -2,9 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.css" rel="stylesheet">
@@ -12,7 +11,6 @@
     <title>SISFO SMK | Monitor Gerbang Presisi</title>
 
     <style>
-        /* Styling Dasar Kamera & Container */
         .video-container {
             position: relative;
             width: 100%;
@@ -23,99 +21,25 @@
             background: #000;
             aspect-ratio: 4/3;
             border: 4px solid #fff;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-
-        /* Mencegah Masalah Cermin & Safari iOS Render */
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            -webkit-transform: scaleX(-1);
-        }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            transform: scaleX(-1);
-            -webkit-transform: scaleX(-1);
-        }
-
+        #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         #capture-canvas { display: none; }
-
-        .camera-controls {
-            max-width: 640px;
-            margin: 0 auto 15px auto;
-        }
-
-        /* ===================================================
-           MEDIA QUERIES KHUSUS RESPONSIVE (ANDROID & IPHONE)
-        =================================================== */
-
-        @media (max-width: 575.98px) {
-            .page-content {
-                padding-left: 8px;
-                padding-right: 8px;
-            }
-
-            .card-header {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
-
-            .card-header a {
-                width: 100%;
-            }
-
-            .btn-group.w-75 {
-                width: 100% !important;
-            }
-
-            .btn-group .btn {
-                font-size: 0.85rem;
-                padding: 8px 4px;
-            }
-
-            .video-container {
-                border-width: 2px;
-                border-radius: 10px;
-                aspect-ratio: 3/4; /* Mengubah aspect ratio ke 3:4 agar pas dengan layar vertikal HP */
-            }
-
-            #camera-select {
-                font-size: 0.85rem;
-            }
-        }
-
-        /* Penanganan Safe Area notch iPhone X ke atas */
-        @supports (padding: max(0px)) {
-            body {
-                padding-left: min(0px, env(safe-area-inset-left));
-                padding-right: min(0px, env(safe-area-inset-right));
-                padding-bottom: min(0px, env(safe-area-inset-bottom));
-            }
-        }
+        .camera-controls { max-width: 640px; margin: 0 auto 15px auto; }
     </style>
 </head>
 
 <body class="bg-light">
     <div class="page-content">
-        <div class="row justify-content-center pt-2 pt-md-4">
+        <div class="row justify-content-center pt-4">
             <div class="col-12 col-md-10 col-lg-8 text-center">
                 <div class="shadow card border-0">
                     <div class="text-white card-header bg-success d-flex justify-content-between align-items-center py-3">
                         <span class="fw-bold"><i class="fas fa-camera me-2"></i> MONITOR GERBANG PRESISI TINGGI</span>
-                        <div class="d-flex gap-2 w-100 w-md-auto justify-content-center">
-                            <a href="{{ route('dashboard') }}" class="btn btn-sm btn-light text-success fw-bold">DASHBOARD</a>
-                            <a href="{{ route('face.index') }}" class="btn btn-sm btn-outline-light fw-bold">KELOLA WAJAH</a>
-                        </div>
+                        <a href="{{ route('face.index') }}" class="btn btn-sm btn-light text-success fw-bold">KELOLA WAJAH</a>
                     </div>
-                    <div class="card-body px-2 px-md-3">
+                    <div class="card-body">
                         <!-- Mode Absensi -->
                         <div class="mb-3">
                             <div class="btn-group w-75" role="group">
@@ -126,7 +50,7 @@
                             </div>
                         </div>
 
-                        <!-- Camera Select & Toggle Button -->
+                        <!-- Kamera Select & Controls -->
                         <div class="camera-controls">
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="fas fa-video text-secondary"></i></span>
@@ -192,7 +116,7 @@
                 const response = await fetch("{{ route('face.descriptors.all') }}");
                 const data = await response.json();
 
-                if(!data || data.length === 0) {
+                if(data.length === 0) {
                     statusMsg.className = 'alert alert-danger';
                     statusMsg.innerText = "Data wajah belum terdaftar!";
                     return;
@@ -205,7 +129,7 @@
                     return new faceapi.LabeledFaceDescriptors(d.label, descriptors);
                 });
 
-                // Threshold FaceMatcher di-set ke 0.40
+                // Set Threshold FaceMatcher ke 0.40
                 faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.40);
 
                 statusMsg.className = 'alert alert-success';
@@ -236,13 +160,6 @@
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     let label = device.label || `Kamera ${index + 1}`;
-
-                    if (label.toLowerCase().includes('back') || label.toLowerCase().includes('rear')) {
-                        label = `📷 Kamera Belakang (${label})`;
-                    } else if (label.toLowerCase().includes('front') || label.toLowerCase().includes('facing')) {
-                        label = `🤳 Kamera Depan (${label})`;
-                    }
-
                     option.text = label;
                     cameraSelect.appendChild(option);
                 });
@@ -250,23 +167,20 @@
                 startCamera(cameraSelect.value);
             } catch (err) {
                 statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Izin kamera ditolak atau tidak tersedia pada browser HP Anda.";
+                statusMsg.innerText = "Izin kamera ditolak atau tidak tersedia.";
             }
         }
 
         function startCamera(deviceId = null) {
             stopCameraStream();
 
-            const videoConstraints = deviceId
-                ? { deviceId: { exact: deviceId } }
-                : { facingMode: "user" };
-
             const constraints = {
-                video: Object.assign(videoConstraints, {
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
                     width: { ideal: 640 },
                     height: { ideal: 480 },
                     frameRate: { ideal: 30, max: 30 }
-                })
+                }
             };
 
             navigator.mediaDevices.getUserMedia(constraints)
@@ -326,7 +240,7 @@
             return captureCanvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // ASYNC LOOP PENDETEKSIAN DENGAN BATAS TOLERANSI KETAT
+        // LOOPER PENDETEKSIAN DENGAN AKURASI KETAT
         video.addEventListener('play', () => {
             const overlay = document.getElementById('overlay');
             if (detectionLoopActive) return;
@@ -355,7 +269,7 @@
                             const match = faceMatcher.findBestMatch(det.descriptor);
                             new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
 
-                            // Batas toleransi ketat < 0.38 untuk meminimalisir salah kenal orang
+                            // Batas toleransi diperketat ke distance < 0.38 untuk mencegah kesalahan tertukar orang
                             if (match.label !== 'unknown' && match.distance < 0.38) {
                                 isProcessing = true;
                                 const screenshot = takeScreenshot();
