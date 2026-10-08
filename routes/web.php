@@ -15,6 +15,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\FaceRegistrationController;
 use App\Http\Controllers\GateMonitorController;
+use App\Http\Controllers\StudentSelfServiceController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -775,8 +776,17 @@ Route::middleware(['auth'])->group(function () {
 
     });
 
-    Route::middleware(['role:siswa'])->group(function () {
+    Route::middleware(['role:siswa','ensure.face'])->group(function () {
         Route::prefix('student')->name('student.')->group(function() {
+            Route::get('/register-face', [StudentSelfServiceController::class, 'registerFaceView'])->name('face.register');
+            Route::post('/register-face', [StudentSelfServiceController::class, 'storeFace'])->name('face.store');
+            Route::get('/face', [StudentSelfServiceController::class, 'index'])->name('face.index');
+            Route::get('/face/register', [StudentSelfServiceController::class, 'registerFaceView'])->name('face.register');
+            Route::post('/face/store', [StudentSelfServiceController::class, 'storeFace'])->name('student.face.store');
+            Route::delete('/face/destroy/{id}', [StudentSelfServiceController::class, 'destroy'])->name('face.destroy');
+            // Mandiri Presisi Scan Wajah (Dengan Geolocation)
+            Route::get('/scan', [StudentSelfServiceController::class, 'scanView'])->name('scan');
+            Route::post('/scan-process', [StudentSelfServiceController::class, 'processScan'])->name('scan.process');
 
             Route::get('scan', [DailyAttendanceController::class, 'studentScanView'])->name('scan');
             Route::post('scan', [DailyAttendanceController::class, 'storeStudentSelfScan'])->name('scan.store');
