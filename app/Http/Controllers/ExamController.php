@@ -712,4 +712,88 @@ public function getStudentsByAnswer(Question $question, Request $request)
     }
 }
 
+/**
+ * Analisis Butir Soal Ilmiah (Tingkat Kesukaran & Daya Beda)
+ */
+public function itemAnalysis(Exam $exam)
+{
+    $exam->load(['subject', 'questions']);
+
+    // Ambil sesi ujian yang sudah completed
+    $completedSessions = ExamSession::where('exam_id', $exam->id)
+        ->where('status', 'completed')
+        ->orderBy('score', 'desc')
+        ->get();
+
+    $totalStudents = $completedSessions->count();
+
+    if ($totalStudents === 0) {
+        return redirect()->back()->with('error', 'Belum ada siswa yang menyelesaikan ujian ini untuk dianalisis.');
+    }
+
+    // Penentuan Kelompok Atas & Bawah (27% standar Ferguson/Kelley)
+    $groupSize = max(1, (int) round($totalStudents * 0.27));
+    $upperSessions = $completedSessions->take($groupSize)->pluck('id');
+    $lowerSessions = $completedSessions->take(-$groupSize)->pluck('id');
+
+    $analysisResult = [];
+
+    foreach ($exam->questions as $index => $question) {
+        $answers = ExamAnswer::where('question_id', $question->id)->get();
+
+        // 1. Hitung Tingkat Kesukaran (P)
+        $correctCount = $answers->where('is_correct', true)->count();
+        $facilityValue = $totalStudents > 0 ? ($correctCount / $totalStudents) : 0;
+
+        if ($facilityValue > 0.70) {
+            $difficultyCategory = 'Mudah';
+            $difficultyBadge = 'bg-success';
+        } elseif ($facilityValue >= 0.30) {
+            $difficultyCategory = 'Sedang (Ideal)';
+            $difficultyBadge = 'bg-primary';
+        } else {
+            $difficultyCategory = 'Sukar';
+            $difficultyBadge = 'bg-danger';
+        }
+
+        // 2. Hitung Daya Beda (D)
+        $upperCorrect = ExamAnswer::where('question_id', $question->id)
+            ->whereIn('exam_session_id', $upperSessions)
+            ->where('is_correct', true)
+            ->count();
+
+        $lowerCorrect = ExamAnswer::where('question_id', $question->id)
+            ->whereIn('exam_session_id', $lowerSessions)
+            ->where('is_correct', true)
+            ->count();
+
+        $discriminationIndex = $groupSize > 0 ? (($upperCorrect - $lowerCorrect) / $groupSize) : 0;
+
+        if ($discriminationIndex >= 0.40) {
+            $discriminationCategory = 'Sangat Baik';
+        } elseif ($discriminationIndex >= 0.30) {
+            $discriminationCategory = 'Baik';
+        } elseif ($discriminationIndex >= 0.20) {
+            $discriminationCategory = 'Cukup (Perlu Revisi)';
+        } else {
+            $discriminationCategory = 'Buruk (Dibuang/Diganti)';
+        }
+
+        $analysisResult[] = [
+            'no' => $index + 1,
+            'question_id' => $question->id,
+            'question_text' => $question->question_text,
+            'correct_count' => $correctCount,
+            'wrong_count' => $totalStudents - $correctCount,
+            'facility_value' => number_format($facilityValue, 2),
+            'difficulty_category' => $difficultyCategory,
+            'difficulty_badge' => $difficultyBadge,
+            'discrimination_index' => number_format($discriminationIndex, 2),
+            'discrimination_category' => $discriminationCategory,
+        ];
+    }
+
+    return view('guru.exams.item_analysis', compact('exam', 'totalStudents', 'analysisResult'));
+}
+
 }

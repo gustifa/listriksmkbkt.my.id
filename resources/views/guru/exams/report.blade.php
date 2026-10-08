@@ -17,6 +17,9 @@
             <a href="{{ route('guru.exams.unsubmitted', $exam->id) }}" class="btn btn-warning text-dark fw-bold">
                 <i class="fas fa-user-clock me-1"></i> Belum Ujian
             </a>
+            <a href="{{ route('guru.exams.item_analysis', $exam->id) }}" class="btn btn-info text-white fw-bold">
+                <i class="fas fa-chart-bar me-1"></i> Analisis Butir Soal
+            </a>
             <a href="{{ route('exams.report.export', $exam->id) }}" class="btn btn-success fw-bold">
                 <i class="fas fa-file-excel me-1"></i> Export Excel
             </a>

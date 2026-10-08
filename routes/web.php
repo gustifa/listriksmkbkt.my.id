@@ -216,7 +216,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
     Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
-
+    Route::get('/exams/{exam}/item-analysis', [ExamController::class, 'itemAnalysis'])->name('guru.exams.item_analysis');
     // Route Rekap Siswa Belum Ujian
     Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
     // Route Force Selesai Ujian oleh Admin / Guru
