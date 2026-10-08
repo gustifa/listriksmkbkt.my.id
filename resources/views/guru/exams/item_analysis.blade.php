@@ -23,7 +23,21 @@
         </div>
     </div>
 
-    <!-- Tabel Hasil Analisis -->
+    <!-- CARD GRAFIK ANALISIS BUTIR SOAL -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-chart-line text-primary me-2"></i>Grafik Tingkat Kesukaran (P) & Daya Beda (D) Per Soal
+            </h6>
+        </div>
+        <div class="card-body">
+            <div style="position: relative; height: 320px; width: 100%;">
+                <canvas id="itemAnalysisChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABEL HASIL ANALISIS -->
     <div class="card border-0 shadow-sm rounded-3">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -184,4 +198,76 @@
         </div>
     </div>
 </div>
+
+<!-- CHART.JS CDN & SCRIPT RENDER -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const labels = {!! json_encode(array_column($analysisResult, 'no')) !!}.map(no => "Soal " + no);
+        const facilityValues = {!! json_encode(array_column($analysisResult, 'facility_value')) !!};
+        const discriminationIndexes = {!! json_encode(array_column($analysisResult, 'discrimination_index')) !!};
+
+        const ctx = document.getElementById('itemAnalysisChart').getContext('2d');
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Tingkat Kesukaran (P)',
+                        data: facilityValues,
+                        backgroundColor: 'rgba(13, 110, 253, 0.65)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Daya Beda (D)',
+                        data: discriminationIndexes,
+                        type: 'line',
+                        borderColor: '#dc3545',
+                        backgroundColor: '#dc3545',
+                        pointStyle: 'circle',
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        borderWidth: 2,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: -0.2,
+                        max: 1.0,
+                        title: { display: true, text: 'Nilai Indeks (0.00 - 1.00)' },
+                        ticks: { stepSize: 0.2 }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
 @endsection
