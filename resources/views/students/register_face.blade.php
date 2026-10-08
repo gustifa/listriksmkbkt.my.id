@@ -41,8 +41,7 @@
 
         @media (max-width: 575.98px) {
             .container { padding-left: 10px; padding-right: 10px; }
-            .card-header { flex-direction: column; gap: 10px; text-align: center; }
-            .header-nav-btns { width: 100%; justify-content: center; }
+            .card-header { flex-direction: column; gap: 8px; text-align: center; }
             .webcam-box { aspect-ratio: 3/4; }
             .preview-img { width: 70px; height: 70px; }
         }
@@ -70,24 +69,10 @@
             @endif
 
             <div class="card shadow border-0">
-                <!-- HEADER DENGAN TOMBOL LOGOUT & KEMBALI -->
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
                     <span class="fw-bold"><i class="fas fa-camera me-2"></i> Pendaftaran Wajah Saya</span>
-                    
-                    <div class="header-nav-btns d-flex gap-2">
-                        <a href="{{ route('student.face.index') }}" class="btn btn-sm btn-light fw-bold text-primary">
-                            <i class="fas fa-arrow-left me-1"></i> Kembali
-                        </a>
-                        <!-- FORM LOGOUT -->
-                        <form method="POST" action="{{ route('logout') }}" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-danger fw-bold">
-                                <i class="fas fa-sign-out-alt me-1"></i> Logout
-                            </button>
-                        </form>
-                    </div>
+                    <a href="{{ route('student.face.index') }}" class="btn btn-sm btn-light fw-bold">Kembali</a>
                 </div>
-
                 <div class="card-body text-center p-3 p-md-4">
                     
                     <!-- PETUNJUK SYARAT MINIMAL 3 SAMPEL -->
@@ -121,7 +106,7 @@
                     <h6 class="fw-bold">Sampel Terkumpul (<span id="sample-count">0</span>/3):</h6>
                     <div id="preview-list" class="d-flex justify-content-center gap-2 flex-wrap mb-3"></div>
 
-                    <!-- TOMBOL SIMPAN -->
+                    <!-- TOMBOL SIMPAN (MATI JIKA BELUM 3) -->
                     <button id="btn-save" class="btn btn-secondary w-100 py-2 fw-bold" disabled>
                         <i class="fas fa-save me-2"></i> Simpan Sampel Wajah (<span id="save-count-info">0/3</span>)
                     </button>
@@ -146,6 +131,7 @@
     let collectedDescriptors = [];
     let collectedLabels = [];
 
+    // Load Model face-api.js
     Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
         faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
@@ -166,6 +152,7 @@
             });
     }
 
+    // Ambil Sampel Foto
     btnCapture.addEventListener('click', async () => {
         btnCapture.disabled = true;
         statusMsg.innerText = "Mengekstrak fitur wajah...";
@@ -203,6 +190,7 @@
         sampleCountText.innerText = count;
         $('#save-count-info').text(`${count}/3`);
 
+        // VALIDASI TERKUNCI JIKA SAMPEL KELUAR KURANG DARI 3
         if (count >= 3) {
             btnSave.classList.remove('btn-secondary');
             btnSave.classList.add('btn-primary');
@@ -225,6 +213,7 @@
         statusMsg.innerText = "Kamera Siap! Posisikan ekspresi/posisi lain.";
     });
 
+    // Simpan ke Database
     btnSave.addEventListener('click', () => {
         if (collectedDescriptors.length < 3) {
             Swal.fire('Sampel Kurang', 'Anda wajib mengambil minimal 3 foto sampel wajah!', 'warning');
