@@ -578,52 +578,129 @@ public function unsubmittedStudents(Exam $exam)
     //     }
     // }
 
-    public function finishSessionByAdmin(ExamSession $session)
+//     public function finishSessionByAdmin(ExamSession $session)
+// {
+//     try {
+//         // Load relasi jawaban beserta detail soalnya
+//         $answers = ExamAnswer::with('question')->where('exam_session_id', $session->id)->get();
+
+//         $totalScore = 0;
+
+//         foreach ($answers as $ans) {
+//             $question = $ans->question;
+//             $scoreGiven = 0;
+
+//             if ($question) {
+//                 // Decode jawaban siswa (karena di DB bertipe json)
+//                 $studentAnswer = is_string($ans->answer) ? json_decode($ans->answer, true) : $ans->answer;
+
+//                 // Jika soal Pilihan Ganda / PG Kompleks
+//                 if (isset($question->correct_answer)) {
+//                     $correctAnswer = is_string($question->correct_answer)
+//                         ? json_decode($question->correct_answer, true)
+//                         : $question->correct_answer;
+
+//                     // Cocokkan jawaban siswa dengan kunci jawaban
+//                     if ($studentAnswer == $correctAnswer) {
+//                         $scoreGiven = $question->score ?? $question->weight ?? 10; // Sesuaikan bobot nilai per soal
+//                     }
+//                 }
+//             }
+
+//             // Update score_given pada masing-masing jawaban jika belum ada
+//             $ans->update([
+//                 'score_given' => $scoreGiven,
+//                 'is_correct'  => $scoreGiven > 0 ? true : false,
+//             ]);
+
+//             $totalScore += $scoreGiven;
+//         }
+
+//         // Update status sesi exam_sessions
+//         $session->update([
+//             'status'      => 'completed',
+//             'submit_time' => now(),
+//             'score'       => $totalScore,
+//         ]);
+
+//         return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan dan nilai berhasil dihitung.');
+//     } catch (\Exception $e) {
+//         return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
+//     }
+// }
+
+public function finishSessionByAdmin(ExamSession $session)
 {
     try {
-        // Load relasi jawaban beserta detail soalnya
-        $answers = ExamAnswer::with('question')->where('exam_session_id', $session->id)->get();
+        // Load relasi ujian beserta seluruh soalnya
+        $exam = $session->exam()->with('questions')->first();
+        $questions = $exam->questions;
 
-        $totalScore = 0;
+        // Hitung total bobot maksimal seluruh soal pada ujian ini
+        $totalMaxScore = $questions->sum('score_weight') ?: $questions->sum('score') ?: ($questions->count() * 10);
 
-        foreach ($answers as $ans) {
-            $question = $ans->question;
+        if ($totalMaxScore == 0) {
+            return redirect()->back()->with('error', 'Gagal menghitung: Total bobot soal ujian adalah 0.');
+        }
+
+        $totalEarnedScore = 0;
+
+        foreach ($questions as $question) {
+            // Ambil jawaban siswa untuk soal ini
+            $ans = ExamAnswer::where('exam_session_id', $session->id)
+                ->where('question_id', $question->id)
+                ->first();
+
+            if (!$ans || empty($ans->answer)) {
+                continue;
+            }
+
+            // Bobot per butir soal
+            $weight = $question->score_weight ?? $question->score ?? 10;
             $scoreGiven = 0;
+            $isCorrect = false;
 
-            if ($question) {
-                // Decode jawaban siswa (karena di DB bertipe json)
-                $studentAnswer = is_string($ans->answer) ? json_decode($ans->answer, true) : $ans->answer;
+            // Decode jawaban siswa & kunci jawaban
+            $studentAnswer = is_string($ans->answer) ? json_decode($ans->answer, true) : $ans->answer;
+            $correctAnswer = is_string($question->correct_answer) ? json_decode($question->correct_answer, true) : $question->correct_answer;
 
-                // Jika soal Pilihan Ganda / PG Kompleks
-                if (isset($question->correct_answer)) {
-                    $correctAnswer = is_string($question->correct_answer)
-                        ? json_decode($question->correct_answer, true)
-                        : $question->correct_answer;
-
-                    // Cocokkan jawaban siswa dengan kunci jawaban
-                    if ($studentAnswer == $correctAnswer) {
-                        $scoreGiven = $question->score ?? $question->weight ?? 10; // Sesuaikan bobot nilai per soal
-                    }
+            // Pengecekan Jawaban Benar
+            if (is_array($studentAnswer) && is_array($correctAnswer)) {
+                sort($studentAnswer);
+                sort($correctAnswer);
+                if ($studentAnswer === $correctAnswer) {
+                    $isCorrect = true;
+                }
+            } else {
+                if ($studentAnswer == $correctAnswer) {
+                    $isCorrect = true;
                 }
             }
 
-            // Update score_given pada masing-masing jawaban jika belum ada
+            if ($isCorrect) {
+                $scoreGiven = $weight;
+                $totalEarnedScore += $weight;
+            }
+
+            // Update status per butir soal
             $ans->update([
                 'score_given' => $scoreGiven,
-                'is_correct'  => $scoreGiven > 0 ? true : false,
+                'is_correct'  => $isCorrect,
             ]);
-
-            $totalScore += $scoreGiven;
         }
+
+        // KONVERSI KE SKALA 100 (Maksimal 100)
+        $finalGrade = min(100, round(($totalEarnedScore / $totalMaxScore) * 100, 1));
 
         // Update status sesi exam_sessions
         $session->update([
             'status'      => 'completed',
             'submit_time' => now(),
-            'score'       => $totalScore,
+            'score'       => $finalGrade,
         ]);
 
-        return redirect()->back()->with('success', 'Ujian siswa berhasil diselesaikan dan nilai berhasil dihitung.');
+        return redirect()->back()->with('success', 'Ujian berhasil diselesaikan paksa. Nilai akhir: ' . $finalGrade);
+
     } catch (\Exception $e) {
         return redirect()->back()->with('error', 'Gagal menyelesaikan ujian: ' . $e->getMessage());
     }
