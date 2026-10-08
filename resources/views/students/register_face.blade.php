@@ -60,7 +60,7 @@
     <div class="row justify-content-center">
         <div class="col-12 col-md-8">
 
-            <!-- ALERT PERINGATAN DARI MIDDLEWARE NAIK JIKA BELUM ADA WAJAH -->
+            <!-- ALERT WARNING DARI MIDDLEWARE (JIKA KOSONG) -->
             @if(session('warning'))
                 <div class="alert alert-warning alert-dismissible fade show mb-3 border-0 shadow-sm" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i> {{ session('warning') }}
@@ -74,6 +74,12 @@
                     <a href="{{ route('student.face.index') }}" class="btn btn-sm btn-light fw-bold">Kembali</a>
                 </div>
                 <div class="card-body text-center p-3 p-md-4">
+                    
+                    <!-- PETUNJUK SYARAT MINIMAL 3 SAMPEL -->
+                    <div class="alert alert-info py-2 mb-3 small">
+                        <i class="fas fa-info-circle me-1"></i> Anda wajib mengambil <strong>minimal 3 sampel foto wajah</strong> (misal: Depan, Senyum, Miring) agar tombol simpan aktif.
+                    </div>
+
                     <div id="status-msg" class="alert alert-warning py-2 mb-3 small">Memuat Model SsdMobilenetv1...</div>
 
                     <div class="webcam-box mb-3">
@@ -97,11 +103,12 @@
 
                     <hr class="my-4">
 
-                    <h6 class="fw-bold">Sampel Terkumpul (<span id="sample-count">0</span>):</h6>
+                    <h6 class="fw-bold">Sampel Terkumpul (<span id="sample-count">0</span>/3):</h6>
                     <div id="preview-list" class="d-flex justify-content-center gap-2 flex-wrap mb-3"></div>
 
-                    <button id="btn-save" class="btn btn-primary w-100 py-2 fw-bold" style="display: none;">
-                        <i class="fas fa-save me-2"></i> Simpan Semua Sampel Wajah
+                    <!-- TOMBOL SIMPAN (MATI JIKA BELUM 3) -->
+                    <button id="btn-save" class="btn btn-secondary w-100 py-2 fw-bold" disabled>
+                        <i class="fas fa-save me-2"></i> Simpan Sampel Wajah (<span id="save-count-info">0/3</span>)
                     </button>
                 </div>
             </div>
@@ -179,16 +186,40 @@
             </div>
         `);
 
-        sampleCountText.innerText = collectedDescriptors.length;
-        if (collectedDescriptors.length >= 1) btnSave.style.display = 'block';
+        const count = collectedDescriptors.length;
+        sampleCountText.innerText = count;
+        $('#save-count-info').text(`${count}/3`);
 
-        Swal.fire({ icon: 'success', title: 'Sampel Ditangkap!', timer: 1000, showConfirmButton: false });
+        // VALIDASI TERKUNCI JIKA SAMPEL KELUAR KURANG DARI 3
+        if (count >= 3) {
+            btnSave.classList.remove('btn-secondary');
+            btnSave.classList.add('btn-primary');
+            btnSave.disabled = false;
+        } else {
+            btnSave.classList.remove('btn-primary');
+            btnSave.classList.add('btn-secondary');
+            btnSave.disabled = true;
+        }
+
+        Swal.fire({ 
+            icon: 'success', 
+            title: `Sampel Ke-${count} Ditangkap!`, 
+            text: count < 3 ? `Ambil ${3 - count} sampel lagi untuk mengaktifkan tombol simpan.` : 'Syarat minimal 3 sampel terpenuhi! Silakan simpan.',
+            timer: 1500, 
+            showConfirmButton: false 
+        });
+
         btnCapture.disabled = false;
-        statusMsg.innerText = "Kamera Siap! Ambil sampel ekspresi/posisi lain.";
+        statusMsg.innerText = "Kamera Siap! Posisikan ekspresi/posisi lain.";
     });
 
     // Simpan ke Database
     btnSave.addEventListener('click', () => {
+        if (collectedDescriptors.length < 3) {
+            Swal.fire('Sampel Kurang', 'Anda wajib mengambil minimal 3 foto sampel wajah!', 'warning');
+            return;
+        }
+
         Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         $.ajax({
@@ -205,7 +236,8 @@
                 });
             },
             error: (err) => {
-                Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal menyimpan sampel wajah.', 'error');
+                let msg = err.responseJSON?.errors?.descriptors?.[0] || err.responseJSON?.message || 'Gagal menyimpan sampel.';
+                Swal.fire('Gagal!', msg, 'error');
             }
         });
     });

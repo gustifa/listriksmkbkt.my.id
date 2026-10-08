@@ -50,9 +50,13 @@ class StudentSelfServiceController extends Controller
 
     public function storeFace(Request $request)
     {
+        // Validasi minimal 3 sampel descriptor
         $request->validate([
-            'descriptors' => 'required|array|min:1',
-            'labels' => 'nullable|array',
+            'descriptors' => 'required|array|min:3',
+            'labels'      => 'nullable|array',
+        ], [
+            'descriptors.min' => 'Anda wajib mengambil minimal 3 sampel foto wajah!',
+            'descriptors.required' => 'Belum ada sampel wajah yang diambil.'
         ]);
 
         $student = Auth::user()->student;
@@ -61,11 +65,14 @@ class StudentSelfServiceController extends Controller
             StudentFaceDescriptor::create([
                 'student_id' => $student->id,
                 'descriptor' => json_decode($descriptorJson, true),
-                'label'      => $request->labels[$index] ?? 'Self Reg ' . ($index + 1),
+                'label'      => $request->labels[$index] ?? 'Mandiri ' . ($index + 1),
             ]);
         }
 
-        return response()->json(['status' => 'success', 'message' => 'Sampel wajah berhasil disimpan!']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berhasil menyimpan 3 sampel wajah!'
+        ]);
     }
 
     // Halaman Scan Mandiri dengan GPS
