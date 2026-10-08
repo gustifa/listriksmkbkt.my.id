@@ -71,7 +71,7 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title fw-bold" id="modalRumusLabel">
-                    <i class="fas fa-square-root-variable me-2"></i> Rumus & Standar Ilmiah Analisis Soal
+                    <i class="fas fa-calculator me-2"></i> Rumus & Standar Ilmiah Analisis Soal
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -80,13 +80,13 @@
                 <!-- 1. TINGKAT KESUKARAN (FACILITY VALUE) -->
                 <div class="mb-4">
                     <h6 class="fw-bold text-primary border-bottom pb-2">
-                        1. Tingkat Kesukaran / Facility Value ($P$)
+                        1. Tingkat Kesukaran / Facility Value (P)
                     </h6>
                     <p class="small text-secondary mb-2">
                         Digunakan untuk mengukur seberapa mudah atau sukarnya suatu butir soal bagi kelompok siswa peserta ujian.
                     </p>
-                    <div class="bg-light p-3 rounded border text-center font-monospace mb-3 fs-6">
-                        <strong>P = B / N</strong>
+                    <div class="bg-light p-3 rounded border text-center font-monospace mb-3 fs-5 fw-bold">
+                        P = B / N
                     </div>
                     <ul class="small text-muted mb-2">
                         <li><strong>P</strong> = Indeks Tingkat Kesukaran</li>
@@ -98,24 +98,24 @@
                         <table class="table table-sm table-bordered text-center small mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Rentang Nilai ($P$)</th>
+                                    <th>Rentang Nilai (P)</th>
                                     <th>Kategori Soal</th>
                                     <th>Keterangan Evaluasi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>$P > 0.70$</td>
+                                    <td>P &gt; 0.70</td>
                                     <td><span class="badge bg-success">Mudah</span></td>
                                     <td>Soal terlalu mudah untuk tingkat kompetensi ini.</td>
                                 </tr>
                                 <tr>
-                                    <td>$0.30 \le P \le 0.70$</td>
+                                    <td>0.30 &le; P &le; 0.70</td>
                                     <td><span class="badge bg-primary">Sedang (Ideal)</span></td>
                                     <td>Soal baik, memiliki proporsi kesulitan yang seimbang.</td>
                                 </tr>
                                 <tr>
-                                    <td>$P < 0.30$</td>
+                                    <td>P &lt; 0.30</td>
                                     <td><span class="badge bg-danger">Sukar</span></td>
                                     <td>Soal terlalu sulit atau terdapat kesalahan kunci/materi.</td>
                                 </tr>
@@ -127,48 +127,48 @@
                 <!-- 2. DAYA BEDA (DISCRIMINATION INDEX) -->
                 <div>
                     <h6 class="fw-bold text-primary border-bottom pb-2">
-                        2. Daya Beda / Discrimination Index ($D$)
+                        2. Daya Beda / Discrimination Index (D)
                     </h6>
                     <p class="small text-secondary mb-2">
                         Digunakan untuk mengukur kemampuan butir soal dalam membedakan antara siswa kelompok berprestasi tinggi (kelompok atas) dan siswa berprestasi rendah (kelompok bawah) berdasarkan standar sampel 27% (Ferguson/Kelley).
                     </p>
-                    <div class="bg-light p-3 rounded border text-center font-monospace mb-3 fs-6">
-                        <strong>D = (B<sub>A</sub> - B<sub>B</sub>) / n</strong>
+                    <div class="bg-light p-3 rounded border text-center font-monospace mb-3 fs-5 fw-bold">
+                        D = (B<sub>A</sub> - B<sub>B</sub>) / n
                     </div>
                     <ul class="small text-muted mb-2">
                         <li><strong>D</strong> = Indeks Daya Beda</li>
                         <li><strong>B<sub>A</sub></strong> = Jumlah peserta kelompok atas (27% teratas) yang menjawab benar</li>
                         <li><strong>B<sub>B</sub></strong> = Jumlah peserta kelompok bawah (27% terbawah) yang menjawab benar</li>
-                        <li><strong>n</strong> = Jumlah siswa pada salah satu kelompok ($27\% \times N$)</li>
+                        <li><strong>n</strong> = Jumlah siswa pada salah satu kelompok (27% &times; N)</li>
                     </ul>
 
                     <div class="table-responsive mt-2">
                         <table class="table table-sm table-bordered text-center small mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Rentang Nilai ($D$)</th>
+                                    <th>Rentang Nilai (D)</th>
                                     <th>Klasifikasi Daya Beda</th>
                                     <th>Tindakan Rekomendasi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>$D \ge 0.40$</td>
+                                    <td>D &ge; 0.40</td>
                                     <td><span class="text-success fw-bold">Sangat Baik</span></td>
                                     <td>Soal disimpan di bank soal.</td>
                                 </tr>
                                 <tr>
-                                    <td>$0.30 \le D < 0.40$</td>
+                                    <td>0.30 &le; D &lt; 0.40</td>
                                     <td><span class="text-primary fw-bold">Baik</span></td>
                                     <td>Soal dapat digunakan kembali.</td>
                                 </tr>
                                 <tr>
-                                    <td>$0.20 \le D < 0.30$</td>
+                                    <td>0.20 &le; D &lt; 0.30</td>
                                     <td><span class="text-warning fw-bold">Cukup</span></td>
                                     <td>Perlu perbaikan/revisi pada opsi jawaban.</td>
                                 </tr>
                                 <tr>
-                                    <td>$D < 0.20$</td>
+                                    <td>D &lt; 0.20</td>
                                     <td><span class="text-danger fw-bold">Buruk</span></td>
                                     <td>Soal dibuang atau diganti total.</td>
                                 </tr>
