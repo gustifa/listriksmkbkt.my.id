@@ -168,72 +168,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/promotions', [ClassPromotionController::class, 'index'])->name('promotions.index');
-    Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
-    Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
-
-    // Route untuk Admin & Guru
-    Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
-    Route::get('/exams/create', [ExamController::class, 'create'])->name('exams.create');
-    Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
-    Route::delete('/exams/{exam}', [ExamController::class, 'destroy'])->name('exams.destroy');
-    Route::patch('/exams/{exam}/toggle-status', [ExamController::class, 'toggleStatus'])->name('exams.toggle-status');
-
-
-    // Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('guru.exam.import');
-    // Tampilan Form Import Soal Excel (guru.questions.import.form)
-    Route::get('/guru/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])
-            ->name('guru.questions.import.form');
-    // Proses Import Excel
-    Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('guru.questions.import');
-    Route::get('/questions/template/download', [GuruQuestionController::class, 'downloadTemplate'])
-            ->name('guru.questions.template.download');
-
-    // ROUTE TAMBAH SOAL MANUAL (BARU)
-    Route::get('/exams/{exam}/questions/create', [GuruQuestionController::class, 'create'])->name('guru.questions.create');
-    Route::post('/exams/{exam}/questions', [GuruQuestionController::class, 'store'])->name('guru.questions.store');
-    Route::post('/exams/{exam}/update-bulk-weight', [GuruQuestionController::class, 'updateBulkWeight'])
-        ->name('guru.exams.update-bulk-weight');
-
-    // Route Quick Edit Bobot Per Soal
-    Route::patch('/questions/{question}/update-weight', [GuruQuestionController::class, 'updateSingleWeight'])
-        ->name('guru.questions.update-weight');
-    // ROUTE EDIT & UPDATE SOAL (BARU)
-    Route::get('/questions/{question}/edit', [GuruQuestionController::class, 'edit'])->name('guru.questions.edit');
-    Route::put('/questions/{question}', [GuruQuestionController::class, 'update'])->name('guru.questions.update');
-    // ROUTE EXPORT SOAL (BARU)
-    Route::get('/exams/{exam}/questions/export', [GuruQuestionController::class, 'export'])->name('guru.questions.export');
-    // ROUTE BARU: Copy & Hapus Soal
-    Route::post('/questions/{question}/duplicate', [GuruQuestionController::class, 'duplicate'])->name('guru.questions.duplicate');
-    Route::delete('/questions/{question}', [GuruQuestionController::class, 'destroy'])->name('guru.questions.destroy');
-    // Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
-    Route::match(['delete', 'patch'], '/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])
-    ->name('guru.questions.bulkDestroy');
-    Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
-    // Route Laporan Rekap Nilai Ujian
-    Route::get('/exams/{exam}/report', [ExamController::class, 'showReport'])->name('guru.exams.report');
-    Route::get('/exams/{exam}/report/export', [ExamController::class, 'exportExcel'])->name('exams.report.export');
-    Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
-    Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
-    Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
-    Route::get('/exams/{exam}/item-analysis', [ExamController::class, 'itemAnalysis'])->name('guru.exams.item_analysis');
-    Route::get('/exams/{exam}/item-analysis/pdf', [ExamController::class, 'exportItemAnalysisPdf'])->name('guru.exams.item_analysis.pdf');
-    // Route Rekap Siswa Belum Ujian
-    Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
-    // Route Force Selesai Ujian oleh Admin / Guru
-    Route::post('/exam-sessions/{session}/finish', [ExamController::class, 'finishSessionByAdmin'])->name('guru.exam-sessions.finish');
-    Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
-
-    // Route Bank Soal (Mengambil Soal yang Sudah Ada)
-    Route::get('/guru/exams/{exam}/bank-soal', [GuruQuestionController::class, 'bankIndex'])
-        ->name('guru.questions.bank');
-
-    Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])
-    ->name('guru.questions.copy_bank');
-
-    Route::patch('/questions/{question}/update-text', [GuruQuestionController::class, 'updateQuestionText'])->name('guru.questions.update-text');
-    Route::patch('/questions/{question}/update-key', [GuruQuestionController::class, 'updateCorrectAnswer'])->name('guru.questions.update-key');
-
+    
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
@@ -296,6 +231,73 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
 
     Route::middleware(['role:admin|guru|piket'])->group(function () {
+
+        Route::get('/promotions', [ClassPromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
+        Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
+
+        // Route untuk Admin & Guru
+        Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
+        Route::get('/exams/create', [ExamController::class, 'create'])->name('exams.create');
+        Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
+        Route::delete('/exams/{exam}', [ExamController::class, 'destroy'])->name('exams.destroy');
+        Route::patch('/exams/{exam}/toggle-status', [ExamController::class, 'toggleStatus'])->name('exams.toggle-status');
+
+
+        // Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('guru.exam.import');
+        // Tampilan Form Import Soal Excel (guru.questions.import.form)
+        Route::get('/guru/exams/{exam}/import', [GuruQuestionController::class, 'showImportForm'])
+                ->name('guru.questions.import.form');
+        // Proses Import Excel
+        Route::post('/exams/{exam}/import', [GuruQuestionController::class, 'import'])->name('guru.questions.import');
+        Route::get('/questions/template/download', [GuruQuestionController::class, 'downloadTemplate'])
+                ->name('guru.questions.template.download');
+
+        // ROUTE TAMBAH SOAL MANUAL (BARU)
+        Route::get('/exams/{exam}/questions/create', [GuruQuestionController::class, 'create'])->name('guru.questions.create');
+        Route::post('/exams/{exam}/questions', [GuruQuestionController::class, 'store'])->name('guru.questions.store');
+        Route::post('/exams/{exam}/update-bulk-weight', [GuruQuestionController::class, 'updateBulkWeight'])
+            ->name('guru.exams.update-bulk-weight');
+
+        // Route Quick Edit Bobot Per Soal
+        Route::patch('/questions/{question}/update-weight', [GuruQuestionController::class, 'updateSingleWeight'])
+            ->name('guru.questions.update-weight');
+        // ROUTE EDIT & UPDATE SOAL (BARU)
+        Route::get('/questions/{question}/edit', [GuruQuestionController::class, 'edit'])->name('guru.questions.edit');
+        Route::put('/questions/{question}', [GuruQuestionController::class, 'update'])->name('guru.questions.update');
+        // ROUTE EXPORT SOAL (BARU)
+        Route::get('/exams/{exam}/questions/export', [GuruQuestionController::class, 'export'])->name('guru.questions.export');
+        // ROUTE BARU: Copy & Hapus Soal
+        Route::post('/questions/{question}/duplicate', [GuruQuestionController::class, 'duplicate'])->name('guru.questions.duplicate');
+        Route::delete('/questions/{question}', [GuruQuestionController::class, 'destroy'])->name('guru.questions.destroy');
+        // Route::delete('/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])->name('guru.questions.bulkDestroy');
+        Route::match(['delete', 'patch'], '/questions/bulk-delete', [GuruQuestionController::class, 'bulkDestroy'])
+        ->name('guru.questions.bulkDestroy');
+        Route::get('/guru/exams/{exam}', [ExamController::class, 'show'])->name('guru.exams.show');
+        // Route Laporan Rekap Nilai Ujian
+        Route::get('/exams/{exam}/report', [ExamController::class, 'showReport'])->name('guru.exams.report');
+        Route::get('/exams/{exam}/report/export', [ExamController::class, 'exportExcel'])->name('exams.report.export');
+        Route::delete('/exam-sessions/{session}/reset', [ExamController::class, 'resetSession'])->name('guru.exam-sessions.reset');
+        Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
+        Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
+        Route::get('/exams/{exam}/item-analysis', [ExamController::class, 'itemAnalysis'])->name('guru.exams.item_analysis');
+        Route::get('/exams/{exam}/item-analysis/pdf', [ExamController::class, 'exportItemAnalysisPdf'])->name('guru.exams.item_analysis.pdf');
+        // Route Rekap Siswa Belum Ujian
+        Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
+        // Route Force Selesai Ujian oleh Admin / Guru
+        Route::post('/exam-sessions/{session}/finish', [ExamController::class, 'finishSessionByAdmin'])->name('guru.exam-sessions.finish');
+        Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
+
+        // Route Bank Soal (Mengambil Soal yang Sudah Ada)
+        Route::get('/guru/exams/{exam}/bank-soal', [GuruQuestionController::class, 'bankIndex'])
+            ->name('guru.questions.bank');
+
+        Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])
+        ->name('guru.questions.copy_bank');
+
+        Route::patch('/questions/{question}/update-text', [GuruQuestionController::class, 'updateQuestionText'])->name('guru.questions.update-text');
+        Route::patch('/questions/{question}/update-key', [GuruQuestionController::class, 'updateCorrectAnswer'])->name('guru.questions.update-key');
+
 
         Route::get('/piket/dashboard', [PiketDashboardController::class, 'dashboard'])->name('piket.dashboard');
         Route::get('/laporan-pembelajaran', [ReportController::class, 'index'])->name('report.index');
