@@ -796,4 +796,92 @@ public function itemAnalysis(Exam $exam)
     return view('guru.exams.item_analysis', compact('exam', 'totalStudents', 'analysisResult'));
 }
 
+/**
+ * Export Laporan Analisis Butir Soal Lengkap ke Format PDF / Cetak
+ */
+public function exportItemAnalysisPdf(Exam $exam)
+{
+    $exam->load(['subject', 'questions']);
+
+    $completedSessions = ExamSession::where('exam_id', $exam->id)
+        ->where('status', 'completed')
+        ->orderBy('score', 'desc')
+        ->get();
+
+    $totalStudents = $completedSessions->count();
+
+    if ($totalStudents === 0) {
+        return redirect()->back()->with('error', 'Belum ada data siswa untuk dicetak.');
+    }
+
+    $groupSize = max(1, (int) round($totalStudents * 0.27));
+    $upperSessions = $completedSessions->take($groupSize)->pluck('id');
+    $lowerSessions = $completedSessions->take(-$groupSize)->pluck('id');
+
+    $analysisResult = [];
+    $easyCount = 0;
+    $mediumCount = 0;
+    $hardCount = 0;
+
+    foreach ($exam->questions as $index => $question) {
+        $answers = ExamAnswer::where('question_id', $question->id)->get();
+        $correctCount = $answers->where('is_correct', true)->count();
+        $facilityValue = $totalStudents > 0 ? ($correctCount / $totalStudents) : 0;
+
+        if ($facilityValue > 0.70) {
+            $difficultyCategory = 'Mudah';
+            $easyCount++;
+        } elseif ($facilityValue >= 0.30) {
+            $difficultyCategory = 'Sedang (Ideal)';
+            $mediumCount++;
+        } else {
+            $difficultyCategory = 'Sukar';
+            $hardCount++;
+        }
+
+        $upperCorrect = ExamAnswer::where('question_id', $question->id)
+            ->whereIn('exam_session_id', $upperSessions)
+            ->where('is_correct', true)
+            ->count();
+
+        $lowerCorrect = ExamAnswer::where('question_id', $question->id)
+            ->whereIn('exam_session_id', $lowerSessions)
+            ->where('is_correct', true)
+            ->count();
+
+        $discriminationIndex = $groupSize > 0 ? (($upperCorrect - $lowerCorrect) / $groupSize) : 0;
+
+        if ($discriminationIndex >= 0.40) {
+            $discriminationCategory = 'Sangat Baik';
+        } elseif ($discriminationIndex >= 0.30) {
+            $discriminationCategory = 'Baik';
+        } elseif ($discriminationIndex >= 0.20) {
+            $discriminationCategory = 'Cukup';
+        } else {
+            $discriminationCategory = 'Buruk';
+        }
+
+        $analysisResult[] = [
+            'no' => $index + 1,
+            'question_text' => $question->question_text,
+            'correct_count' => $correctCount,
+            'wrong_count' => $totalStudents - $correctCount,
+            'facility_value' => number_format($facilityValue, 2),
+            'difficulty_category' => $difficultyCategory,
+            'discrimination_index' => number_format($discriminationIndex, 2),
+            'discrimination_category' => $discriminationCategory,
+        ];
+    }
+
+    $summary = [
+        'total_questions' => count($exam->questions),
+        'total_students' => $totalStudents,
+        'easy' => $easyCount,
+        'medium' => $mediumCount,
+        'hard' => $hardCount
+    ];
+
+    return view('guru.exams.item_analysis_pdf', compact('exam', 'analysisResult', 'summary'));
+}
+
 }

@@ -15,7 +15,11 @@
                 Ujian: <strong>{{ $exam->title }}</strong> | Sampel Siswa: <strong>{{ $totalStudents }} Siswa</strong>
             </p>
         </div>
+        
         <div>
+            <a href="{{ route('guru.exams.item_analysis.pdf', $exam->id) }}" target="_blank" class="btn btn-success fw-bold shadow-sm me-2">
+                <i class="fas fa-file-pdf me-1"></i> Cetak Laporan PDF
+            </a>
             <!-- Tombol Pemicu Modal Popup Rumus -->
             <button type="button" class="btn btn-info text-white fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRumus">
                 <i class="fas fa-calculator me-1"></i> Lihat Rumus & Standar Ilmiah

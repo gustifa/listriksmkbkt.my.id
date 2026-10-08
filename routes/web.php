@@ -217,6 +217,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/exams/{exam}', [ExamController::class, 'update'])->name('guru.exams.update');
     Route::post('/exams/{exam}/generate-token', [ExamController::class, 'generateToken'])->name('exams.generate-token');
     Route::get('/exams/{exam}/item-analysis', [ExamController::class, 'itemAnalysis'])->name('guru.exams.item_analysis');
+    Route::get('/exams/{exam}/item-analysis/pdf', [ExamController::class, 'exportItemAnalysisPdf'])->name('guru.exams.item_analysis.pdf');
     // Route Rekap Siswa Belum Ujian
     Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
     // Route Force Selesai Ujian oleh Admin / Guru
