@@ -12,7 +12,6 @@
     <title>SISFO SMK | Monitor Gerbang Presisi</title>
 
     <style>
-        /* Styling Dasar Kamera & Container */
         .video-container {
             position: relative;
             width: 100%;
@@ -26,11 +25,13 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
-        /* Mencegah Masalah Cermin & Safari iOS Render */
         #video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .video-mirror {
             transform: scaleX(-1);
             -webkit-transform: scaleX(-1);
         }
@@ -41,115 +42,45 @@
             left: 0;
             width: 100%;
             height: 100%;
-            transform: scaleX(-1);
-            -webkit-transform: scaleX(-1);
+            pointer-events: none;
         }
 
-        #capture-canvas { display: none; }
-
-        .camera-controls {
-            max-width: 640px;
-            margin: 0 auto 15px auto;
+        .status-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
         }
 
-        /* ===================================================
-           MEDIA QUERIES KHUSUS RESPONSIVE (ANDROID & IPHONE)
-        =================================================== */
-
-        @media (max-width: 575.98px) {
-            .page-content {
-                padding-left: 8px;
-                padding-right: 8px;
-            }
-
-            .card-header {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
-
-            .card-header a {
-                width: 100%;
-            }
-
-            .btn-group.w-75 {
-                width: 100% !important;
-            }
-
-            .btn-group .btn {
-                font-size: 0.85rem;
-                padding: 8px 4px;
-            }
-
-            .video-container {
-                border-width: 2px;
-                border-radius: 10px;
-                aspect-ratio: 3/4; /* Mengubah aspect ratio ke 3:4 agar pas dengan layar vertikal HP */
-            }
-
-            #camera-select {
-                font-size: 0.85rem;
-            }
-        }
-
-        /* Penanganan Safe Area notch iPhone X ke atas */
-        @supports (padding: max(0px)) {
-            body {
-                padding-left: min(0px, env(safe-area-inset-left));
-                padding-right: min(0px, env(safe-area-inset-right));
-                padding-bottom: min(0px, env(safe-area-inset-bottom));
-            }
+        .preview-img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #0d6efd;
         }
     </style>
 </head>
-
 <body class="bg-light">
-    <div class="page-content">
-        <div class="row justify-content-center pt-2 pt-md-4">
-            <div class="col-12 col-md-10 col-lg-8 text-center">
-                <div class="shadow card border-0">
-                    <div class="text-white card-header bg-success d-flex justify-content-between align-items-center py-3">
-                        <span class="fw-bold"><i class="fas fa-camera me-2"></i> MONITOR GERBANG PRESISI TINGGI</span>
-                        <div class="d-flex gap-2 w-100 w-md-auto justify-content-center">
-                            <a href="{{ route('dashboard') }}" class="btn btn-sm btn-light text-success fw-bold">DASHBOARD</a>
-                            <a href="{{ route('face.index') }}" class="btn btn-sm btn-outline-light fw-bold">KELOLA WAJAH</a>
-                        </div>
-                    </div>
-                    <div class="card-body px-2 px-md-3">
-                        <!-- Mode Absensi -->
-                        <div class="mb-3">
-                            <div class="btn-group w-75" role="group">
-                                <input type="radio" class="btn-check" name="mode_absen" id="mode_harian" value="harian" checked>
-                                <label class="btn btn-outline-primary py-2 fw-bold" for="mode_harian">ABSENSI HARIAN</label>
-                                <input type="radio" class="btn-check" name="mode_absen" id="mode_izin" value="izin_keluar">
-                                <label class="btn btn-outline-warning py-2 fw-bold text-dark" for="mode_izin">IZIN KELUAR</label>
-                            </div>
-                        </div>
+    <div class="container py-3">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 text-center">
+                <h4 class="fw-bold mb-3"><i class="fas fa-door-open text-primary me-2"></i>Monitor Gerbang Presisi</h4>
 
-                        <!-- Camera Select & Toggle Button -->
-                        <div class="camera-controls">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white"><i class="fas fa-video text-secondary"></i></span>
-                                <select id="camera-select" class="form-select shadow-none">
-                                    <option value="">Mencari Kamera...</option>
-                                </select>
-                                <button id="btn-toggle-camera" class="btn btn-danger" type="button" title="Matikan / Hidupkan Kamera">
-                                    <i id="toggle-icon" class="fas fa-video-slash"></i>
-                                </button>
-                            </div>
-                        </div>
+                <div id="status-msg" class="alert alert-info py-2 mb-3 small fw-semibold">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Memuat Model Cepat (Tiny Face Detector)...
+                </div>
 
-                        <div id="status-loading" class="alert alert-warning py-2 mb-3">
-                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Model SsdMobilenetv1...
-                        </div>
+                <div class="video-container mb-3">
+                    <span id="detection-status" class="badge bg-secondary status-badge">Menunggu Kamera...</span>
+                    <video id="video" class="video-mirror" autoplay muted playsinline></video>
+                    <canvas id="overlay"></canvas>
+                </div>
 
-                        <div class="video-container">
-                            <video id="video" autoplay muted playsinline></video>
-                            <canvas id="overlay"></canvas>
-                        </div>
-
-                        <canvas id="capture-canvas"></canvas>
-                    </div>
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                    <button id="btn-switch-camera" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+                        <i class="fas fa-sync-alt me-1"></i> Ganti Kamera (<span id="camera-label">Depan</span>)
+                    </button>
                 </div>
             </div>
         </div>
@@ -157,320 +88,259 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.js"></script>
 
     <script>
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json'
-            }
-        });
-
         const video = document.getElementById('video');
-        const statusMsg = document.getElementById('status-loading');
-        const captureCanvas = document.getElementById('capture-canvas');
-        const cameraSelect = document.getElementById('camera-select');
-        const btnToggleCamera = document.getElementById('btn-toggle-camera');
-        const toggleIcon = document.getElementById('toggle-icon');
+        const overlay = document.getElementById('overlay');
+        const statusMsg = document.getElementById('status-msg');
+        const detectionStatus = document.getElementById('detection-status');
+        const btnSwitchCamera = document.getElementById('btn-switch-camera');
+        const cameraLabel = document.getElementById('camera-label');
 
+        let labeledDescriptors = [];
         let faceMatcher = null;
         let isProcessing = false;
         let currentStream = null;
-        let isCameraOn = true;
-        let detectionLoopActive = false;
+        let currentFacingMode = "user";
+        let lastDetectionTime = 0;
+        const DETECTION_INTERVAL = 300; // Hanya lakukan deteksi setiap 300ms agar sangat ringan
 
-        // 1. Memuat Model Presisi Tinggi
+        // 1. Muat Model Ringan (TinyFaceDetector jauh lebih cepat dari SsdMobilenetv1)
         Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
+            faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
-        ]).then(loadDescriptors);
+        ]).then(async () => {
+            await loadStudentDescriptors();
+            startWebcam();
+        }).catch(err => {
+            statusMsg.className = 'alert alert-danger py-2 mb-3 small';
+            statusMsg.innerText = "Gagal memuat model deteksi wajah.";
+        });
 
-        async function loadDescriptors() {
+        // 2. Ambil data sampel wajah siswa dari server
+        async function loadStudentDescriptors() {
             try {
-                const response = await fetch("{{ route('face.descriptors.all') }}");
-                const data = await response.json();
-
-                if(!data || data.length === 0) {
-                    statusMsg.className = 'alert alert-danger';
-                    statusMsg.innerText = "Data wajah belum terdaftar!";
-                    return;
-                }
-
-                const labeledDescriptors = data.map(d => {
-                    const descriptors = Array.isArray(d.descriptor[0])
-                        ? d.descriptor.map(desc => new Float32Array(desc))
-                        : [new Float32Array(d.descriptor)];
-                    return new faceapi.LabeledFaceDescriptors(d.label, descriptors);
+                statusMsg.innerText = "Mengunduh database sampel wajah...";
+                const res = await $.ajax({
+                    url: "{{ route('face.descriptors') }}",
+                    type: "GET",
+                    dataType: "json"
                 });
 
-                // Threshold FaceMatcher di-set ke 0.40
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.40);
+                if (res.length > 0) {
+                    labeledDescriptors = res.map(item => {
+                        const descriptors = item.descriptors.map(d => new Float32Array(JSON.parse(d)));
+                        return new faceapi.LabeledFaceDescriptors(item.name + " | " + item.student_id, descriptors);
+                    });
 
-                statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
-
-                await initCameraDevices();
-            } catch (err) {
-                statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Gagal memuat data wajah dari server.";
+                    // Matcher dengan ambang batas (threshold) 0.5 untuk kecepatan & akurasi
+                    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+                    statusMsg.className = 'alert alert-success py-2 mb-3 small';
+                    statusMsg.innerText = "Database Wajah Siap! Sistem Siap Digunakan.";
+                } else {
+                    statusMsg.className = 'alert alert-warning py-2 mb-3 small';
+                    statusMsg.innerText = "Belum ada sampel wajah siswa terdaftar.";
+                }
+            } catch (e) {
+                statusMsg.className = 'alert alert-danger py-2 mb-3 small';
+                statusMsg.innerText = "Gagal mengambil data dari server.";
             }
         }
 
-        async function initCameraDevices() {
-            try {
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                tempStream.getTracks().forEach(track => track.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(d => d.kind === 'videoinput');
-
-                cameraSelect.innerHTML = '';
-                if (videoDevices.length === 0) {
-                    cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
-                    return;
-                }
-
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    let label = device.label || `Kamera ${index + 1}`;
-
-                    if (label.toLowerCase().includes('back') || label.toLowerCase().includes('rear')) {
-                        label = `📷 Kamera Belakang (${label})`;
-                    } else if (label.toLowerCase().includes('front') || label.toLowerCase().includes('facing')) {
-                        label = `🤳 Kamera Depan (${label})`;
-                    }
-
-                    option.text = label;
-                    cameraSelect.appendChild(option);
-                });
-
-                startCamera(cameraSelect.value);
-            } catch (err) {
-                statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Izin kamera ditolak atau tidak tersedia pada browser HP Anda.";
-            }
-        }
-
-        function startCamera(deviceId = null) {
-            stopCameraStream();
-
-            const videoConstraints = deviceId
-                ? { deviceId: { exact: deviceId } }
-                : { facingMode: "user" };
-
-            const constraints = {
-                video: Object.assign(videoConstraints, {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    frameRate: { ideal: 30, max: 30 }
-                })
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then(stream => {
-                    currentStream = stream;
-                    video.srcObject = stream;
-                    isCameraOn = true;
-                    updateCameraButtonUI();
-                })
-                .catch(err => {
-                    statusMsg.className = 'alert alert-danger';
-                    statusMsg.innerText = "Kamera gagal diaktifkan.";
-                });
-        }
-
-        function stopCameraStream() {
+        // 3. Jalankan Kamera
+        function startWebcam() {
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
             }
-        }
 
-        function updateCameraButtonUI() {
-            if (isCameraOn) {
-                btnToggleCamera.className = 'btn btn-danger';
-                toggleIcon.className = 'fas fa-video-slash';
+            if (currentFacingMode === "user") {
+                video.classList.add('video-mirror');
+                cameraLabel.innerText = "Depan";
             } else {
-                btnToggleCamera.className = 'btn btn-success';
-                toggleIcon.className = 'fas fa-video';
+                video.classList.remove('video-mirror');
+                cameraLabel.innerText = "Belakang";
             }
-        }
 
-        cameraSelect.addEventListener('change', () => {
-            if (cameraSelect.value) startCamera(cameraSelect.value);
-        });
-
-        btnToggleCamera.addEventListener('click', () => {
-            if (isCameraOn) {
-                stopCameraStream();
-                video.srcObject = null;
-                isCameraOn = false;
-                updateCameraButtonUI();
-                statusMsg.className = 'alert alert-secondary';
-                statusMsg.innerText = "Kamera Dimatikan.";
-            } else {
-                startCamera(cameraSelect.value);
-                statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
-            }
-        });
-
-        function takeScreenshot() {
-            captureCanvas.width = video.videoWidth || 640;
-            captureCanvas.height = video.videoHeight || 480;
-            const ctx = captureCanvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.8);
-        }
-
-        // ASYNC LOOP PENDETEKSIAN DENGAN BATAS TOLERANSI KETAT
-        video.addEventListener('play', () => {
-            const overlay = document.getElementById('overlay');
-            if (detectionLoopActive) return;
-            detectionLoopActive = true;
-
-            async function processFrame() {
-                if (!isCameraOn || !video.srcObject) {
-                    detectionLoopActive = false;
-                    return;
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
                 }
+            }).then(stream => {
+                currentStream = stream;
+                video.srcObject = stream;
+                detectionStatus.className = "badge bg-success status-badge";
+                detectionStatus.innerText = "Kamera Aktif";
+            }).catch(() => {
+                detectionStatus.className = "badge bg-danger status-badge";
+                detectionStatus.innerText = "Akses Kamera Ditolak";
+            });
+        }
 
-                const displaySize = { width: video.clientWidth, height: video.clientHeight };
-                if (displaySize.width > 0 && displaySize.height > 0) {
-                    faceapi.matchDimensions(overlay, displaySize);
+        btnSwitchCamera.addEventListener('click', () => {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            startWebcam();
+        });
 
-                    if (!isProcessing && faceMatcher) {
-                        const detections = await faceapi.detectAllFaces(
-                            video,
-                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
-                        ).withFaceLandmarks().withFaceDescriptors();
+        // 4. Loop Deteksi Wajah dengan TinyFaceDetector Ter-Throttle
+        video.addEventListener('play', () => {
+            const displaySize = { width: video.clientWidth || 640, height: video.clientHeight || 480 };
+            faceapi.matchDimensions(overlay, displaySize);
 
-                        const resized = faceapi.resizeResults(detections, displaySize);
-                        overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+            async function processFrame(now) {
+                if (video.paused || video.ended) return;
 
-                        resized.forEach(det => {
-                            const match = faceMatcher.findBestMatch(det.descriptor);
-                            new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
+                // Batasi eksekusi hanya setiap 300ms (THROTTLE)
+                if (now - lastDetectionTime >= DETECTION_INTERVAL && !isProcessing) {
+                    lastDetectionTime = now;
 
-                            // Batas toleransi ketat < 0.38 untuk meminimalisir salah kenal orang
-                            if (match.label !== 'unknown' && match.distance < 0.38) {
-                                isProcessing = true;
-                                const screenshot = takeScreenshot();
-                                const [nis, name] = match.label.split(' - ');
-                                handleAction(nis, name, screenshot);
+                    // Menggunakan TinyFaceDetectorOptions dengan inputSize kecil (224) untuk kecepatan maksimal
+                    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+
+                    const detections = await faceapi.detectAllFaces(video, options)
+                        .withFaceLandmarks()
+                        .withFaceDescriptors();
+
+                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+
+                    const ctx = overlay.getContext('2d');
+                    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+                    if (resizedDetections.length > 0 && faceMatcher) {
+                        resizedDetections.forEach(detection => {
+                            const result = faceMatcher.findBestMatch(detection.descriptor);
+                            const box = detection.detection.box;
+
+                            // Koreksi posisi canvas jika kamera depan di-mirror
+                            if (currentFacingMode === "user") {
+                                box.x = displaySize.width - box.x - box.width;
+                            }
+
+                            const drawBox = new faceapi.draw.DrawBox(box, {
+                                label: result.toString(),
+                                boxColor: result.label.includes('unknown') ? 'red' : 'green'
+                            });
+                            drawBox.draw(overlay);
+
+                            // Jika wajah teridentifikasi
+                            if (!result.label.includes('unknown') && !isProcessing) {
+                                const studentData = result.label.split(" | ");
+                                const studentName = studentData[0];
+                                const studentId = studentData[1];
+
+                                processAttendance(studentId, studentName);
                             }
                         });
                     }
                 }
 
-                setTimeout(processFrame, 200);
+                requestAnimationFrame(processFrame);
             }
 
-            processFrame();
+            requestAnimationFrame(processFrame);
         });
 
-        function handleAction(nis, name, image) {
-            let mode = $('input[name="mode_absen"]:checked').val();
-            if (mode === 'izin_keluar') {
-                checkPermission(nis, name, image);
-            } else {
-                submitAttendance(nis, name, image);
+        // 5. Proses Kirim Presensi ke Server
+        function processAttendance(studentId, studentName) {
+            isProcessing = true;
+            detectionStatus.className = "badge bg-warning text-dark status-badge";
+            detectionStatus.innerText = "Memproses: " + studentName;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            if (currentFacingMode === "user") {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
             }
-        }
-
-        function submitAttendance(nis, name, image) {
-            Swal.fire({ title: 'Memproses Presisi...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            ctx.drawImage(video, 0, 0);
 
             $.ajax({
-                url: "{{ route('daily.store') }}",
+                url: "{{ route('izin.scan') }}",
                 type: "POST",
-                data: { nis: nis, mode: 'harian', image: image },
-                success: function(res) {
-                    Swal.fire({
-                        title: 'Berhasil',
-                        text: res.message + " (" + name + ")",
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => { isProcessing = false; });
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    student_id: studentId,
+                    image: canvas.toDataURL('image/jpeg', 0.7) // Kompresi image 70% agar payload cepat dikirim
                 },
-                error: function(xhr) {
-                    let msg = xhr.responseJSON?.message || "Gagal Absen";
-                    Swal.fire({
-                        title: 'Gagal',
-                        text: msg,
-                        icon: 'error',
-                        timer: 3000,
-                        showConfirmButton: false
-                    }).then(() => { isProcessing = false; });
-                }
-            });
-        }
-
-        function checkPermission(nis, name, image) {
-            $.ajax({
-                url: "{{ route('izin.check') }}",
-                type: "POST",
-                data: { nis: nis },
                 success: function(res) {
-                    if (res.status === 'active_permission') {
-                        confirmReturn(res.data, image);
-                    } else if (res.status === 'can_leave') {
-                        inputReason(nis, name, image);
+                    if (res.action === 'ask_permission') {
+                        confirmPermission(res.data, canvas.toDataURL('image/jpeg', 0.7));
+                    } else if (res.action === 'ask_return') {
+                        confirmReturn(res.data, canvas.toDataURL('image/jpeg', 0.7));
                     } else {
-                        Swal.fire({ title: 'Info', text: res.message, icon: 'info', timer: 3000, showConfirmButton: false }).then(() => isProcessing = false);
+                        Swal.fire({
+                            title: 'Presensi Berhasil',
+                            text: res.message || `Wajah ${studentName} terverifikasi!`,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            isProcessing = false;
+                            detectionStatus.className = "badge bg-success status-badge";
+                            detectionStatus.innerText = "Kamera Aktif";
+                        });
                     }
                 },
-                error: function() {
-                    Swal.fire({ title: 'Error', text: 'Sistem Error', icon: 'error', timer: 3000, showConfirmButton: false }).then(() => isProcessing = false);
+                error: function(err) {
+                    Swal.fire({
+                        title: 'Gagal',
+                        text: err.responseJSON?.message || 'Gagal memproses data.',
+                        icon: 'error',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        isProcessing = false;
+                        detectionStatus.className = "badge bg-success status-badge";
+                        detectionStatus.innerText = "Kamera Aktif";
+                    });
                 }
             });
         }
 
-        function inputReason(nis, name, image) {
+        function confirmPermission(data, image) {
             Swal.fire({
-                title: 'Alasan Keluar',
-                text: name,
-                input: 'text',
+                title: 'Konfirmasi Izin Keluar',
+                text: `Siswa ${data.student.name} mengajukan izin?`,
+                icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Simpan',
+                confirmButtonText: 'Ya, Izinkan',
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    savePermission(nis, result.value, image);
+                    $.ajax({
+                        url: "{{ route('izin.store') }}",
+                        type: "POST",
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            student_id: data.student.id,
+                            reason: 'Izin Keluar Gerbang',
+                            image: image
+                        },
+                        success: () => {
+                            Swal.fire({ title: 'Berhasil', text: 'Izin dicatat', icon: 'success', timer: 2000, showConfirmButton: false })
+                                .then(() => { isProcessing = false; });
+                        },
+                        error: () => {
+                            Swal.fire({ title: 'Gagal', text: 'Gagal menyimpan izin', icon: 'error', timer: 2000, showConfirmButton: false })
+                                .then(() => { isProcessing = false; });
+                        }
+                    });
                 } else {
                     isProcessing = false;
                 }
             });
         }
 
-        function savePermission(nis, reason, image) {
-            $.ajax({
-                url: "{{ route('izin.store') }}",
-                type: "POST",
-                data: { nis: nis, reason: reason, image: image },
-                success: (res) => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Izin Disimpan',
-                        html: `<a href="{{ url('izin/print') }}/${res.id}" target="_blank" class="btn btn-primary mt-3">CETAK SURAT IZIN</a>`,
-                        showConfirmButton: true,
-                        confirmButtonText: 'Selesai'
-                    }).then(() => isProcessing = false);
-                },
-                error: function() {
-                    Swal.fire({ title: 'Gagal', text: 'Gagal simpan izin', icon: 'error', timer: 3000, showConfirmButton: false }).then(() => isProcessing = false);
-                }
-            });
-        }
-
         function confirmReturn(data, image) {
             Swal.fire({
-                title: 'Siswa Kembali?',
-                text: `${data.student.name} ingin masuk?`,
+                title: 'Konfirmasi Kembali',
+                text: `${data.student.name} masuk kembali ke sekolah?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Ya, Masuk',
@@ -480,12 +350,18 @@
                     $.ajax({
                         url: "{{ route('izin.return') }}",
                         type: "POST",
-                        data: { id: data.id, image: image },
-                        success: () => {
-                            Swal.fire({ title: 'Berhasil', text: 'Siswa masuk kembali', icon: 'success', timer: 2000, showConfirmButton: false }).then(() => isProcessing = false);
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            id: data.id,
+                            image: image
                         },
-                        error: function() {
-                            Swal.fire({ title: 'Gagal', text: 'Gagal update status', icon: 'error', timer: 3000, showConfirmButton: false }).then(() => isProcessing = false);
+                        success: () => {
+                            Swal.fire({ title: 'Berhasil', text: 'Siswa berhasil kembali', icon: 'success', timer: 2000, showConfirmButton: false })
+                                .then(() => { isProcessing = false; });
+                        },
+                        error: () => {
+                            Swal.fire({ title: 'Gagal', text: 'Gagal memperbarui status', icon: 'error', timer: 2000, showConfirmButton: false })
+                                .then(() => { isProcessing = false; });
                         }
                     });
                 } else {
