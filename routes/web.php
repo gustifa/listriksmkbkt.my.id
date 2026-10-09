@@ -142,7 +142,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Route API Fetch Descriptors untuk Scanner
-    Route::get('/face-descriptors-all', [FaceRegistrationController::class, 'getAllDescriptors'])->name('face.descriptors.all');
+    Route::get('/face-descriptors-all', [FaceRegistrationController::class, 'getAllDescriptorsFace'])->name('face.descriptors.all');
 
     // Route Monitor Gerbang (Scan)
     Route::get('/monitor-gerbang', [GateMonitorController::class, 'index'])->name('gate.monitor');
@@ -168,7 +168,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 Route::middleware(['auth'])->group(function () {
-    
+
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');

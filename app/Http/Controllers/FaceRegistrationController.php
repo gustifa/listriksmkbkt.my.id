@@ -107,7 +107,7 @@ class FaceRegistrationController extends Controller
     }
 
     // API: Kirim data multidimensi array ke Scanner Wajah
-    public function getAllDescriptors(): JsonResponse
+    public function getAllDescriptorsFace(): JsonResponse
     {
         $students = Student::with('faceDescriptors')->has('faceDescriptors')->get();
 
