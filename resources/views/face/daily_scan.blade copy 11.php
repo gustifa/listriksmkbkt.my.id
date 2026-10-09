@@ -72,7 +72,7 @@
                         </div>
 
                         <div id="status-loading" class="alert alert-warning py-2 mb-3">
-                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Kamera...
+                            <span class="spinner-border spinner-border-sm me-2"></span> Memuat Model Presisi Tinggi...
                         </div>
 
                         <div class="video-container">
@@ -112,9 +112,9 @@
         let isCameraOn = true;
         let detectionLoopActive = false;
 
-        // 1. Load Face Models (TinyFaceDetector jauh lebih ringan dari SsdMobilenetv1)
+        // 1. Menggunakan SsdMobilenetv1 untuk Akurasi & Presisi Tinggi
         Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
+            faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
             faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
         ]).then(loadDescriptors);
@@ -128,10 +128,20 @@
                     statusMsg.innerText = "Data wajah belum terdaftar!";
                     return;
                 }
-                const labeledDescriptors = data.map(d => new faceapi.LabeledFaceDescriptors(d.label, [new Float32Array(d.descriptor)]));
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+
+                const labeledDescriptors = data.map(d => {
+                    // Mendukung jika descriptor dikirim sebagai arraytunggal maupun array multidimensi
+                    const descriptors = Array.isArray(d.descriptor[0])
+                        ? d.descriptor.map(desc => new Float32Array(desc))
+                        : [new Float32Array(d.descriptor)];
+                    return new faceapi.LabeledFaceDescriptors(d.label, descriptors);
+                });
+
+                // Perketat FaceMatcher ke threshold 0.40
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.40);
+
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = "Sistem Aktif! Menunggu Wajah...";
+                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
 
                 await initCameraDevices();
             } catch (err) {
@@ -179,7 +189,6 @@
         function startCamera(deviceId = null) {
             stopCameraStream();
 
-            // Batasi resolusi stream kamera ke 640x480 agar ringan
             const constraints = {
                 video: {
                     deviceId: deviceId ? { exact: deviceId } : undefined,
@@ -238,7 +247,7 @@
             } else {
                 startCamera(cameraSelect.value);
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = "Sistem Aktif! Menunggu Wajah...";
+                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
             }
         });
 
@@ -247,10 +256,10 @@
             captureCanvas.height = video.videoHeight || 480;
             const ctx = captureCanvas.getContext('2d');
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.7);
+            return captureCanvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // OTOMASI DETEKSI MENGGUNAKAN ASYNC LOOP (Mencegah Lag / Patah-patah)
+        // ASYNC LOOP PENDETEKSIAN DENGAN ATURAN KETAT
         video.addEventListener('play', () => {
             const overlay = document.getElementById('overlay');
 
@@ -268,10 +277,10 @@
                     faceapi.matchDimensions(overlay, displaySize);
 
                     if (!isProcessing && faceMatcher) {
-                        // Menggunakan TinyFaceDetector dengan inputSize 160 & scoreThreshold 0.5 untuk proses super cepat
+                        // Menggunakan SsdMobilenetv1Options dengan minConfidence 0.5 (Tinggi Presisi)
                         const detections = await faceapi.detectAllFaces(
                             video,
-                            new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
+                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
                         ).withFaceLandmarks().withFaceDescriptors();
 
                         const resized = faceapi.resizeResults(detections, displaySize);
@@ -279,9 +288,14 @@
 
                         resized.forEach(det => {
                             const match = faceMatcher.findBestMatch(det.descriptor);
+
+                            // Visualisasi bounding box
                             new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
 
-                            if (match.label !== 'unknown' && match.distance < 0.45) {
+                            // Bounding box hijau jika valid (< 0.38), merah jika samar/unknown
+                            const isMatched = match.label !== 'unknown' && match.distance < 0.38;
+
+                            if (isMatched) {
                                 isProcessing = true;
                                 const screenshot = takeScreenshot();
                                 const [nis, name] = match.label.split(' - ');
@@ -291,7 +305,6 @@
                     }
                 }
 
-                // Beri jeda 200ms sebelum frame berikutnya agar CPU tidak beban 100%
                 setTimeout(processFrame, 200);
             }
 
@@ -308,7 +321,7 @@
         }
 
         function submitAttendance(nis, name, image) {
-            Swal.fire({ title: 'Memproses...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Memproses Presisi...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             $.ajax({
                 url: "{{ route('daily.store') }}",
