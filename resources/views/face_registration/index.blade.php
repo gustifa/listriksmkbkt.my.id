@@ -1,51 +1,71 @@
-@extends('layouts.app')
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Pengelolaan Data Wajah Siswa</title>
 
-@section('title', 'Pendaftaran & Kelola Wajah')
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-@section('content')
-<style>
-    body {
-        background-color: #f8f9fa;
-    }
-
-    /* Handling safe-area iOS */
-    @supports (padding: max(0px)) {
+    <style>
+        /* Optimasi Tata Letak Mobile & iOS Safe Area */
         body {
-            padding-left: min(0px, env(safe-area-inset-left));
-            padding-right: min(0px, env(safe-area-inset-right));
-            padding-bottom: min(0px, env(safe-area-inset-bottom));
-        }
-    }
-
-    @media (max-width: 575.98px) {
-        .container {
-            padding-left: 10px;
-            padding-right: 10px;
+            background-color: #f8f9fa;
         }
 
-        .card-header-responsive {
-            flex-direction: column;
-            gap: 12px;
-            text-align: center;
+        @media (max-width: 575.98px) {
+            .container {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .header-buttons {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .header-buttons .btn {
+                width: 100%;
+            }
+
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+
+            .btn-action-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .btn-action-group .btn {
+                width: 100%;
+            }
         }
 
-        .header-buttons {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: min(0px, env(safe-area-inset-left));
+                padding-right: min(0px, env(safe-area-inset-right));
+                padding-bottom: min(0px, env(safe-area-inset-bottom));
+            }
         }
-
-        .header-buttons .btn {
-            width: 100%;
-        }
-    }
-</style>
-
+    </style>
+</head>
+<body class="bg-light">
 <div class="container py-3 py-md-4">
-    <div class="card shadow-sm border-0 rounded-3">
-        
-        <div class="card-header bg-success text-white card-header-responsive d-flex justify-content-between align-items-center py-3">
+    <div class="card shadow-sm border-0">
+        <!-- HEADER KARTU -->
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-3">
             <h5 class="mb-0 fw-bold fs-6 fs-md-5">
                 <i class="fas fa-users-cog me-2"></i> Pendaftaran & Kelola Wajah
             </h5>
@@ -59,59 +79,58 @@
             </div>
         </div>
 
-        <div class="card-body bg-light border-bottom p-3 p-md-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-3">
-                    <form id="filter-form" class="row g-2 g-md-3" onsubmit="return false;">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-bold small text-secondary">
-                                <i class="fas fa-school me-1"></i> Filter Kelas
-                            </label>
-                            <select name="classroom_id" id="classroom_id" class="form-select shadow-none">
-                                <option value="">-- Semua Kelas --</option>
-                                @foreach($classrooms as $classroom)
-                                    <option value="{{ $classroom->id }}">{{ $classroom->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold small text-secondary">
-                                <i class="fas fa-search me-1"></i> Cari Nama / NIS
-                            </label>
-                            <div class="input-group">
-                                <input type="text" name="search" id="search-input" class="form-control shadow-none" placeholder="Ketik nama atau NIS siswa..." autocomplete="off">
-                                <span class="input-group-text bg-white" id="search-loading" style="display: none;">
-                                    <span class="spinner-border spinner-border-sm text-primary"></span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="col-12 col-md-2 d-flex align-items-end">
-                            <button type="button" id="btn-reset" class="btn btn-outline-secondary w-100">
-                                <i class="fas fa-redo me-1"></i> Reset
-                            </button>
-                        </div>
-                    </form>
+        <div class="card-body p-3 p-md-4">
+            <!-- FORM FILTER RESPONSIVE (AJAX) -->
+            <form id="filter-form" class="row g-2 g-md-3 mb-4" onsubmit="return false;">
+                <!-- Filter Kelas -->
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold small text-secondary">
+                        <i class="fas fa-school me-1"></i> Filter Kelas
+                    </label>
+                    <select name="classroom_id" id="classroom_id" class="form-select shadow-none">
+                        <option value="">-- Semua Kelas --</option>
+                        @foreach($classrooms as $classroom)
+                            <option value="{{ $classroom->id }}">{{ $classroom->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
-            </div>
-        </div>
 
-        <div class="card-body p-0">
+                <!-- Cari Nama / NIS -->
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold small text-secondary">
+                        <i class="fas fa-search me-1"></i> Cari Nama / NIS
+                    </label>
+                    <div class="input-group">
+                        <input type="text" name="search" id="search-input" class="form-control shadow-none" placeholder="Ketik nama atau NIS siswa..." autocomplete="off">
+                        <span class="input-group-text bg-white" id="search-loading" style="display: none;">
+                            <span class="spinner-border spinner-border-sm text-primary"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Tombol Reset -->
+                <div class="col-12 col-md-2 d-flex align-items-end">
+                    <button type="button" id="btn-reset" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-redo me-1"></i> Reset
+                    </button>
+                </div>
+            </form>
+
+            <!-- CONTAINER TABEL (DIISI VIA AJAX) -->
             <div id="table-container">
                 @include('face_registration._table')
             </div>
-        </div>
 
+        </div>
     </div>
 </div>
-@endsection
 
-@push('scripts')
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script>
 $(document).ready(function() {
     let searchTimer;
 
+    // Fungsi Ambil Data AJAX
     function fetchStudents(page = 1) {
         $('#search-loading').show();
         const classroomId = $('#classroom_id').val();
@@ -163,4 +182,5 @@ $(document).ready(function() {
     });
 });
 </script>
-@endpush
+</body>
+</html>
