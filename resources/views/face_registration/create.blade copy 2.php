@@ -27,10 +27,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-        }
-
-        /* Class Mirroring khusus untuk Kamera Depan */
-        .video-mirror {
             transform: scaleX(-1);
             -webkit-transform: scaleX(-1);
         }
@@ -46,7 +42,7 @@
         @media (max-width: 575.98px) {
             .container { padding-left: 10px; padding-right: 10px; }
             .card-header { flex-direction: column; gap: 8px; text-align: center; }
-            .webcam-box { aspect-ratio: 3/4; }
+            .webcam-box { aspect-ratio: 3/4; } /* Memanjang vertikal di HP */
             .preview-img { width: 70px; height: 70px; }
         }
 
@@ -72,24 +68,18 @@
                     <div id="status-msg" class="alert alert-warning py-2 mb-3 small">Memuat Model SsdMobilenetv1...</div>
 
                     <div class="webcam-box mb-3">
-                        <video id="video" class="video-mirror" autoplay muted playsinline></video>
+                        <video id="video" autoplay muted playsinline></video>
                     </div>
 
-                    <div class="row g-2 mb-3 align-items-center justify-content-center">
-                        <div class="col-12 col-md-auto">
-                            <button id="btn-switch-camera" class="btn btn-outline-secondary w-100 fw-semibold" type="button">
-                                <i class="fas fa-sync-alt me-1"></i> Ganti Kamera (<span id="camera-label">Depan</span>)
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <select id="sample-label" class="form-select text-center shadow-none">
-                                <option value="Tampak Depan (Netral)">1. Tampak Depan (Netral)</option>
-                                <option value="Tersenyum / Ekspresi">2. Tersenyum / Ekspresi</option>
-                                <option value="Agak Miring Kiri">3. Agak Miring Kiri</option>
-                                <option value="Agak Miring Kanan">4. Agak Miring Kanan</option>
-                                <option value="Memakai Aksesoris/Kacamata">5. Memakai Kacamata / Aksesoris</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">Posisi Foto / Instuksi:</label>
+                        <select id="sample-label" class="form-select w-100 w-md-50 mx-auto text-center shadow-none">
+                            <option value="Tampak Depan (Netral)">1. Tampak Depan (Netral)</option>
+                            <option value="Tersenyum / Ekspresi">2. Tersenyum / Ekspresi</option>
+                            <option value="Agak Miring Kiri">3. Agak Miring Kiri</option>
+                            <option value="Agak Miring Kanan">4. Agak Miring Kanan</option>
+                            <option value="Memakai Aksesoris/Kacamata">5. Memakai Kacamata / Aksesoris</option>
+                        </select>
                     </div>
 
                     <button id="btn-capture" class="btn btn-success btn-lg w-100 w-md-auto px-4 py-2" disabled>
@@ -119,15 +109,11 @@
     const statusMsg = document.getElementById('status-msg');
     const btnCapture = document.getElementById('btn-capture');
     const btnSave = document.getElementById('btn-save');
-    const btnSwitchCamera = document.getElementById('btn-switch-camera');
-    const cameraLabel = document.getElementById('camera-label');
     const previewList = document.getElementById('preview-list');
     const sampleCountText = document.getElementById('sample-count');
 
     let collectedDescriptors = [];
     let collectedLabels = [];
-    let currentStream = null;
-    let currentFacingMode = "user"; // 'user' = Kamera Depan, 'environment' = Kamera Belakang
 
     Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
@@ -136,55 +122,18 @@
     ]).then(startWebcam);
 
     function startWebcam() {
-        // Hentikan stream kamera sebelumnya jika ada
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
-
-        btnCapture.disabled = true;
-        statusMsg.className = 'alert alert-info py-2 mb-3 small';
-        statusMsg.innerText = "Mengakses kamera...";
-
-        // Atur efek cermin: Kamera depan di-mirror, kamera belakang tidak
-        if (currentFacingMode === "user") {
-            video.classList.add('video-mirror');
-            cameraLabel.innerText = "Depan";
-        } else {
-            video.classList.remove('video-mirror');
-            cameraLabel.innerText = "Belakang";
-        }
-
-        navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { exact: currentFacingMode },
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            }
-        })
-        .catch(() => {
-            // Fallback jika 'exact' gagal pada beberapa tipe browser/perangkat
-            return navigator.mediaDevices.getUserMedia({
-                video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 } }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } })
+            .then(stream => {
+                video.srcObject = stream;
+                statusMsg.className = 'alert alert-success py-2 mb-3 small';
+                statusMsg.innerText = "Kamera Siap! Posisikan wajah dengan terang.";
+                btnCapture.disabled = false;
+            })
+            .catch(() => {
+                statusMsg.className = 'alert alert-danger py-2 mb-3 small';
+                statusMsg.innerText = "Gagal mengakses kamera. Berikan izin akses peramban.";
             });
-        })
-        .then(stream => {
-            currentStream = stream;
-            video.srcObject = stream;
-            statusMsg.className = 'alert alert-success py-2 mb-3 small';
-            statusMsg.innerText = "Kamera Siap! Posisikan wajah dengan terang.";
-            btnCapture.disabled = false;
-        })
-        .catch(() => {
-            statusMsg.className = 'alert alert-danger py-2 mb-3 small';
-            statusMsg.innerText = "Gagal mengakses kamera. Berikan izin akses peramban atau kamera tidak tersedia.";
-        });
     }
-
-    // Event Listener Ganti Kamera
-    btnSwitchCamera.addEventListener('click', () => {
-        currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-        startWebcam();
-    });
 
     btnCapture.addEventListener('click', async () => {
         btnCapture.disabled = true;
@@ -210,14 +159,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-
-        // Balik gambar canvas jika sedang memakai kamera depan agar hasil preview tidak terbalik
-        if (currentFacingMode === "user") {
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.getContext('2d').drawImage(video, 0, 0);
 
         previewList.insertAdjacentHTML('beforeend', `
             <div class="text-center">
