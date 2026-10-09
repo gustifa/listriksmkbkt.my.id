@@ -124,7 +124,7 @@
             try {
                 statusMsg.innerText = "Mengunduh database sampel wajah...";
                 const res = await $.ajax({
-                    url: "{{ route('face.descriptors') }}",
+                    url: "{{ route('face.descriptors.all') }}",
                     type: "GET",
                     dataType: "json"
                 });
