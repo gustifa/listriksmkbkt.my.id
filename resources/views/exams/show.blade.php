@@ -179,6 +179,13 @@
         </div>
     </div>
 
+    <!-- Form Hapus Massal diletakkan secara terpisah di luar card/loop -->
+    <form id="bulkDeleteForm" action="{{ route('guru.questions.bulkDestroy') }}" method="POST" class="d-none">
+        @csrf
+        @method('DELETE')
+        <div id="bulkDeleteInputsContainer"></div>
+    </form>
+
     <!-- Daftar Soal Ujian -->
     <div class="card border-0 shadow-sm rounded-3">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -205,9 +212,7 @@
         </div>
 
         <div class="card-body p-2 p-md-4">
-            <form id="bulkDeleteForm" action="{{ route('guru.questions.bulkDestroy') }}" method="POST">
-                @csrf
-                @method('DELETE')
+
 
                 @forelse($exam->questions as $index =>$q)
                     <div class="border rounded-3 p-2 p-md-3 mb-3 bg-light-subtle shadow-sm overflow-hidden">
@@ -328,7 +333,7 @@
                         </div>
                     </div>
                 @endforelse
-            </form>
+           
         </div>
     </div>
 </div>
@@ -517,12 +522,29 @@
     }
 
     function submitBulkDelete() {
-        const count = document.querySelectorAll('.question-checkbox:checked').length;
-        if (count === 0) return alert('Pilih minimal 1 soal.');
-        if (confirm(`Hapus ${count} soal terpilih?`)) {
-            document.getElementById('bulkDeleteForm').submit();
-        }
+    const selectedCheckboxes = document.querySelectorAll('.question-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Pilih minimal 1 soal.');
+        return;
     }
+
+    if (confirm(`Yakin ingin menghapus ${selectedCheckboxes.length} soal terpilih?`)) {
+        const container = document.getElementById('bulkDeleteInputsContainer');
+        container.innerHTML = ''; // Kosongkan input terdahulu
+
+        // Masukkan setiap question_id ke form terpisah
+        selectedCheckboxes.forEach(cb => {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'question_ids[]';
+            hiddenInput.value = cb.value;
+            container.appendChild(hiddenInput);
+        });
+
+        // Submit form utama
+        document.getElementById('bulkDeleteForm').submit();
+    }
+}
 
     function duplicateSingleQuestion(questionId) {
         if (confirm('Duplikasi soal ini?')) {

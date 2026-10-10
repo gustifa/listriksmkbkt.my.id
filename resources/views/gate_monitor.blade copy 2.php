@@ -12,6 +12,7 @@
     <title>SISFO SMK | Monitor Gerbang Presisi</title>
 
     <style>
+        /* Styling Dasar Kamera & Container */
         .video-container {
             position: relative;
             width: 100%;
@@ -25,6 +26,7 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
+        /* Mencegah Masalah Cermin & Safari iOS Render */
         #video {
             width: 100%;
             height: 100%;
@@ -50,16 +52,47 @@
             margin: 0 auto 15px auto;
         }
 
+        /* ===================================================
+           MEDIA QUERIES KHUSUS RESPONSIVE (ANDROID & IPHONE)
+        =================================================== */
+
         @media (max-width: 575.98px) {
-            .page-content { padding-left: 8px; padding-right: 8px; }
-            .card-header { flex-direction: column; gap: 10px; text-align: center; }
-            .card-header a { width: 100%; }
-            .btn-group.w-75 { width: 100% !important; }
-            .btn-group .btn { font-size: 0.85rem; padding: 8px 4px; }
-            .video-container { border-width: 2px; border-radius: 10px; aspect-ratio: 3/4; }
-            #camera-select, #mode-model-select { font-size: 0.85rem; }
+            .page-content {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .card-header a {
+                width: 100%;
+            }
+
+            .btn-group.w-75 {
+                width: 100% !important;
+            }
+
+            .btn-group .btn {
+                font-size: 0.85rem;
+                padding: 8px 4px;
+            }
+
+            .video-container {
+                border-width: 2px;
+                border-radius: 10px;
+                aspect-ratio: 3/4; /* Mengubah aspect ratio ke 3:4 agar pas dengan layar vertikal HP */
+            }
+
+            #camera-select {
+                font-size: 0.85rem;
+            }
         }
 
+        /* Penanganan Safe Area notch iPhone X ke atas */
         @supports (padding: max(0px)) {
             body {
                 padding-left: min(0px, env(safe-area-inset-left));
@@ -76,7 +109,7 @@
             <div class="col-12 col-md-10 col-lg-8 text-center">
                 <div class="shadow card border-0">
                     <div class="text-white card-header bg-success d-flex justify-content-between align-items-center py-3">
-                        <span class="fw-bold"><i class="fas fa-camera me-2"></i> MONITOR GERBANG SCANNER</span>
+                        <span class="fw-bold"><i class="fas fa-camera me-2"></i> MONITOR GERBANG PRESISI TINGGI</span>
                         <div class="d-flex gap-2 w-100 w-md-auto justify-content-center">
                             <a href="{{ route('dashboard') }}" class="btn btn-sm btn-light text-success fw-bold">DASHBOARD</a>
                             <a href="{{ route('face.index') }}" class="btn btn-sm btn-outline-light fw-bold">KELOLA WAJAH</a>
@@ -93,34 +126,21 @@
                             </div>
                         </div>
 
-                        <!-- Pilihan Performa & Mode Kamera -->
+                        <!-- Camera Select & Toggle Button -->
                         <div class="camera-controls">
-                            <div class="row g-2 mb-2">
-                                <div class="col-12 col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-white" title="Pilihan Performa AI"><i class="fas fa-microchip text-primary"></i></span>
-                                        <select id="mode-model-select" class="form-select shadow-none fw-bold">
-                                            <option value="tiny">⚡ Mode Ringan / Cepat (Rekomendasi HP)</option>
-                                            <option value="ssd">🎯 Mode Presisi Tinggi (Perangkat Bagus)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-white"><i class="fas fa-video text-secondary"></i></span>
-                                        <select id="camera-select" class="form-select shadow-none">
-                                            <option value="">Mencari Kamera...</option>
-                                        </select>
-                                        <button id="btn-toggle-camera" class="btn btn-danger" type="button" title="Matikan / Hidupkan Kamera">
-                                            <i id="toggle-icon" class="fas fa-video-slash"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fas fa-video text-secondary"></i></span>
+                                <select id="camera-select" class="form-select shadow-none">
+                                    <option value="">Mencari Kamera...</option>
+                                </select>
+                                <button id="btn-toggle-camera" class="btn btn-danger" type="button" title="Matikan / Hidupkan Kamera">
+                                    <i id="toggle-icon" class="fas fa-video-slash"></i>
+                                </button>
                             </div>
                         </div>
 
                         <div id="status-loading" class="alert alert-warning py-2 mb-3">
-                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Model AI...
+                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Model SsdMobilenetv1...
                         </div>
 
                         <div class="video-container">
@@ -151,7 +171,6 @@
         const statusMsg = document.getElementById('status-loading');
         const captureCanvas = document.getElementById('capture-canvas');
         const cameraSelect = document.getElementById('camera-select');
-        const modeModelSelect = document.getElementById('mode-model-select');
         const btnToggleCamera = document.getElementById('btn-toggle-camera');
         const toggleIcon = document.getElementById('toggle-icon');
 
@@ -160,61 +179,13 @@
         let currentStream = null;
         let isCameraOn = true;
         let detectionLoopActive = false;
-        let currentModelType = 'tiny'; // Default: 'tiny' atau 'ssd'
 
-        // 1. Deteksi Otomatis Kecepatan Internet saat halaman dimuat
-        detectOptimalModelMode();
-
-        async function detectOptimalModelMode() {
-            if (navigator.connection) {
-                const conn = navigator.connection;
-                // Jika koneksi 2G, 3G, atau dalam mode Hemat Data, otomatis pakai 'tiny'
-                if (conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === '3g') {
-                    currentModelType = 'tiny';
-                } else if (conn.effectiveType === '4g') {
-                    // Jika 4G, bisa diset ke presisi tinggi atau tetap tiny berdasarkan pilihan user
-                    currentModelType = modeModelSelect.value;
-                }
-            } else {
-                currentModelType = modeModelSelect.value;
-            }
-
-            modeModelSelect.value = currentModelType;
-            loadAIModels(currentModelType);
-        }
-
-        // 2. Fungsi Memuat Model Sesuai Pilihan (Tiny vs SSD MobileNet)
-        async function loadAIModels(modelType) {
-            statusMsg.className = 'alert alert-warning py-2 mb-3';
-            statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Memuat Model AI (${modelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})...`;
-
-            try {
-                if (modelType === 'tiny') {
-                    await Promise.all([
-                        faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
-                    ]);
-                } else {
-                    await Promise.all([
-                        faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
-                    ]);
-                }
-
-                await loadDescriptors();
-            } catch (err) {
-                statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Gagal memuat model AI dari server.";
-            }
-        }
-
-        // Event listener saat user mengganti mode performa secara manual
-        modeModelSelect.addEventListener('change', () => {
-            currentModelType = modeModelSelect.value;
-            loadAIModels(currentModelType);
-        });
+        // 1. Memuat Model Presisi Tinggi
+        Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
+            faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
+            faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
+        ]).then(loadDescriptors);
 
         async function loadDescriptors() {
             try {
@@ -234,16 +205,13 @@
                     return new faceapi.LabeledFaceDescriptors(d.label, descriptors);
                 });
 
-                // Threshold: 0.42 untuk tiny, 0.38 untuk SSD
-                const distanceThreshold = currentModelType === 'tiny' ? 0.42 : 0.38;
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, distanceThreshold);
+                // Threshold FaceMatcher di-set ke 0.40
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.40);
 
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = `Sistem Aktif! (${currentModelType === 'tiny' ? 'Mode Ringan / Cepat' : 'Mode Presisi Tinggi'})`;
+                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
 
-                if (!currentStream) {
-                    await initCameraDevices();
-                }
+                await initCameraDevices();
             } catch (err) {
                 statusMsg.className = 'alert alert-danger';
                 statusMsg.innerText = "Gagal memuat data wajah dari server.";
@@ -293,15 +261,11 @@
                 ? { deviceId: { exact: deviceId } }
                 : { facingMode: "user" };
 
-            // Penyesuaian resolusi berdasarkan mode
-            const idealWidth = currentModelType === 'tiny' ? 480 : 640;
-            const idealHeight = currentModelType === 'tiny' ? 360 : 480;
-
             const constraints = {
                 video: Object.assign(videoConstraints, {
-                    width: { ideal: idealWidth },
-                    height: { ideal: idealHeight },
-                    frameRate: { ideal: 24, max: 30 }
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30, max: 30 }
                 })
             };
 
@@ -350,19 +314,19 @@
             } else {
                 startCamera(cameraSelect.value);
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = `Sistem Aktif! (${currentModelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})`;
+                statusMsg.innerText = "Sistem Presisi Tinggi Aktif! Menunggu Wajah...";
             }
         });
 
         function takeScreenshot() {
-            captureCanvas.width = video.videoWidth || 480;
-            captureCanvas.height = video.videoHeight || 360;
+            captureCanvas.width = video.videoWidth || 640;
+            captureCanvas.height = video.videoHeight || 480;
             const ctx = captureCanvas.getContext('2d');
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.6);
+            return captureCanvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // ASYNC LOOP PENDETEKSIAN ADAPTIF
+        // ASYNC LOOP PENDETEKSIAN DENGAN BATAS TOLERANSI KETAT
         video.addEventListener('play', () => {
             const overlay = document.getElementById('overlay');
             if (detectionLoopActive) return;
@@ -379,31 +343,20 @@
                     faceapi.matchDimensions(overlay, displaySize);
 
                     if (!isProcessing && faceMatcher) {
-                        let detections;
-
-                        // Eksekusi model sesuai pilihan mode
-                        if (currentModelType === 'tiny') {
-                            detections = await faceapi.detectAllFaces(
-                                video,
-                                new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-                            ).withFaceLandmarks().withFaceDescriptors();
-                        } else {
-                            detections = await faceapi.detectAllFaces(
-                                video,
-                                new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
-                            ).withFaceLandmarks().withFaceDescriptors();
-                        }
+                        const detections = await faceapi.detectAllFaces(
+                            video,
+                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptors();
 
                         const resized = faceapi.resizeResults(detections, displaySize);
                         overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-
-                        const matchDistanceLimit = currentModelType === 'tiny' ? 0.40 : 0.38;
 
                         resized.forEach(det => {
                             const match = faceMatcher.findBestMatch(det.descriptor);
                             new faceapi.draw.DrawBox(det.detection.box, { label: match.toString() }).draw(overlay);
 
-                            if (match.label !== 'unknown' && match.distance < matchDistanceLimit) {
+                            // Batas toleransi ketat < 0.38 untuk meminimalisir salah kenal orang
+                            if (match.label !== 'unknown' && match.distance < 0.38) {
                                 isProcessing = true;
                                 const screenshot = takeScreenshot();
                                 const [nis, name] = match.label.split(' - ');
@@ -413,9 +366,7 @@
                     }
                 }
 
-                // Jeda frame: 250ms untuk mode ringan, 150ms untuk mode presisi tinggi
-                const interval = currentModelType === 'tiny' ? 250 : 150;
-                setTimeout(processFrame, interval);
+                setTimeout(processFrame, 200);
             }
 
             processFrame();
@@ -431,7 +382,7 @@
         }
 
         function submitAttendance(nis, name, image) {
-            Swal.fire({ title: 'Memproses Absen...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Memproses Presisi...', text: name, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             $.ajax({
                 url: "{{ route('daily.store') }}",

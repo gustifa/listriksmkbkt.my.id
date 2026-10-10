@@ -428,31 +428,43 @@ public function destroy(Question $question)
 /**
  * Hapus beberapa soal sekaligus (Bulk Delete)
  */
+// public function bulkDestroy(Request $request)
+// {
+//     $request->validate([
+//         'question_ids'   => 'required|array|min:1',
+//         'question_ids.*' => 'exists:questions,id',
+//     ], [
+//         'question_ids.required' => 'Pilih minimal satu soal yang ingin dihapus.',
+//     ]);
+
+//     DB::beginTransaction();
+//     try {
+//         $ids = $request->input('question_ids');
+
+//         // Hapus batch soal
+//         Question::whereIn('id', $ids)->delete();
+
+//         DB::commit();
+
+//         return redirect()->back()->with('success', 'Berhasil menghapus ' . count($ids) . ' soal yang dipilih!');
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+//         return redirect()->back()->with('error', 'Gagal menghapus soal terpilih: ' . $e->getMessage());
+//     }
+// }
+
 public function bulkDestroy(Request $request)
 {
     $request->validate([
-        'question_ids'   => 'required|array|min:1',
-        'question_ids.*' => 'exists:questions,id',
-    ], [
-        'question_ids.required' => 'Pilih minimal satu soal yang ingin dihapus.',
+        'question_ids'   => 'required|array',
+        'question_ids.*' => 'required',
     ]);
 
-    DB::beginTransaction();
-    try {
-        $ids = $request->input('question_ids');
+    // Hapus seluruh soal yang ID-nya masuk dalam array
+    Question::whereIn('id', $request->question_ids)->delete();
 
-        // Hapus batch soal
-        Question::whereIn('id', $ids)->delete();
-
-        DB::commit();
-
-        return redirect()->back()->with('success', 'Berhasil menghapus ' . count($ids) . ' soal yang dipilih!');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return redirect()->back()->with('error', 'Gagal menghapus soal terpilih: ' . $e->getMessage());
-    }
+    return redirect()->back()->with('success', count($request->question_ids) . ' soal berhasil dihapus.');
 }
-
 /**
  * Memperbarui bobot secara massal/rata untuk seluruh soal dalam ujian
  */

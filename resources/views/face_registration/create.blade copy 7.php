@@ -75,35 +75,12 @@
             border: 2px solid #0d6efd;
         }
 
-        /* CARD ILUSTRASI VISUAL */
-        .guide-card {
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 10px;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .guide-card.active {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
-            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.2);
-        }
-
-        .guide-svg {
-            width: 50px;
-            height: 50px;
-            margin: 0 auto 5px auto;
-            display: block;
-        }
-
         @media (max-width: 575.98px) {
             .container { padding-left: 10px; padding-right: 10px; }
             .card-header { flex-direction: column; gap: 8px; text-align: center; }
             .webcam-box { aspect-ratio: 3/4; }
             .face-guide-overlay { width: 68%; height: 65%; }
             .preview-img { width: 70px; height: 70px; }
-            .guide-svg { width: 40px; height: 40px; }
             #mode-model-select { font-size: 0.85rem; }
         }
 
@@ -119,84 +96,13 @@
 <body class="bg-light">
 <div class="container py-3 py-md-4">
     <div class="row justify-content-center">
-        <div class="col-12 col-md-9">
+        <div class="col-12 col-md-8">
             <div class="card shadow border-0">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
                     <span class="fw-bold"><i class="fas fa-camera me-2"></i> Rekam Wajah: {{ $student->name }}</span>
                     <a href="{{ route('face.index') }}" class="btn btn-sm btn-light fw-bold">Kembali</a>
                 </div>
                 <div class="card-body text-center p-3 p-md-4">
-
-                    <!-- PANDUAN GAMBAR CONTOH POSISI WAJAH -->
-                    <div class="card border-0 bg-light p-3 mb-3 text-start">
-                        <h6 class="fw-bold text-dark mb-3 text-center">
-                            <i class="fas fa-user-circle text-primary me-1"></i> Contoh Posisi Wajah Yang Diperlukan (Min. 3 Posisi):
-                        </h6>
-                        <div class="row g-2 text-center justify-content-center">
-                            <!-- Contoh 1: Depan -->
-                            <div class="col-4 col-md-2">
-                                <div class="guide-card active" id="guide-depan">
-                                    <svg class="guide-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#0d6efd" stroke-width="3"/>
-                                        <circle cx="35" cy="40" r="5" fill="#334155"/>
-                                        <circle cx="65" cy="40" r="5" fill="#334155"/>
-                                        <path d="M 38 65 Q 50 70 62 65" stroke="#334155" stroke-width="3" fill="none"/>
-                                    </svg>
-                                    <span class="d-block fw-bold small text-truncate">1. Depan</span>
-                                </div>
-                            </div>
-                            <!-- Contoh 2: Miring Kiri -->
-                            <div class="col-4 col-md-2">
-                                <div class="guide-card" id="guide-kiri">
-                                    <svg class="guide-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
-                                        <circle cx="25" cy="40" r="5" fill="#334155"/>
-                                        <circle cx="55" cy="40" r="5" fill="#334155"/>
-                                        <path d="M 28 65 Q 40 70 52 65" stroke="#334155" stroke-width="3" fill="none"/>
-                                    </svg>
-                                    <span class="d-block fw-bold small text-truncate">2. Miring Kiri</span>
-                                </div>
-                            </div>
-                            <!-- Contoh 3: Miring Kanan -->
-                            <div class="col-4 col-md-2">
-                                <div class="guide-card" id="guide-kanan">
-                                    <svg class="guide-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
-                                        <circle cx="45" cy="40" r="5" fill="#334155"/>
-                                        <circle cx="75" cy="40" r="5" fill="#334155"/>
-                                        <path d="M 48 65 Q 60 70 72 65" stroke="#334155" stroke-width="3" fill="none"/>
-                                    </svg>
-                                    <span class="d-block fw-bold small text-truncate">3. Miring Kanan</span>
-                                </div>
-                            </div>
-                            <!-- Contoh 4: Senyum -->
-                            <div class="col-4 col-md-2">
-                                <div class="guide-card" id="guide-senyum">
-                                    <svg class="guide-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
-                                        <circle cx="35" cy="40" r="5" fill="#334155"/>
-                                        <circle cx="65" cy="40" r="5" fill="#334155"/>
-                                        <path d="M 30 60 Q 50 80 70 60" stroke="#334155" stroke-width="3" fill="none"/>
-                                    </svg>
-                                    <span class="d-block fw-bold small text-truncate">4. Tersenyum</span>
-                                </div>
-                            </div>
-                            <!-- Contoh 5: Kacamata/Aksesoris -->
-                            <div class="col-4 col-md-2">
-                                <div class="guide-card" id="guide-kacamata">
-                                    <svg class="guide-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
-                                        <rect x="25" y="32" width="20" height="15" rx="3" stroke="#334155" stroke-width="3" fill="none"/>
-                                        <rect x="55" y="32" width="20" height="15" rx="3" stroke="#334155" stroke-width="3" fill="none"/>
-                                        <line x1="45" y1="38" x2="55" y2="38" stroke="#334155" stroke-width="3"/>
-                                        <path d="M 38 65 Q 50 70 62 65" stroke="#334155" stroke-width="3" fill="none"/>
-                                    </svg>
-                                    <span class="d-block fw-bold small text-truncate">5. Kacamata</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Pilihan Mode AI -->
                     <div class="mb-3 w-100 w-md-75 mx-auto">
                         <div class="input-group">
@@ -228,15 +134,8 @@
                         </select>
                     </div>
 
-                    <!-- TOMBOL AMBIL SAMPEL MANUAL & OPSI AUTO SCAN -->
-                    <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2 mb-3">
-                        <button id="btn-capture" class="btn btn-success btn-lg px-4 py-2 fw-bold w-100 w-sm-auto" disabled>
-                            <i class="fas fa-camera me-2"></i> Ambil Sampel Wajah
-                        </button>
-                    </div>
-
                     <div class="alert alert-info py-2 my-3 small">
-                        <i class="fas fa-magic me-1"></i> <strong>Perekaman Otomatis:</strong> Sistem juga dapat mengambil foto secara otomatis saat wajah ditahan di lingkaran selama 1 detik.
+                        <i class="fas fa-magic me-1"></i> <strong>Scan Otomatis Aktif:</strong> Posisikan wajah di lingkaran & tahan posisi selama 1 detik.
                     </div>
 
                     <hr class="my-3">
@@ -260,7 +159,6 @@
 <script>
     const video = document.getElementById('video');
     const statusMsg = document.getElementById('status-msg');
-    const btnCapture = document.getElementById('btn-capture');
     const btnSave = document.getElementById('btn-save');
     const previewList = document.getElementById('preview-list');
     const sampleCountText = document.getElementById('sample-count');
@@ -273,10 +171,9 @@
     let collectedLabels = [];
     let currentStream = null;
     let currentModelType = 'tiny';
-    let isProcessing = false;
+    let isAutoScanning = false;
     let scanHoldTimer = null;
     let detectionLoopActive = false;
-    let lastDetection = null;
 
     detectOptimalModelMode();
 
@@ -297,7 +194,6 @@
     }
 
     async function loadAIModels(modelType) {
-        btnCapture.disabled = true;
         statusMsg.className = 'alert alert-warning py-2 mb-3 small';
         statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Memuat Model AI (${modelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})...`;
 
@@ -321,7 +217,6 @@
             } else {
                 statusMsg.className = 'alert alert-success py-2 mb-3 small';
                 statusMsg.innerText = `Kamera Siap! Posisikan wajah di dalam lingkaran.`;
-                btnCapture.disabled = false;
             }
         } catch (err) {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
@@ -350,7 +245,6 @@
             video.srcObject = stream;
             statusMsg.className = 'alert alert-success py-2 mb-3 small';
             statusMsg.innerText = `Kamera Siap! Posisikan wajah di dalam lingkaran.`;
-            btnCapture.disabled = false;
         })
         .catch(() => {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
@@ -358,18 +252,18 @@
         });
     }
 
-    // LOOP DETEKSI REAL-TIME DI LATAR BELAKANG
+    // LOOP PENIMBANGAN DAN SCAN OTOMATIS
     video.addEventListener('play', () => {
         if (detectionLoopActive) return;
         detectionLoopActive = true;
 
-        async function processFrame() {
+        async function processAutoScan() {
             if (!video.srcObject) {
                 detectionLoopActive = false;
                 return;
             }
 
-            if (!isProcessing && collectedLabels.length < 5) {
+            if (!isAutoScanning && collectedLabels.length < 5) {
                 let detection;
                 if (currentModelType === 'tiny') {
                     detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
@@ -381,17 +275,14 @@
                         .withFaceDescriptor();
                 }
 
-                lastDetection = detection;
-
                 if (detection) {
                     faceGuide.classList.add('detected');
-                    faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol / Tahan 1 Detik');
+                    faceGuide.setAttribute('data-status', 'Wajah Pas! Tahan 1 Detik...');
 
-                    // Auto-capture jika ditahan 1.2 detik
                     if (!scanHoldTimer) {
                         scanHoldTimer = setTimeout(() => {
-                            captureSample(detection);
-                        }, 1200);
+                            captureSampleAutomatically(detection);
+                        }, 1200); // Tahan posisi selama 1.2 detik untuk auto-capture
                     }
                 } else {
                     faceGuide.classList.remove('detected');
@@ -404,71 +295,39 @@
             }
 
             const interval = currentModelType === 'tiny' ? 250 : 150;
-            setTimeout(processFrame, interval);
+            setTimeout(processAutoScan, interval);
         }
 
-        processFrame();
+        processAutoScan();
     });
 
-    // PENGAMBILAN SAMPEL MANUAL VIA TOMBOL
-    btnCapture.addEventListener('click', async () => {
-        if (isProcessing) return;
-        btnCapture.disabled = true;
-
-        if (!lastDetection) {
-            statusMsg.innerText = "Mengekstrak fitur wajah secara presisi...";
-            if (currentModelType === 'tiny') {
-                lastDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-            } else {
-                lastDetection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-            }
-        }
-
-        if (!lastDetection) {
-            Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di dalam lingkaran panduan & pencahayaan cukup terang.', 'warning');
-            btnCapture.disabled = false;
-            return;
-        }
-
-        captureSample(lastDetection);
-    });
-
-    // FUNGSI UTAMA PENANGKAPAN SAMPEL WAJAH
-    function captureSample(detection) {
-        isProcessing = true;
+    async function captureSampleAutomatically(detection) {
+        isAutoScanning = true;
         if (scanHoldTimer) { clearTimeout(scanHoldTimer); scanHoldTimer = null; }
 
         const selectedLabel = sampleLabelSelect.value;
 
-        // Validasi 1: Cek apakah label ini sudah ada
+        // Validasi 1: Label sudah diambil sebelumnya
         if (collectedLabels.includes(selectedLabel)) {
-            Swal.fire('Sudut Wajah Sudah Terdaftar', `Anda sudah mengambil sampel "${selectedLabel}". Silakan pilih instruksi posisi lain!`, 'warning');
-            btnCapture.disabled = false;
-            isProcessing = false;
+            faceGuide.classList.remove('detected');
+            faceGuide.setAttribute('data-status', 'Ubah Posisi / Pilihan instruksi!');
+            setTimeout(() => { isAutoScanning = false; }, 2000);
             return;
         }
 
-        // Validasi 2: Cek variasi geometri Euclidean distance
+        // Validasi 2: Cek variasi Euclidean distance geometri wajah
         const newDescriptor = detection.descriptor;
         for (let i = 0; i < rawDescriptors.length; i++) {
             const distance = faceapi.euclideanDistance(newDescriptor, rawDescriptors[i]);
             if (distance < 0.12) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Posisi Wajah Terlalu Sama',
-                    text: 'Sistem mendeteksi posisi/ekspresi wajah Anda belum berubah. Miringkan kepala atau ubah ekspresi!'
-                });
-                btnCapture.disabled = false;
-                isProcessing = false;
+                faceGuide.classList.remove('detected');
+                faceGuide.setAttribute('data-status', 'Ubah Sudut / Ekspresi Wajah Anda!');
+                setTimeout(() => { isAutoScanning = false; }, 2000);
                 return;
             }
         }
 
-        // Lolos Validasi
+        // Lolos Validasi & Ambil Sampel
         rawDescriptors.push(newDescriptor);
         collectedDescriptors.push(JSON.stringify(Array.from(newDescriptor)));
         collectedLabels.push(selectedLabel);
@@ -487,7 +346,7 @@
 
         sampleCountText.innerText = collectedDescriptors.length;
 
-        // Pindah otomatis pilihan dropdown ke posisi berikutnya
+        // Pindah otomatis ke instruksi berikutnya
         const availableOptions = Array.from(sampleLabelSelect.options).map(opt => opt.value);
         const nextOption = availableOptions.find(optVal => !collectedLabels.includes(optVal));
         if (nextOption) {
@@ -505,8 +364,7 @@
         }).then(() => {
             faceGuide.classList.remove('detected');
             faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
-            btnCapture.disabled = false;
-            isProcessing = false;
+            isAutoScanning = false;
         });
     }
 
