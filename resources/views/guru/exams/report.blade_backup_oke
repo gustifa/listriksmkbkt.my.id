@@ -83,7 +83,7 @@
                             <th>Siswa</th>
                             <th>Kelas</th>
                             <th>Waktu Pengerjaan</th>
-                            <th class="text-center">Status Pengerjaan</th>
+                            <th class="text-center">Status</th>
                             <th class="text-end">Nilai</th>
                             <th class="text-center pe-4">Aksi</th>
                         </tr>
@@ -108,54 +108,22 @@
                                     </small>
                                 </td>
                                 <td class="text-center">
-                                    @if($s->is_blocked)
-                                        <span class="badge bg-danger text-white border px-3 py-1 mb-1 d-inline-block">
-                                            <i class="fas fa-lock me-1"></i> Terkunci ({{ $s->violation_count ?? 3 }}/3)
-                                        </span>
-                                    @elseif($s->status === 'completed' || $s->status === 'submitted')
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
-                                            <i class="fas fa-check-circle me-1"></i> Selesai
-                                        </span>
+                                    @if($s->status === 'completed')
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">Selesai</span>
                                     @else
-                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1">
-                                            <i class="fas fa-spinner fa-spin me-1"></i> Sedang Mengerjakan
-                                        </span>
-                                    @endif
-
-                                    <!-- Keterangan Tipe Pengumpulan Jika Sudah Selesai -->
-                                    @if($s->status === 'completed' || $s->status === 'submitted')
-                                        <small class="d-block text-muted" style="font-size: 10px;">
-                                            @if(($s->submit_type ?? 'manual') === 'timeout')
-                                                (Waktu Habis)
-                                            @elseif(($s->submit_type ?? 'manual') === 'cheat_penalty')
-                                                (Penalti Curang)
-                                            @else
-                                                (Mandiri)
-                                            @endif
-                                        </small>
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1">Sedang Mengerjakan</span>
                                     @endif
                                 </td>
                                 <td class="text-end fw-bold fs-6 {{ ($s->score ?? 0) >= 75 ? 'text-success' : 'text-danger' }}">
                                     {{ number_format($s->score ?? 0, 1) }}
                                 </td>
                                 <td class="text-center pe-4">
-                                    <div class="d-flex justify-content-center gap-1 flex-wrap">
-                                        <!-- Tombol Buka Kunci Siswa (Tampak Jika Akun Terkunci) -->
-                                        @if($s->is_blocked)
-                                            <form action="{{ route('guru.sessions.unblock', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Buka kunci ujian siswa ini agar bisa melanjutkan pengerjaan?');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="btn btn-sm btn-success fw-bold" title="Buka Kunci Siswa">
-                                                    <i class="fas fa-unlock me-1"></i> Buka Kunci
-                                                </button>
-                                            </form>
-                                        @endif
-
+                                    <div class="d-flex justify-content-center gap-1">
                                         <!-- Tombol Selesai Ujian Force oleh Admin/Guru -->
-                                        @if(!$s->is_blocked && $s->status !== 'completed' && $s->status !== 'submitted')
+                                        @if($s->status !== 'completed')
                                             <form action="{{ route('guru.exam-sessions.finish', $s->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menyelesaikan ujian siswa ini secara paksa? Nilai akan dihitung dari jawaban yang telah diisi.');">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-warning text-dark fw-semibold" title="Paksa Selesai Ujian">
+                                                <button type="submit" class="btn btn-sm btn-success fw-semibold" title="Paksa Selesai Ujian">
                                                     <i class="fas fa-check-circle me-1"></i> Selesai
                                                 </button>
                                             </form>

@@ -113,6 +113,7 @@ class ExamController extends Controller
             'show_correct_answer' => $request->has('show_correct_answer'),
             'randomize_questions' => $request->has('randomize_questions'),
             'randomize_options'   => $request->has('randomize_options'),
+            'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
         ]);
 
         $exam->classrooms()->attach($request->classroom_ids);
@@ -388,6 +389,7 @@ class ExamController extends Controller
             'show_correct_answer' => $request->has('show_correct_answer'),
             'randomize_questions' => $request->has('randomize_questions'),
             'randomize_options'   => $request->has('randomize_options'),
+            'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
         ]);
 
         $exam->classrooms()->sync($request->classroom_ids);
@@ -769,5 +771,17 @@ class ExamController extends Controller
         $exam->collaborators()->sync($collaboratorIds);
 
         return redirect()->back()->with('success', 'Daftar Team Teaching / Guru Kolaborator berhasil diperbarui!');
+    }
+
+    public function unblockStudentSession($sessionId)
+    {
+        $session = ExamSession::findOrFail($sessionId);
+        
+        // Reset status penguncian dan hitungan kecurangan
+        $session->is_blocked = false;
+        $session->violation_count = 0; // Atau biarkan tetap 2 jika ingin memberi 1x kesempatan lagi
+        $session->save();
+
+        return redirect()->back()->with('success', 'Akses ujian siswa berhasil dibuka kembali.');
     }
 }

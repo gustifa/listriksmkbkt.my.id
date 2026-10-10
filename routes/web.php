@@ -250,7 +250,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/exams', [ExamController::class, 'store'])->name('exams.store');
         Route::delete('/exams/{exam}', [ExamController::class, 'destroy'])->name('exams.destroy');
         Route::patch('/exams/{exam}/toggle-status', [ExamController::class, 'toggleStatus'])->name('exams.toggle-status');
-
+        Route::patch('/sessions/{session}/unblock', [ExamController::class, 'unblockStudentSession'])->name('guru.sessions.unblock');
 
         // Route::post('/guru/exams/{exam}/import-questions', [ExamController::class, 'importQuestions'])->name('guru.exam.import');
         // Tampilan Form Import Soal Excel (guru.questions.import.form)
@@ -860,7 +860,7 @@ Route::middleware(['auth'])->group(function () {
             // 7. Halaman Hasil / Nilai Ujian (Setelah Selesai)
             Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
             Route::get('/exams/{exam}/session/{session}/review', [StudentExamController::class, 'review'])->name('exams.review');
-
+            Route::post('/exam/log-violation', [StudentExamController::class, 'logViolation'])->name('exam.log_violation');
         });
     });
 

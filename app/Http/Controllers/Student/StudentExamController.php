@@ -522,27 +522,245 @@ class StudentExamController extends Controller
     /**
      * 5. Autosave Jawaban Siswa via AJAX
      */
+    // public function autosave(Request $request, Exam $exam, ExamSession $session)
+    // {
+    //     $request->validate([
+    //         'question_id' => 'required',
+    //         'answer'      => 'nullable',
+    //     ]);
+
+    //     if ($session->status === 'completed') {
+    //         return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+    //     }
+
+    //     // Format jawaban agar selalu menjadi array untuk kolom JSON 'answer'
+    //     $answerData = is_array($request->answer) ? $request->answer : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
+
+    //     ExamAnswer::updateOrCreate(
+    //         [
+    //             'exam_session_id' => $session->id,
+    //             'question_id'     => $request->question_id,
+    //         ],
+    //         [
+    //             'answer' => $answerData, // Disimpan dalam format JSON
+    //         ]
+    //     );
+
+    //     return response()->json(['status' => 'success', 'message' => 'Jawaban tersimpan']);
+    // }
+
+    // public function autosave(Request $request, Exam $exam, ExamSession $session)
+    // {
+    //     // 1. Cek status pengerjaan & penguncian ujian
+    //     if ($session->status === 'completed' || $session->status === 'submitted') {
+    //         return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+    //     }
+
+    //     if ($session->is_blocked) {
+    //         return response()->json(['status' => 'blocked', 'message' => 'Ujian Anda telah terkunci!'], 403);
+    //     }
+
+    //     // 2. Handle Penanganan Pelanggaran Anti-Kecurangan (Anti-Cheating)
+    //     if ($request->has('violation_count')) {
+    //         $session->violation_count = $request->violation_count;
+
+    //         // Kunci ujian jika melampaui/mencapai batas toleransi (3 kali)
+    //         if ($session->violation_count >= 3) {
+    //             $session->is_blocked = true;
+    //         }
+
+    //         $session->save();
+
+    //         return response()->json([
+    //             'status'     => 'success',
+    //             'is_blocked' => $session->is_blocked,
+    //             'message'    => $session->is_blocked ? 'Ujian telah terkunci.' : 'Pelanggaran dicatat.'
+    //         ]);
+    //     }
+
+    //     // 3. Handle Simpan Jawaban Soal (Logika Asli)
+    //     $request->validate([
+    //         'question_id' => 'required',
+    //         'answer'      => 'nullable',
+    //     ]);
+
+    //     // Format jawaban agar selalu menjadi array untuk kolom JSON 'answer'
+    //     $answerData = is_array($request->answer) 
+    //         ? $request->answer 
+    //         : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
+
+    //     ExamAnswer::updateOrCreate(
+    //         [
+    //             'exam_session_id' => $session->id,
+    //             'question_id'     => $request->question_id,
+    //         ],
+    //         [
+    //             'answer'      => $answerData, // Disimpan dalam format JSON
+    //             'is_doubtful' => $request->boolean('is_doubtful', false),
+    //         ]
+    //     );
+
+    //     return response()->json(['status' => 'success', 'message' => 'Jawaban tersimpan']);
+    // }
+
+    /**
+     * 5. Autosave Jawaban Siswa via AJAX
+     */
+    // public function autosave(Request $request, Exam $exam, ExamSession $session)
+    // {
+    //     // 1. Cek status pengerjaan & penguncian
+    //     if ($session->status === 'completed' || $session->status === 'submitted') {
+    //         return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+    //     }
+
+    //     if ($session->is_blocked) {
+    //         return response()->json(['status' => 'blocked', 'message' => 'Ujian Anda telah terkunci!'], 403);
+    //     }
+
+    //     // 2. Handle Pelanggaran Anti-Kecurangan
+    //     if ($request->has('violation_count')) {
+    //         $session->violation_count = $request->violation_count;
+
+    //         if ($session->violation_count >= 3) {
+    //             $session->is_blocked = true;
+    //         }
+
+    //         $session->save();
+
+    //         return response()->json([
+    //             'status'     => 'success',
+    //             'is_blocked' => $session->is_blocked,
+    //             'message'    => $session->is_blocked ? 'Ujian telah terkunci.' : 'Pelanggaran dicatat.'
+    //         ]);
+    //     }
+
+    //     // 3. Handle Simpan Jawaban Soal
+    //     $request->validate([
+    //         'question_id' => 'required',
+    //         'answer'      => 'nullable',
+    //     ]);
+
+    //     $answerData = is_array($request->answer) 
+    //         ? $request->answer 
+    //         : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
+
+    //     // BERI DEFAULT SCORE_GIVEN = 0 AGAR TIDAK DIPANIKKAN OLEH NOT NULL CONSTRAINT POSTGRESQL
+    //     ExamAnswer::updateOrCreate(
+    //         [
+    //             'exam_session_id' => $session->id,
+    //             'question_id'     => $request->question_id,
+    //         ],
+    //         [
+    //             'answer'      => $answerData,
+    //             'is_doubtful' => $request->boolean('is_doubtful', false),
+    //             'score_given' => 0.00, // Wajib diisi agar autosave PostgreSQL sukses
+    //         ]
+    //     );
+
+    //     return response()->json(['status' => 'success', 'message' => 'Jawaban tersimpan']);
+    // }
+    // public function autosave(Request $request, Exam $exam, ExamSession $session)
+    // {
+    //     // 1. Cek status pengerjaan & penguncian ujian
+    //     if ($session->status === 'completed' || $session->status === 'submitted') {
+    //         return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+    //     }
+
+    //     if ($session->is_blocked) {
+    //         return response()->json(['status' => 'blocked', 'message' => 'Ujian Anda telah terkunci!'], 403);
+    //     }
+
+    //     // 2. Handle Penanganan Pelanggaran Anti-Kecurangan
+    //     if ($request->has('violation_count')) {
+    //         $session->violation_count = $request->violation_count;
+
+    //         if ($session->violation_count >= 3) {
+    //             $session->is_blocked = true;
+    //         }
+
+    //         $session->save();
+
+    //         return response()->json([
+    //             'status'     => 'success',
+    //             'is_blocked' => $session->is_blocked,
+    //             'message'    => $session->is_blocked ? 'Ujian telah terkunci.' : 'Pelanggaran dicatat.'
+    //         ]);
+    //     }
+
+    //     // 3. Handle Simpan Jawaban Soal
+    //     $request->validate([
+    //         'question_id' => 'required',
+    //         'answer'      => 'nullable',
+    //     ]);
+
+    //     // Format jawaban agar selalu menjadi array untuk kolom JSON 'answer'
+    //     $answerData = is_array($request->answer) 
+    //         ? $request->answer 
+    //         : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
+
+    //     // Berikan default nilai score_given = 0.00 agar tidak kena Not Null constraint
+    //     ExamAnswer::updateOrCreate(
+    //         [
+    //             'exam_session_id' => $session->id,
+    //             'question_id'     => $request->question_id,
+    //         ],
+    //         [
+    //             'answer'      => $answerData,
+    //             'is_doubtful' => $request->boolean('is_doubtful', false),
+    //             'score_given' => 0.00, // <--- WAJIB DIISI UNTUK MENGHINDARI ERROR 500
+    //         ]
+    //     );
+
+    //     return response()->json(['status' => 'success', 'message' => 'Jawaban tersimpan']);
+    // }
+
     public function autosave(Request $request, Exam $exam, ExamSession $session)
     {
+        // 1. Cek status pengerjaan & penguncian ujian
+        if ($session->status === 'completed' || $session->status === 'submitted') {
+            return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
+        }
+
+        if ($session->is_blocked) {
+            return response()->json(['status' => 'blocked', 'message' => 'Ujian Anda telah terkunci!'], 403);
+        }
+
+        // 2. Handle Pelanggaran Anti-Kecurangan
+        if ($request->has('violation_count')) {
+            $session->violation_count = $request->violation_count;
+
+            if ($session->violation_count >= 3) {
+                $session->is_blocked = true;
+            }
+
+            $session->save();
+
+            return response()->json([
+                'status'     => 'success',
+                'is_blocked' => $session->is_blocked,
+                'message'    => $session->is_blocked ? 'Ujian telah terkunci.' : 'Pelanggaran dicatat.'
+            ]);
+        }
+
+        // 3. Handle Simpan Jawaban Soal
         $request->validate([
             'question_id' => 'required',
             'answer'      => 'nullable',
         ]);
 
-        if ($session->status === 'completed') {
-            return response()->json(['status' => 'error', 'message' => 'Ujian telah selesai.'], 403);
-        }
+        $answerData = is_array($request->answer) 
+            ? $request->answer 
+            : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
 
-        // Format jawaban agar selalu menjadi array untuk kolom JSON 'answer'
-        $answerData = is_array($request->answer) ? $request->answer : ($request->answer !== null && $request->answer !== '' ? [$request->answer] : []);
-
+        // SIMPAN TANPA KOLOM 'is_doubtful' & BERI SCORE_GIVEN = 0.00
         ExamAnswer::updateOrCreate(
             [
                 'exam_session_id' => $session->id,
                 'question_id'     => $request->question_id,
             ],
             [
-                'answer' => $answerData, // Disimpan dalam format JSON
+                'answer'      => $answerData,
+                'score_given' => 0.00,
             ]
         );
 
@@ -552,18 +770,40 @@ class StudentExamController extends Controller
     /**
      * 6. Menyelesaikan Ujian (Finish)
      */
-    public function finishExam(Exam $exam, ExamSession $session)
+    // public function finishExam(Exam $exam, ExamSession $session)
+    // {
+    //     if ($session->status === 'completed') {
+    //         return redirect()->route('student.exam.result', [$exam->id, $session->id]);
+    //     }
+
+    //     // Hitung dan simpan nilai
+    //     $this->calculateScore($exam, $session);
+
+    //     $session->update([
+    //         'status'      => 'completed',
+    //         'submit_time' => now(), // Menggunakan kolom submit_time
+    //     ]);
+
+    //     return redirect()->route('student.exam.result', [$exam->id, $session->id])
+    //                      ->with('success', 'Ujian berhasil diselesaikan!');
+    // }
+    /**
+     * 6. Menyelesaikan Ujian (Finish)
+     */
+    public function finishExam(Request $request, Exam $exam, ExamSession $session)
     {
-        if ($session->status === 'completed') {
+        if ($session->status === 'completed' || $session->status === 'submitted') {
             return redirect()->route('student.exam.result', [$exam->id, $session->id]);
         }
 
         // Hitung dan simpan nilai
         $this->calculateScore($exam, $session);
 
+        // Update status sesi (Gunakan submit_time, bukan submitted_at)
         $session->update([
             'status'      => 'completed',
-            'submit_time' => now(), // Menggunakan kolom submit_time
+            'submit_type' => $request->input('submit_type', 'manual'),
+            'submit_time' => now(),
         ]);
 
         return redirect()->route('student.exam.result', [$exam->id, $session->id])
@@ -589,47 +829,200 @@ class StudentExamController extends Controller
     /**
      * Helper: Menghitung Nilai Otomatis Ujian
      */
+    // private function calculateScore(Exam $exam, ExamSession $session)
+    // {
+    //     $questions = $exam->questions->keyBy('id');
+    //     $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+
+    //     $totalQuestions = $questions->count();
+    //     if ($totalQuestions === 0) return;
+
+    //     $totalScore = 0;
+
+    //     foreach ($answers as $ans) {
+    //         $question = $questions->get($ans->question_id);
+    //         if (!$question) continue;
+
+    //         $userAns = is_array($ans->answer) ? $ans->answer : json_decode($ans->answer, true) ?? [];
+    //         $isCorrect = false;
+    //         $scoreGiven = 0;
+
+    //         // Memeriksa kunci jawaban dari kolom pada tabel questions (misal: correct_answer)
+    //         if (isset($question->correct_answer)) {
+    //             $correctAns = is_array($question->correct_answer) ? $question->correct_answer : [$question->correct_answer];
+
+    //             // Pengecekan kesamaan isi array jawaban
+    //             if (!empty($userAns) && empty(array_diff($userAns, $correctAns)) && empty(array_diff($correctAns, $userAns))) {
+    //                 $isCorrect = true;
+    //                 $scoreGiven = 100 / $totalQuestions; // Bobot nilai per soal
+    //             }
+    //         }
+
+    //         // Simpan detail per soal ke exam_answers
+    //         $ans->update([
+    //             'is_correct'  => $isCorrect,
+    //             'score_given' => $scoreGiven,
+    //         ]);
+
+    //         $totalScore += $scoreGiven;
+    //     }
+
+    //     // Simpan total skor akhir ke exam_sessions
+    //     $session->update([
+    //         'score' => round($totalScore, 2),
+    //     ]);
+    // }
+    // private function calculateScore(Exam $exam, ExamSession $session)
+    // {
+    //     $questions = $exam->questions;
+    //     $answers = ExamAnswer::where('exam_session_id', $session->id)->get()->keyBy('question_id');
+
+    //     if ($questions->count() === 0) return;
+
+    //     $totalScore = 0;
+
+    //     foreach ($questions as $question) {
+    //         $ans = $answers->get($question->id);
+    //         if (!$ans || empty($ans->answer)) {
+    //             continue;
+    //         }
+
+    //         // 1. Normalisasi Jawaban Siswa
+    //         $userAns = is_array($ans->answer) ? $ans->answer : json_decode($ans->answer, true);
+    //         if (!is_array($userAns)) {
+    //             $userAns = array_map('trim', explode(',', (string)$ans->answer));
+    //         }
+
+    //         // 2. Normalisasi Kunci Jawaban
+    //         $correctAns = is_array($question->correct_answer) ? $question->correct_answer : json_decode($question->correct_answer, true);
+    //         if (!is_array($correctAns)) {
+    //             $correctAns = array_map('trim', explode(',', (string)$question->correct_answer));
+    //         }
+
+    //         // Clean array elemen
+    //         $userAns = array_values(array_filter(array_map('strtoupper', array_map('trim', $userAns))));
+    //         $correctAns = array_values(array_filter(array_map('strtoupper', array_map('trim', $correctAns))));
+
+    //         $isCorrect = false;
+
+    //         // 3. Pengecekan Kebenaran Jawaban
+    //         if (!empty($userAns) && !empty($correctAns)) {
+    //             sort($userAns);
+    //             sort($correctAns);
+    //             if ($userAns === $correctAns) {
+    //                 $isCorrect = true;
+    //             }
+    //         }
+
+    //         // 4. Hitung Skor Berdasarkan Bobot
+    //         $weight = $question->score_weight ?? 1;
+    //         $scoreGiven = $isCorrect ? $weight : 0;
+
+    //         // Update status per jawaban
+    //         $ans->update([
+    //             'is_correct'  => $isCorrect,
+    //             'score_given' => $scoreGiven,
+    //         ]);
+
+    //         if ($isCorrect) {
+    //             $totalScore += $weight;
+    //         }
+    //     }
+
+    //     // Simpan total skor akhir ke exam_sessions
+    //     $session->update([
+    //         'score' => round($totalScore, 2),
+    //     ]);
+    // }
+
+    /**
+     * Helper: Menghitung Nilai Otomatis Ujian (Skala 0 - 100)
+     */
     private function calculateScore(Exam $exam, ExamSession $session)
     {
-        $questions = $exam->questions->keyBy('id');
-        $answers = ExamAnswer::where('exam_session_id', $session->id)->get();
+        $questions = $exam->questions;
+        $answers = ExamAnswer::where('exam_session_id', $session->id)->get()->keyBy('question_id');
 
         $totalQuestions = $questions->count();
         if ($totalQuestions === 0) return;
 
-        $totalScore = 0;
+        $totalCorrectScore = 0;
+        $maxPossibleWeight = 0;
 
-        foreach ($answers as $ans) {
-            $question = $questions->get($ans->question_id);
-            if (!$question) continue;
+        foreach ($questions as $question) {
+            $ans = $answers->get($question->id);
+            $weight = (float)($question->score_weight ?? $question->weight ?? 1);
+            if ($weight <= 0) $weight = 1;
+            
+            $maxPossibleWeight += $weight;
 
-            $userAns = is_array($ans->answer) ? $ans->answer : json_decode($ans->answer, true) ?? [];
-            $isCorrect = false;
-            $scoreGiven = 0;
+            if (!$ans || empty($ans->answer)) {
+                continue;
+            }
 
-            // Memeriksa kunci jawaban dari kolom pada tabel questions (misal: correct_answer)
-            if (isset($question->correct_answer)) {
-                $correctAns = is_array($question->correct_answer) ? $question->correct_answer : [$question->correct_answer];
+            // Ekstrak Jawaban Siswa
+            $rawUserAns = is_array($ans->answer) ? $ans->answer : (json_decode($ans->answer, true) ?? []);
+            if (!is_array($rawUserAns)) {
+                $rawUserAns = explode(',', (string)$ans->answer);
+            }
 
-                // Pengecekan kesamaan isi array jawaban
-                if (!empty($userAns) && empty(array_diff($userAns, $correctAns)) && empty(array_diff($correctAns, $userAns))) {
-                    $isCorrect = true;
-                    $scoreGiven = 100 / $totalQuestions; // Bobot nilai per soal
+            $userAns = [];
+            foreach ($rawUserAns as $u) {
+                if (is_array($u) && isset($u['key'])) {
+                    $userAns[] = strtoupper(trim($u['key']));
+                } elseif (is_string($u) || is_numeric($u)) {
+                    $userAns[] = strtoupper(trim((string)$u));
                 }
             }
 
-            // Simpan detail per soal ke exam_answers
+            // Ekstrak Kunci Jawaban Soal
+            $rawCorrectAns = is_array($question->correct_answer) ? $question->correct_answer : (json_decode($question->correct_answer, true) ?? []);
+            if (!is_array($rawCorrectAns)) {
+                $rawCorrectAns = explode(',', (string)$question->correct_answer);
+            }
+
+            $correctAns = [];
+            foreach ($rawCorrectAns as $c) {
+                if (is_array($c) && isset($c['key'])) {
+                    $correctAns[] = strtoupper(trim($c['key']));
+                } elseif (is_array($c) && isset($c['value'])) {
+                    $correctAns[] = strtoupper(trim($c['value']));
+                } elseif (is_string($c) || is_numeric($c)) {
+                    $correctAns[] = strtoupper(trim((string)$c));
+                }
+            }
+
+            $userAns = array_values(array_unique(array_filter($userAns)));
+            $correctAns = array_values(array_unique(array_filter($correctAns)));
+
+            // Pengecekan Kebenaran
+            $isCorrect = false;
+            if (!empty($userAns) && !empty($correctAns)) {
+                sort($userAns);
+                sort($correctAns);
+                if ($userAns === $correctAns) {
+                    $isCorrect = true;
+                }
+            }
+
+            $scoreGiven = $isCorrect ? $weight : 0;
+
+            // Update status & nilai per soal
             $ans->update([
                 'is_correct'  => $isCorrect,
                 'score_given' => $scoreGiven,
             ]);
 
-            $totalScore += $scoreGiven;
+            if ($isCorrect) {
+                $totalCorrectScore += $weight;
+            }
         }
 
-        // Simpan total skor akhir ke exam_sessions
+        // Kalkulasi Nilai Akhir ke Skala 100
+        $finalScore = ($maxPossibleWeight > 0) ? ($totalCorrectScore / $maxPossibleWeight) * 100 : 0;
+
         $session->update([
-            'score' => round($totalScore, 2),
+            'score' => round($finalScore, 2),
         ]);
     }
 
@@ -674,4 +1067,40 @@ public function review($examId, $sessionId)
         return redirect()->route('student.exam.result', [$session->exam_id, $session->id])
                          ->with('error', 'Waktu pengerjaan Anda telah habis!');
     }
+
+    public function logViolation(Request $request)
+{
+    $request->validate([
+        'exam_session_id' => 'required|exists:exam_sessions,id',
+        'reason' => 'required|string',
+    ]);
+
+    $session = ExamSession::findOrFail($request->exam_session_id);
+    
+    // Keamanan Tambahan: Pastikan milik user yang login
+    if ($session->user_id !== auth()->id()) {
+        return response()->json(['status' => 'unauthorized'], 403);
+    }
+
+    $logs = json_decode($session->violation_logs ?? '[]', true);
+    $logs[] = [
+        'time' => now()->toDateTimeString(),
+        'reason' => $request->reason,
+        'ip' => $request->ip()
+    ];
+
+    $session->violation_count += 1;
+    $session->violation_logs = json_encode($logs);
+
+    // Blokir jika melebih batas kecurangan
+    if ($session->violation_count >= 3) {
+        $session->is_blocked = true;
+        $session->status = 'submitted'; // Auto-Submit
+        $session->submitted_at = now();
+    }
+
+    $session->save();
+
+    return response()->json(['status' => 'success', 'count' => $session->violation_count]);
+}
 }

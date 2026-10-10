@@ -144,24 +144,8 @@
                         @error('end_time') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <!-- PENGATURAN KEAMANAN & ANTI-KECURANGAN -->
-                    <div class="col-12 mt-4">
-                        <label class="form-label fw-semibold text-dark mb-2">Pengaturan Keamanan & Anti-Kecurangan</label>
-                        <div class="p-3 border rounded-3 bg-light">
-                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="enable_anti_cheat" name="enable_anti_cheat" value="1" {{ old('enable_anti_cheat', true) ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="enable_anti_cheat">
-                                    <i class="fas fa-shield-alt text-danger me-1"></i> Aktifkan Fitur Anti-Kecurangan (Anti-Cheating)
-                                </label>
-                            </div>
-                            <small class="text-muted d-block ms-1">
-                                Memblokir pindah tab/aplikasi, copy-paste, klik kanan, shortcut keyboard terlarang, serta menampilkan watermark nama siswa secara otomatis.
-                            </small>
-                        </div>
-                    </div>
-
                     <!-- Pengaturan Acak Ujian -->
-                    <div class="col-12 mt-3">
+                    <div class="col-12 mt-4">
                         <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
                         <div class="row g-3">
                             <div class="col-md-6">
