@@ -5,8 +5,9 @@
 	<!-- Required meta tags -->
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	
-	<!-- DYNAMIC FAVICON -->
+	<!--favicon-->
+	<!-- <link rel="icon" href="{{ asset('backend/assets/images/favicon-32x32.png')}}" type="image/png"/> -->
+	  <!-- DYNAMIC FAVICON -->
     @php
         $favicon = \App\Models\Setting::value('app_favicon');
     @endphp
@@ -16,17 +17,14 @@
         <link rel="icon" href="{{ asset('backend/assets/images/favicon-32x32.png') }}" type="image/x-icon"/>
     @endif
     <meta name="csrf-token" content="{{ csrf_token() }}">
-	
 	<!--plugins-->
 	<link href="{{ asset('backend/assets/plugins/vectormap/jquery-jvectormap-2.0.2.css')}}" rel="stylesheet"/>
 	<link href="{{ asset('backend/assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
 	<link href="{{ asset('backend/assets/plugins/perfect-scrollbar/css/perfect-scrollbar.css')}}" rel="stylesheet" />
 	<link href="{{ asset('backend/assets/plugins/metismenu/css/metisMenu.min.css')}}" rel="stylesheet"/>
-	
 	<!-- loader-->
 	<link href="{{ asset('backend/assets/css/pace.min.css')}}" rel="stylesheet"/>
 	<script src="{{ asset('backend/assets/js/pace.min.js')}}"></script>
-	
 	<!-- Bootstrap CSS -->
 	<link href="{{ asset('backend/assets/css/bootstrap.min.css')}}" rel="stylesheet">
 	<link href="{{ asset('backend/assets/css/bootstrap-extended.css')}}" rel="stylesheet">
@@ -35,7 +33,6 @@
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 	<link href="{{ asset('backend/assets/css/app.css')}}" rel="stylesheet">
 	<link href="{{ asset('backend/assets/css/icons.css')}}" rel="stylesheet">
-	
 	<!-- Theme Style CSS -->
 	<link rel="stylesheet" href="{{ asset('backend/assets/css/dark-theme.css')}}"/>
 	<link rel="stylesheet" href="{{ asset('backend/assets/css/semi-dark.css')}}"/>
@@ -76,6 +73,7 @@
 		@include('admin.body.footer')
 	</div>
 	<!--end wrapper-->
+
 
 	<!-- search modal -->
     <div class="modal" id="SearchModal" tabindex="-1">
@@ -124,6 +122,9 @@
 		</div>
 	  </div>
     <!-- end search modal -->
+
+
+
 
 	<!--start switcher-->
 	<div class="switcher-wrapper">
@@ -220,9 +221,9 @@
 			</div>
 		</div>
 	</div>
-	<!--end switcher-->
 
-	<!--plugins-->
+	<!--end switcher-->
+		<!--plugins-->
 	<script src="{{ asset('backend/assets/js/jquery.min.js')}}"></script>
 	<!-- Bootstrap JS -->
 	<script src="{{ asset('backend/assets/js/bootstrap.bundle.min.js')}}"></script>
@@ -237,7 +238,8 @@
 	<!--app JS-->
 	<script src="{{ asset('backend/assets/js/app.js')}}"></script>
 	<script src="{{ asset('backend/assets/js/validate.min.js')}}"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script> -->
+	 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('backend/assets/js/code.js') }}"></script>
 	<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="{{ asset('backend/assets/plugins/select2/js/select2-custom.js') }}"></script>
@@ -245,44 +247,59 @@
 	<script src="{{ asset('backend/assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 	<script src="{{ asset('backend/assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 	<script src="{{ asset('backend/assets/js/index.js')}}"></script>
+	<!-- <script>
+		new PerfectScrollbar(".app-container")
+	</script> -->
 
-	<script>
+	
+ <script>
         $(document).ready(function() {
             // --- Perbaikan PerfectScrollbar ---
+            // Hanya inisialisasi jika elemen app-container ada dan PerfectScrollbar dimuat.
             const appContainer = document.querySelector(".app-container");
-            if (typeof PerfectScrollbar !== 'undefined' && appContainer) {
-                new PerfectScrollbar(appContainer);
+            if (typeof PerfectScrollbar !== 'undefined') {
+                if (appContainer) {
+                    new PerfectScrollbar(appContainer);
+                } else {
+                    // Jika tidak ada .app-container, mungkin inisialisasi pada body
+                    // (Tergantung struktur template Anda, ini untuk mencegah error 'no element specified')
+                    // new PerfectScrollbar(document.body); 
+                }
             }
             
             // --- DataTables ---
             if ($.fn.DataTable) {
+                // Example 1
                 if ($.fn.DataTable.isDataTable('#example')) {
                     $('#example').DataTable();
                 } else {
-                    $('#example').DataTable();
+                    $('#example').DataTable(); // Inisialisasi default
                 }
 
+                // Example 2
                 if ($.fn.DataTable.isDataTable('#example2')) {
-                    var table = $('#example2').DataTable({
+                    var table = $('#example2').DataTable( {
                         lengthChange: false,
-                        buttons: ['copy', 'excel', 'pdf', 'print']
-                    });
+                        buttons: [ 'copy', 'excel', 'pdf', 'print']
+                    } );
 
                     table.buttons().container()
-                        .appendTo('#example2_wrapper .col-md-6:eq(0)');
+                        .appendTo( '#example2_wrapper .col-md-6:eq(0)' );
                 } else {
-                    var table = $('#example2').DataTable({
+                    var table = $('#example2').DataTable( { // Inisialisasi default
                         lengthChange: false,
-                        buttons: ['copy', 'excel', 'pdf', 'print']
-                    });
+                        buttons: [ 'copy', 'excel', 'pdf', 'print']
+                    } );
                     table.buttons().container()
-                        .appendTo('#example2_wrapper .col-md-6:eq(0)');
+                        .appendTo( '#example2_wrapper .col-md-6:eq(0)' );
                 }
             }
+            // Catatan: Jika Anda tidak ingin DataTables menginisialisasi pada setiap halaman, 
+            // pindahkan bagian ini ke @push('scripts') pada view yang memerlukannya.
         });
     </script>
 
-    {{-- Skrip Toastr --}}
+    {{-- Skrip SweetAlert & Toastr (Diaktifkan kembali) --}}
     @if(Session::has('message'))
     <script>
         var type = "{{ Session::get('alert-type','info') }}"
@@ -306,86 +323,129 @@
     </script>
     @endif
     
-    {{-- Skrip SweetAlert Validation Error (SUDAH DIPERBAIKI SINTAKS BLADE-NYA) --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             @if($errors->any())
-                let errors = @json($errors->all());
-                let errorMsg = errors.join('<br>');
+                let errorMsg = '';
+                @foreach ($errors->all() as $error)
+                    errorMsg += '{{ $error }}\n';
+                @endforeach
 
                 Swal.fire({
                     icon: 'warning',
                     title: 'Perhatian!',
-                    html: errorMsg, 
+                    html: errorMsg.replace(/\n/g, '<br>'), 
                     confirmButtonColor: '#f0ad4e',
                 });
             @endif
         });
 
-		// LocalStorage theme customizer
+
+
+		// Untuk membuat pilihan tema menjadi permanen (tetap tersimpan 
+		// meskipun halaman di-refresh atau browser ditutup), kita perlu 
+		// menggunakan fitur localStorage pada browser.
 		$(document).ready(function () {
+			
+			// --- 1. FUNGSI UNTUK MENYIMPAN DAN LOAD TEMA UTAMA (Light/Dark/Semi) ---
+
+			// Cek Local Storage saat halaman dimuat
 			var storedTheme = localStorage.getItem('theme');
 			if (storedTheme) {
-				$('html').attr('class', storedTheme);
+				$('html').attr('class', storedTheme); // Terapkan class ke tag html
 				
+				// Update status Radio Button agar sesuai dengan tema yang aktif
 				if (storedTheme === 'dark-theme') $('#darkmode').prop('checked', true);
 				else if (storedTheme === 'semi-dark') $('#semidark').prop('checked', true);
 				else if (storedTheme === 'minimal-theme') $('#minimaltheme').prop('checked', true);
 				else $('#lightmode').prop('checked', true);
 			}
 
+			// Event Listener untuk tombol Light Mode
 			$('#lightmode').on('click', function () {
 				$('html').attr('class', 'light-theme');
 				localStorage.setItem('theme', 'light-theme');
 			});
 
+			// Event Listener untuk tombol Dark Mode
 			$('#darkmode').on('click', function () {
 				$('html').attr('class', 'dark-theme');
 				localStorage.setItem('theme', 'dark-theme');
 			});
 
+			// Event Listener untuk tombol Semi Dark
 			$('#semidark').on('click', function () {
 				$('html').attr('class', 'semi-dark');
 				localStorage.setItem('theme', 'semi-dark');
 			});
 
+			// Event Listener untuk Minimal Theme
 			$('#minimaltheme').on('click', function () {
 				$('html').attr('class', 'minimal-theme');
 				localStorage.setItem('theme', 'minimal-theme');
 			});
 
+
+			// --- 2. FUNGSI UNTUK HEADER COLORS ---
+
+			// Cek Local Storage Header
 			var storedHeaderColor = localStorage.getItem('headerColor');
 			if (storedHeaderColor) {
 				$('html').addClass(storedHeaderColor);
 			}
 
+			// Event Listener klik warna Header
 			$(".header-colors-indigators .indigator").on('click', function () {
-				var colorId = $(this).attr("id");
+				var colorId = $(this).attr("id"); // Ambil ID (misal: headercolor1)
+				
+				// Hapus class header lama (headercolor1 s/d headercolor8)
 				$('html').removeClass('headercolor1 headercolor2 headercolor3 headercolor4 headercolor5 headercolor6 headercolor7 headercolor8');
+				
+				// Tambahkan class baru dan simpan
 				$('html').addClass(colorId);
 				localStorage.setItem('headerColor', colorId);
 			});
 
+
+			// --- 3. FUNGSI UNTUK SIDEBAR COLORS ---
+
+			// Cek Local Storage Sidebar
 			var storedSidebarColor = localStorage.getItem('sidebarColor');
 			if (storedSidebarColor) {
 				$('html').addClass(storedSidebarColor);
 			}
 
-			$(".sidebar-colors-indigators .indigator").on('click', function () {
-				var colorId = $(this).attr("id");
+			// Event Listener klik warna Sidebar
+			$(".sidebar-colors-indigators .indigator").on('click', function () { // Perhatikan: saya asumsikan class wrapper sidebar adalah .sidebar-colors-indigators sesuai pola
+				var colorId = $(this).attr("id"); // Ambil ID (misal: sidebarcolor1)
+				
+				// Hapus class sidebar lama
 				$('html').removeClass('sidebarcolor1 sidebarcolor2 sidebarcolor3 sidebarcolor4 sidebarcolor5 sidebarcolor6 sidebarcolor7 sidebarcolor8');
+				
+				// Tambahkan class baru dan simpan
 				$('html').addClass(colorId);
 				localStorage.setItem('sidebarColor', colorId);
 			});
 			
+			// --- 4. FUNGSI TOMBOL RESET (Opsional) ---
+			// Jika Anda ingin tombol untuk reset ke default
 			$(".reset-theme").on('click', function() {
 				localStorage.clear();
 				location.reload();
 			});
+
 		});
+
+
+
     </script>
 
+	
+    
+    {{-- Stack untuk kode JS spesifik halaman (e.g., filterClassrooms dari thread sebelumnya) --}}
     @stack('scripts')
+
+	
 
 </body>
 

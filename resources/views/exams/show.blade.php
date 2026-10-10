@@ -10,22 +10,22 @@
             <a href="{{ route('exams.index') }}" class="btn btn-outline-secondary btn-sm mb-2">
                 &larr; Kembali ke Daftar
             </a>
-            <h3 class="fw-bold text-dark mb-0 fs-4 fs-md-3">{{ $exam->title }}</h3>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-dark mb-0 fs-4 fs-md-3">{{ $exam->title }}</h3>
+                @if($exam->is_team_teaching || (isset($exam->collaborators) && $exam->collaborators->count() > 0))
+                    <span class="badge bg-info text-dark fw-bold">
+                        <i class="fas fa-users me-1"></i> Team Teaching
+                    </span>
+                @endif
+            </div>
         </div>
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-info text-white fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
-
-            <!-- TOMBOL BARU: Rekap Siswa Belum Ujian -->
-            <a href="{{ route('guru.exams.unsubmitted', $exam->id) }}" class="btn btn-warning text-dark fw-semibold">
+            <a href="{{ route('guru.exams.unsubmitted', $exam->id) }}" class="btn btn-warning text-dark fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-user-clock me-1"></i> Belum Ujian
             </a>
-
-            <!-- Tombol Tambah Soal Manual -->
-            <a href="{{ route('guru.questions.create', $exam->id) }}" class="btn btn-primary fw-semibold">
-                <i class="fas fa-plus me-1"></i> Tambah Soal Manual
-
             <a href="{{ route('guru.questions.bank', $exam->id) }}" class="btn btn-warning text-dark fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-database me-1"></i> Bank Soal
             </a>
@@ -56,6 +56,35 @@
         </div>
     @endif
 
+    <!-- CARD KELOLA TEAM TEACHING -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-users text-primary me-2"></i>Team Teaching / Guru Kolaborator
+            </h6>
+            @if(Auth::user()->hasRole('admin') || $exam->teacher_id === optional(Auth::user()->teacher)->id)
+                <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalTeamTeaching">
+                    <i class="fas fa-user-plus me-1"></i> Kelola Team Teaching
+                </button>
+            @endif
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge bg-primary px-3 py-2">
+                    <i class="fas fa-crown me-1 text-warning"></i> {{ $exam->teacher->name ?? 'Admin' }} (Pembuat Utama)
+                </span>
+
+                @forelse($exam->collaborators ?? [] as $collaborator)
+                    <span class="badge bg-secondary px-3 py-2">
+                        <i class="fas fa-user-check me-1"></i> {{ $collaborator->name }}
+                    </span>
+                @empty
+                    <small class="text-muted ms-2">Belum ada guru kolaborator yang ditambahkan.</small>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
     <!-- Ringkasan & Informasi Ujian -->
     <div class="row g-3 mb-4">
         <div class="col-lg-8">
@@ -71,7 +100,7 @@
                                 {{ $exam->token ?? 'BELUM SET' }}
                             </span>
                         </div>
-                        <form action="{{ route('exams.generate-token', $exam->id) }}" method="POST">
+                        <form action="{{ route('guru.exams.generate-token', $exam->id) }}" method="POST">
                             @csrf
                             <button type="submit" class="btn btn-warning fw-bold text-dark btn-sm w-100 w-sm-auto">
                                 <i class="fas fa-sync-alt me-1"></i> Generate Token
@@ -85,7 +114,7 @@
                             <span class="fw-semibold text-dark fs-6">{{ $exam->subject->name ?? '-' }}</span>
                         </div>
                         <div class="col-6 col-md-6">
-                            <small class="text-muted d-block mb-1">Guru Pengampu</small>
+                            <small class="text-muted d-block mb-1">Guru Pengampu Utama</small>
                             <span class="fw-semibold text-dark fs-6">{{ $exam->teacher->name ?? '-' }}</span>
                         </div>
                         <div class="col-6 col-md-6">
@@ -130,7 +159,7 @@
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center gap-2">
                 <h5 class="fw-bold mb-0 text-dark fs-6 fs-md-5">Daftar Soal</h5>
-                @if($exam->questions && $exam->questions->count() > 0)
+                @if($exam->questions &&$exam->questions->count() > 0)
                     <div class="form-check mb-0 ms-2">
                         <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
                         <label class="form-check-label fw-semibold text-secondary small" for="selectAllCheckbox">
@@ -155,10 +184,8 @@
                 @csrf
                 @method('DELETE')
 
-                @forelse($exam->questions as $index => $q)
+                @forelse($exam->questions as $index =>$q)
                     <div class="border rounded-3 p-2 p-md-3 mb-3 bg-light-subtle shadow-sm overflow-hidden">
-
-                        <!-- Header Kartu Soal (Layout Responsif) -->
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
                             <div class="d-flex align-items-center gap-2">
                                 <input type="checkbox" name="question_ids[]" value="{{ $q->id }}" class="form-check-input question-checkbox" onchange="updateSelectedCount()">
@@ -168,9 +195,7 @@
                                 </span>
                             </div>
 
-                            <!-- Baris Aksi & Bobot Soal -->
                             <div class="d-flex flex-wrap align-items-center gap-1 w-100 w-sm-auto justify-content-start justify-content-sm-end">
-                                <!-- Form Bobot -->
                                 <form action="{{ route('guru.questions.update-weight', $q->id) }}" method="POST" class="d-inline-flex align-items-center gap-1 me-1">
                                     @csrf
                                     @method('PATCH')
@@ -178,7 +203,6 @@
                                     <input type="number" step="0.1" name="score_weight" value="{{ $q->score_weight ?? $q->score ?? 1 }}" class="form-control form-control-sm text-center fw-bold px-1 py-0" style="width: 50px; height: 26px;" onchange="this.form.submit()">
                                 </form>
 
-                                <!-- Tombol Aksi Kategori Mini Responsif -->
                                 <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fw-semibold" title="Duplikat" onclick="duplicateSingleQuestion('{{ $q->id }}')">
                                     <i class="fas fa-copy"></i> <span class="d-none d-md-inline">Copy</span>
                                 </button>
@@ -191,19 +215,18 @@
                             </div>
                         </div>
 
-                        <!-- Isi Teks Soal -->
                         <div class="text-dark mb-3 px-1" style="word-break: break-word;">
                             {!! nl2br(e($q->question_text)) !!}
                         </div>
 
-                        <!-- Parsing Pilihan Jawaban -->
                         @php
-                            $optionsData = is_string($q->options) ? json_decode($q->options, true) : $q->options;
-                            $correctAnswer = is_string($q->correct_answer) ? json_decode($q->correct_answer, true) : $q->correct_answer;
+                            $optionsData = is_string($q->options) ? json_decode($q->options, true) :$q->options;
+                            $correctAnswer = is_string($q->correct_answer) ? json_decode($q->correct_answer, true) :$q->correct_answer;
                             if (!is_array($correctAnswer)) {
                                 $correctAnswer = explode(',', (string)$q->correct_answer);
                             }
                             $qType = strtolower($q->question_type ?? $q->type ?? '');
+                            $optionKeys = ['A', 'B', 'C', 'D', 'E'];
                         @endphp
 
                         @if(in_array($qType, ['single', 'multiple', 'pilihan_ganda', 'multiple_choice', 'pg', 'mc']) && !empty($optionsData))
@@ -211,12 +234,12 @@
                                 @foreach($optionsData as $item)
                                     @php
                                         $optionKey = is_array($item) ? ($item['key'] ?? '') : '';
-                                        $optionText = is_array($item) ? ($item['text'] ?? '') : $item;
-                                        $isCorrect = is_array($correctAnswer) && in_array($optionKey, $correctAnswer);
+                                        $optionText = is_array($item) ? ($item['text'] ?? '') :$item;
+                                        $isCorrect = is_array($correctAnswer) && in_array($optionKey,$correctAnswer);
                                     @endphp
                                     <div class="col-12 col-md-6">
                                         <div class="p-2 border rounded-3 text-dark small {{ $isCorrect ? 'bg-success text-white fw-medium' : 'bg-white' }}" style="word-break: break-word;">
-                                            <strong>{{ $optionKey }}.</strong> {{ $optionText }}
+                                            <strong>{{ $optionKey }}.</strong> {{$optionText }}
                                             @if($isCorrect)
                                                 <span class="badge bg-light text-success float-end mt-1">Kunci</span>
                                             @endif
@@ -226,33 +249,30 @@
                             </div>
                         @endif
 
-                        <!-- Rekapitulasi Pilihan Siswa -->
                         <div class="border-top pt-2 mt-2">
                             <div class="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
                                 <small class="fw-bold text-dark mb-0">
                                     <i class="fas fa-chart-pie me-1 text-primary"></i> Rekap Jawaban
                                 </small>
                                 @php
-                                    $totalAns = $q->recap['total_answered'] ?? 0;
-                                    $correctAns = $q->recap['correct_count'] ?? 0;
-                                    $percentCorrect = $totalAns > 0 ? round(($correctAns / $totalAns) * 100, 1) : 0;
+                                    $totalAns =$q->recap['total_answered'] ?? 0;
+                                    $correctAns =$q->recap['correct_count'] ?? 0;
+                                    $percentCorrect =$totalAns > 0 ? round(($correctAns / $totalAns) * 100, 1) : 0;
                                 @endphp
                                 <span class="badge {{ $percentCorrect >= 70 ? 'bg-success' : ($percentCorrect >= 40 ? 'bg-warning text-dark' : 'bg-danger') }}" style="font-size: 11px;">
-                                    Benar: {{ $percentCorrect }}% ({{ $correctAns }}/{{ $totalAns }})
+                                    Benar: {{ $percentCorrect }}% ({{ $correctAns }}/{{$totalAns }})
                                 </span>
                             </div>
 
                             <div class="row g-1 text-center">
-                                @foreach(['A', 'B', 'C', 'D', 'E'] as $optKey)
+                                @foreach($optionKeys as $optKey)
                                     @php
-                                        $isKey = is_array($correctAnswer) && in_array($optKey, $correctAnswer);
-                                        $countChosen = $q->recap[$optKey] ?? 0;
-                                        $percentage = $totalAns > 0 ? round(($countChosen / $totalAns) * 100, 1) : 0;
+                                        $isKey = is_array($correctAnswer) && in_array($optKey, $correctAnswer);$countChosen = $q->recap[$optKey] ?? 0;
                                     @endphp
                                     <div class="col">
                                         <div class="p-1 rounded border option-box {{ $isKey ? 'border-success bg-success-subtle fw-bold' : 'bg-white' }}"
                                              style="cursor: pointer;"
-                                             onclick="showStudentList('{{ $q->id }}', '{{ $optKey }}')">
+                                             onclick="showStudentList('{{ $q->id }}', '{{$optKey }}')">
                                             <small class="text-muted d-block fw-semibold" style="font-size: 11px;">{{ $optKey }}</small>
                                             <span class="fw-bold text-dark small">{{ $countChosen }}</span>
                                         </div>
@@ -287,6 +307,60 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL KELOLA TEAM TEACHING (SAFE BLADE SYNTAX) -->
+@if(Auth::user()->hasRole('admin') || $exam->teacher_id === optional(Auth::user()->teacher)->id)
+<div class="modal fade" id="modalTeamTeaching" tabindex="-1" aria-labelledby="modalTeamTeachingLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white py-3">
+                <h6 class="modal-title fw-bold" id="modalTeamTeachingLabel">
+                    <i class="fas fa-users-cog me-2"></i> Pilih Guru Kolaborator (Team Teaching)
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('guru.exams.team_teaching.update', $exam->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3 p-md-4">
+                    <p class="small text-muted mb-3">
+                        Guru yang dipilih sebagai <strong>Team Teaching</strong> dapat membantu menambah, mengedit, mengimpor soal, serta melihat rekapitulasi nilai ujian ini.
+                    </p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">Pilih Guru Kolaborator:</label>
+                        <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow-y: auto;">
+                            @forelse($availableTeachers ?? [] as $teacher)
+                                @php
+                                    $isChecked = false;
+                                    if (isset($exam->collaborators) && is_iterable($exam->collaborators)) {$isChecked = collect($exam->collaborators)->contains('id',$teacher->id);
+                                    }
+                                @endphp
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           name="collaborator_ids[]" 
+                                           value="{{ $teacher->id }}" 
+                                           id="teacher_{{ $teacher->id }}"
+                                           @checked($isChecked)>
+                                    <label class="form-check-label small fw-semibold" for="teacher_{{ $teacher->id }}">
+                                        {{ $teacher->name }} <span class="text-muted">({{ $teacher->nip ?? 'Guru' }})</span>
+                                    </label>
+                                </div>
+                            @empty
+                                <small class="text-muted d-block text-center py-2">Tidak ada data guru lain tersedia.</small>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 <!-- Modal Atur Bobot Massal -->
 <div class="modal fade" id="modalBulkWeight" tabindex="-1" aria-hidden="true">

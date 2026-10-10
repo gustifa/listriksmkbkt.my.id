@@ -12,7 +12,6 @@
         </div>
         
         <div class="d-flex align-items-center gap-2">
-            <!-- Toggle Switcher View: Card vs Tabel -->
             <div class="btn-group bg-white p-1 rounded-3 border shadow-sm" role="group" aria-label="View Switcher">
                 <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0 active" id="btn-view-card" onclick="switchView('card')">
                     <i class="fas fa-th-large me-1"></i> Card
@@ -22,7 +21,6 @@
                 </button>
             </div>
 
-            <!-- Tombol Buat Ujian -->
             <a href="{{ route('exams.create') }}" class="btn btn-primary fw-semibold">
                 <i class="fas fa-plus me-1"></i> Buat Ujian Baru
             </a>
@@ -44,11 +42,10 @@
         </div>
     @endif
 
-    <!-- FORM FILTER NAMA UJIAN, GURU, & STATUS -->
+    <!-- FORM FILTER -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-                <!-- Filter Input Nama Ujian -->
                 <div class="col-md-4 col-12">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted">
@@ -58,17 +55,15 @@
                     </div>
                 </div>
 
-                <!-- Filter Input Nama Guru -->
                 <div class="col-md-4 col-12">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted">
                             <i class="fas fa-user-tie"></i>
                         </span>
-                        <input type="text" id="filter-teacher" class="form-control border-start-0" placeholder="Cari nama guru pengampu..." onkeyup="filterExams()">
+                        <input type="text" id="filter-teacher" class="form-control border-start-0" placeholder="Cari nama guru..." onkeyup="filterExams()">
                     </div>
                 </div>
 
-                <!-- Filter Dropdown Status -->
                 <div class="col-md-2 col-7">
                     <select id="filter-status" class="form-select" onchange="filterExams()">
                         <option value="all">-- Semua Status --</option>
@@ -77,7 +72,6 @@
                     </select>
                 </div>
 
-                <!-- Tombol Reset Filter -->
                 <div class="col-md-2 col-5 d-grid">
                     <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="resetFilter()">
                         <i class="fas fa-undo me-1"></i> Reset
@@ -93,22 +87,39 @@
             @forelse($exams as $exam)
                 <div class="col-md-6 col-lg-4 exam-card-item" 
                      data-title="{{ strtolower($exam->title) }}" 
-                     data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
+                     data-teacher="{{ strtolower(($exam->teacher->name ?? '') . ' ' . ($exam->collaborators->pluck('name')->implode(' ') ?? '')) }}" 
                      data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-body p-4 d-flex flex-column justify-content-between">
                             <div>
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
-                                        {{ $exam->subject->name ?? 'Mata Pelajaran' }}
-                                    </span>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                                            {{ $exam->subject->name ?? 'Mata Pelajaran' }}
+                                        </span>
+                                        @if($exam->is_team_teaching || $exam->collaborators->count() > 0)
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" title="Team Teaching">
+                                                <i class="fas fa-users"></i> Team
+                                            </span>
+                                        @endif
+                                    </div>
                                     <span class="badge {{ $exam->is_active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }}">
                                         {{ $exam->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 </div>
 
                                 <h4 class="fw-bold text-dark mb-1 exam-title-text">{{ $exam->title }}</h4>
-                                <small class="text-muted d-block mb-3">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                
+                                <!-- Guru Pengampu & Kolaborator -->
+                                <div class="mb-2 small">
+                                    <span class="text-muted d-block">Pembuat: <strong>{{ $exam->teacher->name ?? '-' }}</strong></span>
+                                    @if($exam->collaborators->count() > 0)
+                                        <span class="text-info d-block">
+                                            <i class="fas fa-user-friends me-1"></i> Tim: 
+                                            {{ $exam->collaborators->pluck('name')->implode(', ') }}
+                                        </span>
+                                    @endif
+                                </div>
 
                                 <div class="mb-3">
                                     <small class="text-muted d-block fw-semibold mb-1">Target Kelas:</small>
@@ -186,13 +197,21 @@
                             @forelse($exams as $index => $exam)
                                 <tr class="exam-row-item" 
                                     data-title="{{ strtolower($exam->title) }}" 
-                                    data-teacher="{{ strtolower($exam->teacher->name ?? '') }}" 
+                                    data-teacher="{{ strtolower(($exam->teacher->name ?? '') . ' ' . ($exam->collaborators->pluck('name')->implode(' ') ?? '')) }}" 
                                     data-status="{{ $exam->is_active ? 'aktif' : 'nonaktif' }}">
                                     <td class="ps-4 fw-semibold row-number">{{ $index + 1 }}</td>
                                     <td>
-                                        <span class="badge bg-primary-subtle text-primary border me-1">{{ $exam->subject->name ?? 'Mapel' }}</span>
-                                        <div class="fw-bold text-dark fs-6 mt-1 exam-title-text">{{ $exam->title }}</div>
-                                        <small class="text-muted">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <span class="badge bg-primary-subtle text-primary border">{{ $exam->subject->name ?? 'Mapel' }}</span>
+                                            @if($exam->is_team_teaching || $exam->collaborators->count() > 0)
+                                                <span class="badge bg-info-subtle text-info border">Team Teaching</span>
+                                            @endif
+                                        </div>
+                                        <div class="fw-bold text-dark fs-6 exam-title-text">{{ $exam->title }}</div>
+                                        <small class="text-muted d-block">Guru: <strong>{{ $exam->teacher->name ?? '-' }}</strong></small>
+                                        @if($exam->collaborators->count() > 0)
+                                            <small class="text-info d-block"><i class="fas fa-users me-1"></i> {{ $exam->collaborators->pluck('name')->implode(', ') }}</small>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="d-flex flex-wrap gap-1">
@@ -219,7 +238,7 @@
                                             <a href="{{ route('guru.exams.show', $exam->id) }}" class="btn btn-sm btn-outline-primary fw-semibold" title="Detail & Soal">
                                                 Detail
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline-warning fw-semibold" data-bs-toggle="modal" data-bs-target="#editExamModal-{{ $exam->id }}" title="Edit Waktu / Data">
+                                            <button type="button" class="btn btn-sm btn-outline-warning fw-semibold" data-bs-toggle="modal" data-bs-target="#editExamModal-{{ $exam->id }}" title="Edit Data">
                                                 Edit
                                             </button>
                                             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-sm btn-outline-info fw-semibold" title="Rekap Nilai">
@@ -252,9 +271,9 @@
         </div>
     </div>
 
-    <!-- MODAL POPUP EDIT UJIAN (SHARED UNTUK CARD & TABEL) -->
+    <!-- MODAL EDIT UJIAN -->
     @foreach($exams as $exam)
-        <div class="modal fade" id="editExamModal-{{ $exam->id }}" tabindex="-1" aria-labelledby="editExamModalLabel-{{ $exam->id }}" aria-hidden="true">
+        <div class="modal fade" id="editExamModal-{{ $exam->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content border-0 shadow">
                     <form action="{{ route('guru.exams.update', $exam->id) }}" method="POST">
@@ -262,7 +281,7 @@
                         @method('PUT')
                         
                         <div class="modal-header bg-light">
-                            <h5 class="modal-title fw-bold text-dark" id="editExamModalLabel-{{ $exam->id }}">
+                            <h5 class="modal-title fw-bold text-dark">
                                 <i class="fas fa-edit text-warning me-2"></i>Edit Waktu & Informasi Ujian
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -326,7 +345,6 @@
                             <div class="mb-3">
                                 <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
                                 <div class="row g-3">
-                                    <!-- Switch Acak Soal -->
                                     <div class="col-md-6">
                                         <div class="p-3 border rounded-3 bg-light h-100">
                                             <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -335,11 +353,9 @@
                                                     <i class="fas fa-random text-primary me-1"></i> Acak Urutan Soal
                                                 </label>
                                             </div>
-                                            <small class="text-muted d-block ms-1">Urutan nomor soal akan diacak secara berbeda untuk setiap siswa.</small>
                                         </div>
                                     </div>
 
-                                    <!-- Switch Acak Jawaban -->
                                     <div class="col-md-6">
                                         <div class="p-3 border rounded-3 bg-light h-100">
                                             <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -348,7 +364,6 @@
                                                     <i class="fas fa-sort-alpha-down-alt text-success me-1"></i> Acak Pilihan Jawaban
                                                 </label>
                                             </div>
-                                            <small class="text-muted d-block ms-1">Pilihan jawaban (A, B, C, D, E) akan diacak saat siswa mengerjakan.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -358,7 +373,6 @@
                             <div class="mb-3">
                                 <label class="form-label fw-semibold text-dark mb-2">Pengaturan Hasil & Review Siswa</label>
                                 <div class="row g-3">
-                                    <!-- Switch Izinkan Review -->
                                     <div class="col-md-6">
                                         <div class="p-3 border rounded-3 bg-light h-100">
                                             <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -367,11 +381,9 @@
                                                     <i class="fas fa-eye text-info me-1"></i> Izinkan Review Ujian
                                                 </label>
                                             </div>
-                                            <small class="text-muted d-block ms-1">Siswa diizinkan membuka kembali lembar pengerjaan setelah selesai.</small>
                                         </div>
                                     </div>
 
-                                    <!-- Switch Tampilkan Jawaban Benar -->
                                     <div class="col-md-6">
                                         <div class="p-3 border rounded-3 bg-light h-100">
                                             <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -380,7 +392,6 @@
                                                     <i class="fas fa-check-circle text-warning me-1"></i> Tampilkan Kunci Jawaban
                                                 </label>
                                             </div>
-                                            <small class="text-muted d-block ms-1">Menampilkan indikator benar/salah dan kunci jawaban pada halaman review.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -402,7 +413,6 @@
 </div>
 
 <script>
-    // JavaScript untuk Switcher Tampilan Card vs Tabel
     function switchView(mode) {
         const cardContainer = document.getElementById('view-card-container');
         const tableContainer = document.getElementById('view-table-container');
@@ -422,13 +432,11 @@
         }
     }
 
-    // JavaScript Logika Multi-Filter (Nama Ujian, Nama Guru, & Status)
     function filterExams() {
         const searchInput = document.getElementById('filter-search').value.toLowerCase().trim();
         const teacherInput = document.getElementById('filter-teacher').value.toLowerCase().trim();
         const statusSelect = document.getElementById('filter-status').value;
 
-        // 1. Filter untuk Tampilan Card
         const cardItems = document.querySelectorAll('.exam-card-item');
         cardItems.forEach(item => {
             const title = item.getAttribute('data-title') || '';
@@ -446,7 +454,6 @@
             }
         });
 
-        // 2. Filter untuk Tampilan Tabel
         const tableRows = document.querySelectorAll('.exam-row-item');
         let visibleIndex = 1;
 
@@ -461,7 +468,6 @@
 
             if (matchTitle && matchTeacher && matchStatus) {
                 row.classList.remove('d-none');
-                // Re-index nomor urut tabel
                 const numCell = row.querySelector('.row-number');
                 if (numCell) numCell.innerText = visibleIndex++;
             } else {
@@ -470,7 +476,6 @@
         });
     }
 
-    // Fungsi Reset Filter
     function resetFilter() {
         document.getElementById('filter-search').value = '';
         document.getElementById('filter-teacher').value = '';
@@ -478,7 +483,6 @@
         filterExams();
     }
 
-    // Default Tampilan: Card Mode
     document.addEventListener('DOMContentLoaded', function() {
         switchView('card');
     });

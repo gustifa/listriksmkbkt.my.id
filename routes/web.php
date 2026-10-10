@@ -141,6 +141,14 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/destroy/{descriptor_id}', [FaceRegistrationController::class, 'destroy'])->name('face.destroy');
     });
 
+    // Route Khusus Team Teaching & Fitur Tambahan
+    Route::prefix('guru/exams')->name('guru.exams.')->group(function () {
+        Route::post('{exam}/team-teaching', [ExamController::class, 'updateTeamTeaching'])->name('team_teaching.update');
+        Route::post('{exam}/generate-token', [ExamController::class, 'generateToken'])->name('generate-token');
+        Route::get('{exam}/report', [ExamController::class, 'showReport'])->name('report');
+        Route::get('{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('unsubmitted');
+    });
+
     // Route API Fetch Descriptors untuk Scanner
     Route::get('/face-descriptors-all', [FaceRegistrationController::class, 'getAllDescriptorsFace'])->name('face.descriptors.all');
 

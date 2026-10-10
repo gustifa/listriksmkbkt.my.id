@@ -54,10 +54,10 @@
                         @error('subject_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <!-- Guru Pengampu (Khusus Admin) -->
+                    <!-- Guru Pengampu Utama (Khusus Admin) -->
                     @if(Auth::user()->hasRole('admin'))
                         <div class="col-12">
-                            <label for="teacher_id" class="form-label fw-semibold text-dark">Guru Pengampu <span class="text-danger">*</span></label>
+                            <label for="teacher_id" class="form-label fw-semibold text-dark">Guru Pembuat Utama <span class="text-danger">*</span></label>
                             <select name="teacher_id" id="teacher_id" class="form-select @error('teacher_id') is-invalid @enderror" required>
                                 <option value="">-- Pilih Guru --</option>
                                 @foreach($teachers as $teacher)
@@ -67,6 +67,40 @@
                             @error('teacher_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     @endif
+
+                    <!-- PENGATURAN TEAM TEACHING / GURU KOLABORATOR -->
+                    <div class="col-12 mt-3">
+                        <div class="p-3 border rounded-3 bg-light">
+                            <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
+                                <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="is_team_teaching" name="is_team_teaching" value="1" {{ old('is_team_teaching') ? 'checked' : '' }} onchange="toggleTeamTeaching(this.checked)">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="is_team_teaching">
+                                    <i class="fas fa-users text-info me-1"></i> Aktifkan Team Teaching (Guru Kolaborator)
+                                </label>
+                            </div>
+                            <small class="text-muted d-block ms-1">Aktifkan jika ujian ini diampu atau dikelola oleh lebih dari satu guru.</small>
+
+                            <div id="collaborators_section" class="mt-3 {{ old('is_team_teaching') ? '' : 'd-none' }}">
+                                <label class="form-label fw-semibold text-dark mb-2">Pilih Guru Kolaborator:</label>
+                                <div class="border rounded-3 p-3 bg-white" style="max-height: 180px; overflow-y: auto;">
+                                    <div class="row g-2">
+                                        @forelse($teachers as $teacher)
+                                            <div class="col-md-4 col-6">
+                                                <div class="form-check p-1">
+                                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="collaborator_ids[]" value="{{ $teacher->id }}" id="teacher_{{ $teacher->id }}"
+                                                        {{ is_array(old('collaborator_ids')) && in_array($teacher->id, old('collaborator_ids')) ? 'checked' : '' }}>
+                                                    <label class="form-check-label small fw-medium text-dark cursor-pointer mb-0" for="teacher_{{ $teacher->id }}">
+                                                        {{ $teacher->name }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="col-12"><small class="text-muted">Tidak ada data guru lain tersedia.</small></div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Pilih Target Kelas -->
                     <div class="col-12">
@@ -110,11 +144,10 @@
                         @error('end_time') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <!-- Pengaturan Acak Soal & Opsi Jawaban -->
+                    <!-- Pengaturan Acak Ujian -->
                     <div class="col-12 mt-4">
                         <label class="form-label fw-semibold text-dark mb-2">Pengaturan Acak Ujian</label>
                         <div class="row g-3">
-                            <!-- Switch Acak Soal -->
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -127,7 +160,6 @@
                                 </div>
                             </div>
 
-                            <!-- Switch Acak Jawaban -->
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -142,11 +174,10 @@
                         </div>
                     </div>
 
-                    <!-- Pengaturan Hasil & Review Siswa (BARU) -->
+                    <!-- Pengaturan Hasil & Review Siswa -->
                     <div class="col-12 mt-3">
                         <label class="form-label fw-semibold text-dark mb-2">Pengaturan Hasil & Review Siswa</label>
                         <div class="row g-3">
-                            <!-- Switch Izinkan Review -->
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -159,7 +190,6 @@
                                 </div>
                             </div>
 
-                            <!-- Switch Tampilkan Jawaban Benar -->
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
@@ -193,4 +223,15 @@
         </div>
     </div>
 </div>
+
+<script>
+    function toggleTeamTeaching(isChecked) {
+        const section = document.getElementById('collaborators_section');
+        if (isChecked) {
+            section.classList.remove('d-none');
+        } else {
+            section.classList.add('d-none');
+        }
+    }
+</script>
 @endsection

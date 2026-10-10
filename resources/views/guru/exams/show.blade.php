@@ -90,7 +90,7 @@
                         <div class="col-md-6">
                             <small class="text-muted d-block mb-1">Target Kelas</small>
                             <div class="d-flex flex-wrap gap-1">
-                                @forelse($exam->classrooms as$cls)
+                                @forelse($exam->classrooms as $ cls)
                                     <span class="badge bg-secondary-subtle text-secondary border">{{ $cls->name }}</span>
                                 @empty
                                     <span class="text-muted">-</span>
@@ -203,7 +203,7 @@
 
                         @if(in_array($qType, ['single', 'multiple', 'pilihan_ganda', 'multiple_choice', 'pg', 'mc']) && !empty($optionsData))
                             <div class="row g-2 ms-3">
-                                @foreach($optionsData as$item)
+                                @foreach($optionsData as $item)
                                     @php
                                         $optionKey = is_array($item) ? ($item['key'] ?? '') : '';
                                         $optionText = is_array($item) ? ($item['text'] ?? '') :$item;
