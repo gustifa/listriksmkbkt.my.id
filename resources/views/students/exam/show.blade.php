@@ -543,4 +543,79 @@
     .btn-white { background-color: #fff; }
     .btn-white:hover { background-color: #e9ecef; }
 </style>
+<style>
+    @if($exam->enable_anti_cheat ?? true)
+        /* 1. Sembunyikan Header, Navbar, & Sidebar dari Layout Utama */
+        header, 
+        nav, 
+        .navbar, 
+        .sidebar, 
+        .main-sidebar, 
+        .app-header, 
+        .app-sidebar,
+        aside {
+            display: none !important;
+        }
+
+        /* 2. Sesuaikan Lebar Konten Utama Menjadi Menyeluruh */
+        body, 
+        main, 
+        .main-content, 
+        .content-wrapper, 
+        .app-main {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* 3. Proteksi Seleksi Teks & Overlay Lockout */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .watermark-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9999; opacity: 0.05; display: flex;
+            align-items: center; justify-content: center; font-size: 2.2rem;
+            font-weight: 800; transform: rotate(-25deg); white-space: nowrap; color: #000;
+        }
+
+        #lockout-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(15, 23, 42, 0.96); z-index: 99999;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+
+        .style-lock-card { max-width: 500px; width: 100%; }
+    @endif
+
+    /* CSS Responsif Tampilan Ujian */
+    @media (min-width: 768px) {
+        .sticky-top-desktop { position: sticky; top: 10px; z-index: 1020; }
+        .style-title-box { max-width: 60%; }
+    }
+    @media (max-width: 767.98px) {
+        .w-100-mobile { width: 100%; }
+        .btn-sm-custom { padding: 0.375rem 0.5rem; font-size: 0.85rem; }
+    }
+    .question-grid-container {
+        display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 4px;
+    }
+    .nav-q-btn {
+        width: 100%; height: 42px; font-size: 14px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .option-card { cursor: pointer; transition: all 0.15s ease-in-out; background-color: #ffffff; }
+    .option-card:hover { background-color: #f8f9fa; border-color: #0d6efd !important; }
+    .form-check-input { width: 1.25em; height: 1.25em; cursor: pointer; }
+    .btn-white { background-color: #fff; }
+    .btn-white:hover { background-color: #e9ecef; }
+</style>
 @endsection
