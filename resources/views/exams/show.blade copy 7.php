@@ -28,23 +28,19 @@
                     </span>
                 @endif
 
-                <!-- Badge Status Visibilitas Nilai -->
+                <!-- Badge Status Tampilkan Nilai -->
                 @if($exam->show_score ?? true)
-                    <span class="badge bg-success text-white fw-bold cursor-pointer" data-bs-toggle="modal" data-bs-target="#modalToggleScore" title="Klik untuk ubah">
-                        <i class="fas fa-eye me-1"></i> Nilai Tampil
+                    <span class="badge bg-success text-white fw-bold">
+                        <i class="fas fa-star me-1"></i> Nilai Ditamplikan
                     </span>
                 @else
-                    <span class="badge bg-warning text-dark fw-bold cursor-pointer" data-bs-toggle="modal" data-bs-target="#modalToggleScore" title="Klik untuk ubah">
-                        <i class="fas fa-eye-slash me-1"></i> Nilai Tersembunyi
+                    <span class="badge bg-warning text-dark fw-bold">
+                        <i class="fas fa-eye-slash me-1"></i> Nilai Disembunyikan
                     </span>
                 @endif
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
-            <!-- Tombol Pengaturan Visibilitas Nilai -->
-            <button type="button" class="btn btn-outline-primary fw-semibold btn-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalToggleScore">
-                <i class="fas fa-sliders-h me-1"></i> Pengaturan Nilai
-            </button>
             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-info text-white fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
@@ -114,11 +110,8 @@
     <div class="row g-3 mb-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-3 h-100">
-                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white border-bottom py-3">
                     <h5 class="fw-bold mb-0 text-dark fs-6 fs-md-5">Informasi Ujian</h5>
-                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 fw-bold" data-bs-toggle="modal" data-bs-target="#modalToggleScore">
-                        <i class="fas fa-cog me-1"></i> Ubah Status Nilai
-                    </button>
                 </div>
                 <div class="card-body p-3 p-md-4">
                     <div class="p-3 bg-light border rounded-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
@@ -156,10 +149,10 @@
                             <span class="fw-semibold text-dark fs-6">{{ $exam->duration_minutes ?? 0 }} Menit</span>
                         </div>
                         <div class="col-6 col-md-4">
-                            <small class="text-muted d-block mb-1">Tampilkan Nilai Akhir</small>
+                            <small class="text-muted d-block mb-1">Tampilkan Nilai</small>
                             <span class="fw-semibold {{ ($exam->show_score ?? true) ? 'text-success' : 'text-danger' }}">
-                                <i class="fas {{ ($exam->show_score ?? true) ? 'fa-eye' : 'fa-eye-slash' }} me-1"></i>
-                                {{ ($exam->show_score ?? true) ? 'Ditampilkan' : 'Disembunyikan' }}
+                                <i class="fas {{ ($exam->show_score ?? true) ? 'fa-check-circle' : 'fa-times-circle' }} me-1"></i>
+                                {{ ($exam->show_score ?? true) ? 'Ya (Siswa Bisa Lihat)' : 'Tidak (Disembunyikan)' }}
                             </span>
                         </div>
                         <div class="col-6 col-md-4">
@@ -201,7 +194,7 @@
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center gap-2">
                 <h5 class="fw-bold mb-0 text-dark fs-6 fs-md-5">Daftar Soal</h5>
-                @if($exam->questions && $exam->questions->count() > 0)
+                @if($exam->questions &&$exam->questions->count() > 0)
                     <div class="form-check mb-0 ms-2">
                         <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
                         <label class="form-check-label fw-semibold text-secondary small" for="selectAllCheckbox">
@@ -226,7 +219,7 @@
                 @csrf
                 @method('DELETE')
 
-                @forelse($exam->questions as $index => $q)
+                @forelse($exam->questions as $index =>$q)
                     <div class="border rounded-3 p-2 p-md-3 mb-3 bg-light-subtle shadow-sm overflow-hidden">
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
                             <div class="d-flex align-items-center gap-2">
@@ -262,8 +255,8 @@
                         </div>
 
                         @php
-                            $optionsData = is_string($q->options) ? json_decode($q->options, true) : $q->options;
-                            $correctAnswer = is_string($q->correct_answer) ? json_decode($q->correct_answer, true) : $q->correct_answer;
+                            $optionsData = is_string($q->options) ? json_decode($q->options, true) :$q->options;
+                            $correctAnswer = is_string($q->correct_answer) ? json_decode($q->correct_answer, true) :$q->correct_answer;
                             if (!is_array($correctAnswer)) {
                                 $correctAnswer = explode(',', (string)$q->correct_answer);
                             }
@@ -345,55 +338,6 @@
                         </div>
                     </div>
                 @endforelse
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL TAMPILKAN / SEMBUNYIKAN NILAI -->
-<div class="modal fade" id="modalToggleScore" tabindex="-1" aria-labelledby="modalToggleScoreLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white py-3">
-                <h6 class="modal-title fw-bold" id="modalToggleScoreLabel">
-                    <i class="fas fa-eye me-2"></i> Pengaturan Visibilitas Nilai Akhir
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('exams.update', $exam->id) }}" method="POST">
-                @csrf
-                @method('PUT')
-                <!-- Sertakan data wajib agar tidak ter-overwrite saat update -->
-                <input type="hidden" name="title" value="{{ $exam->title }}">
-                <input type="hidden" name="type" value="{{ $exam->type }}">
-                <input type="hidden" name="subject_id" value="{{ $exam->subject_id }}">
-                <input type="hidden" name="duration_minutes" value="{{ $exam->duration_minutes }}">
-                <input type="hidden" name="start_time" value="{{ $exam->start_time }}">
-                <input type="hidden" name="end_time" value="{{ $exam->end_time }}">
-
-                <div class="modal-body p-3 p-md-4">
-                    <p class="small text-muted mb-3">
-                        Pilih apakah siswa dapat melihat nilai akhir mereka secara langsung setelah menyelesaikan ujian.
-                    </p>
-
-                    <div class="p-3 border rounded-3 bg-light mb-3">
-                        <div class="form-check form-switch d-flex align-items-center gap-2 ps-0">
-                            <input class="form-check-input ms-0 me-2" style="width: 2.8em; height: 1.5em;" type="checkbox" role="switch" id="modal_show_score" name="show_score" value="1" {{ ($exam->show_score ?? true) ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold text-dark cursor-pointer mb-0 fs-6" for="modal_show_score">
-                                Tampilkan Nilai Akhir ke Siswa
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-info py-2 px-3 small mb-0">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Jika dinonaktifkan, siswa hanya akan melihat pesan "Ujian Telah Berhasil Diselesaikan" tanpa menampilkan angka nilai.
-                    </div>
-                </div>
-                <div class="modal-footer bg-light py-2">
-                    <button type="button" class="btn btn-secondary btn-sm fw-bold" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Simpan Pengaturan</button>
-                </div>
             </form>
         </div>
     </div>
@@ -510,7 +454,7 @@
                 </div>
             </div>
             <div class="modal-footer bg-light py-1">
-                <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-modal="modal">Tutup</button>
             </div>
         </div>
     </div>

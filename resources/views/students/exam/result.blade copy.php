@@ -16,9 +16,9 @@
                 </div>
 
                 <div class="card-body p-4 p-md-5">
-                    <!-- Icon & Banner Status -->
+                    <!-- Icon & Score Badge -->
                     <div class="mb-4">
-                        @if(($exam->show_score ?? true) && isset($session->score) && $session->score >= 75)
+                        @if(isset($session->score) && $session->score >= 75)
                             <div class="avatar-lg bg-success-subtle text-success rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
                                 <i class="bi bi-trophy-fill fs-1"></i>
                             </div>
@@ -31,21 +31,13 @@
                         @endif
                     </div>
 
-                    <!-- Display Nilai (Hanya Tampil Jika Guru Mengizinkan) -->
-                    @if($exam->show_score ?? true)
-                        <div class="p-4 bg-light rounded-3 border mb-4">
-                            <small class="text-muted d-block fw-bold text-uppercase tracking-wide mb-1" style="font-size: 11px;">Nilai Akhir Anda</small>
-                            <h1 class="display-3 fw-extrabold text-primary mb-0">
-                                {{ isset($session->score) ? number_format($session->score, 2) : '-' }}
-                            </h1>
-                        </div>
-                    @else
-                        <!-- Tampilan Jika Nilai Disembunyikan oleh Guru -->
-                        <div class="alert alert-info py-3 px-4 mb-4 rounded-3 border-0">
-                            <i class="bi bi-eye-slash-fill me-2 fs-5"></i>
-                            <span class="fw-medium">Nilai akhir untuk ujian ini disembunyikan oleh pengawas/guru mata pelajaran.</span>
-                        </div>
-                    @endif
+                    <!-- Display Nilai -->
+                    <div class="p-4 bg-light rounded-3 border mb-4">
+                        <small class="text-muted d-block fw-bold text-uppercase tracking-wide mb-1" style="font-size: 11px;">Nilai Akhir Anda</small>
+                        <h1 class="display-3 fw-extrabold text-primary mb-0">
+                            {{ isset($session->score) ? number_format($session->score, 2) : '-' }}
+                        </h1>
+                    </div>
 
                     <!-- Informasi Detail Waktu -->
                     <div class="row g-2 text-start small mb-4">
@@ -72,11 +64,10 @@
                         <a href="{{ route('student.exam.index') }}" class="btn btn-primary btn-lg fw-bold rounded-3">
                             <i class="bi bi-arrow-left me-2"></i> Kembali ke Daftar Ujian
                         </a>
-
                         <!-- Tombol Review Jawaban (Hanya jika Guru mengizinkan) -->
                         @if($exam->allow_review)
-                            <a href="{{ route('student.exam.review', [$exam->id, $session->id]) }}" class="btn btn-outline-primary px-4 py-2 fw-semibold">
-                                <i class="bi bi-eye me-1"></i> Review Jawaban
+                            <a href="{{ route('student.exams.review', ['exam' => $exam->id, 'session' => $session->id]) }}" class="btn btn-primary px-4 py-2">
+                                <i class="fas fa-eye me-1"></i> Review Jawaban
                             </a>
                         @endif
                     </div>

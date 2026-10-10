@@ -266,7 +266,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/exams/{exam}/questions', [GuruQuestionController::class, 'store'])->name('guru.questions.store');
         Route::post('/exams/{exam}/update-bulk-weight', [GuruQuestionController::class, 'updateBulkWeight'])
             ->name('guru.exams.update-bulk-weight');
-
+        Route::post('/exams/{exam}/toggle-score', [ExamController::class, 'toggleScore'])->name('guru.exams.toggle-score');
         // Route Quick Edit Bobot Per Soal
         Route::patch('/questions/{question}/update-weight', [GuruQuestionController::class, 'updateSingleWeight'])
             ->name('guru.questions.update-weight');

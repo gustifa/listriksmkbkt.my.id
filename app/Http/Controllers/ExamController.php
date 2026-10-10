@@ -114,6 +114,7 @@ class ExamController extends Controller
             'randomize_questions' => $request->has('randomize_questions'),
             'randomize_options'   => $request->has('randomize_options'),
             'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
+            'show_score'   => $request->has('show_score'),
         ]);
 
         $exam->classrooms()->attach($request->classroom_ids);
@@ -390,6 +391,7 @@ class ExamController extends Controller
             'randomize_questions' => $request->has('randomize_questions'),
             'randomize_options'   => $request->has('randomize_options'),
             'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
+            'show_score'   => $request->has('show_score'),
         ]);
 
         $exam->classrooms()->sync($request->classroom_ids);
@@ -784,4 +786,13 @@ class ExamController extends Controller
 
         return redirect()->back()->with('success', 'Akses ujian siswa berhasil dibuka kembali.');
     }
+
+    public function toggleScore(Request $request, Exam $exam)
+{
+    $exam->update([
+        'show_score' => $request->has('show_score'),
+    ]);
+
+    return redirect()->back()->with('success', 'Status visibilitas nilai berhasil diperbarui!');
+}
 }

@@ -28,8 +28,14 @@
                     </span>
                 @endif
             </div>
+            <!-- Badge Status Visibilitas Nilai (Dapat diklik) -->
+
         </div>
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+            <!-- Tombol Pengaturan Visibilitas Nilai -->
+            <button type="button" class="btn btn-outline-primary fw-semibold btn-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalToggleScore">
+                <i class="fas fa-sliders-h me-1"></i> Pengaturan Nilai
+            </button>
             <a href="{{ route('guru.exams.report', $exam->id) }}" class="btn btn-info text-white fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-chart-bar me-1"></i> Rekap Nilai
             </a>
@@ -48,6 +54,7 @@
             <a href="{{ route('guru.questions.export', $exam->id) }}" class="btn btn-outline-success fw-semibold btn-sm flex-fill flex-md-grow-0">
                 <i class="fas fa-file-download me-1"></i> Export
             </a>
+            
         </div>
     </div>
 
@@ -80,6 +87,7 @@
         </div>
         <div class="card-body">
             <div class="d-flex flex-wrap align-items-center gap-2">
+                
                 <span class="badge bg-primary px-3 py-2">
                     <i class="fas fa-crown me-1 text-warning"></i> {{ $exam->teacher->name ?? 'Admin' }} (Pembuat Utama)
                 </span>
@@ -136,6 +144,13 @@
                         <div class="col-6 col-md-6">
                             <small class="text-muted d-block mb-1">Durasi</small>
                             <span class="fw-semibold text-dark fs-6">{{ $exam->duration_minutes ?? 0 }} Menit</span>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <small class="text-muted d-block mb-1">Tampilkan Nilai Akhir</small>
+                            <span class="fw-semibold {{ ($exam->show_score ?? true) ? 'text-success' : 'text-danger' }}">
+                                <i class="fas {{ ($exam->show_score ?? true) ? 'fa-eye' : 'fa-eye-slash' }} me-1"></i>
+                                {{ ($exam->show_score ?? true) ? 'Ditampilkan' : 'Disembunyikan' }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -313,6 +328,48 @@
                         </div>
                     </div>
                 @endforelse
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAMPILKAN / SEMBUNYIKAN NILAI -->
+<div class="modal fade" id="modalToggleScore" tabindex="-1" aria-labelledby="modalToggleScoreLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white py-3">
+                <h6 class="modal-title fw-bold" id="modalToggleScoreLabel">
+                    <i class="fas fa-eye me-2"></i> Pengaturan Visibilitas Nilai Akhir
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- FORM MENGGUNAKAN ROUTE KHUSUS TOGGLE SCORE -->
+            <form action="{{ route('guru.exams.toggle-score', $exam->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3 p-md-4">
+                    <p class="small text-muted mb-3">
+                        Pilih apakah siswa dapat melihat nilai akhir mereka secara langsung setelah menyelesaikan ujian.
+                    </p>
+
+                    <div class="p-3 border rounded-3 bg-light mb-3">
+                        <div class="form-check form-switch d-flex align-items-center gap-2 ps-0">
+                            <input class="form-check-input ms-0 me-2" style="width: 2.8em; height: 1.5em;" type="checkbox" role="switch" id="modal_show_score" name="show_score" value="1" {{ ($exam->show_score ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold text-dark cursor-pointer mb-0 fs-6" for="modal_show_score">
+                                Tampilkan Nilai Akhir ke Siswa
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Jika dinonaktifkan, siswa hanya akan melihat pesan "Ujian Telah Berhasil Diselesaikan" tanpa menampilkan angka nilai.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Simpan Pengaturan</button>
+                </div>
             </form>
         </div>
     </div>

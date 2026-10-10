@@ -194,21 +194,7 @@
                     <div class="col-12 mt-3">
                         <label class="form-label fw-semibold text-dark mb-2">Pengaturan Hasil & Review Siswa</label>
                         <div class="row g-3">
-                            <!-- Switch Tampilkan Nilai Akhir -->
-                            <div class="col-md-4">
-                                <div class="p-3 border rounded-3 bg-light h-100">
-                                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
-                                        <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="show_score" name="show_score" value="1" {{ old('show_score', true) ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="show_score">
-                                            <i class="fas fa-star text-warning me-1"></i> Tampilkan Nilai Akhir
-                                        </label>
-                                    </div>
-                                    <small class="text-muted d-block ms-1">Menampilkan nilai akhir kepada siswa langsung setelah ujian diselesaikan.</small>
-                                </div>
-                            </div>
-
-                            <!-- Switch Izinkan Review Ujian -->
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
                                         <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="allow_review" name="allow_review" value="1" {{ old('allow_review', true) ? 'checked' : '' }}>
@@ -220,13 +206,12 @@
                                 </div>
                             </div>
 
-                            <!-- Switch Tampilkan Kunci Jawaban -->
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-light h-100">
                                     <div class="form-check form-switch d-flex align-items-center gap-2 mb-2 ps-0">
                                         <input class="form-check-input ms-0 me-2" style="width: 2.5em; height: 1.3em;" type="checkbox" role="switch" id="show_correct_answer" name="show_correct_answer" value="1" {{ old('show_correct_answer') ? 'checked' : '' }}>
                                         <label class="form-check-label fw-bold text-dark cursor-pointer mb-0" for="show_correct_answer">
-                                            <i class="fas fa-check-circle text-success me-1"></i> Tampilkan Kunci Jawaban
+                                            <i class="fas fa-check-circle text-warning me-1"></i> Tampilkan Kunci Jawaban
                                         </label>
                                     </div>
                                     <small class="text-muted d-block ms-1">Menampilkan indikator benar/salah dan kunci jawaban pada halaman review.</small>
