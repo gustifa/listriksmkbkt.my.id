@@ -227,11 +227,118 @@ public function import(Request $request, Exam $exam)
     /**
      * Memperbarui data soal di database
      */
+    // public function update(Request $request, Question $question)
+    // {
+    //     $formType = $request->input('type', 'pilihan_ganda');
+
+    //     // Mapping tipe soal untuk disesuaikan dengan CHECK constraint PostgreSQL ('single', 'multiple', 'essay')
+    //     $typeMapping = [
+    //         'pilihan_ganda'   => 'single',
+    //         'multiple_choice' => 'multiple',
+    //         'essay'           => 'essay',
+    //     ];
+
+    //     $questionType = $typeMapping[$formType] ?? $formType;
+
+    //     // Rules Validasi
+    //     $rules = [
+    //         'question_text' => 'required|string',
+    //         'score'         => 'required|numeric|min:1',
+    //     ];
+
+    //     if ($formType === 'pilihan_ganda') {
+    //         $rules['options_pg.A'] = 'required|string';
+    //         $rules['options_pg.B'] = 'required|string';
+    //         $rules['correct_answer_single'] = 'required|in:A,B,C,D,E';
+    //     } elseif ($formType === 'multiple_choice') {
+    //         $rules['options_mc.A'] = 'required|string';
+    //         $rules['options_mc.B'] = 'required|string';
+    //         $rules['correct_answer_multi'] = 'required|array|min:1';
+    //     } elseif ($formType === 'essay') {
+    //         $rules['essay_answer'] = 'required|string';
+    //     }
+
+    //     $request->validate($rules, [
+    //         'question_text.required'         => 'Pertanyaan wajib diisi.',
+    //         'options_pg.A.required'          => 'Opsi A wajib diisi.',
+    //         'options_pg.B.required'          => 'Opsi B wajib diisi.',
+    //         'options_mc.A.required'          => 'Opsi A wajib diisi.',
+    //         'options_mc.B.required'          => 'Opsi B wajib diisi.',
+    //         'correct_answer_single.required' => 'Pilih 1 kunci jawaban yang benar.',
+    //         'correct_answer_multi.required'  => 'Pilih minimal 1 kunci jawaban yang benar.',
+    //         'essay_answer.required'          => 'Pedoman / Kunci Jawaban Essay wajib diisi.',
+    //         'score.required'                 => 'Bobot nilai wajib diisi.',
+    //     ]);
+
+    //     DB::beginTransaction();
+    //     try {
+    //         $correctAnswerData = null;
+    //         $optionsData = null;
+
+    //         if ($formType === 'pilihan_ganda') {
+    //             $correctAnswerData = [strtoupper($request->correct_answer_single)];
+
+    //             $rawOptions = $request->input('options_pg', []);
+    //             $formattedOptions = [];
+    //             foreach ($rawOptions as $key => $val) {
+    //                 if (!is_null($val) && trim($val) !== '') {
+    //                     $formattedOptions[] = [
+    //                         'key'  => $key,
+    //                         'text' => trim($val)
+    //                     ];
+    //                 }
+    //             }
+    //             $optionsData = $formattedOptions;
+
+    //         } elseif ($formType === 'multiple_choice') {
+    //             $correctAnswerData = array_map('strtoupper', $request->correct_answer_multi);
+
+    //             $rawOptions = $request->input('options_mc', []);
+    //             $formattedOptions = [];
+    //             foreach ($rawOptions as $key => $val) {
+    //                 if (!is_null($val) && trim($val) !== '') {
+    //                     $formattedOptions[] = [
+    //                         'key'  => $key,
+    //                         'text' => trim($val)
+    //                     ];
+    //                 }
+    //             }
+    //             $optionsData = $formattedOptions;
+
+    //         } elseif ($formType === 'essay') {
+    //             $correctAnswerData = [$request->essay_answer];
+    //             $optionsData = null;
+    //         }
+
+    //         $weightValue = round((float) $calculatedWeight, 2);
+
+    //         // Update record soal
+    //         $question->update([
+    //             'question_type'  => $questionType,
+    //             'question_text'  => $request->question_text,
+    //             'options'        => $optionsData,
+    //             'correct_answer' => $correctAnswerData,
+    //             'score_weight'   => (int) $request->score,
+    //         ]);
+
+    //         DB::commit();
+
+    //         return redirect()->route('guru.exams.show', $question->exam_id)
+    //                         ->with('success', 'Berhasil memperbarui soal!');
+
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return back()->withInput()->with('error', 'Gagal memperbarui soal: ' . $e->getMessage());
+    //     }
+    // }
+
+    /**
+     * Memperbarui data soal di database
+     */
     public function update(Request $request, Question $question)
     {
         $formType = $request->input('type', 'pilihan_ganda');
 
-        // Mapping tipe soal untuk disesuaikan dengan CHECK constraint PostgreSQL ('single', 'multiple', 'essay')
         $typeMapping = [
             'pilihan_ganda'   => 'single',
             'multiple_choice' => 'multiple',
@@ -240,10 +347,9 @@ public function import(Request $request, Exam $exam)
 
         $questionType = $typeMapping[$formType] ?? $formType;
 
-        // Rules Validasi
         $rules = [
             'question_text' => 'required|string',
-            'score'         => 'required|numeric|min:1',
+            'score'         => 'required|numeric|min:0.1',
         ];
 
         if ($formType === 'pilihan_ganda') {
@@ -310,13 +416,13 @@ public function import(Request $request, Exam $exam)
                 $optionsData = null;
             }
 
-            // Update record soal
+            // Update record soal (Casting ke float)
             $question->update([
                 'question_type'  => $questionType,
                 'question_text'  => $request->question_text,
                 'options'        => $optionsData,
                 'correct_answer' => $correctAnswerData,
-                'score_weight'   => (int) $request->score,
+                'score_weight'   => (float) $request->score,
             ]);
 
             DB::commit();
