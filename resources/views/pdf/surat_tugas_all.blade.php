@@ -17,12 +17,10 @@
             color: #000;
         }
 
-        /* CSS Page Break untuk memisahkan setiap guru ke halaman baru */
         .page-break {
             page-break-after: always;
         }
 
-        /* Header / Kop Surat */
         .header-table { 
             width: 100%; 
             border-bottom: 3px double #000; 
@@ -55,7 +53,6 @@
             line-height: 1.1;
         }
 
-        /* Judul Surat */
         .title-surat { 
             text-align: center; 
             margin-bottom: 6px; 
@@ -71,7 +68,6 @@
             font-size: 11pt; 
         }
 
-        /* Content & Biodata */
         .content { 
             text-align: justify; 
             margin-bottom: 2px; 
@@ -91,7 +87,6 @@
             width: 10px; 
         }
 
-        /* Tabel Jadwal */
         .schedule-table { 
             width: 100%; 
             border-collapse: collapse; 
@@ -117,7 +112,6 @@
             margin-left: 15px; 
         }
 
-        /* Footer & Tanda Tangan */
         .footer-section { 
             margin-top: 2px; 
             width: 100%; 
@@ -130,7 +124,6 @@
             margin-top: 0px;
         }
 
-        /* Container TTD & Stempel Tumpuk */
         .signature-wrapper {
             position: relative;
             height: 55px;
@@ -159,14 +152,31 @@
 <body>
 
     @foreach($allData as $index => $data)
-        {{-- Ekstrak data per guru --}}
         @php
             $teacher = $data['teacher'];
-            $schedules = $data['schedules'];
+            $rawSchedules = $data['schedules'];
             $semester = $data['semester'];
             $tahunAjaran = $data['tahunAjaran'];
             $totalJam = $data['totalJam'];
             $nomorSurat = $data['nomorSurat'];
+
+            // MAPPING URUTAN HARI DARI SENIN S/D MINGGU
+            $dayOrder = [
+                'monday'    => 1, 'senin'  => 1,
+                'tuesday'   => 2, 'selasa' => 2,
+                'wednesday' => 3, 'rabu'   => 3,
+                'thursday'  => 4, 'kamis'  => 4,
+                'friday'    => 5, 'jumat'  => 5,
+                'saturday'  => 6, 'sabtu'  => 6,
+                'sunday'    => 7, 'minggu' => 7,
+            ];
+
+            // PENGURUTAN SEBELUM LOOPING TABEL (HARI LALU JAM MULAI)
+            $schedules = $rawSchedules->sortBy(function($sched) use ($dayOrder) {
+                $dayKey = strtolower(trim($sched->day ?? ''));
+                $order = $dayOrder[$dayKey] ?? 99;
+                return sprintf('%02d_%s', $order, $sched->start_time ?? '');
+            });
         @endphp
 
         <div class="{{ !$loop->last ? 'page-break' : '' }}">
