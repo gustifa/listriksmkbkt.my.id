@@ -8,6 +8,7 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.3/dist/sweetalert2.min.css" rel="stylesheet">
     
     <style>
         body { background-color: #f8f9fa; }
@@ -31,7 +32,6 @@
             -webkit-transform: scaleX(-1);
         }
 
-        /* BINGKAI LINGKARAN PANDUAN WAJAH */
         .face-guide-overlay {
             position: absolute;
             top: 50%;
@@ -75,7 +75,6 @@
             border: 2px solid #0d6efd;
         }
 
-        /* CARD ILUSTRASI VISUAL */
         .guide-card {
             background: #ffffff;
             border: 1px solid #e0e0e0;
@@ -121,7 +120,6 @@
     <div class="row justify-content-center">
         <div class="col-12 col-md-9">
 
-            <!-- ALERT WARNING DARI MIDDLEWARE (JIKA KOSONG) -->
             @if(session('warning'))
                 <div class="alert alert-warning alert-dismissible fade show mb-3 border-0 shadow-sm" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i> {{ session('warning') }}
@@ -213,7 +211,7 @@
                     </div>
 
                     <div id="status-msg" class="alert alert-warning py-2 mb-3 small">
-                        <span class="spinner-border spinner-border-sm me-1"></span> Memuat Model AI...
+                        <span class="spinner-border spinner-border-sm me-1"></span> Menginisialisasi Kamera & Model AI...
                     </div>
 
                     <div class="webcam-box mb-3">
@@ -232,7 +230,7 @@
                         </select>
                     </div>
 
-                    <!-- TOMBOL MANUAL & OPSI SCAN OTOMATIS -->
+                    <!-- TOMBOL MANUAL -->
                     <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2 mb-3">
                         <button id="btn-capture" class="btn btn-success btn-lg px-4 py-2 fw-bold w-100 w-sm-auto" disabled>
                             <i class="fas fa-camera me-2"></i> Ambil Sampel Wajah
@@ -240,7 +238,7 @@
                     </div>
 
                     <div class="alert alert-info py-2 my-3 small">
-                        <i class="fas fa-info-circle me-1"></i> Anda wajib mengambil <strong>minimal 3 sampel foto wajah yang berbeda</strong> agar tombol simpan aktif. Auto-scan aktif saat posisi ditahan 1 detik.
+                        <i class="fas fa-info-circle me-1"></i> Anda wajib mengambil <strong>minimal 3 sampel foto wajah yang berbeda</strong> agar tombol simpan aktif.
                     </div>
 
                     <hr class="my-3">
@@ -248,7 +246,7 @@
                     <h6 class="fw-bold">Sampel Terkumpul (<span id="sample-count">0</span>/3):</h6>
                     <div id="preview-list" class="d-flex justify-content-center gap-2 flex-wrap mb-3"></div>
 
-                    <!-- TOMBOL SIMPAN (MATI JIKA BELUM 3) -->
+                    <!-- TOMBOL SIMPAN -->
                     <button id="btn-save" class="btn btn-secondary w-100 py-2 fw-bold" disabled>
                         <i class="fas fa-save me-2"></i> Simpan Sampel Wajah (<span id="save-count-info">0/3</span>)
                     </button>
@@ -283,7 +281,16 @@
     let detectionLoopActive = false;
     let lastDetection = null;
 
-    detectOptimalModelMode();
+    initApp();
+
+    async function initApp() {
+        detectOptimalModelMode();
+        // Inisialisasi Kamera dan Model AI berjalan bersamaan (Paralel)
+        await Promise.all([
+            startWebcam(),
+            loadAIModels(currentModelType)
+        ]);
+    }
 
     function detectOptimalModelMode() {
         if (navigator.connection) {
@@ -296,38 +303,29 @@
         } else {
             currentModelType = modeModelSelect.value;
         }
-
         modeModelSelect.value = currentModelType;
-        loadAIModels(currentModelType);
     }
 
     async function loadAIModels(modelType) {
-        btnCapture.disabled = true;
-        statusMsg.className = 'alert alert-warning py-2 mb-3 small';
-        statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Memuat Model AI (${modelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})...`;
-
         try {
+            const modelPath = "{{ asset('models') }}";
             if (modelType === 'tiny') {
                 await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
-                    faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                    faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
+                    faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
                 ]);
             } else {
                 await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
-                    faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                    faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
                 ]);
             }
 
-            if (!currentStream) {
-                startWebcam();
-            } else {
-                statusMsg.className = 'alert alert-success py-2 mb-3 small';
-                statusMsg.innerText = `Kamera Siap! Posisikan wajah di dalam lingkaran.`;
-                btnCapture.disabled = false;
-            }
+            statusMsg.className = 'alert alert-success py-2 mb-3 small';
+            statusMsg.innerText = `Kamera & AI Siap! Posisikan wajah di dalam lingkaran.`;
+            btnCapture.disabled = false;
         } catch (err) {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
             statusMsg.innerText = "Gagal memuat model AI dari server.";
@@ -343,19 +341,18 @@
         const idealWidth = currentModelType === 'tiny' ? 480 : 640;
         const idealHeight = currentModelType === 'tiny' ? 360 : 480;
 
-        navigator.mediaDevices.getUserMedia({ 
+        return navigator.mediaDevices.getUserMedia({ 
             video: { 
                 facingMode: "user", 
                 width: { ideal: idealWidth }, 
-                height: { ideal: idealHeight } 
-            } 
+                height: { ideal: idealHeight },
+                frameRate: { ideal: 15, max: 24 }
+            },
+            audio: false
         })
         .then(stream => {
             currentStream = stream;
             video.srcObject = stream;
-            statusMsg.className = 'alert alert-success py-2 mb-3 small';
-            statusMsg.innerText = `Kamera Siap! Posisikan wajah di dalam lingkaran.`;
-            btnCapture.disabled = false;
         })
         .catch(() => {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
@@ -377,7 +374,7 @@
             if (!isProcessing && collectedLabels.length < 5) {
                 let detection;
                 if (currentModelType === 'tiny') {
-                    detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                    detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                         .withFaceLandmarks()
                         .withFaceDescriptor();
                 } else {
@@ -390,21 +387,10 @@
 
                 if (detection) {
                     faceGuide.classList.add('detected');
-                    faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol / Tahan 1 Detik');
-
-                    // Auto-capture jika ditahan 1.2 detik
-                    if (!scanHoldTimer) {
-                        scanHoldTimer = setTimeout(() => {
-                            captureSample(detection);
-                        }, 1200);
-                    }
+                    faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol Ambil Sampel');
                 } else {
                     faceGuide.classList.remove('detected');
                     faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
-                    if (scanHoldTimer) {
-                        clearTimeout(scanHoldTimer);
-                        scanHoldTimer = null;
-                    }
                 }
             }
 
@@ -423,7 +409,7 @@
         if (!lastDetection) {
             statusMsg.innerText = "Mengekstrak fitur wajah secara presisi...";
             if (currentModelType === 'tiny') {
-                lastDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                lastDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
                     .withFaceLandmarks()
                     .withFaceDescriptor();
             } else {
@@ -442,11 +428,8 @@
         captureSample(lastDetection);
     });
 
-    // FUNGSI UTAMA PENANGKAPAN SAMPEL WAJAH
     function captureSample(detection) {
         isProcessing = true;
-        if (scanHoldTimer) { clearTimeout(scanHoldTimer); scanHoldTimer = null; }
-
         const selectedLabel = sampleLabelSelect.value;
 
         // Validasi 1: Label sudah pernah diambil
@@ -457,7 +440,7 @@
             return;
         }
 
-        // Validasi 2: Cek variasi Euclidean distance geometri wajah (mencegah foto identik)
+        // Validasi 2: Cek variasi geometri wajah (mencegah foto identik)
         const newDescriptor = detection.descriptor;
         for (let i = 0; i < rawDescriptors.length; i++) {
             const distance = faceapi.euclideanDistance(newDescriptor, rawDescriptors[i]);
@@ -473,19 +456,19 @@
             }
         }
 
-        // Lolos Validasi
+        // Simpan Sampel Valid
         rawDescriptors.push(newDescriptor);
         collectedDescriptors.push(JSON.stringify(Array.from(newDescriptor)));
         collectedLabels.push(selectedLabel);
 
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 480;
-        canvas.height = video.videoHeight || 360;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.width = 320;
+        canvas.height = 240;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
         previewList.insertAdjacentHTML('beforeend', `
             <div class="text-center">
-                <img src="${canvas.toDataURL('image/jpeg', 0.6)}" class="preview-img mb-1">
+                <img src="${canvas.toDataURL('image/jpeg', 0.5)}" class="preview-img mb-1">
                 <small class="d-block text-truncate fw-bold" style="max-width: 80px;">${selectedLabel}</small>
             </div>
         `);
@@ -494,7 +477,6 @@
         sampleCountText.innerText = count;
         $('#save-count-info').text(`${count}/3`);
 
-        // VALIDASI TOMBOL SIMPAN AKTIF APABILA SUDAH MINIMAL 3 SAMPEL
         if (count >= 3) {
             btnSave.classList.remove('btn-secondary');
             btnSave.classList.add('btn-primary');
@@ -505,7 +487,7 @@
             btnSave.disabled = true;
         }
 
-        // Pindah otomatis pilihan dropdown ke posisi berikutnya yang belum terambil
+        // Geser ke pilihan dropdown posisi berikutnya
         const availableOptions = Array.from(sampleLabelSelect.options).map(opt => opt.value);
         const nextOption = availableOptions.find(optVal => !collectedLabels.includes(optVal));
         if (nextOption) {

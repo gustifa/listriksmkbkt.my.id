@@ -109,7 +109,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text bg-white"><i class="fas fa-video text-secondary"></i></span>
                                         <select id="camera-select" class="form-select shadow-none">
-                                            <option value="">Mencari Kamera...</option>
+                                            <option value="">Memuat Kamera...</option>
                                         </select>
                                         <button id="btn-toggle-camera" class="btn btn-danger" type="button" title="Matikan / Hidupkan Kamera">
                                             <i id="toggle-icon" class="fas fa-video-slash"></i>
@@ -120,7 +120,7 @@
                         </div>
 
                         <div id="status-loading" class="alert alert-warning py-2 mb-3">
-                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Model AI...
+                            <span class="spinner-border spinner-border-sm me-2"></span> Menginisialisasi Kamera & AI...
                         </div>
 
                         <div class="video-container">
@@ -160,46 +160,52 @@
         let currentStream = null;
         let isCameraOn = true;
         let detectionLoopActive = false;
-        let currentModelType = 'tiny'; // Default: 'tiny' atau 'ssd'
+        let currentModelType = 'tiny';
 
-        // 1. Deteksi Otomatis Kecepatan Internet saat halaman dimuat
-        detectOptimalModelMode();
+        // Start Inisialisasi Aplikasi
+        initApp();
 
-        async function detectOptimalModelMode() {
+        async function initApp() {
+            detectOptimalModelMode();
+            
+            // Eksekusi paralel: Kamera nyala langsung tanpa menunggu AI selesai diunduh
+            await Promise.all([
+                initCameraDevices(),
+                loadAIModels(currentModelType)
+            ]);
+        }
+
+        function detectOptimalModelMode() {
             if (navigator.connection) {
                 const conn = navigator.connection;
-                // Jika koneksi 2G, 3G, atau dalam mode Hemat Data, otomatis pakai 'tiny'
                 if (conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === '3g') {
                     currentModelType = 'tiny';
-                } else if (conn.effectiveType === '4g') {
-                    // Jika 4G, bisa diset ke presisi tinggi atau tetap tiny berdasarkan pilihan user
+                } else {
                     currentModelType = modeModelSelect.value;
                 }
             } else {
                 currentModelType = modeModelSelect.value;
             }
-
             modeModelSelect.value = currentModelType;
-            loadAIModels(currentModelType);
         }
 
-        // 2. Fungsi Memuat Model Sesuai Pilihan (Tiny vs SSD MobileNet)
         async function loadAIModels(modelType) {
             statusMsg.className = 'alert alert-warning py-2 mb-3';
             statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Memuat Model AI (${modelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})...`;
 
             try {
+                const modelPath = "{{ asset('models') }}";
                 if (modelType === 'tiny') {
                     await Promise.all([
-                        faceapi.nets.tinyFaceDetector.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
+                        faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
                     ]);
                 } else {
                     await Promise.all([
-                        faceapi.nets.ssdMobilenetv1.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceLandmark68Net.loadFromUri("{{ asset('models') }}"),
-                        faceapi.nets.faceRecognitionNet.loadFromUri("{{ asset('models') }}")
+                        faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
                     ]);
                 }
 
@@ -209,12 +215,6 @@
                 statusMsg.innerText = "Gagal memuat model AI dari server.";
             }
         }
-
-        // Event listener saat user mengganti mode performa secara manual
-        modeModelSelect.addEventListener('change', () => {
-            currentModelType = modeModelSelect.value;
-            loadAIModels(currentModelType);
-        });
 
         async function loadDescriptors() {
             try {
@@ -234,16 +234,11 @@
                     return new faceapi.LabeledFaceDescriptors(d.label, descriptors);
                 });
 
-                // Threshold: 0.42 untuk tiny, 0.38 untuk SSD
                 const distanceThreshold = currentModelType === 'tiny' ? 0.42 : 0.38;
                 faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, distanceThreshold);
 
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = `Sistem Aktif! (${currentModelType === 'tiny' ? 'Mode Ringan / Cepat' : 'Mode Presisi Tinggi'})`;
-
-                if (!currentStream) {
-                    await initCameraDevices();
-                }
+                statusMsg.innerText = `Sistem Siap! (${currentModelType === 'tiny' ? 'Mode Ringan / Cepat' : 'Mode Presisi Tinggi'})`;
             } catch (err) {
                 statusMsg.className = 'alert alert-danger';
                 statusMsg.innerText = "Gagal memuat data wajah dari server.";
@@ -252,9 +247,10 @@
 
         async function initCameraDevices() {
             try {
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                tempStream.getTracks().forEach(track => track.stop());
+                // Langsung aktifkan kamera default terlebih dahulu
+                await startCamera();
 
+                // Dapatkan daftar kamera setelah stream dibuka
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
@@ -278,11 +274,9 @@
                     option.text = label;
                     cameraSelect.appendChild(option);
                 });
-
-                startCamera(cameraSelect.value);
             } catch (err) {
                 statusMsg.className = 'alert alert-danger';
-                statusMsg.innerText = "Izin kamera ditolak atau tidak tersedia pada browser HP Anda.";
+                statusMsg.innerText = "Izin kamera ditolak atau tidak tersedia.";
             }
         }
 
@@ -290,10 +284,9 @@
             stopCameraStream();
 
             const videoConstraints = deviceId
-                ? { deviceId: { exact: deviceId } }
+                ? { deviceId: { ideal: deviceId } }
                 : { facingMode: "user" };
 
-            // Penyesuaian resolusi berdasarkan mode
             const idealWidth = currentModelType === 'tiny' ? 480 : 640;
             const idealHeight = currentModelType === 'tiny' ? 360 : 480;
 
@@ -301,11 +294,12 @@
                 video: Object.assign(videoConstraints, {
                     width: { ideal: idealWidth },
                     height: { ideal: idealHeight },
-                    frameRate: { ideal: 24, max: 30 }
-                })
+                    frameRate: { ideal: 15, max: 24 }
+                }),
+                audio: false
             };
 
-            navigator.mediaDevices.getUserMedia(constraints)
+            return navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
                     currentStream = stream;
                     video.srcObject = stream;
@@ -326,14 +320,15 @@
         }
 
         function updateCameraButtonUI() {
-            if (isCameraOn) {
-                btnToggleCamera.className = 'btn btn-danger';
-                toggleIcon.className = 'fas fa-video-slash';
-            } else {
-                btnToggleCamera.className = 'btn btn-success';
-                toggleIcon.className = 'fas fa-video';
-            }
+            btnToggleCamera.className = isCameraOn ? 'btn btn-danger' : 'btn btn-success';
+            toggleIcon.className = isCameraOn ? 'fas fa-video-slash' : 'fas fa-video';
         }
+
+        modeModelSelect.addEventListener('change', () => {
+            currentModelType = modeModelSelect.value;
+            loadAIModels(currentModelType);
+            if(isCameraOn) startCamera(cameraSelect.value);
+        });
 
         cameraSelect.addEventListener('change', () => {
             if (cameraSelect.value) startCamera(cameraSelect.value);
@@ -350,7 +345,7 @@
             } else {
                 startCamera(cameraSelect.value);
                 statusMsg.className = 'alert alert-success';
-                statusMsg.innerText = `Sistem Aktif! (${currentModelType === 'tiny' ? 'Mode Ringan' : 'Mode Presisi'})`;
+                statusMsg.innerText = "Kamera Diaktifkan.";
             }
         });
 
@@ -359,10 +354,10 @@
             captureCanvas.height = video.videoHeight || 360;
             const ctx = captureCanvas.getContext('2d');
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.6);
+            return captureCanvas.toDataURL('image/jpeg', 0.5);
         }
 
-        // ASYNC LOOP PENDETEKSIAN ADAPTIF
+        // Loop Deteksi Wajah
         video.addEventListener('play', () => {
             const overlay = document.getElementById('overlay');
             if (detectionLoopActive) return;
@@ -381,11 +376,10 @@
                     if (!isProcessing && faceMatcher) {
                         let detections;
 
-                        // Eksekusi model sesuai pilihan mode
                         if (currentModelType === 'tiny') {
                             detections = await faceapi.detectAllFaces(
                                 video,
-                                new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                                new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
                             ).withFaceLandmarks().withFaceDescriptors();
                         } else {
                             detections = await faceapi.detectAllFaces(
@@ -413,8 +407,7 @@
                     }
                 }
 
-                // Jeda frame: 250ms untuk mode ringan, 150ms untuk mode presisi tinggi
-                const interval = currentModelType === 'tiny' ? 250 : 150;
+                const interval = currentModelType === 'tiny' ? 300 : 200;
                 setTimeout(processFrame, interval);
             }
 
