@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 
 class DatabaseController extends Controller
 {
@@ -19,138 +20,200 @@ class DatabaseController extends Controller
     }
 
     /**
-     * Proses Backup Database (Support Native PHP Fallback untuk PGSQL)
+     * Proses Backup Database (Mendukung Opsi Pilihan Dengan / Tanpa Foto)
      */
-    public function backup()
+    public function backup(Request $request)
     {
-        $filename = "backup-" . Carbon::now()->format('Y-m-d-H-i-s');
+        ini_set('max_execution_time', 900);
+        ini_set('memory_limit', '1024M');
+
+        $includeFiles = $request->input('include_files', '0') === '1';
+        $timestamp = Carbon::now()->format('Y-m-d-H-i-s');
+        $filename = "backup-{$timestamp}";
         $connection = config('database.default');
 
-        if (!File::exists(storage_path('app/backups'))) {
-            File::makeDirectory(storage_path('app/backups'), 0755, true);
+        $backupDir = storage_path('app/backups');
+        if (!File::exists($backupDir)) {
+            File::makeDirectory($backupDir, 0755, true);
         }
 
-        // --- BACKUP SQLITE ---
-        if ($connection === 'sqlite') {
-            $dbPath = config('database.connections.sqlite.database');
-            $backupPath = storage_path("app/backups/{$filename}.sqlite");
+        $sqlPath = null;
 
-            if (File::copy($dbPath, $backupPath)) {
-                return response()->download($backupPath)->deleteFileAfterSend(true);
-            }
-            return back()->with('error', 'Gagal backup file SQLite.');
-        }
+        try {
+            // 1. GENERATE FILE DATABASE (.sql / .sqlite)
+            if ($connection === 'sqlite') {
+                $dbPath = config('database.connections.sqlite.database');
+                $sqlPath = "{$backupDir}/{$filename}.sqlite";
+                File::copy($dbPath, $sqlPath);
+            } elseif ($connection === 'mysql') {
+                $sqlPath = "{$backupDir}/{$filename}.sql";
+                $dbName = config('database.connections.mysql.database');
+                $dbUser = config('database.connections.mysql.username');
+                $dbPass = config('database.connections.mysql.password');
+                $dbHost = config('database.connections.mysql.host');
 
-        // --- BACKUP MYSQL ---
-        if ($connection === 'mysql') {
-            $dbName = config('database.connections.mysql.database');
-            $dbUser = config('database.connections.mysql.username');
-            $dbPass = config('database.connections.mysql.password');
-            $dbHost = config('database.connections.mysql.host');
-            
-            $filename .= ".sql";
-            $backupPath = storage_path("app/backups/{$filename}");
-            $dumpPath = "mysqldump";
+                $command = "\"mysqldump\" --user={$dbUser} --password={$dbPass} --host={$dbHost} {$dbName} > \"{$sqlPath}\"";
+                @exec($command);
 
-            $command = "\"{$dumpPath}\" --user={$dbUser} --password={$dbPass} --host={$dbHost} {$dbName} > \"{$backupPath}\"";
+                if (!file_exists($sqlPath) || filesize($sqlPath) === 0) {
+                    $sqlDump = $this->generatePgsqlDumpNative();
+                    File::put($sqlPath, $sqlDump);
+                }
+            } elseif ($connection === 'pgsql') {
+                $sqlPath = "{$backupDir}/{$filename}.sql";
+                $dbName = config('database.connections.pgsql.database');
+                $dbUser = config('database.connections.pgsql.username');
+                $dbPass = config('database.connections.pgsql.password');
+                $dbHost = config('database.connections.pgsql.host');
+                $dbPort = config('database.connections.pgsql.port', '5432');
 
-            $returnVar = NULL;
-            @exec($command, $output, $returnVar);
+                $pgDumpPath = env('PG_DUMP_PATH', 'pg_dump');
+                $execEnabled = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))));
 
-            if ($returnVar === 0 && file_exists($backupPath)) {
-                return response()->download($backupPath)->deleteFileAfterSend(true);
-            }
-            return back()->with('error', 'Gagal backup MySQL.');
-        }
+                if ($execEnabled) {
+                    putenv("PGPASSWORD={$dbPass}");
+                    $command = "\"{$pgDumpPath}\" -U {$dbUser} -h {$dbHost} -p {$dbPort} --inserts --column-inserts {$dbName} > \"{$sqlPath}\" 2>&1";
+                    @exec($command);
+                    putenv("PGPASSWORD=");
+                }
 
-        // --- BACKUP POSTGRESQL ---
-        if ($connection === 'pgsql') {
-            $dbName = config('database.connections.pgsql.database');
-            $dbUser = config('database.connections.pgsql.username');
-            $dbPass = config('database.connections.pgsql.password');
-            $dbHost = config('database.connections.pgsql.host');
-            $dbPort = config('database.connections.pgsql.port', '5432');
-
-            $filename .= ".sql";
-            $backupPath = storage_path("app/backups/{$filename}");
-
-            $pgDumpPath = env('PG_DUMP_PATH', 'pg_dump'); 
-            $execEnabled = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))));
-
-            // Metode 1: Coba via CLI pg_dump
-            if ($execEnabled) {
-                putenv("PGPASSWORD={$dbPass}");
-                $command = "\"{$pgDumpPath}\" -U {$dbUser} -h {$dbHost} -p {$dbPort} --inserts --column-inserts {$dbName} > \"{$backupPath}\" 2>&1";
-
-                $returnVar = NULL;
-                $output = [];
-                @exec($command, $output, $returnVar);
-                putenv("PGPASSWORD=");
-
-                if ($returnVar === 0 && file_exists($backupPath) && filesize($backupPath) > 100) {
-                    return response()->download($backupPath)->deleteFileAfterSend(true);
+                if (!file_exists($sqlPath) || filesize($sqlPath) < 100) {
+                    $sqlDump = $this->generatePgsqlDumpNative();
+                    File::put($sqlPath, $sqlDump);
                 }
             }
 
-            // Metode 2: Native PHP Backup Generator (Fallback tanpa CLI pg_dump)
-            try {
-                $sqlDump = $this->generatePgsqlDumpNative();
-                File::put($backupPath, $sqlDump);
-
-                if (file_exists($backupPath) && filesize($backupPath) > 0) {
-                    return response()->download($backupPath)->deleteFileAfterSend(true);
-                }
-            } catch (\Exception $e) {
-                Log::error("Native PGSQL Backup Error: " . $e->getMessage());
+            if (!$sqlPath || !file_exists($sqlPath)) {
+                return back()->with('error', 'Gagal memproses file cadangan database.');
             }
 
-            return back()->with('error', 'Gagal backup PostgreSQL. Cek Log Laravel.');
-        }
+            // 2. OPSI A: TANPA FOTO (Langsung Download File SQL/SQLite)
+            if (!$includeFiles) {
+                return response()->download($sqlPath)->deleteFileAfterSend(true);
+            }
 
-        return back()->with('error', 'Tipe database tidak didukung.');
+            // 3. OPSI B: DENGAN FOTO (Kompresi File Database + Folder Uploads ke .ZIP)
+            $zipFileName = "backup-full-{$timestamp}.zip";
+            $zipPath = "{$backupDir}/{$zipFileName}";
+
+            $zip = new ZipArchive();
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+                // Masukkan file DB ke ZIP
+                $zip->addFile($sqlPath, basename($sqlPath));
+
+                // Masukkan folder storage/public ke ZIP
+                $storagePublicPath = storage_path('app/public');
+                if (File::exists($storagePublicPath)) {
+                    $files = File::allFiles($storagePublicPath);
+                    foreach ($files as $file) {
+                        $relativePath = 'storage/' . $file->getRelativePathname();
+                        $zip->addFile($file->getRealPath(), $relativePath);
+                    }
+                }
+                $zip->close();
+            }
+
+            // Hapus file SQL temp setelah masuk ZIP
+            if (file_exists($sqlPath)) {
+                File::delete($sqlPath);
+            }
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            if ($sqlPath && file_exists($sqlPath)) File::delete($sqlPath);
+            Log::error("Backup Error: " . $e->getMessage());
+            return back()->with('error', 'Gagal backup: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Proses Restore Database
+     * Proses Restore Database (Mendukung File .sql, .sqlite, dan .zip)
      */
     public function restore(Request $request)
     {
         ini_set('max_execution_time', 900);
         ini_set('memory_limit', '1024M');
 
-        $request->validate(['backup_file' => 'required|file']);
+        $request->validate([
+            'backup_file' => 'required|file|max:102400', // Maksimal 100MB
+        ], [
+            'backup_file.required' => 'Silakan pilih file backup terlebih dahulu.',
+            'backup_file.file'     => 'File yang diunggah tidak valid.',
+            'backup_file.uploaded' => 'Gagal mengunggah file. Ukuran file melampaui batas PHP.',
+            'backup_file.max'      => 'Ukuran file backup terlalu besar (Maksimal 100MB).',
+        ]);
 
         $file = $request->file('backup_file');
         $extension = strtolower($file->getClientOriginalExtension());
         $connection = config('database.default');
 
-        if (!in_array($extension, ['sql', 'sqlite'])) {
-            return back()->with('error', 'Fitur ini hanya mendukung file .sql atau .sqlite');
+        if (!in_array($extension, ['sql', 'sqlite', 'zip'])) {
+            return back()->with('error', 'Fitur ini hanya mendukung file .sql, .sqlite, atau .zip');
         }
 
         try {
+            $storedPath = $file->storeAs('temp', 'restore_' . time() . '.' . $extension, 'local');
+            $fullPath = Storage::disk('local')->path($storedPath);
+
+            // JIKA FILE ADALAH ZIP (Ekstrak File Foto & Cari File SQL)
+            if ($extension === 'zip') {
+                $zip = new ZipArchive();
+                $extractPath = storage_path('app/temp/extracted_' . time());
+
+                if ($zip->open($fullPath) === true) {
+                    $zip->extractTo($extractPath);
+                    $zip->close();
+
+                    // Restore Folder Foto/Storage
+                    $extractedStorage = $extractPath . '/storage';
+                    if (File::exists($extractedStorage)) {
+                        File::copyDirectory($extractedStorage, storage_path('app/public'));
+                    }
+
+                    // Cari file SQL/SQLite di dalam hasil ekstrak
+                    $allFiles = File::allFiles($extractPath);
+                    $sqlFileFound = null;
+                    foreach ($allFiles as $extractedFile) {
+                        $ext = strtolower($extractedFile->getExtension());
+                        if (in_array($ext, ['sql', 'sqlite'])) {
+                            $sqlFileFound = $extractedFile->getRealPath();
+                            $extension = $ext;
+                            break;
+                        }
+                    }
+
+                    if (!$sqlFileFound) {
+                        File::deleteDirectory($extractPath);
+                        Storage::disk('local')->delete($storedPath);
+                        return back()->with('error', 'File ZIP tidak berisi file database (.sql / .sqlite).');
+                    }
+
+                    $fullPath = $sqlFileFound;
+                }
+            }
+
+            // --- RESTORE SQLITE ---
             if ($connection === 'sqlite') {
                 $dbPath = config('database.connections.sqlite.database');
                 File::copy($dbPath, $dbPath . '.bak');
-                $file->move(dirname($dbPath), basename($dbPath));
+                File::copy($fullPath, $dbPath);
 
                 $request->session()->invalidate();
                 return redirect()->route('login')->with('success', 'Database SQLite berhasil dipulihkan.');
             }
 
-            $filename = 'restore_' . time() . '.sql';
-            $storedPath = $file->storeAs('temp', $filename, 'local'); 
-            $fullPath = Storage::disk('local')->path($storedPath);
-
-            if (!file_exists($fullPath) || filesize($fullPath) < 10) {
-                if ($storedPath) Storage::disk('local')->delete($storedPath);
-                return back()->with('error', 'File backup tidak valid.');
-            }
-
+            /** @var \PDO $pdo */
             $pdo = DB::connection()->getPdo();
 
+            // --- PERSIAPAN DATABASE ---
             if ($connection === 'pgsql') {
-                $pdo->exec("SET session_replication_role = 'replica';");
+                try {
+                    $pdo->exec("SET session_replication_role = 'replica';");
+                } catch (\Exception $e) {
+                    Log::notice("Cannot set session_replication_role: " . $e->getMessage());
+                }
+
                 $pdo->exec('DROP SCHEMA public CASCADE;');
                 $pdo->exec('CREATE SCHEMA public;');
                 $pdo->exec('GRANT ALL ON SCHEMA public TO public;');
@@ -158,6 +221,7 @@ class DatabaseController extends Controller
                 $pdo->exec('SET FOREIGN_KEY_CHECKS = 0;');
             }
 
+            // --- BACA & EKSEKUSI FILE SQL ---
             $handle = fopen($fullPath, "r");
             if ($handle) {
                 $query = '';
@@ -166,26 +230,28 @@ class DatabaseController extends Controller
                 while (($line = fgets($handle)) !== false) {
                     $trimmedLine = trim($line);
 
+                    if (strpos($trimmedLine, '\\') === 0) {
+                        if ($trimmedLine === '\.') $inCopyMode = false;
+                        continue;
+                    }
+
                     if (preg_match('/^COPY\s+.*FROM\s+stdin/i', $trimmedLine)) {
                         $inCopyMode = true;
                         continue;
                     }
-                    if ($inCopyMode) {
-                        if ($trimmedLine === '\.') $inCopyMode = false;
-                        continue;
-                    }
+                    if ($inCopyMode) continue;
 
                     if (empty($trimmedLine) || strpos($trimmedLine, '--') === 0 || strpos($trimmedLine, '/*') === 0) {
                         continue;
                     }
 
-                    if (preg_match('/^(SET|SELECT pg_catalog|ALTER TABLE.*OWNER TO|GRANT|REVOKE)/i', $trimmedLine)) {
+                    if (preg_match('/^(SET|SELECT pg_catalog|ALTER TABLE.*OWNER TO|GRANT|REVOKE|COMMENT ON)/i', $trimmedLine)) {
                         continue;
                     }
 
                     $query .= $line;
 
-                    if (substr(trim($query), -1) === ';') {
+                    if (substr($trimmedLine, -1) === ';') {
                         try {
                             $pdo->exec($query);
                         } catch (\Exception $e) {
@@ -197,17 +263,22 @@ class DatabaseController extends Controller
                 fclose($handle);
             }
 
+            // --- KEMBALIKAN KONFIGURASI DB ---
             if ($connection === 'pgsql') {
-                $pdo->exec("SET session_replication_role = 'origin';");
+                try {
+                    $pdo->exec("SET session_replication_role = 'origin';");
+                } catch (\Exception $e) {}
             } elseif ($connection === 'mysql') {
                 $pdo->exec('SET FOREIGN_KEY_CHECKS = 1;');
             }
 
-            if ($storedPath) Storage::disk('local')->delete($storedPath);
+            // Clean Temporary Files
+            if (isset($storedPath)) Storage::disk('local')->delete($storedPath);
+            if (isset($extractPath) && File::exists($extractPath)) File::deleteDirectory($extractPath);
 
             DB::reconnect();
 
-            // Pastikan tabel sessions & users ada
+            // Check sessions & users table
             if (!Schema::hasTable('sessions')) {
                 Artisan::call('migrate', [
                     '--path' => 'database/migrations/0001_01_01_000000_create_users_table.php',
@@ -218,7 +289,7 @@ class DatabaseController extends Controller
             if (!Schema::hasTable('users')) {
                 Artisan::call('migrate:fresh', ['--force' => true]);
                 $request->session()->invalidate();
-                return redirect()->route('login')->with('error', 'Gagal Restore: File SQL tidak valid.');
+                return redirect()->route('login')->with('error', 'Gagal Restore: File SQL tidak memuat data tabel users.');
             }
 
             $request->session()->invalidate();
@@ -228,6 +299,7 @@ class DatabaseController extends Controller
 
         } catch (\Exception $e) {
             if (isset($storedPath)) Storage::disk('local')->delete($storedPath);
+            if (isset($extractPath) && File::exists($extractPath)) File::deleteDirectory($extractPath);
             Log::error("Restore Exception: " . $e->getMessage());
 
             if (!Schema::hasTable('users') || !Schema::hasTable('sessions')) {
@@ -251,7 +323,6 @@ class DatabaseController extends Controller
         $out .= "-- Created at: " . date('Y-m-d H:i:s') . "\n\n";
 
         foreach ($tables as $table) {
-            // Get Create Table Statement Structure
             $columns = $pdo->query("SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='{$table}' ORDER BY ordinal_position")->fetchAll(\PDO::FETCH_ASSOC);
 
             $out .= "DROP TABLE IF EXISTS \"{$table}\" CASCADE;\n";
@@ -268,7 +339,6 @@ class DatabaseController extends Controller
             $out .= implode(",\n", $colDefs);
             $out .= "\n);\n\n";
 
-            // Get Rows
             $rows = $pdo->query("SELECT * FROM \"{$table}\"")->fetchAll(\PDO::FETCH_ASSOC);
             foreach ($rows as $row) {
                 $cols = array_keys($row);
