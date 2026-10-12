@@ -5,15 +5,15 @@
     <title>Surat Tugas Semua Guru</title>
     <style>
         @page {
-            margin-top: {{ $school['margin_top'] ?? '2.5cm' }};
-            margin-right: {{ $school['margin_right'] ?? '2.5cm' }};
-            margin-bottom: {{ $school['margin_bottom'] ?? '2.5cm' }};
-            margin-left: {{ $school['margin_left'] ?? '2.5cm' }};
+            margin-top: {{ $school['margin_top'] ?? '1.2cm' }};
+            margin-right: {{ $school['margin_right'] ?? '1.8cm' }};
+            margin-bottom: {{ $school['margin_bottom'] ?? '1.2cm' }};
+            margin-left: {{ $school['margin_left'] ?? '1.8cm' }};
         }
         body {
             font-family: 'Times New Roman', Times, serif;
             font-size: 12pt;
-            line-height: 1.15;
+            line-height: 1.05;
             color: #000;
         }
 
@@ -26,11 +26,11 @@
         .header-table { 
             width: 100%; 
             border-bottom: 3px double #000; 
-            margin-bottom: 20px; 
-            padding-bottom: 10px; 
+            margin-bottom: 6px; 
+            padding-bottom: 2px; 
         }
         .logo-img { 
-            width: 90px; 
+            width: 80px; 
             height: auto; 
             object-fit: contain; 
         }
@@ -39,47 +39,50 @@
         }
         .school-info h2 { 
             margin: 0; 
-            font-size: 14pt; 
+            font-size: 13pt; 
             font-weight: normal; 
+            line-height: 1.1;
         }
         .school-info h1 { 
             margin: 0; 
-            font-size: 16pt; 
+            font-size: 15pt; 
             font-weight: bold; 
+            line-height: 1.1;
         }
         .school-info p { 
             margin: 0; 
-            font-size: 10pt; 
+            font-size: 9.5pt; 
+            line-height: 1.1;
         }
 
         /* Judul Surat */
         .title-surat { 
             text-align: center; 
-            margin-bottom: 20px; 
+            margin-bottom: 6px; 
         }
         .title-surat h3 { 
             margin: 0; 
             text-decoration: underline; 
-            font-size: 14pt; 
+            font-size: 13pt; 
             text-transform: uppercase; 
         }
         .title-surat p { 
             margin: 0; 
-            font-size: 12pt; 
+            font-size: 11pt; 
         }
 
         /* Content & Biodata */
         .content { 
             text-align: justify; 
-            margin-bottom: 3px; 
+            margin-bottom: 2px; 
         }
         .bio-table { 
             width: 100%; 
-            margin-bottom: 15px; 
+            margin-bottom: 4px; 
         }
         .bio-table td { 
             vertical-align: top; 
-            padding: 2px 0; 
+            padding: 0px 0; 
         }
         .bio-label { 
             width: 160px; 
@@ -92,12 +95,13 @@
         .schedule-table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin-bottom: 15px; 
+            margin-top: 2px;
+            margin-bottom: 4px; 
             font-size: 11pt; 
         }
         .schedule-table th, .schedule-table td { 
             border: 1px solid #000; 
-            padding: 4px; 
+            padding: 1px 3px; 
             text-align: center; 
             vertical-align: middle; 
         }
@@ -117,36 +121,37 @@
         .footer-section { 
             margin-top: 2px; 
             width: 100%; 
+            page-break-inside: avoid;
         }
         .ttd-box { 
             float: right; 
-            width: 300px; 
+            width: 280px; 
             text-align: left; 
-            margin-top: 2px;
+            margin-top: 0px;
         }
 
         /* Container TTD & Stempel Tumpuk */
         .signature-wrapper {
             position: relative;
-            height: 90px;
+            height: 55px;
             width: 100%;
-            margin: 5px 0;
+            margin: 0px 0;
         }
 
         .img-sign {
             position: absolute;
             z-index: 10;
-            height: 130px;
-            left: 20px;
-            top: 0;
+            height: 80px;
+            left: 15px;
+            top: -12px;
         }
 
         .img-stamp {
             position: absolute;
             z-index: 5;
-            height: 145px;
-            left: -60px;
-            top: -5px;
+            height: 90px;
+            left: -35px;
+            top: -18px;
             opacity: 0.8;
         }
     </style>
@@ -233,14 +238,14 @@
                         $col1 = $uniqueSubjects->slice(0, $half)->values();
                         $col2 = $uniqueSubjects->slice($half)->values();
                     @endphp
-                    <table style="width: 100%; margin-top: 5px; margin-bottom: 8px; border-collapse: collapse;">
+                    <table style="width: 100%; margin-top: 1px; margin-bottom: 2px; border-collapse: collapse;">
                         <tr>
                             <td style="width: 50%; vertical-align: top; padding: 0; border: none;">
                                 <table style="width: 100%; border-collapse: collapse;">
                                     @foreach($col1 as $idx => $subjectName)
                                         <tr>
-                                            <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $idx + 1 }}.</td>
-                                            <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                                            <td style="width: 20px; vertical-align: top; padding: 0; border: none;">{{ $idx + 1 }}.</td>
+                                            <td style="vertical-align: top; padding: 0; border: none;">{{ $subjectName }}</td>
                                         </tr>
                                     @endforeach
                                 </table>
@@ -249,8 +254,8 @@
                                 <table style="width: 100%; border-collapse: collapse;">
                                     @foreach($col2 as $idx => $subjectName)
                                         <tr>
-                                            <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $half + $idx + 1 }}.</td>
-                                            <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                                            <td style="width: 20px; vertical-align: top; padding: 0; border: none;">{{ $half + $idx + 1 }}.</td>
+                                            <td style="vertical-align: top; padding: 0; border: none;">{{ $subjectName }}</td>
                                         </tr>
                                     @endforeach
                                 </table>
@@ -258,16 +263,16 @@
                         </tr>
                     </table>
                 @elseif($totalMapel > 0)
-                    <table style="width: 100%; margin-top: 5px; margin-bottom: 8px; border-collapse: collapse;">
+                    <table style="width: 100%; margin-top: 1px; margin-bottom: 2px; border-collapse: collapse;">
                         @foreach($uniqueSubjects as $idx => $subjectName)
                             <tr>
-                                <td style="width: 20px; vertical-align: top; padding: 1px 0; border: none;">{{ $idx + 1 }}.</td>
-                                <td style="vertical-align: top; padding: 1px 0; border: none;">{{ $subjectName }}</td>
+                                <td style="width: 20px; vertical-align: top; padding: 0; border: none;">{{ $idx + 1 }}.</td>
+                                <td style="vertical-align: top; padding: 0; border: none;">{{ $subjectName }}</td>
                             </tr>
                         @endforeach
                     </table>
                 @else
-                    <p style="margin-top: 5px; margin-bottom: 8px; padding-left: 20px;">-</p>
+                    <p style="margin-top: 1px; margin-bottom: 2px; padding-left: 20px;">-</p>
                 @endif
 
                 Dengan ketentuan :
@@ -308,20 +313,27 @@
                         <tr><td colspan="7">Belum ada jadwal.</td></tr>
                     @endforelse
 
-                    <!-- TUGAS TAMBAHAN -->
-                    @if(!empty($teacher->tugas_tambahan))
-                        @php
-                            $tugasTambahan = $teacher->tugas_tambahan;
-                            $jamTambahan = 2;
+                    <!-- TUGAS TAMBAHAN DINAMIS -->
+                    @php
+                        $hasAdditionalTask = false;
+                        $taskName = '';
+                        $taskHours = 0;
+                        $taskType = 'TTU';
 
-                            if (in_array($tugasTambahan, [
-                                'Ka. Proka Teknik Ketenagalistrikan',
-                                'Kepala Bengkel TITL',
-                                'Kepala Bengkel TPTUP'
-                            ])) {
-                                $jamTambahan = 12;
-                            }
-                        @endphp
+                        if ($teacher->additionalTask) {
+                            $hasAdditionalTask = true;
+                            $taskName = $teacher->additionalTask->name;
+                            $taskHours = $teacher->additionalTask->hours;
+                            $taskType = $teacher->additionalTask->type;
+                        } elseif (!empty($teacher->tugas_tambahan)) {
+                            $hasAdditionalTask = true;
+                            $taskName = $teacher->tugas_tambahan;
+                            $taskHours = $teacher->tugas_tambahan_jam ?? 2;
+                            $taskType = $teacher->tugas_tambahan_keterangan ?? 'TTU';
+                        }
+                    @endphp
+
+                    @if($hasAdditionalTask)
                         <tr>
                             <td></td><td></td>
                             <td colspan="2" class="col-left" style="font-weight: bold;">TUGAS TAMBAHAN SEBAGAI</td>
@@ -329,16 +341,19 @@
                         </tr>
                         <tr>
                             <td>{{ $no++ }}</td><td></td>
-                            <td colspan="2" class="col-left">{{ $tugasTambahan }}</td>
-                            <td>{{ $jamTambahan }}</td>
-                            <td></td><td></td>
+                            <td colspan="2" class="col-left">{{ $taskName }}</td>
+                            <td>{{ $taskHours }}</td>
+                            <td></td>
+                            <td>{{ $taskType }}</td>
                         </tr>
                     @endif
 
                     <!-- TOTAL JUMLAH JP -->
                     <tr>
                         <td colspan="4" style="text-align: right; font-weight: bold; padding-right: 10px;">Jumlah</td>
-                        <td style="font-weight: bold;">{{ $totalJam }}</td>
+                        <td style="font-weight: bold;">
+                            {{ $totalJam + ($hasAdditionalTask ? $taskHours : 0) }}
+                        </td>
                         <td colspan="2"></td>
                     </tr>
                 </tbody>
@@ -349,20 +364,20 @@
                 Diharapkan Kepada saudara untuk menyiapkan :
                 <div class="list-container">
                     1. Administrasi Pembelajaran yang meliputi:
-                    <div style="margin-left: 15px; font-style: italic;">
+                    <div style="margin-left: 15px; font-style: italic; line-height: 1.0;">
                         (Kalender Pendidikan, Rincian Minggu Efektif, Program Tahunan, Program Semester, Capaian Pembelajaran, Pemetaan Elemen Fase, Analisis CP - TP - ATP, ITP / KKTP, Pemetaan Asesmen, RPP/MA, Media Ajar, Materi Ajar, Jadwal Kontak Kelas, Agenda Mengajar, Absensi Siswa, Asesmen, Daftar Nilai, Program Remedial dan Program Pengayaan)
                     </div>
                     2. Administrasi pembelajaran dibuat bersama KKG per-mata pelajaran
                 </div>
-                <p style="margin-top: 10px; margin-bottom: 1px;">Demikian surat tugas ini di buat untuk dilaksanakan sesuai dengan ketentuan dan penuh rasa tanggung jawab.</p>
+                <p style="margin-top: 2px; margin-bottom: 0px;">Demikian surat tugas ini di buat untuk dilaksanakan sesuai dengan ketentuan dan penuh rasa tanggung jawab.</p>
             </div>
 
             <!-- TANDA TANGAN -->
             <div class="footer-section">
                 <div class="ttd-box">
-                    <p style="margin-bottom: 1px;">{{ $school['lokasi'] ?? 'Bukittinggi' }}, {{ !empty($school['tanggal_surat']) ? \Carbon\Carbon::parse($school['tanggal_surat'])->translatedFormat('j F Y') : date('d F Y') }}</p>
+                    <p style="margin-bottom: 0px; margin-top: 0px;">{{ $school['lokasi'] ?? 'Bukittinggi' }}, {{ !empty($school['tanggal_surat']) ? \Carbon\Carbon::parse($school['tanggal_surat'])->translatedFormat('j F Y') : date('d F Y') }}</p>
 
-                    <p style="margin-top: 1px;">{{ $school['sign_title'] ?? 'Kepala,' }}</p>
+                    <p style="margin-top: 0px; margin-bottom: 0px;">{{ $school['sign_title'] ?? 'Kepala Sekolah,' }}</p>
 
                     <div class="signature-wrapper">
                         @if(!empty($school['stempel']))
@@ -372,12 +387,12 @@
                         @if(!empty($school['ttd_pejabat']))
                             <img src="{{ $school['ttd_pejabat'] }}" class="img-sign">
                         @else
-                            <div style="height: 80px;"></div>
+                            <div style="height: 45px;"></div>
                         @endif
                     </div>
 
-                    <p style="text-decoration: underline; font-weight: bold; position: relative; z-index: 11; margin-bottom: 1px; margin-top: 1px;">{{ $school['ttd_surat'] ?? '-' }}</p>
-                    <p style="margin-top: 1px;">NIP. {{ $school['nip_surat'] ?? '-' }}</p>
+                    <p style="text-decoration: underline; font-weight: bold; position: relative; z-index: 11; margin-bottom: 0px; margin-top: 0px;">{{ $school['ttd_surat'] ?? '-' }}</p>
+                    <p style="margin-top: 0px; margin-bottom: 0px;">NIP. {{ $school['nip_surat'] ?? '-' }}</p>
                 </div>
                 <div style="clear: both;"></div>
             </div>

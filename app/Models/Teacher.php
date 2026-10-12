@@ -31,6 +31,7 @@ class Teacher extends Model
         'pangkat',
         'tugas_tambahan',
         'signature', // Tambahan baru
+        'additional_task_id',
     ];
 
     public function user()
@@ -95,5 +96,10 @@ class Teacher extends Model
     public function isAdvisor()
     {
         return $this->internships()->exists();
+    }
+
+    public function additionalTask()
+    {
+        return $this->belongsTo(AdditionalTask::class, 'additional_task_id');
     }
 }

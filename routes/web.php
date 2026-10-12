@@ -16,6 +16,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\FaceRegistrationController;
 use App\Http\Controllers\GateMonitorController;
 use App\Http\Controllers\StudentSelfServiceController;
+use App\Http\Controllers\AdditionalTaskController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -437,7 +438,10 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
     Route::middleware(['role:admin'])->group(function () {
 
-
+        // Route Master Tugas Tambahan (CRUD)
+        Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
+            'create', 'edit', 'show'
+        ]);
         // ... route import siswa yang lama ...
 
         // ROUTE BARU: IMPORT USER

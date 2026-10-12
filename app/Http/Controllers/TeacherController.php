@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Models\Major;
+use App\Models\AdditionalTask;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TeacherExport;
 use App\DataTables\TeacherDataTable;
@@ -15,159 +16,163 @@ class TeacherController extends Controller
 {
 
     /**
-     * [BARU] Tampilkan Detail Guru
+     * Tampilkan Detail Guru
      */
     public function show($id)
     {
-        $teacher = Teacher::with('user')->findOrFail($id);
+        $teacher = Teacher::with(['user', 'additionalTask'])->findOrFail($id);
         return view('teachers.show', compact('teacher'));
     }
+
     /**
      * Tampilkan Daftar Guru
      */
-    // public function index(Request $request)
-    // {
-    //     $query = Teacher::with('user');
-
-    //     // Fitur Pencarian (Nama, Email, NIP)
-    //     if ($request->has('search')) {
-    //         $search = $request->search;
-    //         $query->whereHas('user', function($q) use ($search) {
-    //             $q->where('name', 'LIKE', "%{$search}%")
-    //               ->orWhere('email', 'LIKE', "%{$search}%");
-    //         })->orWhere('nip', 'LIKE', "%{$search}%");
-    //     }
-
-    //     // Pagination 10 data per halaman
-    //     $teachers = $query->paginate(10);
-
-    //     return view('teachers.index', compact('teachers'));
-    // }
-
     public function index(TeacherDataTable $dataTable)
     {
-        return $dataTable->render('teachers.index'); // Sesuaikan path view Anda
+        return $dataTable->render('teachers.index');
     }
 
-    // public function editJson($id)
-    // {
-    //     $teacher = Teacher::with('user')->findOrFail($id);
-    //     return response()->json($teacher);
-    // }
-
-    // public function editJson($id)
-    // {
-    //     try {
-    //         // Gunakan with('user') karena di modal kita memanggil data.user.name
-    //         $teacher = Teacher::with('user')->findOrFail($id);
-    //         return response()->json($teacher);
-    //     } catch (\Exception $e) {
-    //         return response()->json(['error' => $e->getMessage()], 500);
-    //     }
-    // }
-
+    /**
+     * Fetch Data JSON untuk Modal Edit
+     */
     public function editJson($id)
     {
-        // // Gunakan with('user') agar data akun ikut terambil
-        // $teacher = Teacher::with('user')->find($id);
-
-        // if (!$teacher) {
-        //     return response()->json(['message' => 'Data tidak ditemukan'], 404);
-        // }
-
-        // return response()->json($teacher);
-        // Eager loading relasi user
-        // $teacher = \App\Models\Teacher::with('user')->find($id);
-
-        // if (!$teacher) {
-        //     return response()->json(['message' => 'Data tidak ditemukan'], 404);
-        // }
-
-        // return response()->json($teacher);
-
-        // Eager load relasi 'user'
-        // $teacher = \App\Models\Teacher::with('user')->where('id', $id)->first();
-
-        // if (!$teacher) {
-        //     // Jika sampai di sini, artinya ID "eee65b94..." tidak ada di kolom 'id' tabel teachers
-        //     return response()->json([
-        //         'message' => 'Data tidak ditemukan',
-        //         'debug_id_yang_dicari' => $id 
-        //     ], 404);
-        // }
-
-        // return response()->json($teacher);
-        // 1. Cek tanpa relasi dulu untuk memastikan ID-nya ada
-        $cekData = \DB::table('teachers')->where('id', $id)->first();
+        $cekData = DB::table('teachers')->where('id', $id)->first();
         
         if (!$cekData) {
-            // Jika masuk ke sini, berarti UUID tersebut memang TIDAK ADA di tabel 'teachers'
-            // Cek apakah ID tersebut sebenarnya adalah 'user_id'?
             return response()->json([
                 'message' => 'Data tidak ditemukan di tabel teachers',
                 'id_dicari' => $id,
-                'saran' => 'Pastikan kolom ID di tabel teachers berisi UUID tersebut.'
             ], 404);
         }
 
-        // 2. Jika ada, ambil dengan relasi user
-        $teacher = \App\Models\Teacher::with('user')->find($id);
+        // Load relasi user dan additionalTask
+        $teacher = Teacher::with(['user', 'additionalTask'])->find($id);
 
         return response()->json($teacher);
-        }
+    }
 
     /**
      * Form Edit Guru
      */
-    // public function edit($id)
-    // {
-    //     $majors = Major::get();
-    //     $teacher = Teacher::with('user')->findOrFail($id);
-    //     return view('teachers.edit', compact('teacher', 'majors'));
-    // }
-
     public function edit($id)
-{
-    // Menggunakan findOrFail agar jika tidak ada langsung melempar 404 yang benar (ModelNotFound)
-    // with('user') memastikan data nama dan email ikut terbawa
-    $teacher = \App\Models\Teacher::with('user')->findOrFail($id);
-
-    return view('teachers.edit', compact('teacher'));
-}
+    {
+        $teacher = Teacher::with(['user', 'additionalTask'])->findOrFail($id);
+        return view('teachers.edit', compact('teacher'));
+    }
 
     /**
      * Update Data Guru
      */
+    // public function update(Request $request, $id)
+    // {
+    //     $teacher = Teacher::findOrFail($id);
+
+    //     $request->validate([
+    //         'name'               => 'required|string|max:255',
+    //         'email'              => 'required|email|unique:users,email,' . $teacher->user_id,
+    //         'nip'                => 'nullable|string|max:50|unique:teachers,nip,' . $id,
+    //         'phone'              => 'nullable|numeric',
+    //         'gender'             => 'nullable|in:L,P',
+    //         'additional_task_id' => 'nullable|exists:additional_tasks,id',
+    //     ]);
+
+    //     // 1. Update Data Login (Tabel User)
+    //     $teacher->user->update([
+    //         'name'  => $request->name,
+    //         'email' => $request->email,
+    //     ]);
+
+    //     if ($request->filled('password')) {
+    //         $teacher->user->update([
+    //             'password' => bcrypt($request->password),
+    //         ]);
+    //     }
+
+    //     // 2. Sync / Backup Nama Tugas Tambahan
+    //     $tugasNama = $request->tugas_tambahan;
+    //     if ($request->filled('additional_task_id')) {
+    //         $task = AdditionalTask::find($request->additional_task_id);
+    //         if ($task) {
+    //             $tugasNama = $task->name;
+    //         }
+    //     }
+
+    //     // 3. Update Data Profil (Tabel Teacher)
+    //     $teacher->update([
+    //         'nip'                => $request->nip,
+    //         'phone'              => $request->phone,
+    //         'gender'             => $request->gender,
+    //         'address'            => $request->address,
+    //         'education_level'    => $request->education_level,
+    //         'major_id'           => $request->major_id,
+    //         'pangkat'            => $request->pangkat,
+    //         'golongan'           => $request->golongan,
+    //         'tugas_tambahan'     => $tugasNama,
+    //         'additional_task_id' => $request->additional_task_id,
+    //     ]);
+
+    //     return redirect()->route('teachers.index')->with('success', 'Data guru berhasil diperbarui.');
+    // }
+
     public function update(Request $request, $id)
-    {
-        $teacher = Teacher::findOrFail($id);
+{
+    $teacher = Teacher::findOrFail($id);
 
-        $request->validate([
-            'name'   => 'required|string|max:255',
-            'nip'    => 'nullable|string|max:50|unique:teachers,nip,' . $id,
-            'phone'  => 'nullable|numeric',
-            'gender' => 'nullable|in:L,P',
-        ]);
+    $request->validate([
+        'name'               => 'required|string|max:255',
+        'email'              => 'required|email|unique:users,email,' . $teacher->user_id,
+        'password'           => 'nullable|string|min:6',
+        'nip'                => 'nullable|string|max:50|unique:teachers,nip,' . $id,
+        'phone'              => 'nullable|numeric',
+        'gender'             => 'nullable|in:L,P',
+        'place_of_birth'     => 'nullable|string|max:255',
+        'date_of_birth'      => 'nullable|date',
+        'education_level'    => 'nullable|string|max:255',
+        'pangkat'            => 'nullable|string|max:255',
+        'golongan'           => 'nullable|string|max:255',
+        'address'            => 'nullable|string',
+        'additional_task_id' => 'nullable|exists:additional_tasks,id',
+    ]);
 
-        // 1. Update Data Login (Tabel User)
-        $teacher->user->update([
-            'name' => $request->name
-        ]);
+    // 1. Update Data Login (Tabel User)
+    $userData = [
+        'name'  => $request->name,
+        'email' => $request->email,
+    ];
 
-        // 2. Update Data Profil (Tabel Teacher)
-        $teacher->update([
-            'nip'     => $request->nip,
-            'phone'   => $request->phone,
-            'gender'  => $request->gender,
-            'address' => $request->address,
-            'major_id' => $request->major_id,
-            'pangkat' => $request->pangkat,
-            'golongan' => $request->golongan,
-            'tugas_tambahan' => $request->tugas_tambahan,
-        ]);
-
-        return redirect()->route('teachers.index')->with('success', 'Data guru berhasil diperbarui.');
+    if ($request->filled('password')) {
+        $userData['password'] = bcrypt($request->password);
     }
+
+    $teacher->user->update($userData);
+
+    // 2. Sync / Backup Nama Tugas Tambahan
+    $tugasNama = $request->tugas_tambahan;
+    if ($request->filled('additional_task_id')) {
+        $task = \App\Models\AdditionalTask::find($request->additional_task_id);
+        if ($task) {
+            $tugasNama = $task->name;
+        }
+    }
+
+    // 3. Update Seluruh Data Profil (Tabel Teacher)
+    $teacher->update([
+        'nip'                => $request->nip,
+        'phone'              => $request->phone,
+        'gender'             => $request->gender,
+        'place_of_birth'     => $request->place_of_birth,
+        'date_of_birth'      => $request->date_of_birth,
+        'education_level'    => $request->education_level,
+        'pangkat'            => $request->pangkat,
+        'golongan'           => $request->golongan,
+        'address'            => $request->address,
+        'tugas_tambahan'     => $tugasNama,
+        'additional_task_id' => $request->additional_task_id,
+    ]);
+
+    return redirect()->route('teachers.index')->with('success', 'Seluruh data guru berhasil diperbarui.');
+}
 
     /**
      * Hapus Guru (Beserta Akun Loginnya)
@@ -175,8 +180,6 @@ class TeacherController extends Controller
     public function destroy($id)
     {
         $teacher = Teacher::findOrFail($id);
-
-        // Hapus usernya, otomatis teacher terhapus karena cascade delete
         $teacher->user->delete();
 
         return redirect()->route('teachers.index')->with('success', 'Data guru dan akun login berhasil dihapus.');
