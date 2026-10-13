@@ -18,5 +18,6 @@ class AttendanceSetting extends Model
         'latitude',
         'longitude',
         'radius_meters',
+        'is_geofence_active', // <--- Tambahkan ini
     ];
 }

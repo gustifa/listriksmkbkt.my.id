@@ -279,7 +279,6 @@
     let currentModelType = 'tiny';
     let isProcessing = false;
     let detectionLoopTimeout = null;
-    let lastDetection = null;
 
     initApp();
 
@@ -292,7 +291,7 @@
         ]);
     }
 
-    // WEB AUDIO API BEEP (0 KB, TANPA FILE AUDIO EXTERNAL)
+    // WEB AUDIO API BEEP (0 KB)
     function playBeepSound() {
         try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -313,7 +312,7 @@
         }
     }
 
-    // FUNGSI SINKRONISASI KARTU PANDUAN DAN DROPDOWN
+    // SINKRONISASI KARTU PANDUAN DAN DROPDOWN
     function updateActiveGuideCard() {
         const selectedVal = sampleLabelSelect.value;
         document.querySelectorAll('.guide-card').forEach(card => {
@@ -329,10 +328,8 @@
         });
     }
 
-    // Event saat dropdown diubah
     sampleLabelSelect.addEventListener('change', updateActiveGuideCard);
 
-    // Event saat kartu panduan diklik
     document.querySelectorAll('.guide-card').forEach(card => {
         card.addEventListener('click', function() {
             const targetLabel = this.getAttribute('data-label');
@@ -394,9 +391,14 @@
         startDetectionLoop();
     });
 
+    // START KAMERA (MOBILE SAFE)
     function startWebcam() {
         const idealWidth = currentModelType === 'tiny' ? 480 : 640;
         const idealHeight = currentModelType === 'tiny' ? 360 : 480;
+
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
 
         return navigator.mediaDevices.getUserMedia({ 
             video: { 
@@ -410,10 +412,11 @@
         .then(stream => {
             currentStream = stream;
             video.srcObject = stream;
+            return video.play().catch(e => console.log("Autoplay ditahan browser:", e));
         })
-        .catch(() => {
+        .catch(err => {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
-            statusMsg.innerText = "Gagal mengakses kamera. Mohon izinkan akses kamera di browser HP Anda.";
+            statusMsg.innerText = "Gagal mengakses kamera. Mohon izinkan akses kamera di browser HP Anda & pastikan URL menggunakan HTTPS.";
         });
     }
 
@@ -442,8 +445,6 @@
                         ).withFaceLandmarks().withFaceDescriptor();
                     }
 
-                    lastDetection = detection;
-
                     if (detection) {
                         faceGuide.classList.add('detected');
                         faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol Ambil Sampel');
@@ -452,7 +453,7 @@
                         faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
                     }
                 } catch (e) {
-                    // Frame drop fallback
+                    // Drop frame
                 }
             }
 
@@ -463,67 +464,83 @@
         processFrame();
     }
 
+    function resetCaptureState() {
+        statusMsg.className = 'alert alert-success py-2 mb-3 small';
+        statusMsg.innerText = 'Kamera & AI Siap! Posisikan wajah di dalam lingkaran.';
+        btnCapture.disabled = false;
+        isProcessing = false;
+    }
+
+    // AMBIL SAMPEL SANGAT AKURAT (FRESH CAPTURE SETIAP KLIK)
     btnCapture.addEventListener('click', async () => {
         if (isProcessing) return;
+        isProcessing = true;
         btnCapture.disabled = true;
 
-        if (!lastDetection) {
-            statusMsg.innerText = "Mengekstrak fitur wajah secara presisi...";
+        statusMsg.className = 'alert alert-info py-2 mb-3 small';
+        statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Mengekstrak fitur wajah secara presisi...`;
+
+        try {
+            // SELALU AMBIL FRAME BARU SAAT TOMBOL DIKLIK (HINDARI CACHE WAJAH LAMA)
+            let currentDetection;
             if (currentModelType === 'tiny') {
-                lastDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-                    .withFaceLandmarks().withFaceDescriptor();
+                currentDetection = await faceapi.detectSingleFace(
+                    video, 
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.45 })
+                ).withFaceLandmarks().withFaceDescriptor();
             } else {
-                lastDetection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                    .withFaceLandmarks().withFaceDescriptor();
+                currentDetection = await faceapi.detectSingleFace(
+                    video, 
+                    new faceapi.SsdMobilenetv1Options({ minConfidence: 0.45 })
+                ).withFaceLandmarks().withFaceDescriptor();
             }
-        }
 
-        if (!lastDetection) {
-            Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di dalam lingkaran panduan & pencahayaan cukup terang.', 'warning');
-            btnCapture.disabled = false;
-            return;
-        }
+            if (!currentDetection) {
+                Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di dalam lingkaran panduan & pencahayaan cukup terang.', 'warning');
+                resetCaptureState();
+                return;
+            }
 
-        captureSample(lastDetection);
+            captureSample(currentDetection);
+        } catch (err) {
+            Swal.fire('Gagal Deteksi', 'Terjadi kesalahan saat mengekstrak data wajah.', 'error');
+            resetCaptureState();
+        }
     });
 
     function captureSample(detection) {
-        isProcessing = true;
         const selectedLabel = sampleLabelSelect.value;
 
-        // Validasi 1: Label sudah ada
+        // Validasi 1: Label sudah pernah digunakan
         if (collectedLabels.includes(selectedLabel)) {
             Swal.fire('Sudut Wajah Sudah Terdaftar', `Anda sudah mengambil sampel "${selectedLabel}". Silakan pilih instruksi posisi lain!`, 'warning');
-            btnCapture.disabled = false;
-            isProcessing = false;
+            resetCaptureState();
             return;
         }
 
-        // Validasi 2: Variasi Geometri
+        // Validasi 2: Toleransi Jarak Geometri yang Realistis (Threshold: 0.08 untuk Tiny, 0.10 untuk SSD)
         const newDescriptor = detection.descriptor;
+        const thresholdLimit = currentModelType === 'tiny' ? 0.08 : 0.10;
+
         for (let i = 0; i < rawDescriptors.length; i++) {
             const distance = faceapi.euclideanDistance(newDescriptor, rawDescriptors[i]);
-            if (distance < 0.12) {
+            if (distance < thresholdLimit) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Posisi Wajah Terlalu Sama',
-                    text: 'Sistem mendeteksi posisi/ekspresi wajah Anda belum berubah. Miringkan kepala atau ubah ekspresi!'
+                    text: 'Sistem mendeteksi posisi/ekspresi wajah Anda belum berubah. Miringkan kepala lebih jelas atau ubah ekspresi!'
                 });
-                btnCapture.disabled = false;
-                isProcessing = false;
+                resetCaptureState();
                 return;
             }
         }
 
-        // Efek Suara Beep
         playBeepSound();
 
-        // Simpan Sampel Valid
         rawDescriptors.push(newDescriptor);
         collectedDescriptors.push(JSON.stringify(Array.from(newDescriptor)));
         collectedLabels.push(selectedLabel);
 
-        // Render Canvas Mirroring
         const canvas = document.createElement('canvas');
         canvas.width = 320;
         canvas.height = 240;
@@ -549,12 +566,11 @@
             btnSave.disabled = false;
         }
 
-        // Pindah otomatis ke posisi/kartu panduan berikutnya
         const availableOptions = Array.from(sampleLabelSelect.options).map(opt => opt.value);
         const nextOption = availableOptions.find(optVal => !collectedLabels.includes(optVal));
         if (nextOption) {
             sampleLabelSelect.value = nextOption;
-            updateActiveGuideCard(); // <--- Pindah highlight kartu panduan
+            updateActiveGuideCard();
         }
 
         Swal.fire({
@@ -566,12 +582,11 @@
         }).then(() => {
             faceGuide.classList.remove('detected');
             faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
-            btnCapture.disabled = false;
-            isProcessing = false;
+            resetCaptureState();
         });
     }
 
-    // SIMPAN DATABASE VIA AJAX
+    // SIMPAN SAMPER VIA AJAX
     btnSave.addEventListener('click', () => {
         if (collectedDescriptors.length < 3) {
             Swal.fire('Sampel Kurang', 'Anda wajib mengambil minimal 3 foto sampel wajah!', 'warning');
@@ -601,7 +616,6 @@
         });
     });
 
-    // PEMBERSIHAN KAMERA
     function stopCamera() {
         if (detectionLoopTimeout) clearTimeout(detectionLoopTimeout);
         if (currentStream) {

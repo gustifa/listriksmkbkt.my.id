@@ -255,6 +255,7 @@
         const schoolLat = parseFloat("{{ $setting->latitude ?? '-0.30512300' }}");
         const schoolLng = parseFloat("{{ $setting->longitude ?? '100.36912300' }}");
         const schoolRadius = parseInt("{{ $setting->radius_meters ?? 100 }}");
+        const isGeofenceActive = Boolean({{ ($setting->is_geofence_active ?? true) ? 1 : 0 }});
 
         let userLat = null;
         let userLng = null;
@@ -278,13 +279,11 @@
             ]);
         }
 
-        // FUNGSI WEB AUDIO API FEEDBACK SUARA (0 KB, TANPA LAG)
+        // WEB AUDIO API FEEDBACK SUARA (0 KB, NATIVE BROWSER)
         function playFeedbackSound(type) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
                 if (type === 'success') {
-                    // Beep Sukses: Dual Note Ceria (1000Hz -> 1300Hz)
                     const osc1 = audioCtx.createOscillator();
                     const osc2 = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -305,7 +304,6 @@
                     osc2.start(audioCtx.currentTime + 0.1);
                     osc2.stop(audioCtx.currentTime + 0.25);
                 } else {
-                    // Beep Gagal: Single Low Note (400Hz)
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
 
@@ -320,11 +318,11 @@
                     osc.stop(audioCtx.currentTime + 0.3);
                 }
             } catch (e) {
-                // Ignore jika browser memblokir autopolicy
+                // Ignore audio policy error
             }
         }
 
-        // CONTROL KAMERA SAAT PINDAH TAB
+        // CONTROL TAMPILAN KAMERA PADA SWITCH TAB
         document.getElementById('face-tab').addEventListener('click', () => { cameraWrapper.style.display = 'block'; checkReady(); });
         document.getElementById('nis-tab').addEventListener('click', () => { cameraWrapper.style.display = 'block'; checkReady(); });
         document.getElementById('registered-tab').addEventListener('click', () => { cameraWrapper.style.display = 'none'; });
@@ -348,6 +346,19 @@
         }
 
         function initGeolocation() {
+            // JIKA GEOFENCE DINONAKTIFKAN (MODE PJJ / RUMAH)
+            if (!isGeofenceActive) {
+                geoStatus.className = 'alert alert-warning py-2 small fw-bold mb-3 shadow-sm';
+                geoStatus.innerHTML = `<i class="fas fa-house-user me-1"></i> Mode Pembelajaran Jarak Jauh (PJJ). Validasi Lokasi GPS Dinonaktifkan.`;
+                distanceBadge.className = 'badge bg-warning text-dark small';
+                distanceBadge.innerText = 'Mode PJJ / Dari Rumah';
+                
+                isWithinDistance = true; // Langsung izinkan presensi
+                checkReady();
+                return;
+            }
+
+            // JIKA GEOFENCE AKTIF (MODE PTM SEKOLAH)
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(
                     (pos) => {
@@ -424,18 +435,25 @@
         }
 
         function startCamera() {
+            video.setAttribute('autoplay', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
+
             return navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 24 } },
                 audio: false
             })
-            .then(stream => { video.srcObject = stream; })
+            .then(stream => { 
+                video.srcObject = stream; 
+                return video.play().catch(e => console.log("Autoplay ditahan browser:", e));
+            })
             .catch(() => {
                 faceGuide.setAttribute('data-status', 'Gagal Buka Kamera');
             });
         }
 
         function checkReady() {
-            if (userLat && userLng && isWithinDistance && !isProcessing) {
+            if (isWithinDistance && !isProcessing) {
                 btnScanNis.disabled = false;
                 btnScanFace.disabled = !isModelLoaded;
             } else {
@@ -462,15 +480,15 @@
 
             let detection;
             if (currentModelType === 'tiny') {
-                detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+                detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.45 }))
                     .withFaceLandmarks().withFaceDescriptor();
             } else {
-                detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.45 }))
                     .withFaceLandmarks().withFaceDescriptor();
             }
 
             if (!detection) {
-                playFeedbackSound('error'); // Bip gagal
+                playFeedbackSound('error');
                 Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di lingkaran panduan & pencahayaan terang. Jika tetap gagal, silakan gunakan tab "Input NIS".', 'warning');
                 isProcessing = false;
                 checkReady();
@@ -506,7 +524,7 @@
                 type: "POST",
                 data: payload,
                 success: function(res) {
-                    playFeedbackSound('success'); // Bip Sukses
+                    playFeedbackSound('success');
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil Absen!',
@@ -518,7 +536,7 @@
                     });
                 },
                 error: function(xhr) {
-                    playFeedbackSound('error'); // Bip Gagal
+                    playFeedbackSound('error');
                     let msg = xhr.responseJSON?.message || 'Gagal Melakukan Absensi.';
                     Swal.fire('Gagal Absen', msg, 'error');
                     isProcessing = false;

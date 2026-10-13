@@ -157,6 +157,9 @@ class SettingController extends Controller
         'radius_meters',
     ]);
 
+    // Set 1 jika checkbox dicentang (PTM), atau 0 jika tidak dicentang (PJJ)
+    $data['is_geofence_active'] = $request->has('is_geofence_active') ? 1 : 0;
+
     // 3. Simpan atau Update ke ID 1
     AttendanceSetting::updateOrCreate(['id' => 1], $data);
 

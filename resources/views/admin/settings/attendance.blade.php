@@ -59,7 +59,18 @@
                                 <hr class="my-4">
 
                                 <!-- PENGATURAN GEOFENCING / PETA -->
-                                <h6 class="text-primary fw-bold mb-3"><i class="fas fa-map-marked-alt me-2"></i> Lokasi Absensi (Geofencing)</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <h6 class="text-primary fw-bold mb-0"><i class="fas fa-map-marked-alt me-2"></i> Lokasi Absensi (Geofencing)</h6>
+                                    
+                                    <!-- TOGGLE ON/OFF GEOFENCING (PTM / PJJ) -->
+                                    <div class="form-check form-switch bg-light p-2 rounded border">
+                                        <input class="form-check-input ms-0 me-2" type="checkbox" id="is_geofence_active" name="is_geofence_active" value="1" 
+                                               {{ ($setting->is_geofence_active ?? true) ? 'checked' : '' }} style="transform: scale(1.3); cursor: pointer;">
+                                        <label class="form-check-label fw-bold text-dark cursor-pointer" for="is_geofence_active">
+                                            Aktifkan Validasi Lokasi GPS (Mode PTM / Sekolah)
+                                        </label>
+                                    </div>
+                                </div>
 
                                 <!-- SEARCH BOX -->
                                 <div class="mb-3 input-group">
@@ -146,7 +157,6 @@
             const defaultLng = parseFloat(document.getElementById('longitude_input').value) || 100.36912300;
             const defaultRadius = parseInt(document.getElementById('radius_input').value) || 100;
 
-            // Inisialisasi Peta
             map = L.map('map').setView([defaultLat, defaultLng], 17);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -154,10 +164,8 @@
                 attribution: '&copy; Leaflet | OpenStreetMap'
             }).addTo(map);
 
-            // Marker Lokasi
             marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
 
-            // Lingkaran Radius Geofence
             circle = L.circle([defaultLat, defaultLng], {
                 color: '#0d6efd',
                 fillColor: '#0d6efd',
@@ -165,19 +173,16 @@
                 radius: defaultRadius
             }).addTo(map);
 
-            // Event Marker Dragged
             marker.on('dragend', function (e) {
                 const position = marker.getLatLng();
                 updateCoordinates(position.lat, position.lng);
             });
 
-            // Event Klik di Map
             map.on('click', function (e) {
                 marker.setLatLng(e.latlng);
                 updateCoordinates(e.latlng.lat, e.latlng.lng);
             });
 
-            // Event Ubah Input Radius
             document.getElementById('radius_input').addEventListener('input', function () {
                 const newRadius = parseInt(this.value) || 10;
                 circle.setRadius(newRadius);
@@ -193,7 +198,6 @@
             map.panTo(latLng);
         }
 
-        // Cari Lokasi
         function searchLocation() {
             const query = document.getElementById('map_search_input').value;
             if (!query) return;
@@ -222,7 +226,6 @@
                 });
         }
 
-        // Ambil GPS Device
         function getCurrentLocation() {
             if (navigator.geolocation) {
                 Swal.fire({

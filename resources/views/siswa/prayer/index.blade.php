@@ -22,8 +22,23 @@
         .btn-rawatib.done { background-color: #198754; color: white; border-color: #198754; }
         .btn-rawatib.disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Map */
-        .leaflet-container { font-family: inherit; }
+        /* Container Peta Utama yang Terkunci */
+        #main-map-canvas {
+            height: 220px !important;
+            width: 100% !important;
+            border-radius: 15px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+            border: 2px solid #dee2e6;
+            position: relative !important;
+            overflow: hidden !important;
+            z-index: 1;
+        }
+
+        /* Mencegah ubin gambar Leaflet terdistorsi oleh CSS Reset / Framework */
+        #main-map-canvas img.leaflet-tile {
+            max-width: none !important;
+            max-height: none !important;
+        }
     </style>
 
     <div class="page-content">
@@ -37,6 +52,35 @@
                         <h2 class="mb-0 fw-bold">Masjid Sekolah</h2>
                         <div class="px-3 py-1 mt-2 bg-white badge text-primary rounded-pill shadow-sm">
                             <i class="far fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::parse($today)->translatedFormat('l, d F Y') }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD PETA & LOKASI -->
+                <div class="mb-3 shadow-sm card border-0 rounded-4">
+                    <div class="p-3 card-body">
+                        <div id="status-box" class="p-2 mb-2 badge bg-warning text-dark w-100 text-wrap" style="font-size: 0.85rem;">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Mendeteksi posisi lokasi Anda...
+                        </div>
+                        
+                        <!-- Peta Utama -->
+                        <div id="main-map-canvas" class="mb-2"></div>
+
+                        <!-- TOMBOL REFRESH LOKASI -->
+                        <div class="mb-2 text-end">
+                            <button id="btn-refresh-location" onclick="fetchUserLocation(true)" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" style="font-size: 0.75rem;">
+                                <i class="fas fa-crosshairs me-1"></i> Lokasi Saya Sekarang
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center text-muted small px-1 mb-1">
+                            <span><i class="fas fa-map-marker-alt me-1 text-danger"></i> Jarak Anda: <strong id="distance-text">-</strong></span>
+                            <span>Maksimal: <strong>{{ $radius }} meter</strong></span>
+                        </div>
+                        
+                        <!-- Info Koordinat Siswa -->
+                        <div class="text-start text-secondary" style="font-size: 0.72rem;">
+                            <i class="fas fa-location-arrow me-1"></i> Posisi Anda: <span id="user-coords-text" class="fw-bold font-monospace">Mencari GPS...</span>
                         </div>
                     </div>
                 </div>
@@ -72,11 +116,10 @@
                                 'isya'    => ['label' => 'Isya',    'rawatib' => ['qobliyah_isya' => 'Qobliyah', 'badiyah_isya' => 'Ba\'diyah']],
                             ];
                             
-                            // Handle Jumat
                             if(\Carbon\Carbon::now()->isFriday()) {
                                 $fardhu['dzuhur']['label'] = 'Jumat';
-                                unset($fardhu['dzuhur']['rawatib']); // Jumat biasanya qobliyah berbeda/khutbah
-                                $fardhu['dzuhur']['rawatib'] = ['qobliyah_dzuhur' => 'Sunnah Jumat']; // Opsional
+                                unset($fardhu['dzuhur']['rawatib']);
+                                $fardhu['dzuhur']['rawatib'] = ['qobliyah_dzuhur' => 'Sunnah Jumat'];
                             }
 
                             $currentTime = \Carbon\Carbon::now()->format('H:i');
@@ -87,13 +130,9 @@
                                 $time = $schedule[$key] ?? '00:00'; 
                                 $isDone = isset($attendances[$key]);
                                 $isActive = $currentTime >= $time;
-                                
-                                // Deteksi sholat aktif untuk highlight
-                                $isCurrent = false; // Logic highlight bisa ditambahkan jika perlu
                             @endphp
 
                             <div class="list-group-item p-3 {{ $isDone ? 'bg-light' : '' }}">
-                                <!-- Baris Atas: Info & Tombol Utama -->
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center">
                                         <div class="icon-box me-3 {{ $isDone ? 'text-success' : 'text-primary' }}">
@@ -110,7 +149,6 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Tombol Absen Fardhu -->
                                     <div>
                                         @if($isDone)
                                             <button class="btn btn-sm btn-success disabled rounded-pill px-3 fw-bold" style="opacity: 0.8">
@@ -128,7 +166,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Baris Bawah: Tombol Rawatib -->
                                 <div class="d-flex align-items-center border-top pt-2 mt-1">
                                     <span class="text-[10px] text-muted me-2 uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Rawatib:</span>
                                     <div class="d-flex flex-wrap gap-1">
@@ -189,25 +226,11 @@
 
                 <div class="text-center mt-4 mb-5">
                     <p class="text-muted small mb-1"><i class="fas fa-info-circle me-1"></i> Pastikan GPS aktif dan berada di area masjid.</p>
-                    <small class="text-secondary" style="font-size: 0.7rem;">Jarak Maksimal: {{ $radius }} meter</small>
                 </div>
 
             </div>
         </div>
     </div>
-
-    <!-- Template Map untuk SweetAlert -->
-    <template id="map-template">
-        <div id="location-info" class="mb-2 text-start">
-            <div id="status-text" class="p-2 mb-2 badge bg-warning text-dark w-100 text-wrap" style="font-size: 0.85rem;">
-                <i class="fas fa-spinner fa-spin me-2"></i>Mencari lokasi...
-            </div>
-            <div id="map-canvas" style="height: 280px; width: 100%; border-radius: 8px; border: 1px solid #ddd;"></div>
-            <div class="mt-2 text-center text-muted fst-italic" style="font-size: 0.75rem;">
-                *Pastikan berada di lingkaran hijau ({{ $radius }}m)
-            </div>
-        </div>
-    </template>
 
     @push('styles')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -216,85 +239,183 @@
     @push('scripts')
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
-        const masjidLat = {{ $masjidLat }}; 
-        const masjidLng = {{ $masjidLng }};
-        const maxRadius = {{ $radius }}; 
+        window.prayerConfig = {
+            masjidLat: Number("{{ $masjidLat }}"),
+            masjidLng: Number("{{ $masjidLng }}"),
+            maxRadius: Number("{{ $radius }}"),
+            storeUrl: "{{ route('student.prayer.store') }}",
+            csrfToken: "{{ csrf_token() }}"
+        };
 
-        let map, marker, circle;
+        let mainMap = null;
+        let userMarker = null;
+        let userCoords = null;
+        let currentDistance = null;
 
-        function handleAbsensi(prayerKey, label) {
-            Swal.fire({
-                title: label,
-                text: 'Konfirmasi kehadiran ibadah?',
-                html: document.getElementById('map-template').innerHTML,
-                width: '600px', // <-- DITAMBAHKAN/DIGANTI
-                showCancelButton: true,
-                confirmButtonText: 'Ya, Kirim Absen',
-                cancelButtonText: 'Batal',
-                confirmButtonColor: '#0d6efd',
-                allowOutsideClick: false,
-                didOpen: () => { initMap(); },
-                preConfirm: () => {
-                    const lat = document.getElementById('lat_val')?.value;
-                    const lng = document.getElementById('lng_val')?.value;
-                    const dist = document.getElementById('dist_val')?.value;
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                initMainMap();
+            }, 200);
+        });
 
-                    if (!lat || !lng) { Swal.showValidationMessage('Tunggu lokasi ditemukan!'); return false; }
-                    if (parseInt(dist) > maxRadius) { Swal.showValidationMessage(`Terlalu jauh (${dist}m). Mendekatlah ke Masjid.`); return false; }
-                    return { lat, lng };
+        function initMainMap() {
+            const lat = window.prayerConfig.masjidLat;
+            const lng = window.prayerConfig.masjidLng;
+            const radius = window.prayerConfig.maxRadius;
+
+            if (mainMap !== null) {
+                mainMap.remove();
+                mainMap = null;
+            }
+
+            mainMap = L.map('main-map-canvas', {
+                zoomControl: false
+            }).setView([lat, lng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                maxZoom: 19 
+            }).addTo(mainMap);
+
+            L.circle([lat, lng], { 
+                color: '#198754', 
+                fillColor: '#198754', 
+                fillOpacity: 0.2, 
+                radius: radius 
+            }).addTo(mainMap);
+
+            L.marker([lat, lng]).addTo(mainMap).bindPopup("<b>Masjid Sekolah</b>").openPopup();
+
+            // Hitung ulang dimensi kanvas setelah DOM siap
+            setTimeout(function() {
+                if (mainMap) {
+                    mainMap.invalidateSize();
                 }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    submitPrayer(prayerKey, result.value.lat, result.value.lng);
+            }, 300);
+
+            fetchUserLocation(false);
+        }
+
+        function fetchUserLocation(isManualClick) {
+            const statusBox = document.getElementById('status-box');
+            const distanceText = document.getElementById('distance-text');
+            const userCoordsText = document.getElementById('user-coords-text');
+            const btnRefresh = document.getElementById('btn-refresh-location');
+
+            if (btnRefresh && isManualClick) {
+                btnRefresh.disabled = true;
+                btnRefresh.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Memperbarui...';
+            }
+
+            if (!navigator.geolocation) {
+                if (statusBox) {
+                    statusBox.className = "badge bg-danger w-100 p-2 mb-2";
+                    statusBox.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Browser tidak mendukung GPS';
                 }
+                if (userCoordsText) userCoordsText.innerText = "GPS tidak didukung";
+                return;
+            }
+
+            const lat = window.prayerConfig.masjidLat;
+            const lng = window.prayerConfig.masjidLng;
+            const radius = window.prayerConfig.maxRadius;
+
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                userCoords = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude
+                };
+
+                if (userCoordsText) {
+                    userCoordsText.innerText = userCoords.lat.toFixed(6) + ", " + userCoords.lng.toFixed(6);
+                }
+
+                if (!userMarker) {
+                    userMarker = L.circleMarker([userCoords.lat, userCoords.lng], { 
+                        radius: 8, 
+                        fillColor: '#0d6efd', 
+                        color: '#ffffff', 
+                        weight: 2, 
+                        fillOpacity: 0.9 
+                    }).addTo(mainMap).bindPopup("<b>Lokasi Anda Sekarang</b>");
+                } else {
+                    userMarker.setLatLng([userCoords.lat, userCoords.lng]);
+                }
+
+                currentDistance = calculateDistance(userCoords.lat, userCoords.lng, lat, lng);
+
+                if (distanceText) distanceText.innerText = currentDistance + " meter";
+
+                mainMap.fitBounds(L.latLngBounds([[lat, lng], [userCoords.lat, userCoords.lng]]), { padding: [30, 30] });
+
+                setTimeout(function() {
+                    if (mainMap) {
+                        mainMap.invalidateSize();
+                    }
+                }, 200);
+
+                if (statusBox) {
+                    if (currentDistance <= radius) {
+                        statusBox.className = "badge bg-success w-100 p-2 mb-2";
+                        statusBox.innerHTML = '<i class="fas fa-check-circle me-1"></i> Dalam Radius Masjid (' + currentDistance + 'm)';
+                    } else {
+                        statusBox.className = "badge bg-danger w-100 p-2 mb-2";
+                        statusBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> Di Luar Radius Masjid (' + currentDistance + 'm)';
+                    }
+                }
+
+                if (btnRefresh) {
+                    btnRefresh.disabled = false;
+                    btnRefresh.innerHTML = '<i class="fas fa-crosshairs me-1"></i> Lokasi Saya Sekarang';
+                }
+
+            }, function(err) {
+                if (statusBox) {
+                    statusBox.className = "badge bg-danger w-100 p-2 mb-2";
+                    statusBox.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Gagal mengambil GPS: ' + err.message;
+                }
+                if (userCoordsText) userCoordsText.innerText = "Akses GPS ditolak/gagal";
+
+                if (btnRefresh) {
+                    btnRefresh.disabled = false;
+                    btnRefresh.innerHTML = '<i class="fas fa-crosshairs me-1"></i> Lokasi Saya Sekarang';
+                }
+            }, { 
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             });
         }
 
-        function initMap() {
-            setTimeout(() => {
-                map = L.map('map-canvas').setView([masjidLat, masjidLng], 18);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
-
-                L.marker([masjidLat, masjidLng]).addTo(map).bindPopup("Masjid Sekolah").openPopup();
-                circle = L.circle([masjidLat, masjidLng], { color: 'green', fillColor: '#2ecc71', fillOpacity: 0.2, radius: maxRadius }).addTo(map);
-
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition((pos) => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        L.marker([lat, lng]).addTo(map).bindPopup("Anda").openPopup();
-                        
-                        const dist = calculateDistance(lat, lng, masjidLat, masjidLng);
-                        updateStatusUI(dist, lat, lng);
-                        
-                        const group = new L.featureGroup([L.marker([masjidLat, masjidLng]), L.marker([lat, lng])]);
-                        map.fitBounds(group.getBounds().pad(0.2));
-                    }, (err) => {
-                        document.getElementById('status-text').innerHTML = "GPS Error: " + err.message;
-                    }, { enableHighAccuracy: true });
-                }
-            }, 300);
-        }
-
-        function updateStatusUI(dist, lat, lng) {
-            const statusBox = document.getElementById('status-text');
-            const container = document.getElementById('location-info');
-            
-            // Reset hidden inputs
-            const oldLat = document.getElementById('lat_val'); if(oldLat) oldLat.remove();
-            const oldLng = document.getElementById('lng_val'); if(oldLng) oldLng.remove();
-            const oldDist = document.getElementById('dist_val'); if(oldDist) oldDist.remove();
-
-            if (dist <= maxRadius) {
-                statusBox.className = "badge bg-success w-100 p-2 mb-2";
-                statusBox.innerHTML = `<i class="fas fa-check-circle me-1"></i> Dalam Radius: ${dist}m`;
-            } else {
-                statusBox.className = "badge bg-danger w-100 p-2 mb-2";
-                statusBox.innerHTML = `<i class="fas fa-times-circle me-1"></i> Luar Radius: ${dist}m`;
+        function handleAbsensi(prayerKey, label) {
+            if (!userCoords) {
+                Swal.fire('GPS Belum Siap', 'Silakan klik tombol "Lokasi Saya Sekarang" untuk memperbarui lokasi Anda.', 'warning');
+                return;
             }
-            
-            container.innerHTML += `<input type="hidden" id="lat_val" value="${lat}"><input type="hidden" id="lng_val" value="${lng}"><input type="hidden" id="dist_val" value="${dist}">`;
+
+            if (currentDistance > window.prayerConfig.maxRadius) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Absen',
+                    text: 'Jarak Anda (' + currentDistance + 'm) melebihi radius maksimal masjid (' + window.prayerConfig.maxRadius + 'm).'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: label,
+                text: 'Konfirmasi kehadiran ibadah? (Jarak Anda: ' + currentDistance + 'm dari masjid)',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Kirim Absen',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#0d6efd'
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    submitPrayer(prayerKey, userCoords.lat, userCoords.lng);
+                }
+            });
         }
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -306,16 +427,25 @@
         }
 
         function submitPrayer(name, lat, lng) {
-            Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Menyimpan...', didOpen: function() { Swal.showLoading(); } });
+
             $.ajax({
-                url: "{{ route('student.prayer.store') }}",
+                url: window.prayerConfig.storeUrl,
                 type: "POST",
-                data: { _token: "{{ csrf_token() }}", prayer_name: name, latitude: lat, longitude: lng },
+                data: { 
+                    _token: window.prayerConfig.csrfToken, 
+                    prayer_name: name, 
+                    latitude: lat, 
+                    longitude: lng 
+                },
                 success: function(res) {
-                    Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
+                    Swal.fire('Berhasil!', res.message, 'success').then(function() { 
+                        location.reload(); 
+                    });
                 },
                 error: function(xhr) {
-                    Swal.fire('Gagal', xhr.responseJSON?.message || 'Error', 'error');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error';
+                    Swal.fire('Gagal', msg, 'error');
                 }
             });
         }

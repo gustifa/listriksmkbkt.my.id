@@ -1472,15 +1472,135 @@ public function studentScanView()
  * Proses Simpan Absensi Wajah & Geolocation dari HP Siswa
  * Route: POST /student/scan
  */
+// public function storeStudentSelfScan(Request $request)
+// {
+//     $request->validate([
+//         'latitude'  => 'required|numeric',
+//         'longitude' => 'required|numeric',
+//         'image'     => 'required|string',
+//     ]);
+
+//     // 1. Cek User & Siswa
+//     $user = Auth::user();
+//     $student = $user->student ?? Student::where('user_id', $user->id)->first();
+
+//     if (!$student) {
+//         return response()->json(['status' => 'error', 'message' => 'Data siswa tidak ditemukan!'], 404);
+//     }
+
+//     // 2. Cek Tahun Ajaran Aktif
+//     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+//     if (!$activeAcademicYear) {
+//         return response()->json(['status' => 'error', 'message' => 'Tahun Pelajaran belum diaktifkan Admin.'], 400);
+//     }
+
+//     // 3. Validasi Jarak Geofence (Rumus Haversine)
+//     $setting = AttendanceSetting::first();
+//     // $settings = Setting::pluck('value', 'key')->toArray();
+//     $schoolLat = $setting->latitude ?? -0.30512300;
+//     $schoolLng = $setting->longitude ?? 100.36912300;
+//     $maxRadius = $setting->radius_meters ?? 100; // dalam meter
+
+//     $distance = $this->calculateDistance($request->latitude, $request->longitude, $schoolLat, $schoolLng);
+
+//     if ($distance > $maxRadius) {
+//         return response()->json([
+//             'status'  => 'error',
+//             'message' => 'Gagal Absen! Anda berada di luar area sekolah. Jarak Anda: ' . round($distance) . ' meter dari sekolah (Batas max: ' . $maxRadius . 'm).'
+//         ], 400);
+//     }
+
+//     $date = date('Y-m-d');
+//     $time = date('H:i:s');
+
+//     // 4. Pengaturan Waktu Masuk/Pulang
+//     $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';
+//     $batasTerlambat   = $setting ? $setting->late_limit_time : '07:00:00';
+//     $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
+
+//     if ($time < $jamMulaiScan) {
+//         return response()->json(['status' => 'error', 'message' => 'Absensi belum dibuka.'], 400);
+//     }
+
+//     $attendance = DailyAttendance::where('student_id', $student->id)->where('date', $date)->first();
+
+//     // --- SKENARIO PULANG ---
+//     if ($attendance) {
+//         if ($attendance->departure_time) {
+//             return response()->json(['status' => 'error', 'message' => 'Anda sudah absen pulang hari ini!'], 400);
+//         }
+
+//         if ($time < $batasBolehPulang) {
+//             return response()->json(['status' => 'error', 'message' => 'Belum waktunya pulang!'], 400);
+//         }
+
+//         $photoPath = $this->saveImage($request->image, $student->nis, 'out_hp', $date);
+
+//         $attendance->update([
+//             'departure_time' => $time,
+//             'photo_out'      => $photoPath,
+//             'updated_at'     => now()
+//         ]);
+
+//         $this->sendNotification($student, 'pulang', $time);
+
+//         return response()->json([
+//             'status'  => 'success',
+//             'message' => 'Berhasil Absen Pulang dari HP!',
+//             'time'    => $time
+//         ]);
+//     }
+
+//     // --- SKENARIO DATANG ---
+//     $isLate   = ($time > $batasTerlambat);
+//     $statusDB = $isLate ? 'terlambat' : 'hadir';
+
+//     $photoPath = $this->saveImage($request->image, $student->nis, 'in_hp', $date);
+
+//     DailyAttendance::create([
+//         'id'               => (string) Str::uuid(),
+//         'student_id'       => $student->id,
+//         'academic_year_id' => $activeAcademicYear->id,
+//         'date'             => $date,
+//         'arrival_time'     => $time,
+//         'status'           => $statusDB,
+//         'photo_in'         => $photoPath,
+//         'recorded_by'      => 'HP Mandiri Siswa'
+//     ]);
+
+//     $this->sendNotification($student, 'datang', $time, $statusDB);
+
+//     return response()->json([
+//         'status'  => 'success',
+//         'message' => $isLate ? 'Absen Masuk Berhasil (TERLAMBAT)' : 'Absen Masuk Berhasil (HADIR)',
+//         'time'    => $time
+//     ]);
+// }
+
+/**
+ * Proses Simpan Absensi Wajah & Geolocation dari HP Siswa
+ * Route: POST /student/scan
+ */
 public function storeStudentSelfScan(Request $request)
 {
-    $request->validate([
-        'latitude'  => 'required|numeric',
-        'longitude' => 'required|numeric',
-        'image'     => 'required|string',
-    ]);
+    // 1. Ambil Pengaturan Absensi & Geofencing
+    $setting = AttendanceSetting::first();
+    $isGeofenceActive = $setting ? (bool) $setting->is_geofence_active : true;
 
-    // 1. Cek User & Siswa
+    // 2. Validasi Input (Latitude & Longitude dibuat nullable jika mode PJJ aktif)
+    $rules = [
+        'image'     => 'required|string',
+        'latitude'  => $isGeofenceActive ? 'required|numeric' : 'nullable|numeric',
+        'longitude' => $isGeofenceActive ? 'required|numeric' : 'nullable|numeric',
+    ];
+
+    if ($request->has('method') && $request->method === 'face') {
+        $rules['descriptor'] = 'nullable|string';
+    }
+
+    $request->validate($rules);
+
+    // 3. Cek User & Siswa
     $user = Auth::user();
     $student = $user->student ?? Student::where('user_id', $user->id)->first();
 
@@ -1488,32 +1608,42 @@ public function storeStudentSelfScan(Request $request)
         return response()->json(['status' => 'error', 'message' => 'Data siswa tidak ditemukan!'], 404);
     }
 
-    // 2. Cek Tahun Ajaran Aktif
+    // 4. Cek Tahun Ajaran Aktif
     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
     if (!$activeAcademicYear) {
         return response()->json(['status' => 'error', 'message' => 'Tahun Pelajaran belum diaktifkan Admin.'], 400);
     }
 
-    // 3. Validasi Jarak Geofence (Rumus Haversine)
-    $setting = AttendanceSetting::first();
-    // $settings = Setting::pluck('value', 'key')->toArray();
-    $schoolLat = $setting->latitude ?? -0.30512300;
-    $schoolLng = $setting->longitude ?? 100.36912300;
-    $maxRadius = $setting->radius_meters ?? 100; // dalam meter
+    // 5. Validasi Jarak Geofence (HANYA DILAKUKAN JIKA MODE PTM / GEOFENCE AKTIF)
+    if ($isGeofenceActive) {
+        $schoolLat = $setting->latitude ?? -0.30512300;
+        $schoolLng = $setting->longitude ?? 100.36912300;
+        $maxRadius = $setting->radius_meters ?? 100; // dalam meter
 
-    $distance = $this->calculateDistance($request->latitude, $request->longitude, $schoolLat, $schoolLng);
+        $userLat = $request->latitude;
+        $userLng = $request->longitude;
 
-    if ($distance > $maxRadius) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Gagal Absen! Anda berada di luar area sekolah. Jarak Anda: ' . round($distance) . ' meter dari sekolah (Batas max: ' . $maxRadius . 'm).'
-        ], 400);
+        if ($userLat && $userLng) {
+            $distance = $this->calculateDistance($userLat, $userLng, $schoolLat, $schoolLng);
+
+            if ($distance > $maxRadius) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Gagal Absen! Anda berada di luar area sekolah. Jarak Anda: ' . round($distance) . ' meter dari sekolah (Batas max: ' . $maxRadius . 'm).'
+                ], 400);
+            }
+        } else {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal Absen! Lokasi GPS diperlukan untuk mode PTM.'
+            ], 400);
+        }
     }
 
     $date = date('Y-m-d');
     $time = date('H:i:s');
 
-    // 4. Pengaturan Waktu Masuk/Pulang
+    // 6. Pengaturan Waktu Masuk/Pulang
     $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';
     $batasTerlambat   = $setting ? $setting->late_limit_time : '07:00:00';
     $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
@@ -1565,7 +1695,7 @@ public function storeStudentSelfScan(Request $request)
         'arrival_time'     => $time,
         'status'           => $statusDB,
         'photo_in'         => $photoPath,
-        'recorded_by'      => 'HP Mandiri Siswa'
+        'recorded_by'      => $isGeofenceActive ? 'HP Mandiri Siswa (PTM)' : 'HP Mandiri Siswa (PJJ)'
     ]);
 
     $this->sendNotification($student, 'datang', $time, $statusDB);
