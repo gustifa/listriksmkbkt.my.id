@@ -12,29 +12,37 @@ use Livewire\Form;
 
 class LoginForm extends Form
 {
-    #[Validate('required|string|email')]
-    public string $email = '';
-
-    #[Validate('required|string')]
+    // Ubah nama properti dari $email menjadi $login
+    public string $login = '';
     public string $password = '';
-
-    #[Validate('boolean')]
     public bool $remember = false;
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
+    public function rules(): array
+    {
+        return [
+            'login' => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ];
+    }
+
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
+        // 1. Tentukan apakah inputan berupa email atau username
+        $fieldType = filter_var($this->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        // 2. Lakukan percakapan login dengan kriteria dinamis
+        $credentials = [
+            $fieldType => $this->login,
+            'password'  => $this->password,
+        ];
+
+        if (! Auth::attempt($credentials, $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'form.email' => trans('auth.failed'),
+                'form.login' => trans('auth.failed'),
             ]);
         }
 
@@ -67,6 +75,7 @@ class LoginForm extends Form
      */
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        // Ganti $this->email menjadi $this->login
+        return Str::transliterate(Str::lower($this->login).'|'.request()->ip());
     }
 }

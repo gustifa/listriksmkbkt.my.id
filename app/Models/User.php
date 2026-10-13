@@ -64,6 +64,16 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    protected static function booted()
+    {
+        static::saving(function ($user) {
+            // Jika username belum diisi, ambil angka NIS dari bagian sebelum '@' di email
+            if (empty($user->username) && !empty($user->email)) {
+                $user->username = explode('@', $user->email)[0];
+            }
+        });
+    }
+
 
 
 }

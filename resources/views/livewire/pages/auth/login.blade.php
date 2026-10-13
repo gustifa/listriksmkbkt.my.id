@@ -77,11 +77,11 @@ new #[Layout('layouts.guest')] class extends Component
                                         <form class="row g-3" wire:submit="login">
                                             @csrf
 											<div class="col-12">
-												<label for="inputEmailAddress" class="form-label">Email</label>
-												<input type="email" id="email" wire:model="form.email" class="form-control @error('email') is-invalid @enderror" id="inputEmailAddress" placeholder="gatech@gmail.com">
-                                                @error('email')
-                                                    <span class="text-danger">{{$message}}</span>
-                                                @enderror
+												<label for="inputLogin" class="form-label">Username atau Email</label>
+												<input type="text" id="login" wire:model="form.login" class="form-control @error('form.login') is-invalid @enderror" placeholder="Masukkan Username atau Email">
+												@error('form.login')
+													<span class="text-danger">{{ $message }}</span>
+												@enderror
 											</div>
 											<div class="col-12">
 												<label for="inputChoosePassword" class="form-label">Password</label>
