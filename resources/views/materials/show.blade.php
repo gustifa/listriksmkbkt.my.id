@@ -31,30 +31,32 @@
         </div>
 
         <!-- Tombol Aksi (Khusus Guru/Admin) -->
-        <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
-            <a href="{{ route('materials.edit', $material->id) }}" class="btn btn-warning text-dark fw-semibold btn-sm flex-fill flex-md-grow-0">
-                <i class="fas fa-edit me-1"></i> Edit Materi
-            </a>
-            <form action="{{ route('materials.destroy', $material->id) }}" method="POST" class="d-inline flex-fill flex-md-grow-0" onsubmit="return confirm('Apakah Anda yakin ingin menghapus materi ini?');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-outline-danger fw-semibold btn-sm w-100">
-                    <i class="fas fa-trash me-1"></i> Hapus
+        @if(auth()->user()->hasAnyRole(['admin', 'super_admin']) || (auth()->user()->teacher && auth()->user()->teacher->id === $material->teacher_id))
+            <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                <button type="button" class="btn btn-warning text-dark fw-semibold btn-sm flex-fill flex-md-grow-0" onclick="openEditModal('{{ $material->id }}')">
+                    <i class="fas fa-edit me-1"></i> Edit Materi
                 </button>
-            </form>
-        </div>
+                <form action="{{ route('materials.destroy', $material->id) }}" method="POST" class="d-inline flex-fill flex-md-grow-0" onsubmit="return confirm('Apakah Anda yakin ingin menghapus materi ini?');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-outline-danger fw-semibold btn-sm w-100">
+                        <i class="fas fa-trash me-1"></i> Hapus
+                    </button>
+                </form>
+            </div>
+        @endif
     </div>
 
     <!-- Alert Notifikasi -->
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+        <div class="alert alert-success alert-dismissible fade show mb-3 border-0 shadow-sm" role="alert">
             <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
     <div class="row g-3">
-        <!-- Kolom Kiri: Isi Teks & Video Pembelajaran -->
+        <!-- Kolom Kiri: Isi Teks & Media Pembelajaran -->
         <div class="col-lg-8">
             <!-- Card Deskripsi Singkat -->
             @if($material->description)
@@ -70,26 +72,34 @@
                 </div>
             @endif
 
-            <!-- Card Video Pembelajaran Embed -->
+            <!-- Card Media Pembelajaran Embed (YouTube / Google Docs / Google Drive) -->
             @if($material->video_url)
                 <div class="card border-0 shadow-sm rounded-3 mb-4">
                     <div class="card-header bg-white border-bottom py-3">
                         <h6 class="fw-bold mb-0 text-dark">
-                            <i class="fab fa-youtube text-danger me-2"></i>Video Pembelajaran
+                            <i class="fas fa-play-circle text-danger me-2"></i>Media / Tautan Pembelajaran
                         </h6>
                     </div>
                     <div class="card-body p-3 p-md-4">
                         @php
-                            // Format URL YouTube Embed jika link standar
                             $embedUrl = $material->video_url;
+
+                            // 1. Format YouTube Embed
                             if (str_contains($embedUrl, 'watch?v=')) {
                                 $embedUrl = str_replace('watch?v=', 'embed/', $embedUrl);
                             } elseif (str_contains($embedUrl, 'youtu.be/')) {
                                 $embedUrl = str_replace('youtu.be/', 'www.youtube.com/embed/', $embedUrl);
+                            } 
+                            // 2. Format Google Docs / Drive Embed (/edit -> /preview)
+                            elseif (str_contains($embedUrl, 'docs.google.com') || str_contains($embedUrl, 'drive.google.com')) {
+                                $embedUrl = preg_replace('/\/edit.*$/', '/preview', $embedUrl);
+                                if (!str_contains($embedUrl, '/preview')) {
+                                    $embedUrl = rtrim($embedUrl, '/') . '/preview';
+                                }
                             }
                         @endphp
-                        <div class="ratio ratio-16x9 rounded-3 overflow-hidden shadow-sm">
-                            <iframe src="{{ $embedUrl }}" title="Video Pembelajaran" allowfullscreen></iframe>
+                        <div class="ratio ratio-16x9 rounded-3 overflow-hidden shadow-sm border">
+                            <iframe src="{{ $embedUrl }}" title="Media Pembelajaran" allowfullscreen></iframe>
                         </div>
                     </div>
                 </div>
@@ -181,4 +191,116 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL POP-UP EDIT MATERI -->
+<div class="modal fade" id="modalEditMaterial" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light py-3">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-edit text-warning me-2"></i>Edit Materi Pembelajaran
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form id="formEditMaterial" method="POST" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Mata Pelajaran</label>
+                            <input type="text" class="form-control" value="{{ $material->subject->name ?? '-' }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Target Kelas</label>
+                            <input type="text" class="form-control" value="{{ $material->classroom->name ?? 'Semua Kelas' }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Judul Materi <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="edit-title" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Deskripsi Singkat</label>
+                        <textarea name="description" id="edit-description" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Isi / Konten Materi</label>
+                        <textarea name="content" id="edit-content" class="form-control" rows="4"></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Ganti Berkas (PDF, DOCX, ZIP)</label>
+                            <input type="file" name="file" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">URL Video / Google Docs</label>
+                            <input type="url" name="video_url" id="edit-video_url" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" name="is_published" id="edit-is_published" value="1">
+                        <label class="form-check-label fw-bold text-dark small" for="edit-is_published">
+                            Publikasikan Materi
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-4">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning btn-sm rounded-pill px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    function openEditModal(id) {
+        Swal.fire({
+            title: 'Memuat Data...',
+            position: 'center',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        $.ajax({
+            url: "/materials/" + id + "/edit",
+            type: "GET",
+            dataType: "json",
+            success: function(data) {
+                Swal.close();
+
+                $('#edit-title').val(data.title);
+                $('#edit-description').val(data.description || '');
+                $('#edit-content').val(data.content || '');
+                $('#edit-video_url').val(data.video_url || '');
+                $('#edit-is_published').prop('checked', data.is_published == 1 || data.is_published == true);
+
+                $('#formEditMaterial').attr('action', '/materials/' + id);
+
+                var editModal = new bootstrap.Modal(document.getElementById('modalEditMaterial'));
+                editModal.show();
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Tidak dapat mengambil data materi.',
+                    position: 'center'
+                });
+            }
+        });
+    }
+</script>
 @endsection
