@@ -74,11 +74,23 @@
 
             <!-- Card Media Pembelajaran Embed (YouTube / Google Docs / Google Drive) -->
             @if($material->video_url)
-                <div class="card border-0 shadow-sm rounded-3 mb-4">
-                    <div class="card-header bg-white border-bottom py-3">
+                <div class="card border-0 shadow-sm rounded-3 mb-4" id="media-card-container">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                         <h6 class="fw-bold mb-0 text-dark">
                             <i class="fas fa-play-circle text-danger me-2"></i>Media / Tautan Pembelajaran
                         </h6>
+                        
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Tombol Buka Tab Baru -->
+                            <a href="{{ $material->video_url }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" style="font-size: 0.75rem;" title="Buka di Tab Baru">
+                                <i class="fas fa-external-link-alt me-1"></i> Tab Baru
+                            </a>
+
+                            <!-- Tombol Fullscreen Layar Penuh -->
+                            <button type="button" onclick="toggleMediaFullscreen()" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold" style="font-size: 0.75rem;">
+                                <i class="fas fa-expand me-1"></i> Layar Penuh
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body p-3 p-md-4">
                         @php
@@ -98,8 +110,8 @@
                                 }
                             }
                         @endphp
-                        <div class="ratio ratio-16x9 rounded-3 overflow-hidden shadow-sm border">
-                            <iframe src="{{ $embedUrl }}" title="Media Pembelajaran" allowfullscreen></iframe>
+                        <div class="ratio ratio-16x9 rounded-3 overflow-hidden shadow-sm border" id="media-iframe-wrapper">
+                            <iframe id="media-iframe" src="{{ $embedUrl }}" title="Media Pembelajaran" allowfullscreen></iframe>
                         </div>
                     </div>
                 </div>
@@ -267,6 +279,30 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    // FUNGSI TOGGLE FULLSCREEN EMBED MEDIA
+    function toggleMediaFullscreen() {
+        const elem = document.getElementById('media-iframe-wrapper') || document.getElementById('media-iframe');
+
+        if (!document.fullscreenElement) {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+
+    // FUNGSI MEMBUKA MODAL EDIT
     function openEditModal(id) {
         Swal.fire({
             title: 'Memuat Data...',
