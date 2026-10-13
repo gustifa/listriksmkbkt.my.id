@@ -22,6 +22,7 @@ use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\PrayerAttendanceController;
 use App\Http\Controllers\PrayerLocationController;
+use App\Http\Controllers\PrayerAttendanceReportController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -462,7 +463,8 @@ Route::middleware(['auth'])->group(function () {
             'create', 'edit', 'show'
         ]);
         // ... route import siswa yang lama ...
-
+        Route::get('/admin/prayer-reports', [PrayerAttendanceReportController::class, 'index'])->name('admin.prayer_reports.index');
+        Route::get('/admin/prayer-reports/export-excel', [PrayerAttendanceReportController::class, 'exportExcel'])->name('admin.prayer_reports.excel');
         // ROUTE BARU: IMPORT USER
         Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
         Route::get('/import-users', [UserImportController::class, 'index'])->name('users.import');
