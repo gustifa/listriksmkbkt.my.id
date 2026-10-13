@@ -791,7 +791,7 @@ Route::middleware(['auth'])->group(function () {
 
     });
 
-    Route::middleware(['role:siswa'])->group(function () {
+    Route::middleware(['role:siswa', 'ensure.face'])->group(function () {
         Route::prefix('student')->name('student.')->group(function() {
             Route::get('/register-face', [StudentSelfServiceController::class, 'registerFaceView'])->name('face.register');
             Route::post('/register-face', [StudentSelfServiceController::class, 'storeFace'])->name('face.store');
