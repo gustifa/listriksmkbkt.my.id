@@ -17,6 +17,9 @@ use App\Http\Controllers\FaceRegistrationController;
 use App\Http\Controllers\GateMonitorController;
 use App\Http\Controllers\StudentSelfServiceController;
 use App\Http\Controllers\AdditionalTaskController;
+use App\Http\Controllers\CourseMaterialController;
+use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\AssignmentSubmissionController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -173,6 +176,10 @@ Route::middleware(['auth'])->group(function () {
 
 
     Route::get('/laporan-kegiatan', [ReportController::class, 'cetakLaporan'])->name('laporan.kegiatan');
+
+    Route::resource('materials', CourseMaterialController::class);
+        // Route::resource('assignments', AssignmentController::class)->except(['index', 'show']);
+    Route::resource('assignments', AssignmentController::class);
 });
 
 
@@ -233,6 +240,8 @@ Route::middleware(['auth'])->group(function () {
         // Route Cetak Laporan Monitoring
         Route::post('/monitoring/print', [MonitoringController::class, 'printReport'])->name('teacher.monitoring.print');
 
+         
+
 
     });
     // =========================================================================
@@ -241,6 +250,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:admin|guru|piket'])->group(function () {
 
+       Route::get('assignments/{assignment}/submissions', [AssignmentSubmissionController::class, 'index'])->name('submissions.index');
+        Route::post('submissions/{submission}/grade', [AssignmentSubmissionController::class, 'grade'])->name('submissions.grade');
+        
         Route::get('/promotions', [ClassPromotionController::class, 'index'])->name('promotions.index');
         Route::post('/promotions/process', [ClassPromotionController::class, 'process'])->name('promotions.process');
         Route::post('/promotions/reset', [ClassPromotionController::class, 'resetPromotion'])->name('promotions.reset');
@@ -865,6 +877,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
             Route::get('/exams/{exam}/session/{session}/review', [StudentExamController::class, 'review'])->name('exam.review');
             Route::post('/exam/log-violation', [StudentExamController::class, 'logViolation'])->name('exam.log_violation');
+
+            // Khusus Siswa: Mengirimkan jawaban tugas
+            Route::post('assignments/{assignment}/submit', [AssignmentSubmissionController::class, 'store'])->name('submissions.store');
+
         });
     });
 
