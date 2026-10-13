@@ -202,7 +202,7 @@
             <div id="status-text" class="p-2 mb-2 badge bg-warning text-dark w-100 text-wrap" style="font-size: 0.85rem;">
                 <i class="fas fa-spinner fa-spin me-2"></i>Mencari lokasi...
             </div>
-            <div id="map-canvas" style="height: 250px; width: 100%; border-radius: 8px; border: 1px solid #ddd;"></div>
+            <div id="map-canvas" style="height: 280px; width: 100%; border-radius: 8px; border: 1px solid #ddd;"></div>
             <div class="mt-2 text-center text-muted fst-italic" style="font-size: 0.75rem;">
                 *Pastikan berada di lingkaran hijau ({{ $radius }}m)
             </div>
@@ -228,6 +228,7 @@
                 title: label,
                 text: 'Konfirmasi kehadiran ibadah?',
                 html: document.getElementById('map-template').innerHTML,
+                width: '600px', // <-- DITAMBAHKAN/DIGANTI
                 showCancelButton: true,
                 confirmButtonText: 'Ya, Kirim Absen',
                 cancelButtonText: 'Batal',
