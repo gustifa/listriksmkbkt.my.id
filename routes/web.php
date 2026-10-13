@@ -20,6 +20,8 @@ use App\Http\Controllers\AdditionalTaskController;
 use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\AssignmentSubmissionController;
+use App\Http\Controllers\PrayerAttendanceController;
+use App\Http\Controllers\PrayerLocationController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -152,6 +154,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{exam}/report', [ExamController::class, 'showReport'])->name('report');
         Route::get('{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('unsubmitted');
     });
+
+    // Pengaturan Lokasi Sholat Sekolah (Khusus Admin/Guru)
+    // Route::resource('prayer-locations', PrayerLocationController::class);
+    Route::get('prayer-locations', [PrayerLocationController::class, 'index'])->name('prayer-location.index');
+    Route::post('prayer-locations', [PrayerLocationController::class, 'storeOrUpdate'])->name('prayer-location.store');
 
     // Route API Fetch Descriptors untuk Scanner
     Route::get('/face-descriptors-all', [FaceRegistrationController::class, 'getAllDescriptorsFace'])->name('face.descriptors.all');
@@ -803,7 +810,7 @@ Route::middleware(['auth'])->group(function () {
 
     });
 
-    Route::middleware(['role:siswa', 'ensure.face'])->group(function () {
+    Route::middleware(['role:siswa'])->group(function () {
         Route::prefix('student')->name('student.')->group(function() {
             Route::get('/register-face', [StudentSelfServiceController::class, 'registerFaceView'])->name('face.register');
             Route::post('/register-face', [StudentSelfServiceController::class, 'storeFace'])->name('face.store');
@@ -880,7 +887,9 @@ Route::middleware(['auth'])->group(function () {
 
             // Khusus Siswa: Mengirimkan jawaban tugas
             Route::post('assignments/{assignment}/submit', [AssignmentSubmissionController::class, 'store'])->name('submissions.store');
-
+            Route::get('prayer-attendances', [PrayerAttendanceController::class, 'index'])->name('prayer-attendances.index');
+            Route::get('prayer-attendances/create', [PrayerAttendanceController::class, 'create'])->name('prayer-attendances.create');
+            Route::post('prayer-attendances', [PrayerAttendanceController::class, 'store'])->name('prayer-attendances.store');
         });
     });
 

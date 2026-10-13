@@ -319,7 +319,8 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Absensi</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('student.prayer.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <!-- <li><a href="{{route('student.prayer.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li> -->
+                        <li><a href="{{route('student.prayer-attendances.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
                         <li><a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Face</a></li>
                     </ul>
                 </li>
