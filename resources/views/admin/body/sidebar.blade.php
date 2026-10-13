@@ -107,7 +107,8 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('permissions.index')}}"><i class='bx bx-radio-circle'></i>Permission</a></li>
                         <li><a href="{{route('roles.index')}}"><i class='bx bx-radio-circle'></i>Role</a></li>
                         <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-radio-circle'></i>Inventaris</a></li>
-                        <li><a href="{{route('admin.prayer.settings')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <!-- <li><a href="{{route('admin.prayer.settings')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li> -->
                     </ul>
                 </li>
 
