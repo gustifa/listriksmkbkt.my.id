@@ -148,7 +148,7 @@
                     </div>
                 </div>
 
-                <!-- TAMPILAN KAMERA (TETAP TAMPIL SAAT TAB SCAN/NIS AKTIF) -->
+                <!-- TAMPILAN KAMERA -->
                 <div id="camera-wrapper" class="webcam-box mb-3">
                     <video id="video" autoplay muted playsinline></video>
                     <canvas id="overlay"></canvas>
@@ -197,7 +197,6 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="fw-bold text-dark mb-0"><i class="fas fa-user-check text-success me-1"></i> Status Pendaftaran Wajah</h6>
                                 @php
-                                    // Misal variabel $faceDescriptors dikirim dari Controller
                                     $sampleCount = count($student->faceDescriptors ?? []);
                                 @endphp
                                 <span class="badge {{ $sampleCount >= 3 ? 'bg-success' : 'bg-warning text-dark' }}">
@@ -216,7 +215,7 @@
                             @endif
 
                             <div class="d-grid gap-2 mb-2">
-                                <a href="{{ route('student.face.register') }}" class="btn btn-outline-primary btn-sm fw-bold rounded-3">
+                                <a href="{{ route('student.face.index') }}" class="btn btn-outline-primary btn-sm fw-bold rounded-3">
                                     <i class="fas fa-plus-circle me-1"></i> Daftar / Perbarui Sampel Wajah
                                 </a>
                             </div>
@@ -279,7 +278,53 @@
             ]);
         }
 
-        // CONTROL TAMPILAN KAMERA SAAT BUKA TAB DATA WAJAH
+        // FUNGSI WEB AUDIO API FEEDBACK SUARA (0 KB, TANPA LAG)
+        function playFeedbackSound(type) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                if (type === 'success') {
+                    // Beep Sukses: Dual Note Ceria (1000Hz -> 1300Hz)
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    osc1.type = 'sine';
+                    osc1.frequency.value = 1000;
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 1300;
+
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc1.start(audioCtx.currentTime);
+                    osc1.stop(audioCtx.currentTime + 0.1);
+
+                    osc2.start(audioCtx.currentTime + 0.1);
+                    osc2.stop(audioCtx.currentTime + 0.25);
+                } else {
+                    // Beep Gagal: Single Low Note (400Hz)
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = 400;
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.3);
+                }
+            } catch (e) {
+                // Ignore jika browser memblokir autopolicy
+            }
+        }
+
+        // CONTROL KAMERA SAAT PINDAH TAB
         document.getElementById('face-tab').addEventListener('click', () => { cameraWrapper.style.display = 'block'; checkReady(); });
         document.getElementById('nis-tab').addEventListener('click', () => { cameraWrapper.style.display = 'block'; checkReady(); });
         document.getElementById('registered-tab').addEventListener('click', () => { cameraWrapper.style.display = 'none'; });
@@ -403,8 +448,10 @@
             captureCanvas.width = 320;
             captureCanvas.height = 240;
             const ctx = captureCanvas.getContext('2d');
+            ctx.translate(captureCanvas.width, 0);
+            ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            return captureCanvas.toDataURL('image/jpeg', 0.5);
+            return captureCanvas.toDataURL('image/jpeg', 0.6);
         }
 
         // SUBMIT SCAN WAJAH
@@ -423,13 +470,17 @@
             }
 
             if (!detection) {
-                Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di lingkaran panduan. Jika tetap gagal, silakan gunakan tab "Input NIS".', 'warning');
+                playFeedbackSound('error'); // Bip gagal
+                Swal.fire('Wajah Tidak Terdeteksi', 'Pastikan wajah berada di lingkaran panduan & pencahayaan terang. Jika tetap gagal, silakan gunakan tab "Input NIS".', 'warning');
                 isProcessing = false;
                 checkReady();
                 return;
             }
 
-            sendAttendanceData({ method: 'face' });
+            sendAttendanceData({ 
+                method: 'face',
+                descriptor: JSON.stringify(Array.from(detection.descriptor))
+            });
         });
 
         // SUBMIT FALLBACK NIS MANUAL
@@ -455,6 +506,7 @@
                 type: "POST",
                 data: payload,
                 success: function(res) {
+                    playFeedbackSound('success'); // Bip Sukses
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil Absen!',
@@ -466,6 +518,7 @@
                     });
                 },
                 error: function(xhr) {
+                    playFeedbackSound('error'); // Bip Gagal
                     let msg = xhr.responseJSON?.message || 'Gagal Melakukan Absensi.';
                     Swal.fire('Gagal Absen', msg, 'error');
                     isProcessing = false;

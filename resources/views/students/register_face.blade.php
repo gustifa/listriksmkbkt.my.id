@@ -81,6 +81,7 @@
             border-radius: 10px;
             padding: 10px;
             transition: all 0.2s ease-in-out;
+            cursor: pointer;
         }
 
         .guide-card.active {
@@ -134,14 +135,14 @@
                 </div>
                 <div class="card-body text-center p-3 p-md-4">
                     
-                    <!-- PANDUAN GAMBAR CONTOH POSISI WAJAH -->
+                    <!-- PANDUAN GAMBAR CONTOH POSISI WAJAH INTERAKTIF -->
                     <div class="card border-0 bg-light p-3 mb-3 text-start">
                         <h6 class="fw-bold text-dark mb-3 text-center">
                             <i class="fas fa-user-circle text-primary me-1"></i> Contoh Posisi Wajah Yang Diperlukan (Min. 3 Posisi):
                         </h6>
                         <div class="row g-2 text-center justify-content-center">
                             <div class="col-4 col-md-2">
-                                <div class="guide-card active">
+                                <div class="guide-card active" data-label="Tampak Depan (Netral)">
                                     <svg class="guide-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#0d6efd" stroke-width="3"/>
                                         <circle cx="35" cy="40" r="5" fill="#334155"/>
@@ -152,7 +153,7 @@
                                 </div>
                             </div>
                             <div class="col-4 col-md-2">
-                                <div class="guide-card">
+                                <div class="guide-card" data-label="Agak Miring Kiri">
                                     <svg class="guide-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
                                         <circle cx="25" cy="40" r="5" fill="#334155"/>
@@ -163,7 +164,7 @@
                                 </div>
                             </div>
                             <div class="col-4 col-md-2">
-                                <div class="guide-card">
+                                <div class="guide-card" data-label="Agak Miring Kanan">
                                     <svg class="guide-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
                                         <circle cx="45" cy="40" r="5" fill="#334155"/>
@@ -174,7 +175,7 @@
                                 </div>
                             </div>
                             <div class="col-4 col-md-2">
-                                <div class="guide-card">
+                                <div class="guide-card" data-label="Tersenyum / Ekspresi">
                                     <svg class="guide-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
                                         <circle cx="35" cy="40" r="5" fill="#334155"/>
@@ -185,7 +186,7 @@
                                 </div>
                             </div>
                             <div class="col-4 col-md-2">
-                                <div class="guide-card">
+                                <div class="guide-card" data-label="Memakai Aksesoris/Kacamata">
                                     <svg class="guide-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
                                         <rect x="25" y="32" width="20" height="15" rx="3" stroke="#334155" stroke-width="3" fill="none"/>
@@ -223,9 +224,9 @@
                         <label class="form-label fw-bold small text-secondary">Posisi Foto / Instruksi Saat Ini:</label>
                         <select id="sample-label" class="form-select w-100 w-md-50 mx-auto text-center shadow-none fw-bold text-primary">
                             <option value="Tampak Depan (Netral)">1. Tampak Depan (Netral)</option>
-                            <option value="Tersenyum / Ekspresi">2. Tersenyum / Ekspresi</option>
-                            <option value="Agak Miring Kiri">3. Agak Miring Kiri</option>
-                            <option value="Agak Miring Kanan">4. Agak Miring Kanan</option>
+                            <option value="Agak Miring Kiri">2. Agak Miring Kiri</option>
+                            <option value="Agak Miring Kanan">3. Agak Miring Kanan</option>
+                            <option value="Tersenyum / Ekspresi">4. Tersenyum / Ekspresi</option>
                             <option value="Memakai Aksesoris/Kacamata">5. Memakai Kacamata / Aksesoris</option>
                         </select>
                     </div>
@@ -277,27 +278,77 @@
     let currentStream = null;
     let currentModelType = 'tiny';
     let isProcessing = false;
-    let scanHoldTimer = null;
-    let detectionLoopActive = false;
+    let detectionLoopTimeout = null;
     let lastDetection = null;
 
     initApp();
 
     async function initApp() {
         detectOptimalModelMode();
-        // Inisialisasi Kamera dan Model AI berjalan bersamaan (Paralel)
+        updateActiveGuideCard();
         await Promise.all([
             startWebcam(),
             loadAIModels(currentModelType)
         ]);
     }
 
+    // WEB AUDIO API BEEP (0 KB, TANPA FILE AUDIO EXTERNAL)
+    function playBeepSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = 800;
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } catch (e) {
+            // Silence catch
+        }
+    }
+
+    // FUNGSI SINKRONISASI KARTU PANDUAN DAN DROPDOWN
+    function updateActiveGuideCard() {
+        const selectedVal = sampleLabelSelect.value;
+        document.querySelectorAll('.guide-card').forEach(card => {
+            const label = card.getAttribute('data-label');
+            const circle = card.querySelector('circle');
+            if (label === selectedVal) {
+                card.classList.add('active');
+                if (circle) circle.setAttribute('stroke', '#0d6efd');
+            } else {
+                card.classList.remove('active');
+                if (circle) circle.setAttribute('stroke', '#94a3b8');
+            }
+        });
+    }
+
+    // Event saat dropdown diubah
+    sampleLabelSelect.addEventListener('change', updateActiveGuideCard);
+
+    // Event saat kartu panduan diklik
+    document.querySelectorAll('.guide-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const targetLabel = this.getAttribute('data-label');
+            if (targetLabel) {
+                sampleLabelSelect.value = targetLabel;
+                updateActiveGuideCard();
+            }
+        });
+    });
+
     function detectOptimalModelMode() {
         if (navigator.connection) {
             const conn = navigator.connection;
             if (conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === '3g') {
                 currentModelType = 'tiny';
-            } else if (conn.effectiveType === '4g') {
+            } else {
                 currentModelType = modeModelSelect.value;
             }
         } else {
@@ -308,6 +359,10 @@
 
     async function loadAIModels(modelType) {
         try {
+            btnCapture.disabled = true;
+            statusMsg.className = 'alert alert-warning py-2 mb-3 small';
+            statusMsg.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Memuat Model AI (${modelType.toUpperCase()})...`;
+
             const modelPath = "{{ asset('models') }}";
             if (modelType === 'tiny') {
                 await Promise.all([
@@ -332,9 +387,11 @@
         }
     }
 
-    modeModelSelect.addEventListener('change', () => {
+    modeModelSelect.addEventListener('change', async () => {
         currentModelType = modeModelSelect.value;
-        loadAIModels(currentModelType);
+        if (detectionLoopTimeout) clearTimeout(detectionLoopTimeout);
+        await loadAIModels(currentModelType);
+        startDetectionLoop();
     });
 
     function startWebcam() {
@@ -356,52 +413,56 @@
         })
         .catch(() => {
             statusMsg.className = 'alert alert-danger py-2 mb-3 small';
-            statusMsg.innerText = "Gagal mengakses kamera. Mohon izinkan akses kamera di browser HP/Laptop Anda.";
+            statusMsg.innerText = "Gagal mengakses kamera. Mohon izinkan akses kamera di browser HP Anda.";
         });
     }
 
-    // LOOP DETEKSI REAL-TIME DI LATAR BELAKANG
     video.addEventListener('play', () => {
-        if (detectionLoopActive) return;
-        detectionLoopActive = true;
+        startDetectionLoop();
+    });
+
+    function startDetectionLoop() {
+        if (detectionLoopTimeout) clearTimeout(detectionLoopTimeout);
 
         async function processFrame() {
-            if (!video.srcObject) {
-                detectionLoopActive = false;
-                return;
-            }
+            if (!video.srcObject || video.paused || video.ended) return;
 
             if (!isProcessing && collectedLabels.length < 5) {
-                let detection;
-                if (currentModelType === 'tiny') {
-                    detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                } else {
-                    detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                }
+                try {
+                    let detection;
+                    if (currentModelType === 'tiny') {
+                        detection = await faceapi.detectSingleFace(
+                            video, 
+                            new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptor();
+                    } else {
+                        detection = await faceapi.detectSingleFace(
+                            video, 
+                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptor();
+                    }
 
-                lastDetection = detection;
+                    lastDetection = detection;
 
-                if (detection) {
-                    faceGuide.classList.add('detected');
-                    faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol Ambil Sampel');
-                } else {
-                    faceGuide.classList.remove('detected');
-                    faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
+                    if (detection) {
+                        faceGuide.classList.add('detected');
+                        faceGuide.setAttribute('data-status', 'Wajah Pas! Klik Tombol Ambil Sampel');
+                    } else {
+                        faceGuide.classList.remove('detected');
+                        faceGuide.setAttribute('data-status', 'Posisikan Wajah Di Dalam Lingkaran');
+                    }
+                } catch (e) {
+                    // Frame drop fallback
                 }
             }
 
-            const interval = currentModelType === 'tiny' ? 250 : 150;
-            setTimeout(processFrame, interval);
+            const interval = currentModelType === 'tiny' ? 200 : 120;
+            detectionLoopTimeout = setTimeout(processFrame, interval);
         }
 
         processFrame();
-    });
+    }
 
-    // PENGAMBILAN SAMPEL MANUAL VIA TOMBOL
     btnCapture.addEventListener('click', async () => {
         if (isProcessing) return;
         btnCapture.disabled = true;
@@ -410,12 +471,10 @@
             statusMsg.innerText = "Mengekstrak fitur wajah secara presisi...";
             if (currentModelType === 'tiny') {
                 lastDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
+                    .withFaceLandmarks().withFaceDescriptor();
             } else {
                 lastDetection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
+                    .withFaceLandmarks().withFaceDescriptor();
             }
         }
 
@@ -432,7 +491,7 @@
         isProcessing = true;
         const selectedLabel = sampleLabelSelect.value;
 
-        // Validasi 1: Label sudah pernah diambil
+        // Validasi 1: Label sudah ada
         if (collectedLabels.includes(selectedLabel)) {
             Swal.fire('Sudut Wajah Sudah Terdaftar', `Anda sudah mengambil sampel "${selectedLabel}". Silakan pilih instruksi posisi lain!`, 'warning');
             btnCapture.disabled = false;
@@ -440,7 +499,7 @@
             return;
         }
 
-        // Validasi 2: Cek variasi geometri wajah (mencegah foto identik)
+        // Validasi 2: Variasi Geometri
         const newDescriptor = detection.descriptor;
         for (let i = 0; i < rawDescriptors.length; i++) {
             const distance = faceapi.euclideanDistance(newDescriptor, rawDescriptors[i]);
@@ -456,19 +515,26 @@
             }
         }
 
+        // Efek Suara Beep
+        playBeepSound();
+
         // Simpan Sampel Valid
         rawDescriptors.push(newDescriptor);
         collectedDescriptors.push(JSON.stringify(Array.from(newDescriptor)));
         collectedLabels.push(selectedLabel);
 
+        // Render Canvas Mirroring
         const canvas = document.createElement('canvas');
         canvas.width = 320;
         canvas.height = 240;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         previewList.insertAdjacentHTML('beforeend', `
             <div class="text-center">
-                <img src="${canvas.toDataURL('image/jpeg', 0.5)}" class="preview-img mb-1">
+                <img src="${canvas.toDataURL('image/jpeg', 0.6)}" class="preview-img mb-1">
                 <small class="d-block text-truncate fw-bold" style="max-width: 80px;">${selectedLabel}</small>
             </div>
         `);
@@ -481,24 +547,21 @@
             btnSave.classList.remove('btn-secondary');
             btnSave.classList.add('btn-primary');
             btnSave.disabled = false;
-        } else {
-            btnSave.classList.remove('btn-primary');
-            btnSave.classList.add('btn-secondary');
-            btnSave.disabled = true;
         }
 
-        // Geser ke pilihan dropdown posisi berikutnya
+        // Pindah otomatis ke posisi/kartu panduan berikutnya
         const availableOptions = Array.from(sampleLabelSelect.options).map(opt => opt.value);
         const nextOption = availableOptions.find(optVal => !collectedLabels.includes(optVal));
         if (nextOption) {
             sampleLabelSelect.value = nextOption;
+            updateActiveGuideCard(); // <--- Pindah highlight kartu panduan
         }
 
         Swal.fire({
             icon: 'success',
             title: `Sampel Ke-${count} Ditangkap!`,
             text: count < 3 ? `Ambil ${3 - count} sampel lagi untuk mengaktifkan tombol simpan.` : 'Syarat minimal 3 sampel terpenuhi! Silakan simpan.',
-            timer: 1500,
+            timer: 1400,
             showConfirmButton: false
         }).then(() => {
             faceGuide.classList.remove('detected');
@@ -508,7 +571,7 @@
         });
     }
 
-    // SIMPAN KE DATABASE
+    // SIMPAN DATABASE VIA AJAX
     btnSave.addEventListener('click', () => {
         if (collectedDescriptors.length < 3) {
             Swal.fire('Sampel Kurang', 'Anda wajib mengambil minimal 3 foto sampel wajah!', 'warning');
@@ -526,6 +589,7 @@
                 labels: collectedLabels
             },
             success: (res) => {
+                stopCamera();
                 Swal.fire('Berhasil!', res.message, 'success').then(() => {
                     window.location.href = "{{ route('student.face.index') }}";
                 });
@@ -536,6 +600,16 @@
             }
         });
     });
+
+    // PEMBERSIHAN KAMERA
+    function stopCamera() {
+        if (detectionLoopTimeout) clearTimeout(detectionLoopTimeout);
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+    }
+
+    window.addEventListener('beforeunload', stopCamera);
 </script>
 </body>
 </html>

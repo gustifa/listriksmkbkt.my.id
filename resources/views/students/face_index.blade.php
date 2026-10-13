@@ -29,9 +29,23 @@
         </div>
         <div class="card-body p-3 p-md-4">
             
-            <div class="alert alert-info py-2 small mb-3">
-                <i class="fas fa-info-circle me-1"></i> Daftarkan minimal 3 sampel wajah (misal: depan, miring, senyum) agar proses scan presensi makin akurat.
-            </div>
+            <!-- INDIKATOR STATUS KECUKUPAN SAMPEL -->
+            @php $totalDescriptors = count($descriptors); @endphp
+            @if($totalDescriptors >= 3)
+                <div class="alert alert-success py-2 small mb-3 d-flex align-items-center">
+                    <i class="fas fa-check-circle fa-lg me-2"></i>
+                    <div>
+                        <strong>Status Sampel Optimal!</strong> Anda memiliki {{ $totalDescriptors }} sampel wajah terdaftar. Presensi wajah siap digunakan.
+                    </div>
+                </div>
+            @else
+                <div class="alert alert-warning py-2 small mb-3 d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-lg me-2"></i>
+                    <div>
+                        <strong>Sampel Belum Optimal!</strong> Anda baru memiliki {{ $totalDescriptors }} sampel. Daftarkan <strong>minimal 3 sampel</strong> agar scan presensi akurat.
+                    </div>
+                </div>
+            @endif
 
             <div class="table-responsive">
                 <table class="table table-bordered align-middle">
@@ -47,8 +61,8 @@
                         @forelse($descriptors as $index =>$item)
                         <tr id="row-{{ $item->id }}">
                             <td>{{ $index + 1 }}</td>
-                            <td><span class="badge bg-primary fs-6">{{ $item->label ?? 'Sampel ' . ($index+1) }}</span></td>
-                            <td>{{ $item->created_at->format('d M Y, H:i') }} WIB</td>
+                            <td><span class="badge bg-primary fs-6">{{ $item->label ?? 'Sampel ' . ($index + 1) }}</span></td>
+                            <td>{{ $item->created_at ? $item->created_at->format('d M Y, H:i') : '-' }} WIB</td>
                             <td class="text-center">
                                 <button class="btn btn-sm btn-danger btn-delete w-100" data-id="{{ $item->id }}">
                                     <i class="fas fa-trash me-1"></i> Hapus
@@ -80,11 +94,13 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    $('.btn-delete').click(function() {
+    // Event Delegation untuk tombol Hapus
+    $(document).on('click', '.btn-delete', function() {
         const id = $(this).data('id');
+        
         Swal.fire({
             title: 'Hapus sampel ini?',
-            text: "Sampel yang dihapus dapat mengurangi presisi deteksi wajah Anda.",
+            text: "Sampel yang dihapus dapat mengurangi tingkat akurasi deteksi wajah Anda.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -92,18 +108,26 @@
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
                 $.ajax({
                     url: `/student/face/destroy/${id}`,
                     type: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                     success: function(res) {
-                        $(`#row-${id}`).remove();
-                        Swal.fire('Terhapus!', res.message, 'success').then(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Terhapus!',
+                            text: res.message || 'Sampel wajah berhasil dihapus.',
+                            timer: 1200,
+                            showConfirmButton: false
+                        }).then(() => {
                             location.reload();
                         });
                     },
-                    error: function() {
-                        Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus.', 'error');
+                    error: function(err) {
+                        let msg = err.responseJSON?.message || 'Terjadi kesalahan saat menghapus.';
+                        Swal.fire('Gagal!', msg, 'error');
                     }
                 });
             }
