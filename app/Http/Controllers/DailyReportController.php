@@ -245,7 +245,8 @@ class DailyReportController extends Controller
         ]);
 
         // 2. Stream PDF dengan nama file dinamis
-        return $pdf->stream($fileName);
+        // return $pdf->stream($fileName);
+        return $pdf->download($fileName);
     }
 
     public function printStudentAbsensi($id)
