@@ -32,6 +32,7 @@ use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileSignatureController;
+use App\Http\Controllers\AttendanceReportController;
 
 use App\Http\Controllers\DailyAttendanceController;
 use App\Http\Controllers\CardController;
@@ -462,6 +463,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
             'create', 'edit', 'show'
         ]);
+
+        Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('attendance.missing-report');
         // ... route import siswa yang lama ...
         Route::get('/admin/prayer-reports', [PrayerAttendanceReportController::class, 'index'])->name('admin.prayer_reports.index');
         Route::get('/admin/prayer-reports/export-excel', [PrayerAttendanceReportController::class, 'exportExcel'])->name('admin.prayer_reports.excel');
