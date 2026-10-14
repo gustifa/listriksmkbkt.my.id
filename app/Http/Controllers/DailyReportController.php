@@ -79,188 +79,340 @@ class DailyReportController extends Controller
         return view('daily_attendance.reports.report', compact('attendances', 'students', 'summary', 'classrooms'));
     }
 
-    public function printAbsensi(Request $request)
-    {
-        $startDate = null;
-        $endDate = null;
-        $labelPeriode = "";
-        $id = Auth::user()->jenis_user;
+    // public function printAbsensi(Request $request)
+    // {
+    //     $startDate = null;
+    //     $endDate = null;
+    //     $labelPeriode = "";
+    //     $id = Auth::user()->jenis_user;
 
-        // AMBIL DATA SEKOLAH (UPDATED KEY MAPPING)
-        $school = $this->getSchoolData();
+    //     // AMBIL DATA SEKOLAH (UPDATED KEY MAPPING)
+    //     $school = $this->getSchoolData();
 
-        // LOGIKA PENENTUAN TANGGAL
-        switch ($request->periode) {
-            case 'harian':
-                $startDate = $request->tanggal;
-                $endDate = $request->tanggal;
-                $labelPeriode = "Harian (" . Carbon::parse($startDate)->translatedFormat('d F Y') . ")";
-                break;
+    //     // LOGIKA PENENTUAN TANGGAL
+    //     switch ($request->periode) {
+    //         case 'harian':
+    //             $startDate = $request->tanggal;
+    //             $endDate = $request->tanggal;
+    //             $labelPeriode = "Harian (" . Carbon::parse($startDate)->translatedFormat('d F Y') . ")";
+    //             break;
 
-            case 'mingguan':
-                $request->validate([
-                    'start_date' => 'required|date',
-                    'end_date'   => 'required|date|after_or_equal:start_date',
-                ]);
-                $startDate = $request->start_date;
-                $endDate = $request->end_date;
-                $labelPeriode = "Mingguan (" . Carbon::parse($startDate)->format('d/m') . " - " . Carbon::parse($endDate)->format('d/m/Y') . ")";
-                break;
+    //         case 'mingguan':
+    //             $request->validate([
+    //                 'start_date' => 'required|date',
+    //                 'end_date'   => 'required|date|after_or_equal:start_date',
+    //             ]);
+    //             $startDate = $request->start_date;
+    //             $endDate = $request->end_date;
+    //             $labelPeriode = "Mingguan (" . Carbon::parse($startDate)->format('d/m') . " - " . Carbon::parse($endDate)->format('d/m/Y') . ")";
+    //             break;
 
-            case 'bulanan':
-                $month = $request->bulan;
-                $year = $request->tahun_bulan;
-                $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->format('Y-m-d');
-                $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('Y-m-d');
-                $labelPeriode = "Bulan " . Carbon::createFromDate($year, $month, 1)->translatedFormat('F Y');
-                break;
+    //         case 'bulanan':
+    //             $month = $request->bulan;
+    //             $year = $request->tahun_bulan;
+    //             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->format('Y-m-d');
+    //             $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('Y-m-d');
+    //             $labelPeriode = "Bulan " . Carbon::createFromDate($year, $month, 1)->translatedFormat('F Y');
+    //             break;
 
-            case 'semester':
-                $year = $request->tahun_semester;
-                if ($request->semester == 'ganjil') {
-                    $startDate = $year . '-07-01';
-                    $endDate   = $year . '-12-31';
-                    $labelPeriode = "Semester Ganjil T.A $year/" . ($year+1);
-                } else {
-                    $startDate = ($year + 1) . '-01-01';
-                    $endDate   = ($year + 1) . '-06-30';
-                    $labelPeriode = "Semester Genap T.A $year/" . ($year+1);
-                }
-                break;
-        }
+    //         case 'semester':
+    //             $year = $request->tahun_semester;
+    //             if ($request->semester == 'ganjil') {
+    //                 $startDate = $year . '-07-01';
+    //                 $endDate   = $year . '-12-31';
+    //                 $labelPeriode = "Semester Ganjil T.A $year/" . ($year+1);
+    //             } else {
+    //                 $startDate = ($year + 1) . '-01-01';
+    //                 $endDate   = ($year + 1) . '-06-30';
+    //                 $labelPeriode = "Semester Genap T.A $year/" . ($year+1);
+    //             }
+    //             break;
+    //     }
 
-        // QUERY DATA ABSENSI
-        $query = DailyAttendance::with(['student', 'student.classroom'])
-            ->orderBy('date', 'asc')
-            ->orderBy('arrival_time', 'asc');
+    //     // QUERY DATA ABSENSI
+    //     $query = DailyAttendance::with(['student', 'student.classroom'])
+    //         ->orderBy('date', 'asc')
+    //         ->orderBy('arrival_time', 'asc');
 
-        if ($startDate && $endDate) {
-            $query->whereBetween('date', [$startDate, $endDate]);
-        }
+    //     if ($startDate && $endDate) {
+    //         $query->whereBetween('date', [$startDate, $endDate]);
+    //     }
 
-        // $labelTambahan = null;
-        // // Filter Per Kelas
-        // if ($request->filled('classroom_id')) {
-        //     $query->whereHas('student', function($q) use ($request) {
-        //         $q->where('classroom_id', $request->classroom_id);
-        //     });
+    //     // $labelTambahan = null;
+    //     // // Filter Per Kelas
+    //     // if ($request->filled('classroom_id')) {
+    //     //     $query->whereHas('student', function($q) use ($request) {
+    //     //         $q->where('classroom_id', $request->classroom_id);
+    //     //     });
 
-        //     $kelas = Classroom::find($request->classroom_id);
-        //     if ($kelas) {
-        //         $labelTambahan = "Kelas: " . $kelas->name;
-        //     }
-        // }
+    //     //     $kelas = Classroom::find($request->classroom_id);
+    //     //     if ($kelas) {
+    //     //         $labelTambahan = "Kelas: " . $kelas->name;
+    //     //     }
+    //     // }
 
-        $labelTambahan = null;
-        $hasClassroomFilter = false;
-        $waliKelasName = null;
-        $waliKelasNip = null;
-        $guruBkName = null;
-        $guruBkNip = null;
+    //     $labelTambahan = null;
+    //     $hasClassroomFilter = false;
+    //     $waliKelasName = null;
+    //     $waliKelasNip = null;
+    //     $guruBkName = null;
+    //     $guruBkNip = null;
 
-        // Filter Per Kelas
-        if ($request->filled('classroom_id')) {
-            $hasClassroomFilter = true;
-            $query->whereHas('student', function($q) use ($request) {
-                $q->where('classroom_id', $request->classroom_id);
-            });
+    //     // Filter Per Kelas
+    //     if ($request->filled('classroom_id')) {
+    //         $hasClassroomFilter = true;
+    //         $query->whereHas('student', function($q) use ($request) {
+    //             $q->where('classroom_id', $request->classroom_id);
+    //         });
 
-            // Load relasi homeroomTeacher dan counselingTeacher
-            $kelas = Classroom::with(['homeroomTeacher', 'counselingTeacher'])->find($request->classroom_id);
+    //         // Load relasi homeroomTeacher dan counselingTeacher
+    //         $kelas = Classroom::with(['homeroomTeacher', 'counselingTeacher'])->find($request->classroom_id);
             
-            if ($kelas) {
-                $labelTambahan = "Kelas: " . $kelas->name;
+    //         if ($kelas) {
+    //             $labelTambahan = "Kelas: " . $kelas->name;
 
-                // Data Wali Kelas
-                if ($kelas->homeroomTeacher) {
-                    $waliKelasName = $kelas->homeroomTeacher->name;
-                    $waliKelasNip  = $kelas->homeroomTeacher->nip;
-                }
+    //             // Data Wali Kelas
+    //             if ($kelas->homeroomTeacher) {
+    //                 $waliKelasName = $kelas->homeroomTeacher->name;
+    //                 $waliKelasNip  = $kelas->homeroomTeacher->nip;
+    //             }
 
-                // Data Guru BK
-                if ($kelas->counselingTeacher) {
-                    $guruBkName = $kelas->counselingTeacher->name;
-                    $guruBkNip  = $kelas->counselingTeacher->nip;
-                }
+    //             // Data Guru BK
+    //             if ($kelas->counselingTeacher) {
+    //                 $guruBkName = $kelas->counselingTeacher->name;
+    //                 $guruBkNip  = $kelas->counselingTeacher->nip;
+    //             }
+    //         }
+    //     }
+
+    //     $attendances = $query->get();
+
+    //     if ($attendances->isEmpty()) {
+    //         return redirect()->back()->with('error', 'Data absensi tidak ditemukan pada periode/filter yang dipilih.');
+    //     }
+
+    //     // GENERATE PDF (Menggunakan view 'pdf.recap' yang sudah diperbaiki)
+    //     $pdf = Pdf::loadView('daily_attendance.reports.pdf_view', compact(
+    //         'attendances',
+    //         'labelPeriode',
+    //         'labelTambahan',
+    //         'startDate',
+    //         'endDate',
+    //         'id',
+    //         'school',
+    //         'hasClassroomFilter',
+    //         'waliKelasName',
+    //         'waliKelasNip',
+    //         'guruBkName',
+    //         'guruBkNip'
+    //     ));
+
+    //     $pdf->setOptions([
+    //         'isRemoteEnabled' => true,
+    //         'isPhpEnabled' => true,
+    //         'chroot' => public_path(),
+    //     ]);
+
+    //     $pdf->setPaper($school['paper_size'], $school['paper_orientation']);
+
+    //     // return $pdf->stream('Laporan-Kehadiran.pdf');
+    //     // 1. Buat Nama File Dinamis
+    //     // $now = Carbon::now()->translatedFormat('d-m-Y_H-i'); // Tanggal, Bulan, Jam saat cetak
+        
+    //     // if ($hasClassroomFilter && isset($kelas)) {
+    //     //     // Format jika ADA filter kelas: Laporan-Kehadiran-Kelas-X-TITL_14-10-2026_16-30.pdf
+    //     //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+    //     //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+    //     // } else {
+    //     //     // Format jika TANPA filter kelas: Laporan-Kehadiran-Harian_14-10-2026_16-30.pdf
+    //     //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+    //     // }
+
+    //     // Buat nama file dinamis
+    //     // $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
+        
+    //     // if ($hasClassroomFilter && isset($kelas)) {
+    //     //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+    //     //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+    //     // } else {
+    //     //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+    //     // }
+
+    //     // // Tampilkan PDF di Browser dengan Header Nama File Eksplisit
+    //     // return response($pdf->output(), 200, [
+    //     //     'Content-Type' => 'application/pdf',
+    //     //     'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+    //     // ]);
+
+    //     // 2. Stream PDF dengan nama file dinamis
+    //     // return $pdf->stream($fileName);
+    //     $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
+        
+    //     if ($hasClassroomFilter && isset($kelas)) {
+    //         $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+    //         $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+    //     } else {
+    //         $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+    //     }
+
+    //     return response($pdf->output(), 200, [
+    //         'Content-Type' => 'application/pdf',
+    //         'Content-Disposition' => 'inline; filename="' . $fileName . '"; filename*="UTF-8\'\'' . $fileName . '"',
+    //     ]);
+    //     return $pdf->download($fileName);
+    // }
+
+    public function printAbsensi(Request $request)
+{
+    // 1. Naikkan batas memori & waktu eksekusi (Mencegah "Site wasn't available" / Timeout di Hosting)
+    ini_set('memory_limit', '512M');
+    set_time_limit(300);
+
+    $startDate = null;
+    $endDate = null;
+    $labelPeriode = "";
+    $id = Auth::user()->jenis_user;
+
+    // AMBIL DATA SEKOLAH
+    $school = $this->getSchoolData();
+
+    // LOGIKA PENENTUAN TANGGAL
+    switch ($request->periode) {
+        case 'harian':
+            $startDate = $request->tanggal;
+            $endDate = $request->tanggal;
+            $labelPeriode = "Harian (" . Carbon::parse($startDate)->translatedFormat('d F Y') . ")";
+            break;
+
+        case 'mingguan':
+            $request->validate([
+                'start_date' => 'required|date',
+                'end_date'   => 'required|date|after_or_equal:start_date',
+            ]);
+            $startDate = $request->start_date;
+            $endDate = $request->end_date;
+            $labelPeriode = "Mingguan (" . Carbon::parse($startDate)->format('d/m') . " - " . Carbon::parse($endDate)->format('d/m/Y') . ")";
+            break;
+
+        case 'bulanan':
+            $month = $request->bulan;
+            $year = $request->tahun_bulan;
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->format('Y-m-d');
+            $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('Y-m-d');
+            $labelPeriode = "Bulan " . Carbon::createFromDate($year, $month, 1)->translatedFormat('F Y');
+            break;
+
+        case 'semester':
+            $year = $request->tahun_semester;
+            if ($request->semester == 'ganjil') {
+                $startDate = $year . '-07-01';
+                $endDate   = $year . '-12-31';
+                $labelPeriode = "Semester Ganjil T.A $year/" . ($year + 1);
+            } else {
+                $startDate = ($year + 1) . '-01-01';
+                $endDate   = ($year + 1) . '-06-30';
+                $labelPeriode = "Semester Genap T.A $year/" . ($year + 1);
+            }
+            break;
+    }
+
+    // QUERY DATA ABSENSI
+    $query = DailyAttendance::with(['student', 'student.classroom'])
+        ->orderBy('date', 'asc')
+        ->orderBy('arrival_time', 'asc');
+
+    if ($startDate && $endDate) {
+        $query->whereBetween('date', [$startDate, $endDate]);
+    }
+
+    $labelTambahan = null;
+    $hasClassroomFilter = false;
+    $waliKelasName = null;
+    $waliKelasNip = null;
+    $guruBkName = null;
+    $guruBkNip = null;
+
+    // FILTER PER KELAS
+    if ($request->filled('classroom_id')) {
+        $hasClassroomFilter = true;
+        $query->whereHas('student', function($q) use ($request) {
+            $q->where('classroom_id', $request->classroom_id);
+        });
+
+        $kelas = Classroom::with(['homeroomTeacher', 'counselingTeacher'])->find($request->classroom_id);
+        
+        if ($kelas) {
+            $labelTambahan = "Kelas: " . $kelas->name;
+
+            // Data Wali Kelas
+            if ($kelas->homeroomTeacher) {
+                $waliKelasName = $kelas->homeroomTeacher->name;
+                $waliKelasNip  = $kelas->homeroomTeacher->nip;
+            }
+
+            // Data Guru BK
+            if ($kelas->counselingTeacher) {
+                $guruBkName = $kelas->counselingTeacher->name;
+                $guruBkNip  = $kelas->counselingTeacher->nip;
             }
         }
-
-        $attendances = $query->get();
-
-        if ($attendances->isEmpty()) {
-            return redirect()->back()->with('error', 'Data absensi tidak ditemukan pada periode/filter yang dipilih.');
-        }
-
-        // GENERATE PDF (Menggunakan view 'pdf.recap' yang sudah diperbaiki)
-        $pdf = Pdf::loadView('daily_attendance.reports.pdf_view', compact(
-            'attendances',
-            'labelPeriode',
-            'labelTambahan',
-            'startDate',
-            'endDate',
-            'id',
-            'school',
-            'hasClassroomFilter',
-            'waliKelasName',
-            'waliKelasNip',
-            'guruBkName',
-            'guruBkNip'
-        ));
-
-        $pdf->setOptions([
-            'isRemoteEnabled' => true,
-            'isPhpEnabled' => true,
-            'chroot' => public_path(),
-        ]);
-
-        $pdf->setPaper($school['paper_size'], $school['paper_orientation']);
-
-        // return $pdf->stream('Laporan-Kehadiran.pdf');
-        // 1. Buat Nama File Dinamis
-        // $now = Carbon::now()->translatedFormat('d-m-Y_H-i'); // Tanggal, Bulan, Jam saat cetak
-        
-        // if ($hasClassroomFilter && isset($kelas)) {
-        //     // Format jika ADA filter kelas: Laporan-Kehadiran-Kelas-X-TITL_14-10-2026_16-30.pdf
-        //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
-        //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
-        // } else {
-        //     // Format jika TANPA filter kelas: Laporan-Kehadiran-Harian_14-10-2026_16-30.pdf
-        //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
-        // }
-
-        // Buat nama file dinamis
-        // $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
-        
-        // if ($hasClassroomFilter && isset($kelas)) {
-        //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
-        //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
-        // } else {
-        //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
-        // }
-
-        // // Tampilkan PDF di Browser dengan Header Nama File Eksplisit
-        // return response($pdf->output(), 200, [
-        //     'Content-Type' => 'application/pdf',
-        //     'Content-Disposition' => 'inline; filename="' . $fileName . '"',
-        // ]);
-
-        // 2. Stream PDF dengan nama file dinamis
-        // return $pdf->stream($fileName);
-        $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
-        
-        if ($hasClassroomFilter && isset($kelas)) {
-            $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
-            $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
-        } else {
-            $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
-        }
-
-        return response($pdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $fileName . '"; filename*="UTF-8\'\'' . $fileName . '"',
-        ]);
-        return $pdf->download($fileName);
     }
+
+    $attendances = $query->get();
+
+    if ($attendances->isEmpty()) {
+        return redirect()->back()->with('error', 'Data absensi tidak ditemukan pada periode/filter yang dipilih.');
+    }
+
+    // GENERATE PDF
+    $pdf = Pdf::loadView('daily_attendance.reports.pdf_view', compact(
+        'attendances',
+        'labelPeriode',
+        'labelTambahan',
+        'startDate',
+        'endDate',
+        'id',
+        'school',
+        'hasClassroomFilter',
+        'waliKelasName',
+        'waliKelasNip',
+        'guruBkName',
+        'guruBkNip'
+    ));
+
+    $pdf->setOptions([
+        'isRemoteEnabled' => true,
+        'isPhpEnabled'    => true,
+        'chroot'          => public_path(),
+    ]);
+
+    $pdf->setPaper($school['paper_size'], $school['paper_orientation']);
+
+    // PENENTUAN NAMA FILE DINAMIS
+    $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
+    
+    if ($hasClassroomFilter && isset($kelas)) {
+        $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+        $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+    } else {
+        $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+    }
+
+    // BERSIHKAN OUTPUT BUFFER SEBELUM STREAMING
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    // STREAM DOWNLOAD STABIL TANPA ERROR HOSTING
+    return response()->streamDownload(function () use ($pdf) {
+        echo $pdf->output();
+    }, $fileName, [
+        'Content-Type'  => 'application/pdf',
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        'Pragma'        => 'no-cache',
+        'Expires'       => '0',
+    ]);
+}
 
     public function printStudentAbsensi($id)
     {
