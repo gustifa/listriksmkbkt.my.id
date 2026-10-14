@@ -155,6 +155,8 @@ class DailyReportController extends Controller
         $hasClassroomFilter = false;
         $waliKelasName = null;
         $waliKelasNip = null;
+        $guruBkName = null;
+        $guruBkNip = null;
 
         // Filter Per Kelas
         if ($request->filled('classroom_id')) {
@@ -163,13 +165,22 @@ class DailyReportController extends Controller
                 $q->where('classroom_id', $request->classroom_id);
             });
 
-            $kelas = Classroom::with('homeroomTeacher')->find($request->classroom_id);
+            // Load relasi homeroomTeacher dan counselingTeacher
+            $kelas = Classroom::with(['homeroomTeacher', 'counselingTeacher'])->find($request->classroom_id);
+            
             if ($kelas) {
                 $labelTambahan = "Kelas: " . $kelas->name;
-                // Jika relasi wali kelas ada pada model Classroom
+
+                // Data Wali Kelas
                 if ($kelas->homeroomTeacher) {
                     $waliKelasName = $kelas->homeroomTeacher->name;
-                    $waliKelasNip = $kelas->homeroomTeacher->nip;
+                    $waliKelasNip  = $kelas->homeroomTeacher->nip;
+                }
+
+                // Data Guru BK
+                if ($kelas->counselingTeacher) {
+                    $guruBkName = $kelas->counselingTeacher->name;
+                    $guruBkNip  = $kelas->counselingTeacher->nip;
                 }
             }
         }
@@ -191,7 +202,9 @@ class DailyReportController extends Controller
             'school',
             'hasClassroomFilter',
             'waliKelasName',
-            'waliKelasNip'
+            'waliKelasNip',
+            'guruBkName',
+            'guruBkNip'
         ));
 
         $pdf->setOptions([
