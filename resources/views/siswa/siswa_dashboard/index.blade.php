@@ -115,57 +115,58 @@
 
         <!-- 2. INFORMASI JADWAL & AKTIVITAS -->
         <div class="row g-3">
-            <!-- Jadwal Pelajaran Hari Ini -->
-            <div class="card-body p-3 pt-0">
-    @if(isset($todaySchedules) && count($todaySchedules) > 0)
-        <div class="d-flex flex-column gap-2">
-            @foreach($todaySchedules as $schedule)
-                @php
-                    $startTime = isset($schedule->start_time) ? substr($schedule->start_time, 0, 5) : '00:00';
-                    $endTime   = isset($schedule->end_time) ? substr($schedule->end_time, 0, 5) : '00:00';
-                @endphp
 
-                <div class="p-3 border rounded-3 bg-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 shadow-sm">
-                    <div>
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge bg-primary text-white fw-bold">
-                                <i class="far fa-clock me-1"></i> {{ $startTime }} - {{ $endTime }}
-                            </span>
-                            <span class="text-muted small"><i class="fas fa-user-tie me-1"></i>{{ $schedule->teacher->name ?? '-' }}</span>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-0">
-                            {{ $schedule->subject->name ?? 'Mata Pelajaran' }}
-                        </h6>
-                    </div>
-
-                    <div class="text-start text-sm-end">
-                        @if(isset($schedule->student_attendance) && $schedule->student_attendance)
-                            <span class="badge bg-success rounded-pill px-3 py-2">
-                                <i class="fas fa-check-circle me-1"></i> Hadir
-                            </span>
-                        @elseif(isset($schedule->is_active) && $schedule->is_active)
-                            <form action="{{ route('student.attendance.store') }}" method="POST" class="d-inline">
-                                @csrf
-                                <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
-                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">
-                                    <i class="fas fa-fingerprint me-1"></i> Absen Sekarang
-                                </button>
-                            </form>
-                        @else
-                            <span class="badge bg-secondary rounded-pill px-3 py-2">Belum Aktif</span>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    @else
-        <div class="text-center py-4 bg-light rounded-3">
-            <p class="text-muted small mb-0">Tidak ada jadwal pelajaran hari ini.</p>
-        </div>
-    @endif
-</div>
             
             <div class="col-12 col-lg-8">
+                            <!-- Jadwal Pelajaran Hari Ini -->
+            <div class="card-body p-3 pt-0">
+                @if(isset($todaySchedules) && count($todaySchedules) > 0)
+                    <div class="d-flex flex-column gap-2">
+                        @foreach($todaySchedules as $schedule)
+                            @php
+                                $startTime = isset($schedule->start_time) ? substr($schedule->start_time, 0, 5) : '00:00';
+                                $endTime   = isset($schedule->end_time) ? substr($schedule->end_time, 0, 5) : '00:00';
+                            @endphp
+
+                            <div class="p-3 border rounded-3 bg-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 shadow-sm">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <span class="badge bg-primary text-white fw-bold">
+                                            <i class="far fa-clock me-1"></i> {{ $startTime }} - {{ $endTime }}
+                                        </span>
+                                        <span class="text-muted small"><i class="fas fa-user-tie me-1"></i>{{ $schedule->teacher->name ?? '-' }}</span>
+                                    </div>
+                                    <h6 class="fw-bold text-dark mb-0">
+                                        {{ $schedule->subject->name ?? 'Mata Pelajaran' }}
+                                    </h6>
+                                </div>
+
+                                <div class="text-start text-sm-end">
+                                    @if(isset($schedule->student_attendance) && $schedule->student_attendance)
+                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                            <i class="fas fa-check-circle me-1"></i> Hadir
+                                        </span>
+                                    @elseif(isset($schedule->is_active) && $schedule->is_active)
+                                        <form action="{{ route('student.attendance.store') }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
+                                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">
+                                                <i class="fas fa-fingerprint me-1"></i> Absen Sekarang
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="badge bg-secondary rounded-pill px-3 py-2">Belum Aktif</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-4 bg-light rounded-3">
+                        <p class="text-muted small mb-0">Tidak ada jadwal pelajaran hari ini.</p>
+                    </div>
+                @endif
+            </div>
                 <!-- CARD HISTORI PELAKSANAAN SHOLAT -->
                 <div class="card border-0 shadow-sm rounded-3 mb-4">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
