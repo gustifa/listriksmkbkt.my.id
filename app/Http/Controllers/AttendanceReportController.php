@@ -15,31 +15,46 @@ class AttendanceReportController extends Controller
     {
         $today = Carbon::today()->toDateString();
         $currentTime = Carbon::now()->format('H:i:s');
-        $dayOfWeek = Carbon::now()->locale('id')->dayName;
+        
+        // Mengambil nama hari dalam bahasa Indonesia (misal: 'Rabu')
+        $dayName = Carbon::now()->locale('id')->isoFormat('dddd');
 
-        // 1. SISWA YANG TIDAK ABSEN GERBANG HARI INI
-        $absentGateStudents = Student::where('status', 1)
+        // 1. SISWA YANG BELUM ABSEN GERBANG (HARIAN)
+        // A. Belum Absen Masuk Sama Sekali (Tidak Ada Record Hari Ini)
+        $noArrivalStudents = Student::where('status', 1)
             ->whereDoesntHave('dailyAttendances', function ($query) use ($today) {
                 $query->whereDate('date', $today);
             })
             ->with('classroom')
             ->get();
 
-        // 2. SISWA YANG TIDAK ABSEN MAPEL (Sesuai Jadwal Hari Ini & Jam Terlewat/Aktif)
-        $schedulesToday = Schedule::where('day', $dayOfWeek)
-            ->where('start_time', '<=', $currentTime) // Jam pelajaran sudah dimulai/selesai
+        // B. Sudah Absen Masuk Tapi Belum Absen Pulang (arrival_time terisi, departure_time NULL)
+        $noDepartureStudents = Student::where('status', 1)
+            ->whereHas('dailyAttendances', function ($query) use ($today) {
+                $query->whereDate('date', $today)
+                      ->whereNotNull('arrival_time')
+                      ->whereNull('departure_time');
+            })
+            ->with('classroom')
+            ->get();
+
+        // 2. SISWA YANG BELUM PRESENSI MAPEL (MATA PELAJARAN)
+        // Cari jadwal hari ini yang jam mulainya SUDAH lewat atau sedang berlangsung
+        $schedulesToday = Schedule::whereRaw('LOWER(day) = ?', [strtolower($dayName)])
+            ->where('start_time', '<=', $currentTime)
             ->with(['classroom', 'subject', 'teacher'])
             ->get();
 
         $missingSubjectStudents = [];
 
         foreach ($schedulesToday as $schedule) {
-            // Cari siswa di kelas tersebut yang belum absen mapel ini
+            // Filter siswa di kelas terkait yang belum mengisi check_in_time pada mapel ini
             $studentsInClass = Student::where('classroom_id', $schedule->classroom_id)
                 ->where('status', 1)
                 ->whereDoesntHave('attendances', function ($query) use ($today, $schedule) {
                     $query->whereDate('date', $today)
-                        ->where('schedule_id', $schedule->id);
+                          ->where('schedule_id', $schedule->id)
+                          ->whereNotNull('check_in_time');
                 })
                 ->get();
 
@@ -51,6 +66,11 @@ class AttendanceReportController extends Controller
             }
         }
 
-        return view('attendance.missing_report', compact('absentGateStudents', 'missingSubjectStudents', 'today'));
+        return view('attendance.missing_report', compact(
+            'noArrivalStudents',
+            'noDepartureStudents',
+            'missingSubjectStudents',
+            'today'
+        ));
     }
 }
