@@ -43,7 +43,7 @@
         .signature-table td { width: 33.33%; text-align: center; vertical-align: top; }
         .signature-table p { margin: 2px 0; } */
         .signature-section { 
-            margin-top: 35px; 
+            margin-top: 30px; 
             page-break-inside: avoid; 
         }
         .signature-table { 
@@ -54,17 +54,16 @@
         .signature-table td { 
             text-align: center; 
             vertical-align: top; 
-            font-size: 10px; 
-            padding: 0 5px;
+            font-size: 12px; /* Disamakan dengan font laporan (12px) */
+            padding: 0 4px;
             word-wrap: break-word;
         }
         .signature-table p { 
             margin: 2px 0; 
-            line-height: 1.2;
+            line-height: 1.3;
         }
-        /* Ditingkatkan dari 45px menjadi 65px agar ada ruang untuk tanda tangan basah */
         .signature-space {
-            height: 65px;
+            height: 60px; /* Ruang tanda tangan basah */
         }
         
     </style>
@@ -157,7 +156,7 @@
 
     <div class="signature-section">
         @if(!$hasClassroomFilter)
-            {{-- KONDISI 1: TANPA FILTER KELAS (Hanya Pelapor / User Login) --}}
+            {{-- KONDISI 1: TANPA FILTER KELAS (1 Kolom TTD) --}}
             <table class="signature-table">
                 <tr>
                     <td style="width: 60%;"></td>
@@ -171,10 +170,10 @@
                 </tr>
             </table>
         @else
-            {{-- KONDISI 2: ADA FILTER KELAS (Baris Atas: BK, Wali Kelas, Pelapor | Baris Bawah: Kepala Sekolah) --}}
+            {{-- KONDISI 2: ADA FILTER KELAS --}}
             
-            <!-- BARIS ATAS: 3 KOLOM -->
-            <table class="signature-table" style="margin-bottom: 25px;">
+            <!-- BARIS ATAS: 3 KOLOM (Guru BK, Wali Kelas, Pelapor) -->
+            <table class="signature-table" style="margin-bottom: 30px;">
                 <tr>
                     <td style="width: 33.33%;">
                         <p>&nbsp;</p>
@@ -205,14 +204,14 @@
             <!-- BARIS BAWAH: KEPALA SEKOLAH (DITENGAH) -->
             <table class="signature-table">
                 <tr>
-                    <td style="width: 30%;"></td>
-                    <td style="width: 40%;">
+                    <td style="width: 25%;"></td>
+                    <td style="width: 50%;">
                         <p>Mengetahui,</p>
-                        <p><b>{{ $school['sign_title'] }}</b></p>
+                        <p><b>Kepala Sekolah</b></p>
                         
                         @if(!empty($school['sign_image']))
-                            <div style="height: 55px; display: flex; align-items: center; justify-content: center; margin: 3px 0;">
-                                <img src="{{ $school['sign_image'] }}" style="height: 50px; max-width: 100%; object-fit: contain;">
+                            <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin: 3px 0;">
+                                <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%; object-fit: contain;">
                             </div>
                         @else
                             <div class="signature-space"></div>
@@ -221,7 +220,7 @@
                         <p style="text-decoration: underline; font-weight: bold;">{{ $school['sign_name'] }}</p>
                         <p>NIP. {{ $school['sign_nip'] }}</p>
                     </td>
-                    <td style="width: 30%;"></td>
+                    <td style="width: 25%;"></td>
                 </tr>
             </table>
         @endif
