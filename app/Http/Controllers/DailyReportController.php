@@ -229,6 +229,23 @@ class DailyReportController extends Controller
         // }
 
         // Buat nama file dinamis
+        // $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
+        
+        // if ($hasClassroomFilter && isset($kelas)) {
+        //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+        //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+        // } else {
+        //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+        // }
+
+        // // Tampilkan PDF di Browser dengan Header Nama File Eksplisit
+        // return response($pdf->output(), 200, [
+        //     'Content-Type' => 'application/pdf',
+        //     'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        // ]);
+
+        // 2. Stream PDF dengan nama file dinamis
+        // return $pdf->stream($fileName);
         $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
         
         if ($hasClassroomFilter && isset($kelas)) {
@@ -238,14 +255,10 @@ class DailyReportController extends Controller
             $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
         }
 
-        // Tampilkan PDF di Browser dengan Header Nama File Eksplisit
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"; filename*="UTF-8\'\'' . $fileName . '"',
         ]);
-
-        // 2. Stream PDF dengan nama file dinamis
-        // return $pdf->stream($fileName);
         return $pdf->download($fileName);
     }
 
