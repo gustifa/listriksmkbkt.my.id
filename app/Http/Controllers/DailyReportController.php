@@ -138,16 +138,39 @@ class DailyReportController extends Controller
             $query->whereBetween('date', [$startDate, $endDate]);
         }
 
+        // $labelTambahan = null;
+        // // Filter Per Kelas
+        // if ($request->filled('classroom_id')) {
+        //     $query->whereHas('student', function($q) use ($request) {
+        //         $q->where('classroom_id', $request->classroom_id);
+        //     });
+
+        //     $kelas = Classroom::find($request->classroom_id);
+        //     if ($kelas) {
+        //         $labelTambahan = "Kelas: " . $kelas->name;
+        //     }
+        // }
+
         $labelTambahan = null;
+        $hasClassroomFilter = false;
+        $waliKelasName = null;
+        $waliKelasNip = null;
+
         // Filter Per Kelas
         if ($request->filled('classroom_id')) {
+            $hasClassroomFilter = true;
             $query->whereHas('student', function($q) use ($request) {
                 $q->where('classroom_id', $request->classroom_id);
             });
 
-            $kelas = Classroom::find($request->classroom_id);
+            $kelas = Classroom::with('homeroomTeacher')->find($request->classroom_id);
             if ($kelas) {
                 $labelTambahan = "Kelas: " . $kelas->name;
+                // Jika relasi wali kelas ada pada model Classroom
+                if ($kelas->homeroomTeacher) {
+                    $waliKelasName = $kelas->homeroomTeacher->name;
+                    $waliKelasNip = $kelas->homeroomTeacher->nip;
+                }
             }
         }
 
@@ -165,7 +188,10 @@ class DailyReportController extends Controller
             'startDate',
             'endDate',
             'id',
-            'school'
+            'school',
+            'hasClassroomFilter',
+            'waliKelasName',
+            'waliKelasNip'
         ));
 
         $pdf->setOptions([

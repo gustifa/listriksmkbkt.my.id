@@ -130,47 +130,64 @@
     </table>
 
     <div class="signature-section">
-        <table class="signature-table">
-            <tr>
-                <td>
-                    <p>Mengetahui,</p>
-                    @if(isset($id) && $id == 'guru')
-                        <p>Guru Mata Pelajaran,</p>
+        @if(!$hasClassroomFilter)
+            {{-- KONDISI 1: TIDAK ADA FILTER KELAS (Hanya Akun yang Sedang Login) --}}
+            <table class="signature-table">
+                <tr>
+                    <td style="width: 60%;"></td>
+                    <td style="width: 40%; text-align: center;">
+                        <p>{{ $school['sign_city'] }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
+                        <p>Petugas Pelapor / Tanggung Jawab,</p>
                         <br><br><br><br><br>
                         <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ Auth::user()->name }}</p>
                         <p style="margin-top: 2px;">NIP. {{ optional(Auth::user()->teacher)->nip ?? '-' }}</p>
-                    @else
+                    </td>
+                </tr>
+            </table>
+        @else
+            {{-- KONDISI 2: ADA FILTER KELAS (4 Tanda Tangan: Kepala Sekolah, Guru BK, Wali Kelas, Akun Login) --}}
+            <table class="signature-table" style="width: 100%;">
+                <tr>
+                    <td style="width: 25%; text-align: center; vertical-align: top;">
+                        <p>Mengetahui,</p>
                         <p>{{ $school['sign_title'] }},</p>
-
                         @if(!empty($school['sign_image']))
-                            <div style="height: 70px; display: flex; align-items: center; justify-content: center; margin: 5px 0;">
-                                <img src="{{ $school['sign_image'] }}" style="height: 120px; max-width: 100%; object-fit: contain;">
+                            <div style="height: 60px; display: flex; align-items: center; justify-content: center; margin: 5px 0;">
+                                <img src="{{ $school['sign_image'] }}" style="height: 80px; max-width: 100%; object-fit: contain;">
                             </div>
                         @else
-                            <br><br><br><br><br>
+                            <br><br><br><br>
                         @endif
-
                         <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ $school['sign_name'] }}</p>
                         <p style="margin-top: 2px;">NIP. {{ $school['sign_nip'] }}</p>
-                    @endif
-                </td>
+                    </td>
 
-                <td>
-                    <p>&nbsp;</p> <p>Guru Bimbingan dan Konseling,</p>
-                    <br><br><br><br><br>
-                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ $guruBkName ?? '(............................................)' }}</p>
-                    <p style="margin-top: 2px;">NIP. {{ $guruBkNip ?? '.....................................' }}</p>
-                </td>
+                    <td style="width: 25%; text-align: center; vertical-align: top;">
+                        <p>&nbsp;</p>
+                        <p>Guru Bimbingan Konseling,</p>
+                        <br><br><br><br><br>
+                        <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ $guruBkName ?? '(............................................)' }}</p>
+                        <p style="margin-top: 2px;">NIP. {{ $guruBkNip ?? '.....................................' }}</p>
+                    </td>
 
-                <td>
-                    <p>{{ $school['sign_city'] }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
-                    <p>Wali Kelas,</p>
-                    <br><br><br><br><br>
-                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ $waliKelasName ?? '(............................................)' }}</p>
-                    <p style="margin-top: 2px;">NIP. {{ $waliKelasNip ?? '.....................................' }}</p>
-                </td>
-            </tr>
-        </table>
+                    <td style="width: 25%; text-align: center; vertical-align: top;">
+                        <p>&nbsp;</p>
+                        <p>Wali Kelas,</p>
+                        <br><br><br><br><br>
+                        <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ $waliKelasName ?? '(............................................)' }}</p>
+                        <p style="margin-top: 2px;">NIP. {{ $waliKelasNip ?? '.....................................' }}</p>
+                    </td>
+
+                    <td style="width: 25%; text-align: center; vertical-align: top;">
+                        <p>{{ $school['sign_city'] }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
+                        <p>Pelapor,</p>
+                        <br><br><br><br><br>
+                        <p style="text-decoration: underline; font-weight: bold; margin-bottom: 0;">{{ Auth::user()->name }}</p>
+                        <p style="margin-top: 2px;">NIP. {{ optional(Auth::user()->teacher)->nip ?? '-' }}</p>
+                    </td>
+                </tr>
+            </table>
+        @endif
     </div>
 
     {{-- <div class="footer-print">
