@@ -42,28 +42,32 @@
         .signature-table { width: 100%; margin-top: 20px; }
         .signature-table td { width: 33.33%; text-align: center; vertical-align: top; }
         .signature-table p { margin: 2px 0; } */
+        /* Style Tanda Tangan Menyatu & Efisien Halaman */
         .signature-section { 
-            margin-top: 30px; 
-            page-break-inside: avoid; 
+            margin-top: 20px; 
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .signature-table { 
             width: 100%; 
             border-collapse: collapse; 
-            table-layout: fixed; 
+            table-layout: fixed;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .signature-table td { 
             text-align: center; 
             vertical-align: top; 
-            font-size: 12px; /* Disamakan dengan font laporan (12px) */
+            font-size: 11px; /* Ukuran pas agar hemat ruang vertikal */
             padding: 0 4px;
             word-wrap: break-word;
         }
         .signature-table p { 
-            margin: 2px 0; 
-            line-height: 1.3;
+            margin: 1px 0; 
+            line-height: 1.2;
         }
         .signature-space {
-            height: 60px; /* Ruang tanda tangan basah */
+            height: 45px; /* Jarak ruang TTD yang pas & hemat halaman */
         }
         
     </style>
@@ -170,10 +174,9 @@
                 </tr>
             </table>
         @else
-            {{-- KONDISI 2: ADA FILTER KELAS --}}
-            
-            <!-- BARIS ATAS: 3 KOLOM (Guru BK, Wali Kelas, Pelapor) -->
-            <table class="signature-table" style="margin-bottom: 30px;">
+            {{-- KONDISI 2: ADA FILTER KELAS (Dua Baris TTD dalam Satu Tabel Tunggal) --}}
+            <table class="signature-table">
+                <!-- BARIS 1: BK, WALI KELAS, PELAPOR -->
                 <tr>
                     <td style="width: 33.33%;">
                         <p>&nbsp;</p>
@@ -199,19 +202,22 @@
                         <p>NIP. {{ optional(Auth::user()->teacher)->nip ?? '-' }}</p>
                     </td>
                 </tr>
-            </table>
 
-            <!-- BARIS BAWAH: KEPALA SEKOLAH (DITENGAH) -->
-            <table class="signature-table">
+                <!-- SPARATOR / JARAK ANTAR BARIS TTD -->
                 <tr>
-                    <td style="width: 25%;"></td>
-                    <td style="width: 50%;">
+                    <td colspan="3" style="height: 20px;"></td>
+                </tr>
+
+                <!-- BARIS 2: KEPALA SEKOLAH (DITENGAH) -->
+                <tr>
+                    <td style="width: 33.33%;"></td>
+                    <td style="width: 33.33%;">
                         <p>Mengetahui,</p>
                         <p><b>Kepala Sekolah</b></p>
                         
                         @if(!empty($school['sign_image']))
-                            <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin: 3px 0;">
-                                <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%; object-fit: contain;">
+                            <div style="height: 50px; display: flex; align-items: center; justify-content: center; margin: 2px 0;">
+                                <img src="{{ $school['sign_image'] }}" style="height: 45px; max-width: 100%; object-fit: contain;">
                             </div>
                         @else
                             <div class="signature-space"></div>
@@ -220,7 +226,7 @@
                         <p style="text-decoration: underline; font-weight: bold;">{{ $school['sign_name'] }}</p>
                         <p>NIP. {{ $school['sign_nip'] }}</p>
                     </td>
-                    <td style="width: 25%;"></td>
+                    <td style="width: 33.33%;"></td>
                 </tr>
             </table>
         @endif
