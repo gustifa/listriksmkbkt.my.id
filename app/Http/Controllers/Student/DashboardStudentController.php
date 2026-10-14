@@ -228,4 +228,54 @@ class DashboardStudentController extends Controller
 
         return redirect()->back()->with('success', 'Presensi mata pelajaran berhasil dicatat!');
     }
+
+    /**
+     * Simpan Pengajuan Sakit / Izin dari Siswa
+     */
+    public function storeLeavePermit(Request $request)
+    {
+        $request->validate([
+            'status'              => 'required|in:sakit,izin',
+            'reason'              => 'required|string|max:500',
+            'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
+        ], [
+            'status.required'                 => 'Jenis pengajuan wajib dipilih.',
+            'reason.required'                 => 'Alasan/keterangan wajib diisi.',
+            'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
+            'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
+            'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
+        ]);
+
+        $student = Student::where('user_id', Auth::id())->firstOrFail();
+        $today = Carbon::today()->toDateString();
+
+        // Cek jika siswa sudah ada entri absensi harian
+        $existing = DailyAttendance::where('student_id', $student->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if ($existing) {
+            return redirect()->back()->with('error', 'Kamu sudah mencatatkan absensi/pengajuan untuk hari ini!');
+        }
+
+        // Handle upload surat sakit jika memilih 'sakit'
+        $filePath = null;
+        if ($request->hasFile('medical_certificate')) {
+            $file = $request->file('medical_certificate');
+            $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $filePath = $file->storeAs('surat_sakit', $filename, 'public');
+        }
+
+        // Catat pengajuan izin/sakit ke tabel DailyAttendance
+        DailyAttendance::create([
+            'student_id'  => $student->id,
+            'date'        => $today,
+            'status'      => $request->status,
+            'notes'       => $request->reason,
+            'attachment'  => $filePath,
+            'recorded_by' => Auth::user()->name . ' (Siswa)',
+        ]);
+
+        return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim!');
+    }
 }

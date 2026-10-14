@@ -830,6 +830,8 @@ Route::middleware(['auth'])->group(function () {
             // Profil Siswa (Edit No HP & Alamat)
             Route::get('/dashboard', [DashboardStudentController::class, 'index'])->name('dashboard');
             Route::post('/attendance/store', [DashboardStudentController::class, 'storeSubjectAttendance'])->name('attendance.store');
+            // Route Pengajuan Sakit / Izin
+            Route::post('/permit/store', [DashboardStudentController::class, 'storeLeavePermit'])->name('permit.store');
             // Route::get('/dashboard', [SiswaDashboardController::class, 'dashboard'])->name('dashboard');
             Route::get('/my-profile', [StudentAreaController::class, 'profileStudent'])->name('profile');
             Route::put('/my-profile', [StudentAreaController::class, 'updateProfile'])->name('profile.update');

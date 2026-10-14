@@ -10,14 +10,30 @@
                     <i class="fas fa-user-graduate me-2"></i> Dashboard Siswa
                 </h4>
                 <p class="text-muted mb-0">
-                    Selamat Datang, <strong>{{ $student->name }}</strong> | Kelas: <strong>{{ $student->classroom->name ?? 'Belum ada kelas' }}</strong> (NIS: {{ $student->nis ?? '-' }})
+                    Selamat Datang, <strong>{{ $student->name }}</strong> | Kelas: <strong>{{ $student->classroom->name ?? 'Belum ada kelas' }}</strong> (NIS: {{ $student->nis ?? '-' }}) 
                 </p>
+                
             </div>
-            <div>
-                <span class="badge bg-primary text-white p-2">
+
+            <!-- === DI SINI LETAK KODENYA (Ganti bagian div tombol sebelah kanan) === -->
+            <div class="d-flex align-items-center gap-2">
+                @if($todayAttendance)
+                    <!-- Jika SUDAH absen/izin hari ini: Tombol mati (disabled) -->
+                    <button type="button" class="btn btn-secondary text-white fw-bold rounded-pill shadow-sm px-3" disabled title="Kamu sudah mengajukan presensi/izin hari ini">
+                        <i class="fas fa-check-circle me-1"></i> Sudah Mengajukan Hari Ini
+                    </button>
+                @else
+                    <!-- Jika BELUM absen/izin hari ini: Tombol aktif & bisa diklik -->
+                    <button type="button" class="btn btn-warning text-dark fw-bold rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalPermit">
+                        <i class="fas fa-notes-medical me-1"></i> Ajukan Izin / Sakit
+                    </button>
+                @endif
+
+                <span class="badge bg-primary text-white p-2 rounded-3">
                     <i class="fas fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}
                 </span>
             </div>
+            
         </div>
 
         <!-- 1. STATISTIK KARTU (RESPONSIF GRID) -->
@@ -353,6 +369,77 @@
             </div>
 
     </div>
+
+    <!-- MODAL FORM AJUKAN IZIN / SAKIT -->
+<div class="modal fade" id="modalPermit" tabindex="-1" aria-labelledby="modalPermitLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="modalPermitLabel">
+                    <i class="fas fa-file-medical me-2"></i> Form Pengajuan Izin / Sakit
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('student.permit.store') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body p-4">
+                    <!-- Pilih Status -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kategori Pengajuan <span class="text-danger">*</span></label>
+                        <select name="status" id="permit_status" class="form-select rounded-3" required>
+                            <option value="">-- Pilih Jenis Pengajuan --</option>
+                            <option value="sakit">Sakit</option>
+                            <option value="izin">Izin</option>
+                        </select>
+                    </div>
+
+                    <!-- Alasan / Keterangan -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Alasan / Keterangan <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control rounded-3" rows="3" placeholder="Tuliskan alasan tidak dapat hadir..." required></textarea>
+                    </div>
+
+                    <!-- Upload Surat Keterangan Sakit -->
+                    <div class="mb-3" id="fileUploadContainer" style="display: none;">
+                        <label class="form-label fw-bold text-dark">
+                            Surat Keterangan Dokter / Sakit <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" name="medical_certificate" id="medical_certificate" class="form-control rounded-3" accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-info-circle me-1"></i> Format: PDF, JPG, JPEG, PNG (Maksimal 2MB).
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Kirim Pengajuan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT UNTUK TAMPILKAN INPUT FILE -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const permitStatusSelect = document.getElementById('permit_status');
+        const fileContainer = document.getElementById('fileUploadContainer');
+        const fileInput = document.getElementById('medical_certificate');
+
+        if (permitStatusSelect) {
+            permitStatusSelect.addEventListener('change', function () {
+                if (this.value === 'sakit') {
+                    fileContainer.style.display = 'block';
+                    fileInput.setAttribute('required', 'required');
+                } else {
+                    fileContainer.style.display = 'none';
+                    fileInput.removeAttribute('required');
+                    fileInput.value = '';
+                }
+            });
+        }
+    });
+</script>
 
     <!-- CDN SweetAlert2 Terbaru -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
