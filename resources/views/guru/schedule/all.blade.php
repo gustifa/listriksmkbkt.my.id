@@ -1,6 +1,9 @@
 @section('title', 'Jadwal Semua Guru')
 
 <x-app-layout>
+    <!-- Tambahkan resource CSS Select2 & Theme Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <div class="page-content">
         <!--breadcrumb-->
         <div class="mb-3 page-breadcrumb d-none d-sm-flex align-items-center">
@@ -98,6 +101,7 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Guru</label>
+                            <!-- <select name="teacher_id" id="modal_teacher_id" class="form-select select2-modal" required> -->
                             <select name="teacher_id" id="modal_teacher_id" class="form-select select2-modal" required>
                                 <option value="" disabled selected>-- Pilih Guru --</option>
                                 @foreach($teachers as $t)
@@ -108,14 +112,16 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Kelas</label>
-                            <select name="classroom_id" id="modal_classroom_id" class="form-select" required disabled>
+                            <!-- <select name="classroom_id" id="modal_classroom_id" class="form-select" required disabled> -->
+                            <select name="classroom_id" id="modal_classroom_id" class="form-select select2-modal" required disabled>
                                 <option value="">-- Pilih Guru Dulu --</option>
                             </select>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Mata Pelajaran</label>
-                            <select name="subject_id" id="modal_subject_id" class="form-select" required disabled>
+                            <!-- <select name="subject_id" id="modal_subject_id" class="form-select" required disabled> -->
+                            <select name="subject_id" id="modal_subject_id" class="form-select select2-modal" required disabled>
                                 <option value="">-- Pilih Kelas Dulu --</option>
                             </select>
                         </div>
@@ -123,7 +129,8 @@
                         <!-- INPUT ROOM / BENGKEL -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Ruangan / Bengkel</label>
-                            <select name="room_id" id="modal_room_id" class="form-select">
+                            <!-- <select name="room_id" id="modal_room_id" class="form-select"> -->
+                            <select name="room_id" id="modal_room_id" class="form-select select2-modal">
                                 <option value="" selected>-- Tidak Ada Ruangan Khusus --</option>
                                 @if(isset($rooms))
                                     @foreach($rooms as $r)
@@ -219,7 +226,8 @@
             ];
         }
     @endphp
-
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -232,7 +240,6 @@
                 const targetEnd = selectedStartOption.dataset.end;
                 const endSelect = document.getElementById('modal_end_time');
 
-                // Pilih otomatis option Jam Selesai yang cocok
                 for (let i = 0; i < endSelect.options.length; i++) {
                     if (endSelect.options[i].value === targetEnd) {
                         endSelect.selectedIndex = i;
@@ -264,6 +271,15 @@
                 }
             }
         }
+
+        // Inisialisasi Select2
+        $(document).ready(function() {$('.select2-modal').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#adminScheduleModal'),
+                width: '100%',
+                placeholder: '-- Pilih / Ketik --'
+            });
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
 
@@ -297,76 +313,86 @@
             const form = document.getElementById('scheduleForm');
             const deleteForm = document.getElementById('deleteForm');
 
-            // Dropdowns
-            const teacherSelect = document.getElementById('modal_teacher_id');
-            const classroomSelect = document.getElementById('modal_classroom_id');
-            const subjectSelect = document.getElementById('modal_subject_id');
-
             // --- HELPER FUNCTIONS FOR DROPDOWNS ---
             function updateClassrooms(teacherId, selectedClassId = null) {
-                classroomSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
-                subjectSelect.innerHTML = '<option value="">-- Pilih Mapel --</option>';
-                classroomSelect.disabled = true;
-                subjectSelect.disabled = true;
+                const $classroomSelect =$('#modal_classroom_id');
+                const $subjectSelect =$('#modal_subject_id');
 
-                if (!teacherId) return;
+                $classroomSelect.empty().append('<option value="">-- Pilih Kelas --</option>');
+                $subjectSelect.empty().append('<option value="">-- Pilih Mapel --</option>');
+                
+                $classroomSelect.prop('disabled', true);$subjectSelect.prop('disabled', true);
+
+                if (!teacherId) {
+                    $classroomSelect.trigger('change.select2');$subjectSelect.trigger('change.select2');
+                    return;
+                }
 
                 const myAssignments = allAssignments.filter(a => a.teacher_id == teacherId);
                 const uniqueClasses = [];
                 const map = new Map();
 
                 myAssignments.forEach(item => {
-                    if(item.classroom && !map.has(item.classroom_id)){
+                    if (item.classroom && !map.has(item.classroom_id)) {
                         map.set(item.classroom_id, true);
                         uniqueClasses.push({ id: item.classroom_id, name: item.classroom.name });
                     }
                 });
 
                 if (uniqueClasses.length > 0) {
-                    classroomSelect.disabled = false;
+                    $classroomSelect.prop('disabled', false);
                     uniqueClasses.forEach(cls => {
-                        const opt = document.createElement('option');
-                        opt.value = cls.id;
-                        opt.textContent = cls.name;
-                        if(selectedClassId && cls.id == selectedClassId) opt.selected = true;
-                        classroomSelect.appendChild(opt);
+                        const isSelected = (selectedClassId && cls.id == selectedClassId);
+                        const newOption = new Option(cls.name, cls.id, isSelected, isSelected);
+                        $classroomSelect.append(newOption);
                     });
 
-                    if(selectedClassId) updateSubjects(teacherId, selectedClassId);
+                    if (selectedClassId) {
+                        updateSubjects(teacherId, selectedClassId);
+                    }
                 } else {
-                    classroomSelect.innerHTML = '<option>Guru ini belum di-mapping!</option>';
+                    $classroomSelect.append('<option value="">Guru ini belum di-mapping!</option>');
                 }
+
+                $classroomSelect.trigger('change.select2');$subjectSelect.trigger('change.select2');
             }
 
             function updateSubjects(teacherId, classroomId, selectedSubjectId = null) {
-                subjectSelect.innerHTML = '<option value="">-- Pilih Mapel --</option>';
-                subjectSelect.disabled = true;
+                const $subjectSelect =$('#modal_subject_id');
 
-                if(!classroomId) return;
+                $subjectSelect.empty().append('<option value="">-- Pilih Mapel --</option>');
+                $subjectSelect.prop('disabled', true);
+
+                if (!classroomId) {
+                    $subjectSelect.trigger('change.select2');
+                    return;
+                }
 
                 const validMapels = allAssignments.filter(a => a.teacher_id == teacherId && a.classroom_id == classroomId);
 
                 if (validMapels.length > 0) {
-                    subjectSelect.disabled = false;
+                    $subjectSelect.prop('disabled', false);
                     validMapels.forEach(m => {
-                        if(m.subject) {
-                            const opt = document.createElement('option');
-                            opt.value = m.subject_id;
-                            opt.textContent = m.subject.name;
-                            if(selectedSubjectId && m.subject_id == selectedSubjectId) opt.selected = true;
-                            subjectSelect.appendChild(opt);
+                        if (m.subject) {
+                            const isSelected = (selectedSubjectId && m.subject_id == selectedSubjectId);
+                            const newOption = new Option(m.subject.name, m.subject_id, isSelected, isSelected);
+                            $subjectSelect.append(newOption);
                         }
                     });
                 }
+
+                $subjectSelect.trigger('change.select2');
             }
 
-            // Event Listeners Dropdowns
-            teacherSelect.addEventListener('change', function() {
-                updateClassrooms(this.value);
+            // Event Listeners Select2 jQuery
+            $('#modal_teacher_id').on('change', function() {
+                updateClassrooms($(this).val());
+                document.getElementById('error-alert').classList.add('d-none');
             });
 
-            classroomSelect.addEventListener('change', function() {
-                updateSubjects(teacherSelect.value, this.value);
+            $('#modal_classroom_id').on('change', function() {
+                updateSubjects($('#modal_teacher_id').val(), $(this).val());
+                document.getElementById('error-alert').classList.add('d-none');
             });
 
             // --- FULLCALENDAR ---
@@ -405,6 +431,8 @@
                     if (slotInfo.type === 'break') { alert('Tidak bisa memilih jam istirahat.'); return; }
 
                     form.reset();
+                    $('.select2-modal').val('').trigger('change.select2'); // Reset semua Select2
+                    
                     form.action = "{{ route('schedule.store_admin') }}";
                     document.getElementById('method-spoofing').innerHTML = '';
                     document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Jadwal (Admin)';
@@ -412,14 +440,8 @@
                     document.getElementById('btnSave').innerText = 'Simpan';
                     document.getElementById('error-alert').classList.add('d-none');
 
-                    classroomSelect.innerHTML = '<option value="">-- Pilih Guru Dulu --</option>';
-                    classroomSelect.disabled = true;
-                    subjectSelect.innerHTML = '<option value="">-- Pilih Kelas Dulu --</option>';
-                    subjectSelect.disabled = true;
-
                     document.getElementById('modal_day').value = days[date.getDay()];
 
-                    // Pilih Time Slot Jam Mulai otomatis dari slot kalender yang diklik
                     const startSelect = document.getElementById('modal_start_time');
                     for (let i = 0; i < startSelect.options.length; i++) {
                         if (startSelect.options[i].value === timeKey) {
@@ -450,16 +472,14 @@
                     document.getElementById('error-alert').classList.add('d-none');
 
                     document.getElementById('modal_day').value = props.day;
-                    document.getElementById('modal_teacher_id').value = props.teacher_id;
+                    
+                    // Set Nilai Select2 Guru & Ruangan saat edit
+                    $('#modal_teacher_id').val(props.teacher_id).trigger('change.select2');
+                    $('#modal_room_id').val(props.room_id || '').trigger('change.select2');
 
+                    // Load Kelas & Mapel terkait
                     updateClassrooms(props.teacher_id, props.classroom_id);
                     updateSubjects(props.teacher_id, props.classroom_id, props.subject_id);
-
-                    if (props.room_id) {
-                        document.getElementById('modal_room_id').value = props.room_id;
-                    } else {
-                        document.getElementById('modal_room_id').value = "";
-                    }
 
                     const start = info.event.start;
                     const end = info.event.end;
@@ -470,7 +490,6 @@
                     const timeKey = `${sH}:${sM}`;
                     const endTimeKey = `${eH}:${eM}`;
 
-                    // Set Jam Mulai
                     const startSelect = document.getElementById('modal_start_time');
                     for (let i = 0; i < startSelect.options.length; i++) {
                         if (startSelect.options[i].value === timeKey) {
@@ -479,7 +498,6 @@
                         }
                     }
 
-                    // Set Jam Selesai
                     const endSelect = document.getElementById('modal_end_time');
                     for (let i = 0; i < endSelect.options.length; i++) {
                         if (endSelect.options[i].value === endTimeKey) {
@@ -563,16 +581,7 @@
                     return;
                 }
             });
-
-            teacherSelect.addEventListener('change', () => document.getElementById('error-alert').classList.add('d-none'));
-            classroomSelect.addEventListener('change', () => document.getElementById('error-alert').classList.add('d-none'));
         });
     </script>
-
-    <style>
-        .fc-event-title { font-size: 0.8em; white-space: pre-wrap; }
-        .fc-timegrid-slot-label-cushion { white-space: normal !important; width: 60px; }
-        .fc-timegrid-axis-cushion { max-width: 60px; }
-    </style>
 
 </x-app-layout>
