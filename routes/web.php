@@ -829,6 +829,7 @@ Route::middleware(['auth'])->group(function () {
 
             // Profil Siswa (Edit No HP & Alamat)
             Route::get('/dashboard', [DashboardStudentController::class, 'index'])->name('dashboard');
+            Route::post('/attendance/store', [DashboardStudentController::class, 'storeSubjectAttendance'])->name('attendance.store');
             // Route::get('/dashboard', [SiswaDashboardController::class, 'dashboard'])->name('dashboard');
             Route::get('/my-profile', [StudentAreaController::class, 'profileStudent'])->name('profile');
             Route::put('/my-profile', [StudentAreaController::class, 'updateProfile'])->name('profile.update');
@@ -886,7 +887,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/exams/{exam}/session/{session}/result', [StudentExamController::class, 'result'])->name('exam.result');
             Route::get('/exams/{exam}/session/{session}/review', [StudentExamController::class, 'review'])->name('exam.review');
             Route::post('/exam/log-violation', [StudentExamController::class, 'logViolation'])->name('exam.log_violation');
-
+        
             // Khusus Siswa: Mengirimkan jawaban tugas
             Route::post('assignments/{assignment}/submit', [AssignmentSubmissionController::class, 'store'])->name('submissions.store');
             Route::get('prayer-attendances', [PrayerAttendanceController::class, 'index'])->name('prayer-attendances.index');
