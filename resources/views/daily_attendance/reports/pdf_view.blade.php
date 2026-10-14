@@ -215,13 +215,13 @@
                         <p>Mengetahui,</p>
                         <p><b>Kepala Sekolah</b></p>
                         
-                        @if(!empty($school['sign_image']))
+                        <!-- @if(!empty($school['sign_image']))
                             <div style="height: 50px; display: flex; align-items: center; justify-content: center; margin: 2px 0;">
                                 <img src="{{ $school['sign_image'] }}" style="height: 45px; max-width: 100%; object-fit: contain;">
                             </div>
-                        @else
+                        @else -->
                             <div class="signature-space"></div>
-                        @endif
+                        <!-- @endif -->
 
                         <p style="text-decoration: underline; font-weight: bold;">{{ $school['sign_name'] }}</p>
                         <p>NIP. {{ $school['sign_nip'] }}</p>

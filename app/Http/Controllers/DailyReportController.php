@@ -215,7 +215,21 @@ class DailyReportController extends Controller
 
         $pdf->setPaper($school['paper_size'], $school['paper_orientation']);
 
-        return $pdf->stream('Laporan-Kehadiran.pdf');
+        // return $pdf->stream('Laporan-Kehadiran.pdf');
+        // 1. Buat Nama File Dinamis
+        $now = Carbon::now()->translatedFormat('d-m-Y_H-i'); // Tanggal, Bulan, Jam saat cetak
+        
+        if ($hasClassroomFilter && isset($kelas)) {
+            // Format jika ADA filter kelas: Laporan-Kehadiran-Kelas-X-TITL_14-10-2026_16-30.pdf
+            $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+            $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+        } else {
+            // Format jika TANPA filter kelas: Laporan-Kehadiran-Harian_14-10-2026_16-30.pdf
+            $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+        }
+
+        // 2. Stream PDF dengan nama file dinamis
+        return $pdf->stream($fileName);
     }
 
     public function printStudentAbsensi($id)
