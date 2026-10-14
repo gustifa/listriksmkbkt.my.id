@@ -114,7 +114,7 @@
                 <th style="width: 8%">Jam Pulang</th>
                 <th style="width: 10%">NIS</th>
                 <th>Nama Siswa</th>
-                <th style="width: 10%">Kelas</th>
+                <th style="width: 15%">Kelas</th>
                 <th style="width: 10%">Status</th>
             </tr>
         </thead>
