@@ -217,16 +217,32 @@ class DailyReportController extends Controller
 
         // return $pdf->stream('Laporan-Kehadiran.pdf');
         // 1. Buat Nama File Dinamis
-        $now = Carbon::now()->translatedFormat('d-m-Y_H-i'); // Tanggal, Bulan, Jam saat cetak
+        // $now = Carbon::now()->translatedFormat('d-m-Y_H-i'); // Tanggal, Bulan, Jam saat cetak
+        
+        // if ($hasClassroomFilter && isset($kelas)) {
+        //     // Format jika ADA filter kelas: Laporan-Kehadiran-Kelas-X-TITL_14-10-2026_16-30.pdf
+        //     $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
+        //     $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
+        // } else {
+        //     // Format jika TANPA filter kelas: Laporan-Kehadiran-Harian_14-10-2026_16-30.pdf
+        //     $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
+        // }
+
+        // Buat nama file dinamis
+        $now = Carbon::now()->translatedFormat('d-m-Y_H-i');
         
         if ($hasClassroomFilter && isset($kelas)) {
-            // Format jika ADA filter kelas: Laporan-Kehadiran-Kelas-X-TITL_14-10-2026_16-30.pdf
             $classNameSlug = \Illuminate\Support\Str::slug($kelas->name);
             $fileName = "Laporan-Kehadiran-Kelas-{$classNameSlug}_{$now}.pdf";
         } else {
-            // Format jika TANPA filter kelas: Laporan-Kehadiran-Harian_14-10-2026_16-30.pdf
             $fileName = "Laporan-Kehadiran-Harian_{$now}.pdf";
         }
+
+        // Tampilkan PDF di Browser dengan Header Nama File Eksplisit
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        ]);
 
         // 2. Stream PDF dengan nama file dinamis
         return $pdf->stream($fileName);
