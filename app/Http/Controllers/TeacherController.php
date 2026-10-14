@@ -177,13 +177,44 @@ class TeacherController extends Controller
     /**
      * Hapus Guru (Beserta Akun Loginnya)
      */
-    public function destroy($id)
-    {
-        $teacher = Teacher::findOrFail($id);
-        $teacher->user->delete();
+    // public function destroy($id)
+    // {
+    //     $teacher = Teacher::findOrFail($id);
+    //     // 1. Lepas semua permission & role terlebih dahulu
+    //     if ($teacher->user) {
+    //         $teacher->user->syncPermissions([]);
+    //         $teacher->user->syncRoles([]);
+            
+    //         // 2. Hapus User
+    //         $teacher->user->delete();
+    //     }
+    //     $teacher->user->delete();
 
-        return redirect()->route('teachers.index')->with('success', 'Data guru dan akun login berhasil dihapus.');
+    //     return redirect()->route('teachers.index')->with('success', 'Data guru dan akun login berhasil dihapus.');
+    // }
+
+    public function destroy($id)
+{
+    $teacher = Teacher::findOrFail($id);
+
+    // Simpan ID User & ID Guru sebelum dihapus
+    $userId = $teacher->user_id;
+
+    // 1. Hapus record Guru terlebih dahulu agar foreign key constraint ke user lepas
+    $teacher->delete();
+
+    // 2. Hapus User beserta relasi Spatie Permission-nya jika ada user_id
+    if ($userId) {
+        // Hapus relasi role & permission secara eksplisit
+        DB::table('model_has_permissions')->where('model_id', $userId)->delete();
+        DB::table('model_has_roles')->where('model_id', $userId)->delete();
+
+        // Hapus akun user
+        DB::table('users')->where('id', $userId)->delete();
     }
+
+    return redirect()->back()->with('success', 'Data guru berhasil dihapus.');
+}
 
     public function export()
     {
