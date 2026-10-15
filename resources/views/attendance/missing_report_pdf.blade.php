@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>Laporan Monitoring Siswa Belum Absen</title>
     <style>
-        body { font-family: sans-serif; font-size: 11px; margin: 20px; }
+        body { font-family: sans-serif; font-size: 11px; margin: 20px; color: #333; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .header h3 { margin: 0; font-size: 16px; text-transform: uppercase; }
-        .header p { margin: 3px 0 0; color: #555; }
+        .header h3 { margin: 0; font-size: 16px; text-transform: uppercase; color: #0d6efd; }
+        .header p { margin: 4px 0 0; color: #555; }
         .section-title { background: #f2f2f2; padding: 6px 10px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-left: 4px solid #0d6efd; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
         th { background-color: #f8f9fa; font-weight: bold; }
         .text-center { text-align: center; }
-        .badge-danger { color: #dc3545; font-weight: bold; }
-        .badge-warning { color: #ffc107; font-weight: bold; }
+        .text-muted { color: #6c757d; }
     </style>
 </head>
 <body>
@@ -23,12 +23,12 @@
         <p>Tanggal: {{ \Carbon\Carbon::parse($today)->translatedFormat('l, d F Y') }}</p>
     </div>
 
-    <!-- SECTION 1: BELUM MASUK -->
+    <!-- SECTION 1: BELUM MASUK GERBANG -->
     <div class="section-title">1. SISWA BELUM ABSEN MASUK GERBANG ({{ count($noArrivalStudents) }} Siswa)</div>
     <table>
         <thead>
             <tr>
-                <th width="5%">#</th>
+                <th width="5%" class="text-center">#</th>
                 <th width="20%">NIS</th>
                 <th>Nama Siswa</th>
                 <th width="25%">Kelas</th>
@@ -43,18 +43,19 @@
                     <td>{{ $s->classroom->name ?? '-' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="text-center">Semua siswa sudah absen masuk.</td></tr>
-            @empty
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Semua siswa sudah absen masuk.</td>
+                </tr>
             @endforelse
         </tbody>
     </table>
 
-    <!-- SECTION 2: BELUM PULANG -->
+    <!-- SECTION 2: BELUM PULANG GERBANG -->
     <div class="section-title">2. SISWA BELUM ABSEN PULANG GERBANG ({{ count($noDepartureStudents) }} Siswa)</div>
     <table>
         <thead>
             <tr>
-                <th width="5%">#</th>
+                <th width="5%" class="text-center">#</th>
                 <th width="20%">NIS</th>
                 <th>Nama Siswa</th>
                 <th width="25%">Kelas</th>
@@ -69,7 +70,9 @@
                     <td>{{ $s->classroom->name ?? '-' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="text-center">Tidak ada siswa tertinggal/belum absen pulang.</td></tr>
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Tidak ada siswa tertinggal/belum absen pulang.</td>
+                </tr>
             @endforelse
         </tbody>
     </table>
@@ -77,13 +80,13 @@
     <!-- SECTION 3: BELUM PRESENSI MAPEL -->
     <div class="section-title">3. SISWA BELUM PRESENSI MATA PELAJARAN</div>
     @forelse($missingSubjectStudents as $item)
-        <p style="margin-bottom: 4px; font-weight: bold;">
+        <p style="margin-bottom: 4px; font-weight: bold; color: #0d6efd;">
             Mapel: {{ $item['schedule']->subject->name ?? '-' }} ({{ $item['schedule']->classroom->name ?? '-' }}) - Guru: {{ $item['schedule']->teacher->name ?? '-' }}
         </p>
         <table>
             <thead>
                 <tr>
-                    <th width="5%">#</th>
+                    <th width="5%" class="text-center">#</th>
                     <th width="20%">NIS</th>
                     <th>Nama Siswa</th>
                 </tr>
@@ -99,7 +102,7 @@
             </tbody>
         </table>
     @empty
-        <p class="text-center" style="color: #666;">Tidak ada siswa yang terlewat presensi mata pelajaran.</p>
+        <p class="text-center text-muted" style="padding: 10px; background: #f8f9fa;">Tidak ada siswa yang terlewat presensi mata pelajaran.</p>
     @endforelse
 
 </body>
