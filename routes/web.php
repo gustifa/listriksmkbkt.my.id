@@ -468,6 +468,9 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/students/{student}/remove-class', [StudentController::class, 'removeFromClass'])->name('students.remove_class');
 
         Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('attendance.missing-report');
+        Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('reports.missing_attendance');
+        Route::get('/attendance/missing-report/pdf', [AttendanceReportController::class, 'exportPdf'])->name('reports.missing_attendance.pdf');
+        Route::get('/attendance/missing-report/excel', [AttendanceReportController::class, 'exportExcel'])->name('reports.missing_attendance.excel');
         // ... route import siswa yang lama ...
         Route::get('/admin/prayer-reports', [PrayerAttendanceReportController::class, 'index'])->name('admin.prayer_reports.index');
         Route::get('/admin/prayer-reports/export-excel', [PrayerAttendanceReportController::class, 'exportExcel'])->name('admin.prayer_reports.excel');

@@ -144,7 +144,7 @@
     </div>
 
     <!-- Ringkasan Absensi (Metric Cards) -->
-    <div class="row g-2 mb-4" id="rekap">
+    <div class="row g-2 mb-3" id="rekap">
         <div class="col-6 col-md-3">
             <div class="card-stat">
                 <small class="text-muted d-block fw-semibold" style="font-size: 0.75rem;">HADIR HARI INI</small>
@@ -167,6 +167,52 @@
             <div class="card-stat">
                 <small class="text-muted d-block fw-semibold" style="font-size: 0.75rem;">TANPA KETERANGAN</small>
                 <div class="fs-4 fw-bold text-danger">{{ $stats['alpa'] ?? 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WIDGET MONITORING BELUM ABSEN (REAL-TIME) -->
+    <div class="card border-0 shadow-sm rounded-3 p-3 mb-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h6 class="fw-bold text-primary mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i> Monitoring Kendala Presensi Hari Ini
+            </h6>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill" style="font-size: 0.7rem;">
+                Real-Time
+            </span>
+        </div>
+        <div class="row g-2">
+            <!-- Card 1: Belum Absen Masuk -->
+            <div class="col-12 col-md-4">
+                <div class="p-2 rounded-3 bg-danger bg-opacity-10 border border-danger-subtle d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-danger fw-bold d-block" style="font-size: 0.72rem;">BELUM ABSEN MASUK</small>
+                        <span class="fs-5 fw-bold text-danger">{{ $noArrivalCount ?? 0 }} <small class="fs-6 text-muted">Siswa</small></span>
+                    </div>
+                    <i class="fas fa-sign-in-alt fs-4 text-danger opacity-75 me-2"></i>
+                </div>
+            </div>
+
+            <!-- Card 2: Belum Absen Pulang -->
+            <div class="col-12 col-md-4">
+                <div class="p-2 rounded-3 bg-warning bg-opacity-10 border border-warning-subtle d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-warning-emphasis fw-bold d-block" style="font-size: 0.72rem;">BELUM ABSEN PULANG</small>
+                        <span class="fs-5 fw-bold text-warning-emphasis">{{ $noDepartureCount ?? 0 }} <small class="fs-6 text-muted">Siswa</small></span>
+                    </div>
+                    <i class="fas fa-sign-out-alt fs-4 text-warning opacity-75 me-2"></i>
+                </div>
+            </div>
+
+            <!-- Card 3: Presensi Mapel Bermasalah -->
+            <div class="col-12 col-md-4">
+                <div class="p-2 rounded-3 bg-primary bg-opacity-10 border border-primary-subtle d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-primary fw-bold d-block" style="font-size: 0.72rem;">BELUM PRESENSI MAPEL</small>
+                        <span class="fs-5 fw-bold text-primary">{{ $troubledSchedulesCount ?? 0 }} <small class="fs-6 text-muted">Jadwal</small></span>
+                    </div>
+                    <i class="fas fa-book-reader fs-4 text-primary opacity-75 me-2"></i>
+                </div>
             </div>
         </div>
     </div>
@@ -245,10 +291,8 @@
         <!-- Item 3: PKL AKTIF -->
         @php
             $activePklList = collect();
-            if (isset($internshipTimelines) && is_iterable($internshipTimelines)) {
-                $activePklList = $internshipTimelines;
-            } elseif (isset($internshipTimeline) && !empty($internshipTimeline)) {
-                $activePklList = is_iterable($internshipTimeline) ? $internshipTimeline : collect([$internshipTimeline]);
+            if (isset($internshipTimeline) && is_iterable($internshipTimeline)) {
+                $activePklList = $internshipTimeline;
             }
         @endphp
 

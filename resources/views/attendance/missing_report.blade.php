@@ -3,19 +3,29 @@
 @section('content')
 <div class="container-fluid py-4">
 
-    <!-- HEADER HALAMAN -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- HEADER HALAMAN (KODE BARU DENGAN TOMBOL CETAK & EXCEL) -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h4 class="fw-bold text-primary mb-1">
                 <i class="fas fa-user-clock me-2"></i> Rekap Monitoring Presensi Siswa
             </h4>
             <p class="text-muted mb-0">
-                Laporan real-time siswa yang belum melakukan absensi gerbang (masuk/pulang) dan presensi mapel[cite: 5, 6, 7].
+                Laporan real-time siswa yang belum melakukan absensi gerbang (masuk/pulang) dan presensi mapel.
             </p>
         </div>
-        <span class="badge bg-primary fs-6 px-3 py-2 rounded-3">
-            <i class="fas fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::parse($today)->translatedFormat('l, d F Y') }}
-        </span>
+
+        <!-- TOMBOL EKSPOR PDF & EXCEL -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary fs-6 px-3 py-2 rounded-3 me-1">
+                <i class="fas fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::parse($today)->translatedFormat('d M Y') }}
+            </span>
+            <a href="{{ route('reports.missing_attendance.pdf', request()->all()) }}" target="_blank" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-bold">
+                <i class="fas fa-file-pdf me-1"></i> Cetak PDF
+            </a>
+            <a href="{{ route('reports.missing_attendance.excel', request()->all()) }}" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm fw-bold">
+                <i class="fas fa-file-excel me-1"></i> Ekspor Excel
+            </a>
+        </div>
     </div>
 
     <div class="row g-4">

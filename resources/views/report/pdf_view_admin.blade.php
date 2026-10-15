@@ -248,13 +248,13 @@
                 <!-- KONDISI 3: User Lain/Admin TANPA Filter Kelas (2 Kolom: Kepsek & Penanggung Jawab) -->
                 <td style="width: 50%; vertical-align: top; border: none;">
                     <p>{{ $school['sign_title'] ?? 'Kepala Sekolah' }},</p>
-                    @if(!empty($school['sign_image']))
+                    <!-- @if(!empty($school['sign_image']))
                         <div style="height: 60px; margin: 5px auto;">
                             <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%;">
                         </div>
-                    @else
+                    @else -->
                         <br><br><br>
-                    @endif
+                    <!-- @endif -->
                     <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
                         {{ $school['sign_name'] }}
                     </p>
