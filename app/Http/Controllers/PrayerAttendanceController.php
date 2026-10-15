@@ -61,13 +61,105 @@ class PrayerAttendanceController extends Controller
         return view('prayer_attendances.create');
     }
 
+    // public function store(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'prayer_name'    => 'required|string',
+    //         'latitude'       => 'required|numeric',
+    //         'longitude'      => 'required|numeric',
+    //         'photo_evidence' => 'nullable|image|max:2048',
+    //     ]);
+
+    //     $student = Auth::user()->student;
+
+    //     if (!$student) {
+    //         return response()->json([
+    //             'message' => 'Data profil siswa tidak ditemukan!'
+    //         ], 422);
+    //     }
+
+    //     $today = Carbon::now()->toDateString();
+
+    //     // 1. Cek Duplikasi Absensi Hari Ini
+    //     $alreadyDone = PrayerAttendance::where('student_id', $student->id)
+    //         ->where('date', $today)
+    //         ->where('prayer_name', $validated['prayer_name'])
+    //         ->exists();
+
+    //     if ($alreadyDone) {
+    //         return response()->json([
+    //             'message' => "Anda sudah mencatat ibadah {$validated['prayer_name']} hari ini."
+    //         ], 422);
+    //     }
+
+    //     $schoolMosque = PrayerLocation::first();
+    //     $locationNote = 'Masjid Sekolah';
+
+    //     // 2. Cek Mode Kebijakan Admin via is_active
+    //     if ($schoolMosque && $schoolMosque->is_active) {
+    //         // MODE MASJID: Wajib periksa radius GPS
+    //         $distance = $this->calculateDistance(
+    //             $validated['latitude'],
+    //             $validated['longitude'],
+    //             $schoolMosque->latitude,
+    //             $schoolMosque->longitude
+    //         );
+
+    //         if ($distance > $schoolMosque->radius_meters) {
+    //             return response()->json([
+    //                 'message' => "Gagal! Mode Wajib dari Masjid Sekolah. Jarak Anda ({$distance}m) melebihi radius maksimal ({$schoolMosque->radius_meters}m)."
+    //             ], 422);
+    //         }
+    //     } else {
+    //         // MODE RUMAH / PJJ: Bebas radius GPS, wajib/dianjurkan upload foto bukti
+    //         $locationNote = 'Sholat di Rumah / PJJ';
+
+    //         if (!$request->hasFile('photo_evidence')) {
+    //             return response()->json([
+    //                 'message' => 'Wajib mengunggah foto bukti sholat jika dilaksanakan dari rumah.'
+    //             ], 422);
+    //         }
+    //     }
+
+    //     // Simpan Berkas Foto Bukti jika ada
+    //     $photoPath = null;
+    //     if ($request->hasFile('photo_evidence')) {
+    //         $photoPath = $request->file('photo_evidence')->store('prayer_photos', 'public');
+    //     }
+
+    //     // 3. Simpan Transaksi Data Absensi
+    //     PrayerAttendance::create([
+    //         'student_id'     => $student->id,
+    //         'date'           => $today,
+    //         'prayer_name'    => $validated['prayer_name'],
+    //         'check_in_time'  => Carbon::now()->toTimeString(),
+    //         'status'         => 'hadir',
+    //         'photo_evidence' => $photoPath,
+    //         'notes'          => $locationNote,
+    //         'latitude'       => $validated['latitude'],
+    //         'longitude'      => $validated['longitude'],
+    //     ]);
+
+    //     return response()->json([
+    //         'message' => "Berhasil mencatat ibadah {$validated['prayer_name']}!"
+    //     ]);
+    // }
+
     public function store(Request $request)
     {
+        // Validasi input dengan Custom Message Bahasa Indonesia
         $validated = $request->validate([
             'prayer_name'    => 'required|string',
             'latitude'       => 'required|numeric',
             'longitude'      => 'required|numeric',
-            'photo_evidence' => 'nullable|image|max:2048',
+            'photo_evidence' => 'nullable|image|mimes:jpg,jpeg,png|max:2048', // Maksimal 2MB (2048 KB)
+        ], [
+            'prayer_name.required'    => 'Nama sholat wajib dipilih.',
+            'latitude.required'       => 'Koordinat GPS (Latitude) tidak terdeteksi. Pastikan GPS HP aktif.',
+            'longitude.required'      => 'Koordinat GPS (Longitude) tidak terdeteksi. Pastikan GPS HP aktif.',
+            'photo_evidence.image'    => 'Berkas bukti harus berupa gambar/foto.',
+            'photo_evidence.mimes'    => 'Format foto bukti sholat harus berupa JPG, JPEG, atau PNG.',
+            'photo_evidence.max'      => 'Ukuran foto terlalu besar! Maksimal ukuran file foto adalah 2 MB.',
         ]);
 
         $student = Auth::user()->student;
@@ -111,7 +203,7 @@ class PrayerAttendanceController extends Controller
                 ], 422);
             }
         } else {
-            // MODE RUMAH / PJJ: Bebas radius GPS, wajib/dianjurkan upload foto bukti
+            // MODE RUMAH / PJJ: Bebas radius GPS, wajib upload foto bukti
             $locationNote = 'Sholat di Rumah / PJJ';
 
             if (!$request->hasFile('photo_evidence')) {

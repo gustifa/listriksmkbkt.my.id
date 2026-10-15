@@ -381,11 +381,11 @@
             return;
         }
 
-        // 2. JIKA MODE RUMAH / PJJ (TAMPILKAN POPUP INPUT FOTO BUKTI)
+        // 2. JIKA MODE RUMAH / PJJ (DENGAN VALIDASI UKURAN FOTO MAKSIMAL 2MB)
         if (!window.prayerConfig.isMosqueMode) {
             Swal.fire({
                 title: label,
-                text: 'Upload Foto Bukti Ibadah dari Rumah / PJJ',
+                text: 'Upload Foto Bukti Ibadah dari Rumah / PJJ (Maksimal 2 MB)',
                 input: 'file',
                 inputAttributes: { 'accept': 'image/*', 'aria-label': 'Upload foto bukti' },
                 showCancelButton: true,
@@ -393,9 +393,13 @@
                 cancelButtonText: 'Batal',
                 confirmButtonColor: '#198754',
                 position: 'center',
-                inputValidator: (value) => {
-                    if (!value) {
+                inputValidator: (file) => {
+                    if (!file) {
                         return 'Anda wajib mengunggah foto bukti sholat!';
+                    }
+                    // Validasi Ukuran File Maksimal 2 MB (2 * 1024 * 1024 bytes)
+                    if (file.size > 2 * 1024 * 1024) {
+                        return 'Ukuran foto terlalu besar (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB). Maksimal ukuran foto adalah 2 MB!';
                     }
                 }
             }).then((result) => {
@@ -487,8 +491,25 @@
                 }).then(function() { location.reload(); });
             },
             error: function(xhr) {
-                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan';
-                Swal.fire({ icon: 'error', title: 'Gagal', text: msg, position: 'center' });
+                let msg = 'Terjadi kesalahan pada sistem.';
+
+                // Tangkap error validasi dari controller Laravel
+                if (xhr.status === 422 && xhr.responseJSON) {
+                    if (xhr.responseJSON.errors) {
+                        // Ambil pesan error validasi pertama (misal: photo_evidence max)
+                        let firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                        msg = xhr.responseJSON.errors[firstKey][0];
+                    } else if (xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                }
+
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Gagal Menyimpan', 
+                    text: msg, 
+                    position: 'center' 
+                });
             }
         });
     }
