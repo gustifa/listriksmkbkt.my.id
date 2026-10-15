@@ -614,13 +614,16 @@ class ReportController extends Controller
             $isTeacher = true;
         }
 
+        // Cek apakah laporan dicetak menggunakan filter kelas
+        $hasClassFilter = $request->filled('classroom_id');
+
         // 5. LOAD VIEW PDF
         $pdf = Pdf::loadView('report.pdf_view_admin', compact(
             'attendances',
             'journals', // Kirim list jurnal lengkap
             'journal',  // Kirim single jurnal (fallback)
             'labelPeriode', 'labelTambahan',
-            'startDate', 'endDate', 'school', 'isTeacher', 'user'
+            'startDate', 'endDate', 'school', 'isTeacher', 'user', 'hasClassFilter'
         ));
 
         $pdf->setPaper($school['paper_size'], $school['paper_orientation']);

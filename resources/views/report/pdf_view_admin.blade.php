@@ -170,34 +170,111 @@
     @endif
 
     <!-- TANDA TANGAN -->
-    <div class="footer-section">
-        <div class="ttd-box">
-            <p>{{ $school['sign_city'] ?? 'Kota' }}, {{ \Carbon\Carbon::now()->isoFormat('D MMMM Y') }}</p>
+<div class="footer-section">
+    <p style="text-align: right; margin-bottom: 15px;">
+        {{ $school['sign_city'] ?? 'Kota' }}, {{ \Carbon\Carbon::now()->isoFormat('D MMMM Y') }}
+    </p>
 
-            @if($isTeacher && isset($user->teacher))
-                <p>Guru Mata Pelajaran,</p>
-                <br><br><br>
-                <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
-                    {{ $user->name }}
-                </p>
-                <p style="margin-top: 1px;">NIP. {{ $user->teacher->nip ?? '-' }}</p>
-            @else
-                <p>{{ $school['sign_title'] ?? 'Kepala Sekolah' }},</p>
+    <table style="width: 100%; border: none; text-align: center; table-layout: fixed;">
+        <tr>
+            @if($isTeacher)
+                <!-- KONDISI 1: Yang Print Guru Mengajar (2 Kolom) -->
+                <td style="width: 50%; vertical-align: top; border: none;">
+                    <p>{{ $school['sign_title'] ?? 'Kepala Sekolah' }},</p>
+                    @if(!empty($school['sign_image']))
+                        <div style="height: 60px; margin: 5px auto;">
+                            <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%;">
+                        </div>
+                    @else
+                        <br><br><br>
+                    @endif
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $school['sign_name'] }}
+                    </p>
+                    <p style="margin-top: 1px;">NIP. {{ $school['sign_nip'] }}</p>
+                </td>
 
-                @if(!empty($school['sign_image']))
-                    <div style="height: 60px; margin: 5px auto; display: flex; justify-content: center;">
-                        <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%;">
-                    </div>
-                @else
+                <td style="width: 50%; vertical-align: top; border: none;">
+                    <p>Guru Mata Pelajaran,</p>
                     <br><br><br>
-                @endif
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $user->name }}
+                    </p>
+                    <p style="margin-top: 1px;">
+                        NIP. {{ $user->teacher->nip ?? '-' }}
+                    </p>
+                </td>
 
-                <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">{{ $school['sign_name'] }}</p>
-                <p style="margin-top: 1px;">NIP. {{ $school['sign_nip'] }}</p>
+            @elseif($hasClassFilter)
+                <!-- KONDISI 2: User Lain/Admin DENGAN Filter Kelas (3 Kolom) -->
+                <td style="width: 33%; vertical-align: top; border: none;">
+                    <p>{{ $school['sign_title'] ?? 'Kepala Sekolah' }},</p>
+                    @if(!empty($school['sign_image']))
+                        <div style="height: 60px; margin: 5px auto;">
+                            <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%;">
+                        </div>
+                    @else
+                        <br><br><br>
+                    @endif
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $school['sign_name'] }}
+                    </p>
+                    <p style="margin-top: 1px;">NIP. {{ $school['sign_nip'] }}</p>
+                </td>
+
+                <td style="width: 34%; vertical-align: top; border: none;">
+                    <p>Guru Mata Pelajaran,</p>
+                    <br><br><br>
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $teacherName ?? '........................' }}
+                    </p>
+                    <p style="margin-top: 1px;">
+                        NIP. {{ $teacherNip ?? '-' }}
+                    </p>
+                </td>
+
+                <td style="width: 33%; vertical-align: top; border: none;">
+                    <p>Pembuat Laporan,</p>
+                    <br><br><br>
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $user->name }}
+                    </p>
+                    <p style="margin-top: 1px;">
+                        NIP. {{ $user->teacher->nip ?? $user->nip ?? '-' }}
+                    </p>
+                </td>
+
+            @else
+                <!-- KONDISI 3: User Lain/Admin TANPA Filter Kelas (2 Kolom: Kepsek & Penanggung Jawab) -->
+                <td style="width: 50%; vertical-align: top; border: none;">
+                    <p>{{ $school['sign_title'] ?? 'Kepala Sekolah' }},</p>
+                    @if(!empty($school['sign_image']))
+                        <div style="height: 60px; margin: 5px auto;">
+                            <img src="{{ $school['sign_image'] }}" style="height: 60px; max-width: 100%;">
+                        </div>
+                    @else
+                        <br><br><br>
+                    @endif
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $school['sign_name'] }}
+                    </p>
+                    <p style="margin-top: 1px;">NIP. {{ $school['sign_nip'] }}</p>
+                </td>
+
+                <td style="width: 50%; vertical-align: top; border: none;">
+                    <p>Penanggung Jawab / Pembuat Laporan,</p>
+                    <br><br><br>
+                    <p style="text-decoration: underline; font-weight: bold; margin-bottom: 1px;">
+                        {{ $user->name }}
+                    </p>
+                    <p style="margin-top: 1px;">
+                        NIP. {{ $user->teacher->nip ?? $user->nip ?? '-' }}
+                    </p>
+                </td>
             @endif
-        </div>
-        <div style="clear: both;"></div>
-    </div>
+        </tr>
+    </table>
+</div>
 
     <!-- Page Number Script -->
     {{-- <script type="text/php">
