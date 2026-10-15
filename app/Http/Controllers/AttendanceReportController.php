@@ -128,7 +128,90 @@ class AttendanceReportController extends Controller
     //     return compact('noArrivalStudents', 'noDepartureStudents', 'missingSubjectStudents');
     // }
 
-    private function getMissingData(Request $request)
+//     private function getMissingData(Request $request)
+// {
+//     $today = $request->input('date', Carbon::today()->toDateString());
+//     $currentTime = Carbon::now()->format('H:i:s');
+    
+//     $dayNameIso = strtolower(Carbon::parse($today)->locale('id')->isoFormat('dddd'));
+//     $dayNameEn  = strtolower(Carbon::parse($today)->format('l'));
+//     $classroomId = $request->input('classroom_id');
+
+//     // Helper condition status aktif
+//     $statusCondition = function($q) {
+//         $q->where('status', '1')
+//           ->orWhere('status', 1)
+//           ->orWhere('status', 'aktif')
+//           ->orWhere('status', 'active');
+//     };
+
+//     // 1. BELUM ABSEN MASUK GERBANG (Hanya Siswa yang Punya Kelas)
+//     $noArrivalQuery = Student::query()
+//         ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+//         ->where($statusCondition)
+//         ->whereDoesntHave('dailyAttendances', function ($query) use ($today) {
+//             $query->whereDate('date', $today);
+//         })
+//         ->with('classroom');
+
+//     // 2. BELUM ABSEN PULANG GERBANG (Hanya Siswa yang Punya Kelas)
+//     $noDepartureQuery = Student::query()
+//         ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+//         ->where($statusCondition)
+//         ->whereHas('dailyAttendances', function ($query) use ($today) {
+//             $query->whereDate('date', $today)
+//                   ->whereNotNull('arrival_time')
+//                   ->whereNull('departure_time');
+//         })
+//         ->with('classroom');
+
+//     if ($classroomId) {
+//         $noArrivalQuery->where('classroom_id', $classroomId);
+//         $noDepartureQuery->where('classroom_id', $classroomId);
+//     }
+
+//     $noArrivalStudents = $noArrivalQuery->orderBy('name', 'asc')->get();
+//     $noDepartureStudents = $noDepartureQuery->orderBy('name', 'asc')->get();
+
+//     // 3. BELUM PRESENSI MAPEL (Sudah otomatis memfilter per kelas jadwal)
+//     $schedulesQuery = Schedule::where(function($q) use ($dayNameIso, $dayNameEn) {
+//             $q->whereRaw('LOWER(day) = ?', [$dayNameIso])
+//               ->orWhereRaw('LOWER(day) = ?', [$dayNameEn]);
+//         });
+
+//     if ($classroomId) {
+//         $schedulesQuery->where('classroom_id', $classroomId);
+//     }
+
+//     $schedules = $schedulesQuery->where('start_time', '<=', $currentTime)
+//         ->with(['classroom', 'subject', 'teacher'])
+//         ->get();
+
+//     $missingSubjectStudents = [];
+
+//     foreach ($schedules as $schedule) {
+//         $studentsInClass = Student::where('classroom_id', $schedule->classroom_id)
+//             ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+//             ->where($statusCondition)
+//             ->whereDoesntHave('attendances', function ($query) use ($today, $schedule) {
+//                 $query->where('schedule_id', $schedule->id)
+//                       ->whereDate('date', $today)
+//                       ->whereNotNull('check_in_time');
+//             })
+//             ->orderBy('name', 'asc')
+//             ->get();
+
+//         if ($studentsInClass->isNotEmpty()) {
+//             $missingSubjectStudents[] = [
+//                 'schedule' => $schedule,
+//                 'students' => $studentsInClass
+//             ];
+//         }
+//     }
+
+//     return compact('noArrivalStudents', 'noDepartureStudents', 'missingSubjectStudents');
+// }
+private function getMissingData(Request $request)
 {
     $today = $request->input('date', Carbon::today()->toDateString());
     $currentTime = Carbon::now()->format('H:i:s');
@@ -139,41 +222,51 @@ class AttendanceReportController extends Controller
 
     // Helper condition status aktif
     $statusCondition = function($q) {
-        $q->where('status', '1')
-          ->orWhere('status', 1)
-          ->orWhere('status', 'aktif')
-          ->orWhere('status', 'active');
+        $q->where('students.status', '1')
+          ->orWhere('students.status', 1)
+          ->orWhere('students.status', 'aktif')
+          ->orWhere('students.status', 'active');
     };
 
-    // 1. BELUM ABSEN MASUK GERBANG (Hanya Siswa yang Punya Kelas)
+    // 1. BELUM ABSEN MASUK GERBANG (Diurutkan berdasarkan KELAS, lalu NAMA)
     $noArrivalQuery = Student::query()
-        ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+        ->whereNotNull('students.classroom_id')
         ->where($statusCondition)
         ->whereDoesntHave('dailyAttendances', function ($query) use ($today) {
             $query->whereDate('date', $today);
         })
+        ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+        ->select('students.*')
         ->with('classroom');
 
-    // 2. BELUM ABSEN PULANG GERBANG (Hanya Siswa yang Punya Kelas)
+    // 2. BELUM ABSEN PULANG GERBANG (Diurutkan berdasarkan KELAS, lalu NAMA)
     $noDepartureQuery = Student::query()
-        ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+        ->whereNotNull('students.classroom_id')
         ->where($statusCondition)
         ->whereHas('dailyAttendances', function ($query) use ($today) {
             $query->whereDate('date', $today)
                   ->whereNotNull('arrival_time')
                   ->whereNull('departure_time');
         })
+        ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+        ->select('students.*')
         ->with('classroom');
 
     if ($classroomId) {
-        $noArrivalQuery->where('classroom_id', $classroomId);
-        $noDepartureQuery->where('classroom_id', $classroomId);
+        $noArrivalQuery->where('students.classroom_id', $classroomId);
+        $noDepartureQuery->where('students.classroom_id', $classroomId);
     }
 
-    $noArrivalStudents = $noArrivalQuery->orderBy('name', 'asc')->get();
-    $noDepartureStudents = $noDepartureQuery->orderBy('name', 'asc')->get();
+    // Urutkan berdasarkan Nama Kelas A-Z, kemudian Nama Siswa A-Z
+    $noArrivalStudents = $noArrivalQuery->orderBy('classrooms.name', 'asc')
+                                        ->orderBy('students.name', 'asc')
+                                        ->get();
 
-    // 3. BELUM PRESENSI MAPEL (Sudah otomatis memfilter per kelas jadwal)
+    $noDepartureStudents = $noDepartureQuery->orderBy('classrooms.name', 'asc')
+                                            ->orderBy('students.name', 'asc')
+                                            ->get();
+
+    // 3. BELUM PRESENSI MAPEL (Diurutkan berdasarkan KELAS & JADWAL)
     $schedulesQuery = Schedule::where(function($q) use ($dayNameIso, $dayNameEn) {
             $q->whereRaw('LOWER(day) = ?', [$dayNameIso])
               ->orWhereRaw('LOWER(day) = ?', [$dayNameEn]);
@@ -184,21 +277,25 @@ class AttendanceReportController extends Controller
     }
 
     $schedules = $schedulesQuery->where('start_time', '<=', $currentTime)
+        ->join('classrooms', 'schedules.classroom_id', '=', 'classrooms.id')
+        ->select('schedules.*')
+        ->orderBy('classrooms.name', 'asc')
+        ->orderBy('schedules.start_time', 'asc')
         ->with(['classroom', 'subject', 'teacher'])
         ->get();
 
     $missingSubjectStudents = [];
 
     foreach ($schedules as $schedule) {
-        $studentsInClass = Student::where('classroom_id', $schedule->classroom_id)
-            ->whereNotNull('classroom_id') // <--- HANYA SISWA YANG PUNYA KELAS
+        $studentsInClass = Student::where('students.classroom_id', $schedule->classroom_id)
+            ->whereNotNull('students.classroom_id')
             ->where($statusCondition)
             ->whereDoesntHave('attendances', function ($query) use ($today, $schedule) {
                 $query->where('schedule_id', $schedule->id)
                       ->whereDate('date', $today)
                       ->whereNotNull('check_in_time');
             })
-            ->orderBy('name', 'asc')
+            ->orderBy('students.name', 'asc')
             ->get();
 
         if ($studentsInClass->isNotEmpty()) {
