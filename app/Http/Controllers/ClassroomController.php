@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Classroom;
 use App\Models\Major;
 use App\Models\Teacher;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule; // Import Rule
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -23,8 +24,10 @@ class ClassroomController extends Controller
         }
 
         $classrooms = $query->latest()->paginate(100);
+        // Ambil daftar siswa yang BELUM MEMILIKI KELAS
+        $unassignedStudents = Student::whereNull('classroom_id')->orderBy('name', 'asc')->get();
 
-        return view('classrooms.index', compact('classrooms'));
+        return view('classrooms.index', compact('classrooms', 'unassignedStudents'));
     }
 
     /**

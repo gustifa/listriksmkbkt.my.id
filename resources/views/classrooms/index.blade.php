@@ -17,10 +17,11 @@
             </div>
         </div>
 
-        {{-- LOGIC: Ambil Data Guru & Filter Wali Kelas --}}
+        {{-- LOGIC: Ambil Data Guru, Filter Wali Kelas, & Siswa Tanpa Kelas --}}
         @php
             $allTeachers = \App\Models\Teacher::orderBy('name')->get();
             $takenHomeroomIds = \App\Models\Classroom::whereNotNull('homeroom_teacher_id')->pluck('homeroom_teacher_id')->toArray();
+            $unassignedStudents = \App\Models\Student::whereNull('classroom_id')->orderBy('name', 'asc')->get();
         @endphp
 
         <!-- Top Actions Bar: Form Cari & Switcher Mode -->
@@ -121,54 +122,91 @@
                     </div>
 
                     <!-- MODAL DAFTAR SISWA CARD -->
-                    <div class="modal fade" id="studentsModalCard{{ $room->id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                            <div class="modal-content">
-                                <div class="modal-header bg-light">
-                                    <h5 class="modal-title fw-bold">
-                                        <i class="fas fa-user-graduate me-2"></i> Siswa Kelas {{ $room->name }}
-                                    </h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body text-start">
-                                    @if($room->students->count() > 0)
-                                        <div class="list-group list-group-flush">
-                                            @foreach($room->students as $student)
-                                                <div class="p-2 list-group-item d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <span class="fw-bold">{{ $student->name }}</span><br>
-                                                        <small class="text-muted">NIS: {{ $student->nis }}</small>
-                                                    </div>
-                                                    <div class="gap-2 d-flex align-items-center">
-                                                        @if($student->face_descriptor)
-                                                            <span class="badge bg-success" title="Wajah Terdaftar"><i class="fas fa-smile"></i></span>
-                                                        @else
-                                                            <span class="badge bg-secondary" title="Belum Rekam Wajah"><i class="fas fa-user-slash"></i></span>
-                                                        @endif
+<div class="modal fade" id="studentsModalCard{{ $room->id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-users me-2"></i> Kelola Siswa {{ $room->name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-start">
+                
+                <!-- FORM TAMBAH SISWA YANG BELUM MEMILIKI KELAS -->
+                <div class="card border bg-light mb-3">
+                    <div class="card-body p-3">
+                        <label class="form-label fw-bold text-dark small mb-2">
+                            <i class="fas fa-user-plus me-1 text-primary"></i> Tambah Siswa ke Kelas Ini
+                        </label>
+                        <form action="{{ route('students.assign_class', $room->id) }}" method="POST">
+                            @csrf
+                            <div class="input-group">
+                                <select name="student_id" class="form-select form-select-sm" required>
+                                    <option value="">-- Pilih Siswa (Tanpa Kelas) --</option>
+                                    @forelse($unassignedStudents as $unStudent)
+                                        <option value="{{ $unStudent->id }}">
+                                            {{ $unStudent->name }} (NIS: {{ $unStudent->nis ?? '-' }})
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>Semua siswa sudah masuk kelas</option>
+                                    @endforelse
+                                </select>
+                                <button type="submit" class="btn btn-primary btn-sm fw-bold" @if($unassignedStudents->isEmpty()) disabled @endif>
+                                    <i class="fas fa-plus me-1"></i> Tambah
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-                                                        <form id="remove-student-card-form-{{ $student->id }}" action="{{ route('students.remove_class', $student->id) }}" method="POST">
-                                                            @csrf
-                                                            @method('PATCH')
-                                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-circle" title="Keluarkan dari Kelas" onclick="confirmRemoveStudentCard('{{ $student->id }}', '{{ $student->name }}')">
-                                                                <i class="fas fa-times"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <div class="py-4 text-center text-muted">
-                                            <p class="mb-0">Belum ada siswa di kelas ini.</p>
-                                        </div>
-                                    @endif
+                <hr class="my-3">
+
+                <!-- DAFTAR SISWA SAAT INI -->
+                <h6 class="fw-bold text-secondary mb-2 small">
+                    Daftar Siswa di Kelas Ini ({{ $room->students->count() }} Siswa)
+                </h6>
+
+                @if($room->students->count() > 0)
+                    <div class="list-group list-group-flush">
+                        @foreach($room->students as $student)
+                            <div class="p-2 list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold text-dark">{{ $student->name }}</span><br>
+                                    <small class="text-muted">NIS: {{ $student->nis ?? '-' }}</small>
                                 </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                                <div class="gap-2 d-flex align-items-center">
+                                    @if($student->face_descriptor)
+                                        <span class="badge bg-success" title="Wajah Terdaftar"><i class="fas fa-smile"></i></span>
+                                    @else
+                                        <span class="badge bg-secondary" title="Belum Rekam Wajah"><i class="fas fa-user-slash"></i></span>
+                                    @endif
+
+                                    <!-- Form Keluarkan Siswa -->
+                                    <form id="remove-student-card-form-{{ $student->id }}" action="{{ route('students.remove_class', $student->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" title="Keluarkan dari Kelas" onclick="confirmRemoveStudentCard('{{ $student->id }}', '{{ $student->name }}')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
-                        </div>
+                        @endforeach
                     </div>
+                @else
+                    <div class="py-4 text-center text-muted">
+                        <i class="fas fa-user-slash fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0 small">Belum ada siswa di kelas ini.</p>
+                    </div>
+                @endif
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <!-- MODAL SETTING PERANGKAT KELAS CARD -->
                     <div class="modal fade" id="officialsModalCard{{ $room->id }}" tabindex="-1" aria-hidden="true">

@@ -141,6 +141,38 @@ class StudentController extends Controller
     return $pdf->stream('ID-CARD-' . $student->nis . '.pdf');
 }
 
+/**
+     * Memasukkan siswa ke dalam kelas
+     */
+    public function assignClass(Request $request, $classroomId)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+        ]);
+
+        $student = Student::findOrFail($request->student_id);
+        $student->update([
+            'classroom_id' => $classroomId,
+        ]);
+
+        return back()->with('success', 'Siswa ' . $student->name . ' berhasil ditambahkan ke kelas.');
+    }
+
+    /**
+     * Mengeluarkan siswa dari kelas (set classroom_id menjadi null)
+     */
+    public function removeFromClass($studentId)
+    {
+        $student = Student::findOrFail($studentId);
+        $studentName = $student->name;
+        
+        $student->update([
+            'classroom_id' => null,
+        ]);
+
+        return back()->with('success', 'Siswa ' . $studentName . ' berhasil dikeluarkan dari kelas.');
+    }
+
 
 
 }

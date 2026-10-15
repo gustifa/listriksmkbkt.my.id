@@ -464,6 +464,9 @@ Route::middleware(['auth'])->group(function () {
             'create', 'edit', 'show'
         ]);
 
+        Route::post('/classrooms/{classroom}/add-student', [StudentController::class, 'assignClass'])->name('students.assign_class');
+        Route::patch('/students/{student}/remove-class', [StudentController::class, 'removeFromClass'])->name('students.remove_class');
+
         Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('attendance.missing-report');
         // ... route import siswa yang lama ...
         Route::get('/admin/prayer-reports', [PrayerAttendanceReportController::class, 'index'])->name('admin.prayer_reports.index');
