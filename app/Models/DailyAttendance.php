@@ -37,13 +37,19 @@ class DailyAttendance extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logAll()
-            ->logOnlyDirty()
-            ->useLogName('Presensi Gerbang')
-            ->setDescriptionForEvent(function(string $eventName) {
-                $studentName = $this->student->name ?? 'Siswa';
-                return "Membatalkan/menghapus presensi gerbang siswa {$studentName}";
-            });
+        ->logAll()
+        ->logOnlyDirty()
+        ->useLogName('Presensi Gerbang')
+        ->setDescriptionForEvent(function (string $eventName) {
+            $studentName = $this->student->name ?? 'Siswa';
+
+            return match ($eventName) {
+                'created' => "Siswa {$studentName} berhasil melakukan presensi gerbang",
+                'updated' => "Mengubah data presensi gerbang siswa {$studentName}",
+                'deleted' => "Membatalkan/menghapus presensi gerbang siswa {$studentName}",
+                default   => "Aktivitas presensi gerbang siswa {$studentName} ({$eventName})"
+            };
+        });
     }
 
     // Aktifkan kembali fungsi konfigurasi log ini
