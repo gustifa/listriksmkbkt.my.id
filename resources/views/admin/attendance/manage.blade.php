@@ -1,4 +1,10 @@
-@extends('layouts.app') {{-- Sesuaikan layout admin Anda --}}
+@extends('layouts.app')
+
+@push('styles')
+<!-- CDN Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+@endpush
 
 @section('content')
 <div class="container-fluid px-3 px-md-4 py-3">
@@ -16,7 +22,7 @@
     <!-- Filter Form -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-3 p-md-4">
-            <form action="{{ route('admin.attendance.manage.index') }}" method="GET" class="row g-3">
+            <form action="{{ route('admin.attendance.manage.index') }}" method="GET" id="filterForm" class="row g-3">
                 
                 <!-- Filter Tanggal -->
                 <div class="col-12 col-md-4">
@@ -24,10 +30,10 @@
                     <input type="date" name="date" class="form-control rounded-3" value="{{ $date }}" required>
                 </div>
 
-                <!-- Filter Kelas -->
+                <!-- Filter Kelas (Select2) -->
                 <div class="col-12 col-md-4">
                     <label class="form-label fw-bold"><i class="fas fa-school me-1 text-primary"></i> Kelas</label>
-                    <select name="classroom_id" id="classroom_select" class="form-select rounded-3">
+                    <select name="classroom_id" id="classroom_select" class="form-select select2-enable" required>
                         <option value="">-- Pilih Kelas --</option>
                         @foreach($classrooms as $c)
                             <option value="{{ $c->id }}" {{ $classroomId ==$c->id ? 'selected' : '' }}>
@@ -37,10 +43,10 @@
                     </select>
                 </div>
 
-                <!-- Filter Siswa -->
+                <!-- Filter Siswa (Select2 + AJAX Dynamic) -->
                 <div class="col-12 col-md-4">
                     <label class="form-label fw-bold"><i class="fas fa-user-graduate me-1 text-primary"></i> Siswa (Opsional)</label>
-                    <select name="student_id" id="student_select" class="form-select rounded-3">
+                    <select name="student_id" id="student_select" class="form-select select2-enable">
                         <option value="">-- Semua Siswa di Kelas --</option>
                         @foreach($students as $s)
                             <option value="{{ $s->id }}" {{ $studentId ==$s->id ? 'selected' : '' }}>
@@ -51,7 +57,7 @@
                 </div>
 
                 <div class="col-12 text-end mt-3">
-                    <a href="{{ route('admin.attendance.manage.index') }}" class="btn btn-light rounded-pill px-3 me-2">Reset</a>
+                    <a href="{{ route('admin.attendance.manage.index') }}" class="btn btn-light rounded-pill px-3 me-2">Reset Filter</a>
                     <button type="submit" class="btn btn-primary rounded-pill px-4">
                         <i class="fas fa-search me-1"></i> Tampilkan Data
                     </button>
@@ -71,7 +77,7 @@
                         <h6 class="m-0 fw-bold text-primary">
                             <i class="fas fa-door-open me-2"></i> Presensi Gerbang ({{ \Carbon\Carbon::parse($date)->translatedFormat('d F Y') }})
                         </h6>
-                        <span class="badge bg-primary rounded-pill">{{ $gateAttendances->count() }} Data</span>
+                        <span class="badge bg-primary rounded-pill" id="badge-gate-count">{{ $gateAttendances->count() }} Data</span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -88,7 +94,7 @@
                                 </thead>
                                 <tbody>
                                     @forelse($gateAttendances as $gate)
-                                        <tr>
+                                        <tr id="row-gate-{{ $gate->id }}">
                                             <td class="fw-bold">{{ $gate->student->name ?? '-' }}</td>
                                             <td class="text-center">
                                                 {{ $gate->arrival_time ? \Carbon\Carbon::parse($gate->arrival_time)->format('H:i') . ' WIB' : '-' }}
@@ -106,6 +112,7 @@
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger rounded-pill px-3 btn-cancel-attendance"
                                                         data-url="{{ route('admin.attendance.gate.delete', $gate->id) }}"
+                                                        data-target="#row-gate-{{ $gate->id }}"
                                                         data-type="Presensi Gerbang"
                                                         data-nama="{{ $gate->student->name ?? 'Siswa' }}">
                                                     <i class="fas fa-trash-alt me-1"></i> Batalkan
@@ -128,10 +135,10 @@
             <div class="col-12 col-lg-6">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-purple">
+                        <h6 class="m-0 fw-bold text-primary">
                             <i class="fas fa-book me-2"></i> Presensi Pembelajaran (Mapel)
                         </h6>
-                        <span class="badge bg-purple rounded-pill">{{ $subjectAttendances->count() }} Data</span>
+                        <span class="badge bg-primary rounded-pill">{{ $subjectAttendances->count() }} Data</span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -146,7 +153,7 @@
                                 </thead>
                                 <tbody>
                                     @forelse($subjectAttendances as $subj)
-                                        <tr>
+                                        <tr id="row-subject-{{ $subj->id }}">
                                             <td class="fw-bold">{{ $subj->student->name ?? '-' }}</td>
                                             <td>{{ $subj->subject->name ?? 'Mapel' }}</td>
                                             <td class="text-center">
@@ -156,6 +163,7 @@
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger rounded-pill px-2 btn-cancel-attendance"
                                                         data-url="{{ route('admin.attendance.subject.delete', $subj->id) }}"
+                                                        data-target="#row-subject-{{ $subj->id }}"
                                                         data-type="Presensi Mapel {{ $subj->subject->name ?? '' }}"
                                                         data-nama="{{ $subj->student->name ?? 'Siswa' }}">
                                                     <i class="fas fa-trash-alt me-1"></i> Batalkan
@@ -196,7 +204,7 @@
                                 </thead>
                                 <tbody>
                                     @forelse($prayerAttendances as $p)
-                                        <tr>
+                                        <tr id="row-prayer-{{ $p->id }}">
                                             <td class="fw-bold">{{ $p->student->name ?? '-' }}</td>
                                             <td>Sholat {{ ucfirst($p->prayer_name) }}</td>
                                             <td class="text-center">{{ \Carbon\Carbon::parse($p->check_in_time)->format('H:i') }} WIB</td>
@@ -204,6 +212,7 @@
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger rounded-pill px-2 btn-cancel-attendance"
                                                         data-url="{{ route('admin.attendance.prayer.delete', $p->id) }}"
+                                                        data-target="#row-prayer-{{ $p->id }}"
                                                         data-type="Presensi Sholat {{ ucfirst($p->prayer_name) }}"
                                                         data-nama="{{ $p->student->name ?? 'Siswa' }}">
                                                     <i class="fas fa-trash-alt me-1"></i> Batalkan
@@ -232,20 +241,61 @@
     @endif
 
 </div>
+@endsection
 
-<!-- SCRIPT SWEETALERT2 PEMBATALAN ABSENSI -->
+@push('scripts')
+<!-- jQuery, Select2, & SweetAlert2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    $(document).ready(function () {
         const csrfToken = '{{ csrf_token() }}';
 
-        document.addEventListener('click', function (e) {
-            const btn = e.target.closest('.btn-cancel-attendance');
-            if (!btn) return;
+        // 1. Inisialisasi Select2
+        $('.select2-enable').select2({
+            theme: 'bootstrap-5',
+            width: '100%'
+        });
 
-            const deleteUrl = btn.dataset.url;
-            const attendanceType = btn.dataset.type;
-            const studentName = btn.dataset.nama || 'Siswa';
+        // 2. AJAX Dynamic Dropdown Siswa berdasarkan Kelas
+        $('#classroom_select').on('change', function () {
+            const classroomId = $(this).val();
+            const studentSelect = $('#student_select');
+
+            studentSelect.empty().append('<option value="">-- Semua Siswa di Kelas --</option>').trigger('change');
+
+            if (classroomId) {
+                $.ajax({
+                    url: "{{ route('admin.attendance.manage.index') }}",
+                    type: "GET",
+                    data: {
+                        get_students: true,
+                        classroom_id: classroomId
+                    },
+                    success: function (data) {
+                        $.each(data, function (index, student) {
+                            const nisText = student.nis ? ` (NIS: ${student.nis})` : '';
+                            studentSelect.append(new Option(`${student.name}${nisText}`, student.id, false, false));
+                        });
+                        studentSelect.trigger('change');
+                    },
+                    error: function () {
+                        console.error('Gagal memuat data siswa');
+                    }
+                });
+            }
+        });
+
+        // 3. Pembatalan Absensi via AJAX & SweetAlert2 (Hapus Baris Langsung Tanpa Reload)
+        $(document).on('click', '.btn-cancel-attendance', function () {
+            const btn = $(this);
+            const deleteUrl = btn.data('url');
+            const rowTarget = btn.data('target');
+            const attendanceType = btn.data('type');
+            const studentName = btn.data('nama') || 'Siswa';
 
             Swal.fire({
                 title: 'Konfirmasi Pembatalan',
@@ -257,9 +307,7 @@
                 confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Ya, Batalkan!',
                 cancelButtonText: 'Batal',
                 reverseButtons: true,
-                customClass: {
-                    popup: 'rounded-4 shadow-lg'
-                }
+                customClass: { popup: 'rounded-4 shadow-lg' }
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({
@@ -269,37 +317,35 @@
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    fetch(deleteUrl, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                    $.ajax({
+                        url: deleteUrl,
+                        type: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': csrfToken },
+                        success: function (response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil!',
+                                    text: response.message,
+                                    timer: 1200,
+                                    showConfirmButton: false
+                                });
+
+                                // Hapus baris tabel dengan animasi fadeOut
+                                $(rowTarget).fadeOut(400, function () {$(this).remove();
+                                });
+                            } else {
+                                Swal.fire('Gagal!', response.message || 'Terjadi kesalahan.', 'error');
+                            }
+                        },
+                        error: function (xhr) {
+                            console.error(xhr);
+                            Swal.fire('Error!', 'Terjadi kesalahan pada sistem.', 'error');
                         }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Berhasil!',
-                                text: data.message,
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire('Gagal!', data.message || 'Terjadi kesalahan.', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire('Error!', 'Terjadi kesalahan sistem.', 'error');
                     });
                 }
             });
         });
     });
 </script>
-@endsection
+@endpush

@@ -16,6 +16,16 @@ class AttendanceManageController extends Controller
 {
     public function index(Request $request)
     {
+        // 1. Endpoint AJAX untuk mengambil daftar siswa berdasarkan kelas
+        if ($request->ajax() && $request->has('get_students')) {
+            $classroomId = $request->query('classroom_id');
+            $students = Student::where('classroom_id', $classroomId)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'name', 'nis']);
+
+            return response()->json($students);
+        }
+
         $classrooms = Classroom::orderBy('name', 'asc')->get();
         $date = $request->query('date', Carbon::today()->toDateString());
         $classroomId = $request->query('classroom_id');
@@ -26,15 +36,12 @@ class AttendanceManageController extends Controller
             $students = Student::where('classroom_id', $classroomId)->orderBy('name', 'asc')->get();
         }
 
-        // Query data absensi jika filter diterapkan
         $gateAttendances = collect();
         $subjectAttendances = collect();
         $prayerAttendances = collect();
 
         if ($studentId || $classroomId) {
-            $studentIds = $studentId 
-                ? [$studentId] 
-                : $students->pluck('id')->toArray();
+            $studentIds = $studentId ? [$studentId] : $students->pluck('id')->toArray();
 
             $gateAttendances = DailyAttendance::with('student')
                 ->whereIn('student_id', $studentIds)
@@ -58,7 +65,7 @@ class AttendanceManageController extends Controller
         ));
     }
 
-    // Endpoint Hapus Gerbang
+    // Endpoint DELETE Gate
     public function deleteGate($id)
     {
         $attendance = DailyAttendance::findOrFail($id);
@@ -69,7 +76,7 @@ class AttendanceManageController extends Controller
         return response()->json(['success' => true, 'message' => 'Presensi gerbang berhasil dibatalkan.']);
     }
 
-    // Endpoint Hapus Mapel
+    // Endpoint DELETE Subject
     public function deleteSubject($id)
     {
         $attendance = Attendance::findOrFail($id);
@@ -78,7 +85,7 @@ class AttendanceManageController extends Controller
         return response()->json(['success' => true, 'message' => 'Presensi mata pelajaran berhasil dibatalkan.']);
     }
 
-    // Endpoint Hapus Sholat
+    // Endpoint DELETE Prayer
     public function deletePrayer($id)
     {
         $prayer = PrayerAttendance::findOrFail($id);
