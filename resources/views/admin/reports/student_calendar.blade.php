@@ -135,6 +135,18 @@
             },
             eventClick: function(info) {
                 var props = info.event.extendedProps;
+                // SIMPAN DATA KETIKA ITEM KALENDER DIKLIK
+                currentEventData = {
+                    date: info.event.startStr,
+                    category: props.category,
+                    status: props.status,
+                    arrival_time: props.arrival_time,
+                    departure_time: props.departure_time,
+                    notes: props.notes,
+                    title: props.title,
+                    description: props.description,
+                    details: props.details || []
+                };
                 var modalBody = document.getElementById('detailModalBody');
                 var modalTitle = document.getElementById('detailModalTitle');
                 
