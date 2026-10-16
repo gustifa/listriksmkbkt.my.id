@@ -105,10 +105,21 @@ use App\Services\GithubVersionChecker; // Service Pengecekan Versi
 use App\Http\Controllers\HomeController;
 
 Route::get('/cek-waktu', function () {
+    // Cek query database di hosting
+    $holiday = \App\Models\Holiday::where(function($q) {
+                    $q->where('is_active', true)
+                      ->orWhere('is_active', 1)
+                      ->orWhere('is_active', '1')
+                      ->orWhere('is_active', 't');
+                })
+                ->whereDate('start_date', '<=', $today)
+                ->whereDate('end_date', '>=', $today)
+                ->first();
+
     return response()->json([
-        'carbon_now' => \Carbon\Carbon::now()->format('Y-m-d H:i:s'),
-        'carbon_jakarta' => \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s'),
-        'config_timezone' => config('app.timezone'),
+        'today' => $today,
+        'db_holiday_found' => $holiday ? true : false,
+        'holiday_data' => $holiday
     ]);
 });
 
