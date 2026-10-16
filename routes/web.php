@@ -23,6 +23,7 @@ use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\PrayerAttendanceController;
 use App\Http\Controllers\PrayerLocationController;
 use App\Http\Controllers\PrayerAttendanceReportController;
+use App\Http\Controllers\Student\AttendanceCalendarController;
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -939,6 +940,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('prayer-attendances', [PrayerAttendanceController::class, 'index'])->name('prayer-attendances.index');
             Route::get('prayer-attendances/create', [PrayerAttendanceController::class, 'create'])->name('prayer-attendances.create');
             Route::post('prayer-attendances', [PrayerAttendanceController::class, 'store'])->name('prayer-attendances.store');
+
+
+            Route::get('/attendance-calendar', [AttendanceCalendarController::class, 'index'])->name('attendance-calendar.index');
+            Route::get('/attendance-calendar/events', [AttendanceCalendarController::class, 'getEvents'])->name('attendance-calendar.events');
         });
     });
 

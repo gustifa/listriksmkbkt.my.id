@@ -339,6 +339,18 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('student.internships.attendance.index')}}"><i class='bx bx-radio-circle'></i>Presensi</a></li>
                     </ul>
                 </li>
+                <li class="menu-label">Laporan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bxs-user-detail'></i></div>
+                        <div class="menu-title">Rekap</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('student.attendance-calendar.index') }}" class="nav-link {{ request()->routeIs('student.attendance-calendar.*') ? 'active' : '' }}"><i class='bx bx-radio-circle'></i>Kehadiran</a></li>
+                        <!-- <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Subject</a></li>
+                        <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Daily</a></li> -->
+                    </ul>
+                </li>
             @endrole
         @endif
     </ul>
