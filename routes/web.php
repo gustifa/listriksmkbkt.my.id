@@ -106,21 +106,29 @@ use App\Http\Controllers\HomeController;
 
 Route::get('/cek-waktu', function () {
     // Cek query database di hosting
-    $today = \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d');
-    $holiday = \App\Models\Holiday::where(function($q) {
-                    $q->where('is_active', true)
-                      ->orWhere('is_active', 1)
-                      ->orWhere('is_active', '1')
-                      ->orWhere('is_active', 't');
-                })
-                ->whereDate('start_date', '<=', $today)
-                ->whereDate('end_date', '>=', $today)
-                ->first();
+    // $today = \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d');
+    // $holiday = \App\Models\Holiday::where(function($q) {
+    //                 $q->where('is_active', true)
+    //                   ->orWhere('is_active', 1)
+    //                   ->orWhere('is_active', '1')
+    //                   ->orWhere('is_active', 't');
+    //             })
+    //             ->whereDate('start_date', '<=', $today)
+    //             ->whereDate('end_date', '>=', $today)
+    //             ->first();
+
+    // return response()->json([
+    //     'today' => $today,
+    //     'db_holiday_found' => $holiday ? true : false,
+    //     'holiday_data' => $holiday
+    // ]);
+
+    $allHolidays = \App\Models\Holiday::all();
 
     return response()->json([
-        'today' => $today,
-        'db_holiday_found' => $holiday ? true : false,
-        'holiday_data' => $holiday
+        'today' => \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d'),
+        'total_rows_in_db' => $allHolidays->count(),
+        'all_holidays' => $allHolidays
     ]);
 });
 
