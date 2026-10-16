@@ -23,7 +23,7 @@ use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\PrayerAttendanceController;
 use App\Http\Controllers\PrayerLocationController;
 use App\Http\Controllers\PrayerAttendanceReportController;
-use App\Http\Controllers\Student\AttendanceCalendarController;
+
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -93,6 +93,7 @@ use App\Http\Controllers\Admin\InventoryAdminController;
 use App\Http\Controllers\Admin\CapacityReportController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\AdminAcademicYearController;
+use App\Http\Controllers\Admin\StudentAttendanceReportController;
 
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
@@ -102,6 +103,7 @@ use App\Http\Controllers\Student\RamadanJournalStudentController;
 use App\Http\Controllers\Student\GuidanceStudentController;
 use App\Http\Controllers\Student\TahfizController;
 use App\Http\Controllers\Student\StudentExamController;
+use App\Http\Controllers\Student\AttendanceCalendarController;
 use App\Services\GithubVersionChecker; // Service Pengecekan Versi
 use App\Http\Controllers\HomeController;
 
@@ -288,6 +290,10 @@ Route::middleware(['auth'])->group(function () {
     // =========================================================================
 
     Route::middleware(['role:admin|guru|piket'])->group(function () {
+
+        Route::get('/admin/reports/student-calendar', [StudentAttendanceReportController::class, 'index'])->name('admin.reports.student-calendar.index');
+        Route::get('/admin/reports/student-calendar/students-by-classroom/{classroomId}', [StudentAttendanceReportController::class, 'getStudentsByClassroom'])->name('admin.reports.student-calendar.students');
+        Route::get('/admin/reports/student-calendar/events', [StudentAttendanceReportController::class, 'getEvents'])->name('admin.reports.student-calendar.events');
 
        Route::get('assignments/{assignment}/submissions', [AssignmentSubmissionController::class, 'index'])->name('submissions.index');
         Route::post('submissions/{submission}/grade', [AssignmentSubmissionController::class, 'grade'])->name('submissions.grade');
