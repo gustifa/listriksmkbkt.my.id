@@ -1,36 +1,29 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid py-4">
-    <!-- Header Halaman -->
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h3 class="fw-bold mb-1"><i class="fas fa-mobile-alt text-primary me-2"></i> Pengaturan Kunci Perangkat (HP) Siswa</h3>
-            <p class="text-muted small mb-0">Kelola aturan penguncian perangkat HP siswa untuk mencegah kecurangan absensi.</p>
-        </div>
-    </div>
+<div class="container-fluid">
+    <h4 class="mb-3">📱 Pengaturan Kunci Perangkat (HP) Siswa</h4>
 
-    <!-- Alert Notifikasi Berhasil -->
+    {{-- Alert Notifikasi --}}
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm border-0 mb-4" role="alert">
-            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bx bx-check-circle me-1"></i> {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
-    <!-- CARD 1: FORM PENGATURAN GLOBAL -->
-    <div class="card shadow-sm rounded-4 border-0 mb-4">
-        <div class="card-header bg-white py-3">
-            <h5 class="fw-bold mb-0 text-primary"><i class="fas fa-sliders-h me-2"></i> Konfigurasi Sistem</h5>
+    {{-- Konfigurasi Sistem --}}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="bx bx-cog me-1"></i> Konfigurasi Sistem</h6>
         </div>
         <div class="card-body">
             <form action="{{ route('admin.device-settings.update') }}" method="POST">
                 @csrf
-                <div class="row g-3 align-items-end">
-                    <!-- Switch / Select Status Kunci HP -->
+                <div class="row g-3">
                     <div class="col-md-5">
-                        <label class="form-label fw-bold text-dark">Status Kunci Perangkat</label>
-                        <select name="enable_device_lock" class="form-select form-select-lg rounded-3 fs-6">
+                        <label class="form-label fw-bold">Status Kunci Perangkat</label>
+                        <select name="enable_device_lock" class="form-select">
                             <option value="1" {{ ($settings['enable_device_lock'] ?? '0') == '1' ? 'selected' : '' }}>
                                 🔒 AKTIF (Siswa Terkunci pada HP Terdaftar)
                             </option>
@@ -40,23 +33,21 @@
                         </select>
                     </div>
 
-                    <!-- Select Batas Perangkat -->
                     <div class="col-md-5">
-                        <label class="form-label fw-bold text-dark">Batas Maksimal HP per Siswa</label>
-                        <select name="max_allowed_devices" class="form-select form-select-lg rounded-3 fs-6">
+                        <label class="form-label fw-bold">Batas Maksimal HP per Siswa</label>
+                        <select name="max_allowed_devices" class="form-select">
                             <option value="1" {{ ($settings['max_allowed_devices'] ?? '1') == '1' ? 'selected' : '' }}>
                                 📱 1 Perangkat (Hanya 1 HP Utama)
                             </option>
                             <option value="2" {{ ($settings['max_allowed_devices'] ?? '1') == '2' ? 'selected' : '' }}>
-                                📱📱 2 Perangkat (Toleransi 2 HP/Gadget)
+                                📱📱 2 Perangkat (Maksimal 2 HP)
                             </option>
                         </select>
                     </div>
 
-                    <!-- Tombol Simpan -->
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3 fs-6">
-                            <i class="fas fa-save me-1"></i> Simpan
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bx bx-save me-1"></i> Simpan
                         </button>
                     </div>
                 </div>
@@ -64,196 +55,222 @@
         </div>
     </div>
 
-    <!-- CARD 2: TABEL DAFTAR SISWA & PERANGKAT TERIKAT -->
-    <div class="card shadow-sm rounded-4 border-0">
-        <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-            <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-users-cog me-2"></i> Daftar Perangkat Terikat Siswa</h5>
-            
-            <!-- Form Pencarian -->
-            <form action="{{ route('admin.device-settings.index') }}" method="GET" class="d-flex gap-2">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="{{ request('search') }}">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-                    @if(request('search'))
-                        <a href="{{ route('admin.device-settings.index') }}" class="btn btn-outline-secondary"><i class="fas fa-sync-alt"></i></a>
-                    @endif
+    {{-- Tabel Data Siswa & Perangkat --}}
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="bx bx-user-check me-1"></i> Daftar Perangkat Terikat Siswa</h6>
+        </div>
+
+        {{-- Form Filter Kelas & Pencarian Nama --}}
+        <div class="card-body border-bottom">
+            <form action="{{ route('admin.device-settings.index') }}" method="GET" class="row g-2 align-items-center">
+                {{-- Select2 Filter Kelas --}}
+                <div class="col-md-4">
+                    <select name="classroom_id" id="select-classroom-filter" class="form-select">
+                        <option value="">-- Semua Kelas --</option>
+                        @if(isset($selectedClassroom) &&$selectedClassroom)
+                            <option value="{{ $selectedClassroom->id }}" selected>{{ $selectedClassroom->name }}</option>
+                        @endif
+                    </select>
+                </div>
+
+                {{-- Cari Nama / Email --}}
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="{{ request('search') }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bx bx-search"></i> Cari
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Reset Filter --}}
+                <div class="col-md-3 text-end">
+                    <a href="{{ route('admin.device-settings.index') }}" class="btn btn-secondary w-100">
+                        <i class="bx bx-refresh"></i> Reset Filter
+                    </a>
                 </div>
             </form>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light text-uppercase fs-7 text-secondary">
+
+        {{-- Table Data --}}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="5%" class="text-center">NO</th>
+                        <th>SISWA</th>
+                        <th>EMAIL</th>
+                        <th>KELAS</th>
+                        <th class="text-center">HP PERTAMA</th>
+                        <th class="text-center">HP KEDUA</th>
+                        <th class="text-center" width="15%">AKSI / RESET</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($students as $index =>$student)
                         <tr>
-                            <th width="5%" class="text-center">No</th>
-                            <th width="25%">Siswa</th>
-                            <th width="25%">Email</th>
-                            <th width="15%" class="text-center">HP Pertama</th>
-                            <th width="15%" class="text-center">HP Kedua</th>
-                            <th width="15%" class="text-center">Aksi / Reset</th>
+                            <td class="text-center">{{ $students->firstItem() +$index }}</td>
+                            <td class="fw-bold">{{ $student->name }}</td>
+                            <td>{{ $student->email }}</td>
+                            <td>
+                                <span class="badge bg-info text-dark">
+                                    {{ $student->student->classroom->name ?? '-' }}
+                                </span>
+                            </td>
+                            
+                            {{-- HP PERTAMA --}}
+                            <td class="text-center">
+                                @if($student->device_id_1)
+                                    <span class="badge bg-success"><i class="bx bx-mobile-alt me-1"></i>Terikat</span>
+                                    <div class="small text-muted text-truncate" style="max-width: 110px;" title="{{ $student->device_id_1 }}">{{ $student->device_id_1 }}</div>
+                                @else
+                                    <span class="badge bg-secondary">Belum Ada</span>
+                                @endif
+                            </td>
+
+                            {{-- HP KEDUA --}}
+                            <td class="text-center">
+                                @if($student->device_id_2)
+                                    <span class="badge bg-success"><i class="bx bx-mobile-alt me-1"></i>Terikat</span>
+                                    <div class="small text-muted text-truncate" style="max-width: 110px;" title="{{ $student->device_id_2 }}">{{ $student->device_id_2 }}</div>
+                                @else
+                                    <span class="badge bg-secondary">Belum Ada</span>
+                                @endif
+                            </td>
+
+                            {{-- AKSI RESET --}}
+                            <td class="text-center">
+                                @if($student->device_id_1 || $student->device_id_2)
+                                    <button type="button" class="btn btn-danger btn-sm btn-reset-device" data-id="{{ $student->id }}" data-name="{{ $student->name }}">
+                                        <i class="bx bx-refresh me-1"></i> Reset HP
+                                    </button>
+                                @else
+                                    <button class="btn btn-light btn-sm text-muted" disabled>
+                                        <i class="bx bx-check-circle me-1"></i> Bersih
+                                    </button>
+                                @endif
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($students as $student)
-                            <tr>
-                                <!-- Nomor Pagination Kontinu -->
-                                <td class="text-center fw-bold text-muted">
-                                    {{ $students->firstItem() +$loop->index }}
-                                </td>
-
-                                <!-- Nama Siswa -->
-                                <td class="fw-bold text-dark">
-                                    {{ $student->name }}
-                                </td>
-
-                                <!-- Email Siswa -->
-                                <td class="text-muted">
-                                    {{ $student->email }}
-                                </td>
-
-                                <!-- Status Perangkat 1 -->
-                                <td class="text-center">
-                                    @if($student->device_id_1)
-                                        <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                            <i class="fas fa-mobile-alt me-1"></i> Terikat
-                                        </span>
-                                        <div class="mt-1">
-                                            <code class="text-muted small" title="{{ $student->device_id_1 }}">
-                                                {{ Str::limit($student->device_id_1, 10, '...') }}
-                                            </code>
-                                        </div>
-                                    @else
-                                        <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                                            Belum Ada
-                                        </span>
-                                    @endif
-                                </td>
-
-                                <!-- Status Perangkat 2 -->
-                                <td class="text-center">
-                                    @if($student->device_id_2)
-                                        <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                            <i class="fas fa-mobile-alt me-1"></i> Terikat
-                                        </span>
-                                        <div class="mt-1">
-                                            <code class="text-muted small" title="{{ $student->device_id_2 }}">
-                                                {{ Str::limit($student->device_id_2, 10, '...') }}
-                                            </code>
-                                        </div>
-                                    @else
-                                        <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                                            Belum Ada
-                                        </span>
-                                    @endif
-                                </td>
-
-                                <!-- Aksi Reset HP -->
-                                <td class="text-center">
-                                    @if($student->device_id_1 || $student->device_id_2)
-                                        <button type="button" 
-                                                class="btn btn-danger btn-sm rounded-3 px-3 btn-reset-device"
-                                                data-url="{{ route('admin.device-settings.reset', $student->id) }}"
-                                                data-nama="{{ $student->name }}">
-                                            <i class="fas fa-redo-alt me-1"></i> Reset HP
-                                        </button>
-                                    @else
-                                        <button class="btn btn-sm btn-light border text-muted px-3" disabled>
-                                            <i class="fas fa-check-circle me-1 text-muted"></i> Bersih
-                                        </button>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-5">
-                                    <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
-                                    Tidak ada data siswa ditemukan.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">Data siswa tidak ditemukan.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
 
-        <!-- Pagination Footer -->
-        <div class="card-footer bg-white py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="small text-muted">
-                    Menampilkan {{ $students->firstItem() ?? 0 }} sampai {{ $students->lastItem() ?? 0 }} dari {{$students->total() }} siswa
-                </div>
-                <div>
-                    {{ $students->appends(request()->query())->links() }}
-                </div>
+        {{-- Pagination Footer --}}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span class="small text-muted">
+                Menampilkan {{ $students->firstItem() ?? 0 }} sampai {{ $students->lastItem() ?? 0 }} dari {{$students->total() }} siswa
+            </span>
+            <div>
+                {{ $students->links() }}
             </div>
         </div>
     </div>
 </div>
+@endsection
+
+@push('css')
+<!-- CDN CSS Select2 & Theme Bootstrap 5 -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    /* Styling agar tampilan Select2 presisi dengan Bootstrap 5 */
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 38px !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 12px !important;
+    }
+</style>
+@endpush
 
 @push('scripts')
+<!-- Library JS jQuery, Select2, & SweetAlert2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-$(document).ready(function () {
-    // Handling AJAX Reset Perangkat Siswa
-    $(document).on('click', '.btn-reset-device', function (e) {
-        e.preventDefault();
-        
-        const resetUrl = $(this).data('url');
-        const studentName = $(this).data('nama');
+$(document).ready(function() {
+    // 1. Inisialisasi Select2 AJAX Filter Kelas
+    const $selectClass =$('#select-classroom-filter');
+
+    if ($selectClass.length) {$selectClass.select2({
+            theme: 'bootstrap-5',
+            allowClear: true,
+            placeholder: '-- Semua Kelas --',
+            width: '100%',
+            ajax: {
+                url: "{{ route('admin.device-settings.classes') }}",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term || '' // Parameter pencarian nama kelas
+                    };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
+            }
+        });
+
+        // Trigger Submit Form saat Pilihan Kelas Berubah/Dihapus
+        $selectClass.on('select2:select select2:unselect', function (e) {$(this).closest('form').submit();
+        });
+    }
+
+    // 2. AJAX Reset Device via SweetAlert2
+    $(document).on('click', '.btn-reset-device', function() {
+        const studentId = $(this).data('id');
+        const studentName = $(this).data('name');
 
         Swal.fire({
-            title: 'Reset Perangkat HP?',
-            html: `Apakah Anda yakin ingin menghapus tautan HP milik <strong>${studentName}</strong>?<br><small class="text-muted">*Siswa akan diizinkan mendaftarkan HP baru pada saat login berikutnya.</small>`,
+            title: 'Reset Perangkat?',
+            text: `Semua tautan HP milik "${studentName}" akan dihapus. Siswa dapat login kembali dari HP baru.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-redo-alt me-1"></i> Ya, Reset HP!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true,
-            customClass: {
-                popup: 'rounded-4'
-            }
+            confirmButtonText: 'Ya, Reset Sekarang!',
+            cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Tampilkan Swal Loading
-                Swal.fire({
-                    title: 'Memproses...',
-                    text: 'Sedang me-reset data perangkat siswa',
-                    allowOutsideClick: false,
-                    didOpen: () => { Swal.showLoading(); }
-                });
-
-                // Eksekusi AJAX Reset
                 $.ajax({
-                    url: resetUrl,
+                    url: "{{ url('admin/device-settings/reset') }}/" + studentId,
                     type: 'POST',
                     data: {
-                        slot: 'all' // Reset seluruh slot perangkat siswa
+                        _token: "{{ csrf_token() }}"
                     },
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function (response) {
+                    success: function(response) {
                         if (response.success) {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Berhasil!',
                                 text: response.message,
                                 timer: 1500,
-                                showConfirmButton: false,
-                                customClass: {
-                                    popup: 'rounded-4'
-                                }
+                                showConfirmButton: false
                             }).then(() => {
-                                location.reload(); // Refresh halaman agar badge status diperbarui
+                                location.reload();
                             });
-                        } else {
-                            Swal.fire('Gagal!', response.message, 'error');
                         }
                     },
-                    error: function (xhr) {
-                        let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'Terjadi kesalahan pada sistem.';
-                        Swal.fire('Error!', errorMsg, 'error');
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Terjadi kesalahan saat mereset perangkat.'
+                        });
                     }
                 });
             }
@@ -262,4 +279,3 @@ $(document).ready(function () {
 });
 </script>
 @endpush
-@endsection

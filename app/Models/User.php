@@ -9,6 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 // use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Traits\HasUuid; // <--- 1. Import Trait
+use App\Models\Student;
+use App\Models\Classroom;
 
 class User extends Authenticatable
 {
@@ -72,6 +74,18 @@ class User extends Authenticatable
                 $user->username = explode('@', $user->email)[0];
             }
         });
+    }
+
+    public function classroom()
+    {
+        return $this->hasOneThrough(
+            Classroom::class,
+            Student::class,
+            'user_id',      // Foreign key di tabel students yang mengarah ke users
+            'id',           // Foreign key di tabel classrooms (id)
+            'id',           // Local key di tabel users
+            'classroom_id'  // Local key di tabel students
+        );
     }
 
 
