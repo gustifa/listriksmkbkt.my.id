@@ -104,6 +104,14 @@ use App\Http\Controllers\Student\StudentExamController;
 use App\Services\GithubVersionChecker; // Service Pengecekan Versi
 use App\Http\Controllers\HomeController;
 
+Route::get('/cek-waktu', function () {
+    return response()->json([
+        'carbon_now' => \Carbon\Carbon::now()->format('Y-m-d H:i:s'),
+        'carbon_jakarta' => \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s'),
+        'config_timezone' => config('app.timezone'),
+    ]);
+});
+
 // Route::view('/', 'welcome');
 Route::get('/', [HomeController::class, 'index'])->name('welcome');
 
