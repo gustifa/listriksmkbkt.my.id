@@ -13,9 +13,49 @@ use Carbon\Carbon;
 use App\Models\Schedule;
 use App\Models\Attendance;
 use App\Models\PrayerAttendance;
+use App\Models\Holiday; // <-- Import Model Holiday
 
 class DashboardStudentController extends Controller
 {
+    /**
+     * Helper Private untuk Pengecekan Hari Libur (Minggu / Kalender Merah Admin)
+     */
+    private function isHoliday($date = null)
+    {
+        $now = $date ? Carbon::parse($date)->timezone('Asia/Jakarta') : Carbon::now('Asia/Jakarta');
+        $today = $now->format('Y-m-d');
+
+        // 1. Cek Hari Minggu
+        if ($now->isSunday()) {
+            return [
+                'is_holiday' => true,
+                'reason'     => 'Hari Minggu adalah hari libur akhir pekan.'
+            ];
+        }
+
+        // 2. Cek Kalender Merah / Libur Sekolah dari DB (PostgreSQL Compatible)
+        $dbHoliday = Holiday::where(function($q) {
+                                $q->where('is_active', true)
+                                  ->orWhere('is_active', 1)
+                                  ->orWhere('is_active', 't');
+                            })
+                            ->whereDate('start_date', '<=', $today)
+                            ->whereDate('end_date', '>=', $today)
+                            ->first();
+
+        if ($dbHoliday) {
+            return [
+                'is_holiday' => true,
+                'reason'     => "Hari ini libur sekolah: {$dbHoliday->title}"
+            ];
+        }
+
+        return [
+            'is_holiday' => false,
+            'reason'     => ''
+        ];
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -31,6 +71,9 @@ class DashboardStudentController extends Controller
         $now = Carbon::now();
         $currentTime = $now->format('H:i:s');
         $dayOfWeek = $now->locale('id')->dayName;
+
+        // Cek Pengecekan Libur
+        $holidayCheck = $this->isHoliday($today);
 
         // 1. Kehadiran Hari Ini (Absensi Gerbang/Harian)
         $todayAttendance = DailyAttendance::where('student_id', $student->id)
@@ -49,17 +92,18 @@ class DashboardStudentController extends Controller
                 ->orderBy('start_time', 'asc')
                 ->get();
 
-            $todaySchedules = $schedules->map(function ($schedule) use ($student, $today, $currentTime, $todayAttendance, &$activeSchedule, &$upcomingSchedule) {
+            $todaySchedules = $schedules->map(function ($schedule) use ($student, $today, $currentTime, $todayAttendance, $holidayCheck, &$activeSchedule, &$upcomingSchedule) {
                 $attendance = Attendance::where('student_id', $student->id)
                     ->where('schedule_id', $schedule->id)
                     ->whereDate('date', $today)
                     ->first();
 
-                $schedule->is_active = ($currentTime >= $schedule->start_time && $currentTime <= $schedule->end_time);
+                // Hanya aktif jika sedang jam pelajaran DAN BUKAN HARI LIBUR
+                $schedule->is_active = ($currentTime >= $schedule->start_time && $currentTime <= $schedule->end_time) && !$holidayCheck['is_holiday'];
                 $schedule->student_attendance = $attendance;
 
-                // Pop-Up Mapel Aktif HANYA dipicu jika siswa SUDAH absen gerbang (Status HADIR / TERLAMBAT)
-                if ($todayAttendance && in_array($todayAttendance->status, ['hadir', 'terlambat'])) {
+                // Pop-Up Mapel Aktif HANYA dipicu jika tidak libur & siswa SUDAH absen gerbang
+                if (!$holidayCheck['is_holiday'] && $todayAttendance && in_array($todayAttendance->status, ['hadir', 'terlambat'])) {
                     if ($schedule->is_active && !$attendance && !$activeSchedule) {
                         $activeSchedule = $schedule;
                     }
@@ -69,7 +113,7 @@ class DashboardStudentController extends Controller
                 $startTimeCarbon = Carbon::parse($schedule->start_time);
                 $diffInMinutes = Carbon::parse($currentTime)->diffInMinutes($startTimeCarbon, false);
 
-                if ($currentTime < $schedule->start_time && $diffInMinutes >= 0 && $diffInMinutes <= 30 && !$upcomingSchedule) {
+                if (!$holidayCheck['is_holiday'] && $currentTime < $schedule->start_time && $diffInMinutes >= 0 && $diffInMinutes <= 30 && !$upcomingSchedule) {
                     $upcomingSchedule = $schedule;
                 }
 
@@ -81,8 +125,16 @@ class DashboardStudentController extends Controller
         if (!session()->has('swal_shown')) {
             session()->flash('swal_shown', true);
 
+            // Kondisi Khusus: Jika Hari Ini Libur
+            if ($holidayCheck['is_holiday']) {
+                session()->flash('swal_alert', [
+                    'type'    => 'holiday',
+                    'title'   => 'Hari Libur Sekolah!',
+                    'message' => $holidayCheck['reason'],
+                ]);
+            }
             // Kondisi A: Belum Absen Gerbang
-            if (!$todayAttendance) {
+            elseif (!$todayAttendance) {
                 session()->flash('swal_alert', [
                     'type'    => 'no_gate_attendance',
                     'title'   => 'Belum Absen Gerbang!',
@@ -154,7 +206,7 @@ class DashboardStudentController extends Controller
 
         $timelines = InternshipTimeline::orderBy('start_date', 'asc')->get();
 
-        // 5. Histori Sholat / Ibadah Terakhir berdasarkan tabel prayer_attendances
+        // 7. Histori Sholat / Ibadah Terakhir berdasarkan tabel prayer_attendances
         $prayerHistory = PrayerAttendance::where('student_id', $student->id)
             ->orderBy('date', 'desc')
             ->orderBy('check_in_time', 'desc')
@@ -170,7 +222,7 @@ class DashboardStudentController extends Controller
             'subjectAttendanceHistory',
             'activeExams',
             'timelines',
-            'prayerHistory' // <--- Variabel histori sholat
+            'prayerHistory'
         ));
     }
 
@@ -183,6 +235,12 @@ class DashboardStudentController extends Controller
         $student = Student::where('user_id', Auth::id())->firstOrFail();
         $now = Carbon::now();
         $today = $now->toDateString();
+
+        // --- VALIDASI HARI LIBUR (SABTU/MINGGU ATAU KALENDER MERAH) ---
+        $holidayCheck = $this->isHoliday($today);
+        if ($holidayCheck['is_holiday']) {
+            return redirect()->back()->with('error', 'Gagal Presensi! ' . $holidayCheck['reason']);
+        }
 
         // 1. VALIDASI ABSENSI GERBANG (HARIAN)
         $dailyAttendance = DailyAttendance::where('student_id', $student->id)
@@ -248,6 +306,12 @@ class DashboardStudentController extends Controller
 
         $student = Student::where('user_id', Auth::id())->firstOrFail();
         $today = Carbon::today()->toDateString();
+
+        // --- VALIDASI HARI LIBUR ---
+        $holidayCheck = $this->isHoliday($today);
+        if ($holidayCheck['is_holiday']) {
+            return redirect()->back()->with('error', 'Gagal Pengajuan! ' . $holidayCheck['reason']);
+        }
 
         // Cek jika siswa sudah ada entri absensi harian
         $existing = DailyAttendance::where('student_id', $student->id)

@@ -33,6 +33,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileSignatureController;
 use App\Http\Controllers\AttendanceReportController;
+use App\Http\Controllers\HolidayController;
 
 use App\Http\Controllers\DailyAttendanceController;
 use App\Http\Controllers\CardController;
@@ -464,10 +465,16 @@ Route::middleware(['auth'])->group(function () {
             'create', 'edit', 'show'
         ]);
 
+        Route::get('/admin/holidays', [HolidayController::class, 'index'])->name('admin.holidays.index');
+        Route::get('/admin/holidays/events', [HolidayController::class, 'getEvents'])->name('admin.holidays.events');
+        Route::post('/admin/holidays', [HolidayController::class, 'store'])->name('admin.holidays.store');
+        Route::delete('/admin/holidays/{id}', [HolidayController::class, 'destroy'])->name('admin.holidays.destroy');
+        Route::get('/admin/holidays/{id}', [HolidayController::class, 'show'])->name('admin.holidays.show'); // Fetch detail untuk Edit
+        Route::put('/admin/holidays/{id}', [HolidayController::class, 'update'])->name('admin.holidays.update'); // Process Edit
         Route::post('/classrooms/{classroom}/add-student', [StudentController::class, 'assignClass'])->name('students.assign_class');
         Route::patch('/students/{student}/remove-class', [StudentController::class, 'removeFromClass'])->name('students.remove_class');
 
-        Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('attendance.missing-report');
+        // Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('attendance.missing-report');
         Route::get('/attendance/missing-report', [AttendanceReportController::class, 'checkMissingAttendance'])->name('reports.missing_attendance');
         Route::get('/attendance/missing-report/pdf', [AttendanceReportController::class, 'exportPdf'])->name('reports.missing_attendance.pdf');
         Route::get('/attendance/missing-report/excel', [AttendanceReportController::class, 'exportExcel'])->name('reports.missing_attendance.excel');

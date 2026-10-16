@@ -100,6 +100,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('all.user')}}"><i class='bx bx-user'></i>User</a></li>
                         <li><a href="{{route('settings.attendance')}}"><i class='bx bx-barcode-reader'></i>Presensi</a></li>
                         <li><a href="{{route('time_slots.index')}}"><i class='bx bx-barcode-reader'></i>Jam PBM</a></li>
+                        <li><a href="{{route('admin.holidays.index')}}"><i class='bx bx-radio-circle'></i>Libur</a></li>
                         <li><a href="{{route('programs.index')}}"><i class='bx bx-minus-front'></i>Program Keahlian</a></li>
                         <li><a href="{{route('majors.index')}}"><i class='bx bx-minus-front'></i>Jurusan</a></li>
                         <li><a href="{{route('subjects.index')}}"><i class='bx bx-minus-front'></i>Mapel</a></li>

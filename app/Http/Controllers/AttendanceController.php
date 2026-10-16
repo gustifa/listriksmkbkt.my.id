@@ -84,6 +84,15 @@ class AttendanceController extends Controller
 
     public function store(Request $request)
     {
+        // --- VALIDASI HARI LIBUR ---
+        $holidayCheck = $this->isHoliday(Carbon::today());
+        if ($holidayCheck['is_holiday']) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Absensi Mapel Ditolak! ' . $holidayCheck['reason']
+            ]);
+        }
+
         $request->validate([
             'nis' => 'required',
             'schedule_id' => 'required|exists:schedules,id'
@@ -1428,6 +1437,12 @@ class AttendanceController extends Controller
      */
     public function storeManual(Request $request, $schedule_id)
     {
+        // --- VALIDASI HARI LIBUR ---
+        $holidayCheck = $this->isHoliday(Carbon::today());
+        if ($holidayCheck['is_holiday']) {
+            return redirect()->back()->with('error', 'Gagal Simpan! ' . $holidayCheck['reason']);
+        }
+
         $request->validate([
             'attendances' => 'array',
         ]);
@@ -1457,4 +1472,42 @@ class AttendanceController extends Controller
 
         return redirect()->route('schedule.index')->with('success', 'Data kehadiran berhasil disimpan.');
     }
+
+    private function isHoliday($date = null)
+{
+    // Mengambil tanggal dengan timezone Asia/Jakarta
+    $today = $date ? Carbon::parse($date)->timezone('Asia/Jakarta')->format('Y-m-d') : Carbon::now('Asia/Jakarta')->format('Y-m-d');
+    $carbonDate = Carbon::parse($today);
+
+    // 1. CEK OTOMATIS HARI MINGGU
+    if ($carbonDate->isSunday()) {
+        return [
+            'is_holiday' => true,
+            'reason'     => 'Hari Minggu adalah hari libur akhir pekan.'
+        ];
+    }
+
+    // 2. CEK KALENDER MERAH / LIBUR SEKOLAH (DB)
+    // Menangani format status is_active untuk PostgreSQL (true, 1, atau 't')
+    $dbHoliday = Holiday::where(function($q) {
+                            $q->where('is_active', true)
+                              ->orWhere('is_active', 1)
+                              ->orWhere('is_active', 't');
+                        })
+                        ->whereDate('start_date', '<=', $today)
+                        ->whereDate('end_date', '>=', $today)
+                        ->first();
+
+    if ($dbHoliday) {
+        return [
+            'is_holiday' => true,
+            'reason'     => "Hari ini libur sekolah: {$dbHoliday->title}"
+        ];
+    }
+
+    return [
+        'is_holiday' => false,
+        'reason'     => ''
+    ];
+}
 }
