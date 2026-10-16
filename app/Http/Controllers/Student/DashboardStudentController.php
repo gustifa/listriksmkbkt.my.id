@@ -213,6 +213,12 @@ class DashboardStudentController extends Controller
             ->take(5)
             ->get();
 
+        // Ambil 5 histori absensi gerbang (DailyAttendance) terakhir
+        $gateHistory = \App\Models\DailyAttendance::where('student_id', $student->id)
+            ->orderBy('date', 'desc')
+            ->limit(5)
+            ->get();
+
         return view('siswa.siswa_dashboard.index', compact(
             'student',
             'todayAttendance',
@@ -222,7 +228,8 @@ class DashboardStudentController extends Controller
             'subjectAttendanceHistory',
             'activeExams',
             'timelines',
-            'prayerHistory'
+            'prayerHistory',
+            'gateHistory'
         ));
     }
 

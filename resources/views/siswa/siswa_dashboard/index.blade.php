@@ -240,6 +240,95 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- CARD HISTORI ABSENSI GERBANG -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="fas fa-door-open me-2"></i>Histori Presensi Gerbang (Harian)
+                        </h6>
+                        <span class="badge bg-primary rounded-pill">5 Terakhir</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tanggal</th>
+                                        <th class="text-center">Jam Masuk</th>
+                                        <th class="text-center">Jam Pulang</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($gateHistory as $gate)
+                                        <tr>
+                                            <td class="fw-semibold text-nowrap">
+                                                <i class="far fa-calendar-alt text-muted me-1"></i>
+                                                {{ \Carbon\Carbon::parse($gate->date)->translatedFormat('d F Y') }}
+                                            </td>
+                                            <td class="text-center fw-bold text-dark">
+                                                @if($gate->arrival_time)
+                                                    <span class="badge bg-light text-dark border">
+                                                        <i class="far fa-clock text-primary me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($gate->arrival_time)->format('H:i') }} WIB
+                                                    </span>
+                                                @else
+                                                    <span class="text-muted small">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center fw-bold text-dark">
+                                                @if($gate->departure_time)
+                                                    <span class="badge bg-light text-dark border">
+                                                        <i class="far fa-clock text-danger me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($gate->departure_time)->format('H:i') }} WIB
+                                                    </span>
+                                                @else
+                                                    <span class="text-muted small">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center">
+                                                @php
+                                                    $statusClass = match(strtolower($gate->status)) {
+                                                        'hadir'     => 'bg-success',
+                                                        'terlambat' => 'bg-warning text-dark',
+                                                        'izin', 'sakit' => 'bg-info text-dark',
+                                                        default     => 'bg-danger'
+                                                    };
+                                                @endphp
+                                                <span class="badge {{ $statusClass }} rounded-pill px-3 py-1">
+                                                    {{ ucfirst($gate->status) }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <!-- TOMBOL DETAIL GERBANG -->
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-detail-gerbang"
+                                                        data-tanggal="{{ \Carbon\Carbon::parse($gate->date)->translatedFormat('d F Y') }}"
+                                                        data-masuk="{{ $gate->arrival_time ? \Carbon\Carbon::parse($gate->arrival_time)->format('H:i') . ' WIB' : '-' }}"
+                                                        data-pulang="{{ $gate->departure_time ? \Carbon\Carbon::parse($gate->departure_time)->format('H:i') . ' WIB' : '-' }}"
+                                                        data-status="{{ ucfirst($gate->status) }}"
+                                                        data-catatan="{{ $gate->notes ?? '-' }}"
+                                                        data-foto-masuk="{{ $gate->photo_in ? asset('storage/' . $gate->photo_in) : '' }}"
+                                                        data-foto-pulang="{{ $gate->photo_out ? asset('storage/' . $gate->photo_out) : '' }}">
+                                                    <i class="fas fa-eye me-1"></i> Detail
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">
+                                                <i class="fas fa-door-closed fa-2x mb-2 d-block opacity-50"></i>
+                                                Belum ada riwayat presensi gerbang.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             
@@ -466,6 +555,124 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL DETAIL ABSENSI GERBANG -->
+<div class="modal fade" id="modalDetailGerbang" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-door-open me-2"></i> Detail Presensi Gerbang
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Foto Masuk & Pulang (Jika Ada) -->
+                <!-- Foto Masuk & Pulang -->
+                <div id="containerFotoGerbang" class="row g-2 mb-3 d-none">
+                    <div class="col-6 text-center mx-auto" id="boxFotoMasuk">
+                        <small class="text-muted d-block mb-1 fw-bold">Foto Masuk</small>
+                        <img id="detailFotoMasuk" 
+                            src="" 
+                            alt="Foto Masuk" 
+                            class="img-fluid rounded-3 border shadow-sm" 
+                            style="max-height: 150px; object-fit: cover; width: 100%;"
+                            onerror="this.closest('#boxFotoMasuk').classList.add('d-none'); checkEmptyPhotos();">
+                    </div>
+                    <div class="col-6 text-center mx-auto" id="boxFotoPulang">
+                        <small class="text-muted d-block mb-1 fw-bold">Foto Pulang</small>
+                        <img id="detailFotoPulang" 
+                            src="" 
+                            alt="Foto Pulang" 
+                            class="img-fluid rounded-3 border shadow-sm" 
+                            style="max-height: 150px; object-fit: cover; width: 100%;"
+                            onerror="this.closest('#boxFotoPulang').classList.add('d-none'); checkEmptyPhotos();">
+                    </div>
+                </div>
+
+                <div class="list-group list-group-flush rounded-3 border">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="far fa-calendar-alt me-2 text-primary"></i>Tanggal</span>
+                        <strong id="detailTanggalGerbang" class="text-dark"></strong>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-sign-in-alt me-2 text-success"></i>Jam Masuk</span>
+                        <span id="detailJamMasuk" class="fw-bold"></span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-sign-out-alt me-2 text-danger"></i>Jam Pulang</span>
+                        <span id="detailJamPulang" class="fw-bold"></span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-info-circle me-2 text-info"></i>Status</span>
+                        <span id="detailStatusGerbang" class="badge rounded-pill px-3 py-1"></span>
+                    </div>
+                    <div class="list-group-item">
+                        <span class="text-muted d-block mb-1"><i class="fas fa-comment-alt me-2 text-secondary"></i>Catatan:</span>
+                        <small id="detailCatatanGerbang" class="text-dark fw-normal"></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DETAIL GERBANG -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnGerbangs = document.querySelectorAll('.btn-detail-gerbang');
+        const modalGerbang = new bootstrap.Modal(document.getElementById('modalDetailGerbang'));
+
+        btnGerbangs.forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.getElementById('detailTanggalGerbang').textContent = this.dataset.tanggal;
+                document.getElementById('detailJamMasuk').textContent = this.dataset.masuk;
+                document.getElementById('detailJamPulang').textContent = this.dataset.pulang;
+                document.getElementById('detailStatusGerbang').textContent = this.dataset.status;
+                document.getElementById('detailCatatanGerbang').textContent = this.dataset.catatan;
+
+                // Penanganan Foto Masuk & Pulang
+                const fotoMasuk = this.dataset.fotoMasuk;
+                const fotoPulang = this.dataset.fotoPulang;
+                
+                const containerFoto = document.getElementById('containerFotoGerbang');
+                const boxMasuk = document.getElementById('boxFotoMasuk');
+                const boxPulang = document.getElementById('boxFotoPulang');
+                const imgMasuk = document.getElementById('detailFotoMasuk');
+                const imgPulang = document.getElementById('detailFotoPulang');
+
+                let hasPhoto = false;
+
+                if (fotoMasuk && fotoMasuk.trim() !== '') {
+                    imgMasuk.src = fotoMasuk;
+                    boxMasuk.classList.remove('d-none');
+                    hasPhoto = true;
+                } else {
+                    boxMasuk.classList.add('d-none');
+                }
+
+                if (fotoPulang && fotoPulang.trim() !== '') {
+                    imgPulang.src = fotoPulang;
+                    boxPulang.classList.remove('d-none');
+                    hasPhoto = true;
+                } else {
+                    boxPulang.classList.add('d-none');
+                }
+
+                if (hasPhoto) {
+                    containerFoto.classList.remove('d-none');
+                } else {
+                    containerFoto.classList.add('d-none');
+                }
+
+                modalGerbang.show();
+            });
+        });
+    });
+</script>
 
 <!-- SCRIPT DETAIL SHOLAT -->
 <script>
