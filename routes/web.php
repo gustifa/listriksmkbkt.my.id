@@ -23,6 +23,7 @@ use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\PrayerAttendanceController;
 use App\Http\Controllers\PrayerLocationController;
 use App\Http\Controllers\PrayerAttendanceReportController;
+use App\Http\Controllers\DeviceSettingController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -507,6 +508,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/admin/attendance/subject/{id}', [AttendanceManageController::class, 'deleteSubject'])->name('admin.attendance.subject.delete');
         Route::delete('/admin/attendance/prayer/{id}', [AttendanceManageController::class, 'deletePrayer'])->name('admin.attendance.prayer.delete');
 
+        // --- Route Pengaturan Kunci Perangkat (HP) Siswa ---
+        Route::get('/admin/device-settings', [DeviceSettingController::class, 'index'])->name('admin.device-settings.index');
+        Route::post('/admin/device-settings/update', [DeviceSettingController::class, 'updateSettings'])->name('admin.device-settings.update');
+        Route::post('/admin/device-settings/reset/{id}', [DeviceSettingController::class, 'resetDevice'])->name('admin.device-settings.reset');
+        
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
         Route::delete('/admin/activity-logs/clear', [ActivityLogController::class, 'clearLog'])->name('admin.activity-logs.clear');
         Route::get('/admin/holidays', [HolidayController::class, 'index'])->name('admin.holidays.index');

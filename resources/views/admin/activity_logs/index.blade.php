@@ -50,6 +50,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th width="5%" class="text-center">No</th>
                             <th>Waktu</th>
                             <th>Pengguna (Aktor)</th>
                             <th>Kategori</th>
@@ -60,6 +61,10 @@
                     <tbody>
                         @forelse($logs as $log)
                             <tr>
+                                <!-- 2. Tambahkan Kolom Nomor yang Memperhitungkan Pagination -->
+                                <td class="text-center fw-bold">
+                                    {{ $logs->firstItem() + $loop->index }}
+                                </td>
                                 <td class="text-nowrap">
                                     <small class="fw-bold d-block">{{ $log->created_at->format('d/m/Y H:i:s') }}</small>
                                     <small class="text-muted">{{ $log->created_at->diffForHumans() }}</small>
