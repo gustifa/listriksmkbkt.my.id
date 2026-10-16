@@ -95,10 +95,16 @@
             },
             events: function(fetchInfo, successCallback, failureCallback) {
                 var baseUrl = "{{ route('admin.reports.student-calendar.events') }}";
+                var classroomId = $('#classroomFilter').val(); // Ambil ID Kelas
                 var params = new URLSearchParams({
                     start: fetchInfo.startStr.split('T')[0],
                     end: fetchInfo.endStr.split('T')[0]
                 });
+
+                if (classroomId) {
+                    params.append('classroom_id', classroomId);
+                }
+    
 
                 if (selectedStudentId) {
                     params.append('student_id', selectedStudentId);
@@ -168,7 +174,22 @@
                             </div>`;
                     });
                     html += `</div>`;
+                } else if (props.category === 'class_summary') {
+                    modalTitle.innerHTML = '<i class="bi bi-people text-primary me-2"></i>Rekap Presensi Kelas';
+                    html += `<div class="list-group rounded-3">`;
+                    props.details.forEach(function(d) {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">${d.student_name}</strong>
+                                    <small class="text-muted"><i class="bi bi-clock me-1"></i>${d.time}</small>
+                                </div>
+                                <span class="badge bg-primary">${d.status}</span>
+                            </div>`;
+                    });
+                    html += `</div>`;
                 }
+
 
                 modalBody.innerHTML = html;
                 var modal = new bootstrap.Modal(document.getElementById('attendanceDetailModal'));
