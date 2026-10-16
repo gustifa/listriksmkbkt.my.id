@@ -219,68 +219,100 @@ class StudentAttendanceReportController extends Controller
             ->pluck('id');
     }
 
-    // 2. DATA ABSENSI GERBANG
-    $gateAttendances = DailyAttendance::with('student')
-        ->whereIn('student_id', $studentIds)
-        ->whereBetween('date', [$start, $end])
-        ->get();
+    // Ambil seluruh objek siswa aktif di kelas tersebut
+$allStudentsInClass = Student::where('classroom_id', $classroomId)
+    ->where(function($q) {
+        $q->where('status', '1')->orWhere('status', 1)->orWhere('status', 'aktif')->orWhere('status', 'active');
+    })
+    ->get();
 
-    if ($studentId) {
-        // Tampilan Per Siswa
-        foreach ($gateAttendances as $gate) {
-            $bgColor = match($gate->status) {
-                'hadir'     => '#dcfce7',
-                'terlambat' => '#fef3c7',
-                'izin', 'sakit' => '#dbeafe',
-                default     => '#fee2e2',
-            };
+$studentIds = $studentId ? [$studentId] : $allStudentsInClass->pluck('id')->toArray();
 
-            $textColor = match($gate->status) {
-                'hadir'     => '#166534',
-                'terlambat' => '#92400e',
-                'izin', 'sakit' => '#1e40af',
-                default     => '#991b1b',
-            };
+// 2. DATA ABSENSI GERBANG
+$gateAttendances = DailyAttendance::with('student')
+    ->whereIn('student_id', $studentIds)
+    ->whereBetween('date', [$start, $end])
+    ->get();
 
-            $events[] = [
-                'title'           => '🚪 Gerbang: ' . strtoupper($gate->status),
-                'start'           => $gate->date,
-                'backgroundColor' => $bgColor,
-                'borderColor'     => $textColor,
-                'textColor'       => $textColor,
-                'extendedProps'   => [
-                    'category'       => 'gate',
-                    'status'         => strtoupper($gate->status),
-                    'arrival_time'   => $gate->arrival_time ? Carbon::parse($gate->arrival_time)->format('H:i') : '-',
-                    'departure_time' => $gate->departure_time ? Carbon::parse($gate->departure_time)->format('H:i') : '-',
-                    'notes'          => $gate->notes ?? '-'
-                ]
-            ];
-        }
-    } else {
-        // Tampilan Rekap Satu Kelas
-        $groupedGate = $gateAttendances->groupBy('date');
-        foreach ($groupedGate as $date => $records) {
-            $hadir = $records->where('status', 'hadir')->count();
-            $terlambat = $records->where('status', 'terlambat')->count();
+if ($studentId) {
+    // Tampilan Per Siswa Spesifik
+    foreach ($gateAttendances as $gate) {
+        $bgColor = match($gate->status) {
+            'hadir'     => '#dcfce7',
+            'terlambat' => '#fef3c7',
+            'izin', 'sakit' => '#dbeafe',
+            default     => '#fee2e2',
+        };
 
-            $events[] = [
-                'title'           => "👥 Rekap ($hadir Hadir, $terlambat Telat)",
-                'start'           => $date,
-                'backgroundColor' => '#e0e7ff',
-                'borderColor'     => '#6366f1',
-                'textColor'       => '#3730a3',
-                'extendedProps'   => [
-                    'category' => 'class_summary',
-                    'details'  => $records->map(fn($r) => [
-                        'student_name' => $r->student->name ?? 'Siswa',
-                        'status'       => strtoupper($r->status),
-                        'time'         => $r->arrival_time ? Carbon::parse($r->arrival_time)->format('H:i') : '-'
-                    ])
-                ]
-            ];
-        }
+        $textColor = match($gate->status) {
+            'hadir'     => '#166534',
+            'terlambat' => '#92400e',
+            'izin', 'sakit' => '#1e40af',
+            default     => '#991b1b',
+        };
+
+        $events[] = [
+            'title'           => '🚪 Gerbang: ' . strtoupper($gate->status),
+            'start'           => $gate->date,
+            'backgroundColor' => $bgColor,
+            'borderColor'     => $textColor,
+            'textColor'       => $textColor,
+            'extendedProps'   => [
+                'category'       => 'gate',
+                'status'         => strtoupper($gate->status),
+                'arrival_time'   => $gate->arrival_time ? Carbon::parse($gate->arrival_time)->format('H:i') : '-',
+                'departure_time' => $gate->departure_time ? Carbon::parse($gate->departure_time)->format('H:i') : '-',
+                'notes'          => $gate->notes ?? '-'
+            ]
+        ];
     }
+} else {
+    // Tampilan Rekap Kelas (Termasuk Siswa yang Tidak Absen)
+    $groupedGate = $gateAttendances->groupBy('date');
+
+    foreach ($groupedGate as $date => $records) {
+        $hadirIds = $records->pluck('student_id')->toArray();
+
+        // Cari siswa yang TIDAK ada di record absensi tanggal ini
+        $missingStudents = $allStudentsInClass->whereNotIn('id', $hadirIds);
+
+        // Gabungkan detail siswa yang absen dan tidak absen
+        $details = [];
+
+        // 1. Siswa yang melakukan absensi
+        foreach ($records as $r) {
+            $details[] = [
+                'student_name' => $r->student->name ?? 'Siswa',
+                'status'       => strtoupper($r->status),
+                'time'         => $r->arrival_time ? Carbon::parse($r->arrival_time)->format('H:i') : '-'
+            ];
+        }
+
+        // 2. Siswa yang TIDAK mengambil absensi
+        foreach ($missingStudents as $m) {
+            $details[] = [
+                'student_name' => $m->name,
+                'status'       => 'TANPA KETERANGAN',
+                'time'         => '-'
+            ];
+        }
+
+        $totalHadir = $records->whereIn('status', ['hadir', 'terlambat'])->count();
+        $totalTidakAbsen = count($missingStudents) + $records->whereIn('status', ['alfa', 'tanpa_keterangan'])->count();
+
+        $events[] = [
+            'title'           => "👥 Rekap ($totalHadir Hadir, $totalTidakAbsen Tidak Absen)",
+            'start'           => $date,
+            'backgroundColor' => '#e0e7ff',
+            'borderColor'     => '#6366f1',
+            'textColor'       => '#3730a3',
+            'extendedProps'   => [
+                'category' => 'class_summary',
+                'details'  => $details
+            ]
+        ];
+    }
+}
 
     // 3. DATA ABSENSI MAPEL
     $subjectAttendances = Attendance::with(['subject', 'student'])

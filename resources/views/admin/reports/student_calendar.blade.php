@@ -51,13 +51,30 @@
 </div>
 
 <!-- Modal Detail Absensi -->
+<!-- Modal Detail Absensi -->
+<!-- Modal Detail Absensi -->
 <div class="modal fade" id="attendanceDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow">
-            <div class="modal-header bg-primary text-white rounded-top-4">
-                <h6 class="modal-title fw-bold" id="detailModalTitle"><i class="bi bi-info-circle me-2"></i>Detail Presensi</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            
+            <!-- Modal Header dengan Tombol WA & Gambar -->
+            <div class="modal-header bg-primary text-white rounded-top-4 d-flex justify-content-between align-items-center">
+                <h6 class="modal-title fw-bold" id="detailModalTitle">
+                    <i class="bi bi-info-circle me-2"></i>Detail Presensi
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Tombol Kirim WA -->
+                    <button type="button" class="btn btn-sm btn-success fw-bold rounded-3" id="btnSendWa">
+                        <i class="bi bi-whatsapp me-1"></i> Kirim WA
+                    </button>
+                    <!-- Tombol Simpan Gambar -->
+                    <button type="button" class="btn btn-sm btn-light text-primary fw-bold rounded-3" id="btnDownloadModal">
+                        <i class="bi bi-download me-1"></i> Gambar
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
+
             <div class="modal-body p-4" id="detailModalBody">
                 <!-- Konten dinamis JS -->
             </div>
@@ -65,6 +82,7 @@
     </div>
 </div>
 <!-- jQuery, Select2 JS, FullCalendar -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
@@ -150,9 +168,13 @@
                     modalTitle.innerHTML = '<i class="bi bi-book text-purple me-2"></i>Presensi Mata Pelajaran';
                     html += `<div class="list-group rounded-3">`;
                     props.details.forEach(function(s) {
+                        // Tampilkan nama siswa jika ada (saat filter rekap kelas)
+                        var studentText = s.student_name ? `<small class="text-primary fw-semibold d-block mb-1">${s.student_name}</small>` : '';
+
                         html += `
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
+                                    ${studentText}
                                     <strong class="d-block">${s.subject_name}</strong>
                                     <small class="text-muted"><i class="bi bi-clock me-1"></i>${s.check_in_time}</small>
                                 </div>
@@ -164,10 +186,14 @@
                     modalTitle.innerHTML = '<i class="bi bi-moon-stars text-info me-2"></i>Presensi Sholat';
                     html += `<div class="list-group rounded-3">`;
                     props.details.forEach(function(p) {
+                        // Tampilkan nama siswa jika ada (saat filter rekap kelas)
+                        var studentText = p.student_name ? `<small class="text-primary fw-semibold d-block mb-1">${p.student_name}</small>` : '';
+
                         html += `
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong class="d-block">${p.prayer_name}</strong>
+                                    ${studentText}
+                                    <strong class="d-block text-capitalize">${p.prayer_name}</strong>
                                     <small class="text-muted"><i class="bi bi-clock me-1"></i>${p.check_in_time}</small>
                                 </div>
                                 <span class="badge bg-info text-dark">${p.status}</span>
@@ -188,7 +214,31 @@
                             </div>`;
                     });
                     html += `</div>`;
-                }
+                } else if (props.category === 'class_summary') {
+    modalTitle.innerHTML = '<i class="bi bi-people text-primary me-2"></i>Rekap Presensi Kelas';
+    html += `<div class="list-group rounded-3">`;
+    props.details.forEach(function(d) {
+        var badgeClass = 'bg-success';
+        
+        if (d.status === 'TERLAMBAT') {
+            badgeClass = 'bg-warning text-dark';
+        } else if (d.status === 'IZIN' || d.status === 'SAKIT') {
+            badgeClass = 'bg-info text-dark';
+        } else if (d.status === 'TANPA KETERANGAN' || d.status === 'ALFA') {
+            badgeClass = 'bg-danger';
+        }
+
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong class="d-block">${d.student_name}</strong>
+                    <small class="text-muted"><i class="bi bi-clock me-1"></i>${d.time}</small>
+                </div>
+                <span class="badge ${badgeClass}">${d.status}</span>
+            </div>`;
+    });
+    html += `</div>`;
+}
 
 
                 modalBody.innerHTML = html;
@@ -205,6 +255,56 @@
         });
 
         calendar.render();
+
+        // Gunakan Event Delegation agar tombol tetap merespon meskipun modal dibuka-tutup berkali-kali
+$(document).on('click', '#btnSendWa', function() {
+    if (!currentEventData) {
+        alert('Data presensi tidak ditemukan.');
+        return;
+    }
+
+    var text = "*REKAP PRESENSI SISWA*\n";
+    text += `Tanggal: ${currentEventData.date}\n`;
+    text += "-----------------------------------\n";
+
+    if (currentEventData.category === 'class_summary') {
+        text += "👥 *REKAP PRESENSI KELAS*\n";
+        currentEventData.details.forEach(function(d, index) {
+            text += `${index + 1}. *${d.student_name}* : ${d.status} (${d.time})\n`;
+        });
+    } else if (currentEventData.category === 'gate') {
+        text += "🚪 *PRESENSI GERBANG*\n";
+        text += `Status: *${currentEventData.status}*\n`;
+        text += `Jam Masuk: ${currentEventData.arrival_time}\n`;
+        text += `Jam Pulang: ${currentEventData.departure_time}\n`;
+        if (currentEventData.notes) text += `Catatan: ${currentEventData.notes}\n`;
+    } else if (currentEventData.category === 'subject') {
+        text += "📚 *PRESENSI MATA PELAJARAN*\n";
+        currentEventData.details.forEach(function(s, index) {
+            var nameText = s.student_name ? ` (${s.student_name})` : '';
+            text += `${index + 1}. *${s.subject_name}*${nameText} - ${s.status} (${s.check_in_time})\n`;
+        });
+    } else if (currentEventData.category === 'prayer') {
+        text += "🕌 *PRESENSI SHOLAT*\n";
+        currentEventData.details.forEach(function(p, index) {
+            var nameText = p.student_name ? ` (${p.student_name})` : '';
+            text += `${index + 1}. *${p.prayer_name.toUpperCase()}*${nameText} - ${p.status} (${p.check_in_time})\n`;
+        });
+    } else if (currentEventData.category === 'holiday') {
+        text += "🔴 *HARI LIBUR SEKOLAH*\n";
+        text += `*${currentEventData.title}*\n`;
+        text += `${currentEventData.description}\n`;
+    }
+
+    text += "-----------------------------------\n";
+    text += "_Sistem Informasi SMK Negeri 1 Bukittinggi_";
+
+    // Format URL WhatsApp
+    var waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+    
+    // Buka tab baru untuk WhatsApp
+    window.open(waUrl, '_blank');
+});
 
         // Event Handler saat Kelas Dipilih
         classroomFilter.addEventListener('change', function() {
@@ -267,6 +367,16 @@
             studentFilter.disabled = true;
             selectedStudentId = '';
             calendar.refetchEvents();
+        });
+    });
+    $('#btnDownloadModal').on('click', function() {
+        var modalBody = document.getElementById('detailModalBody');
+
+        html2canvas(modalBody).then(function(canvas) {
+            var link = document.createElement('a');
+            link.download = 'Rekap-Presensi-' + new Date().toISOString().slice(0,10) + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         });
     });
 </script>
