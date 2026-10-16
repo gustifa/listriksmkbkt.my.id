@@ -6,10 +6,12 @@ use App\Traits\BelongsToActiveAcademicYear;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasUuid;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class DailyAttendance extends Model
 {
-    use HasFactory, BelongsToActiveAcademicYear, HasUuid;
+    use HasFactory, BelongsToActiveAcademicYear, HasUuid, LogsActivity;
 
     protected $fillable = [
         'student_id',
@@ -22,6 +24,39 @@ class DailyAttendance extends Model
         'photo_out',
         'academic_year_id', // Tambahkan ini
     ];
+
+    // Konfigurasi Spatie Log v5.1
+    // public function getActivitylogOptions(): LogOptions
+    // {
+    //     return LogOptions::defaults()
+    //         ->logAll()
+    //         ->logOnlyDirty()
+    //         ->useLogName('Presensi Gerbang');
+    // }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->useLogName('Presensi Gerbang')
+            ->setDescriptionForEvent(function(string $eventName) {
+                $studentName = $this->student->name ?? 'Siswa';
+                return "Membatalkan/menghapus presensi gerbang siswa {$studentName}";
+            });
+    }
+
+    // Aktifkan kembali fungsi konfigurasi log ini
+    // public function getActivitylogOptions(): LogOptions
+    // {
+    //     return LogOptions::defaults()
+    //         ->logAll()
+    //         ->logOnlyDirty()
+    //         ->dontLogEmptyChanges() // <-- Ubah bagian ini
+    //         ->useLogName('Manajemen Berita');
+    // }
+
+    
 
     public function student()
     {

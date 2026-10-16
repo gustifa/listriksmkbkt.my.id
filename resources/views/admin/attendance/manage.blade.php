@@ -288,62 +288,77 @@
         });
 
         // 3. Pembatalan Absensi via AJAX & SweetAlert2 (Hapus Baris Langsung Tanpa Reload)
-        $(document).on('click', '.btn-cancel-attendance', function () {
-            const btn = $(this);
-            const deleteUrl = btn.data('url');
-            const rowTarget = btn.data('target');
-            const attendanceType = btn.data('type');
-            const studentName = btn.data('nama') || 'Siswa';
+$(document).on('click', '.btn-cancel-attendance', function () {
+    const btn = $(this);
+    const deleteUrl = btn.data('url');
+    const rowTarget = btn.data('target');
+    const attendanceType = btn.data('type');
+    const studentName = btn.data('nama') || 'Siswa';
 
+    Swal.fire({
+        title: 'Konfirmasi Pembatalan',
+        html: `Apakah Anda yakin ingin membatalkan <strong>${attendanceType}</strong> milik <strong>${studentName}</strong>?<br><small class="text-danger">*Data yang dihapus tidak dapat dikembalikan.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Ya, Batalkan!',
+        cancelButtonText: 'Batal',
+        reverseButtons: true,
+        customClass: { popup: 'rounded-4 shadow-lg' }
+    }).then((result) => {
+        if (result.isConfirmed) {
             Swal.fire({
-                title: 'Konfirmasi Pembatalan',
-                html: `Apakah Anda yakin ingin membatalkan <strong>${attendanceType}</strong> milik <strong>${studentName}</strong>?<br><small class="text-danger">*Data yang dihapus tidak dapat dikembalikan.</small>`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Ya, Batalkan!',
-                cancelButtonText: 'Batal',
-                reverseButtons: true,
-                customClass: { popup: 'rounded-4 shadow-lg' }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Memproses...',
-                        text: 'Sedang membatalkan presensi',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
+                title: 'Memproses...',
+                text: 'Sedang membatalkan presensi',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
 
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'DELETE',
-                        headers: { 'X-CSRF-TOKEN': csrfToken },
-                        success: function (response) {
-                            if (response.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Berhasil!',
-                                    text: response.message,
-                                    timer: 1200,
-                                    showConfirmButton: false
-                                });
+            $.ajax({
+                url: deleteUrl,
+                type: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: response.message,
+                            timer: 1200,
+                            showConfirmButton: false
+                        });
 
-                                // Hapus baris tabel dengan animasi fadeOut
-                                $(rowTarget).fadeOut(400, function () {$(this).remove();
-                                });
-                            } else {
-                                Swal.fire('Gagal!', response.message || 'Terjadi kesalahan.', 'error');
-                            }
-                        },
-                        error: function (xhr) {
-                            console.error(xhr);
-                            Swal.fire('Error!', 'Terjadi kesalahan pada sistem.', 'error');
-                        }
-                    });
+                        // Hapus baris tabel dengan animasi fadeOut
+                        $(rowTarget).fadeOut(400, function () {$(this).remove();
+                        });
+                    } else {
+                        Swal.fire('Gagal!', response.message || 'Terjadi kesalahan.', 'error');
+                    }
+                },
+                error: function (xhr) {
+                    console.error(xhr);
+                    
+                    // Ambil pesan error spesifik yang dikirim dari response JSON Controller
+                    let errorMsg = 'Terjadi kesalahan pada sistem.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+
+                    // Jika error 404 (data sudah terhapus), tetap hapus baris dari tabel
+                    if (xhr.status === 404) {
+                        $(rowTarget).fadeOut(400, function () {$(this).remove();
+                        });
+                        Swal.fire('Informasi', errorMsg, 'info');
+                    } else {
+                        Swal.fire('Error!', errorMsg, 'error');
+                    }
                 }
             });
-        });
+        }
+    });
+});
     });
 </script>
 @endpush

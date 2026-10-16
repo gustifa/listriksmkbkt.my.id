@@ -6,6 +6,11 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Pagination\Paginator; // <--- 1. Tambahkan ini
+use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Login;
+use App\Listeners\LogSuccessfulLogin;
+use App\Listeners\LogSuccessfulLogout; // <-- 2. Tambahkan ini
+use Illuminate\Auth\Events\Logout; // <-- 1. Tambahkan ini
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,5 +44,15 @@ class AppServiceProvider extends ServiceProvider
 
         // 2. Tambahkan ini agar semua pagination pakai Bootstrap 5
         Paginator::useBootstrapFive();
+
+        // --- TAMBAHKAN KODE EVENT LISTENER LOGIN DI SINI ---
+        // Event::listen(
+        //     Login::class,
+        //     LogSuccessfulLogin::class
+        // );
+        // Event::listen(
+        //     Logout::class,
+        //     LogSuccessfulLogout::class
+        // );
     }
 }

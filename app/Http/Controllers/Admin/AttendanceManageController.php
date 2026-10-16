@@ -66,15 +66,91 @@ class AttendanceManageController extends Controller
     }
 
     // Endpoint DELETE Gate
-    public function deleteGate($id)
-    {
-        $attendance = DailyAttendance::findOrFail($id);
-        if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
-        if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
-        $attendance->delete();
+    // public function deleteGate($id)
+    // {
+    //     $attendance = DailyAttendance::findOrFail($id);
 
-        return response()->json(['success' => true, 'message' => 'Presensi gerbang berhasil dibatalkan.']);
+    //     // Catat ke Log sebelum dihapus
+    //     activity('Presensi Gerbang')
+    //         ->performedOn($attendance)
+    //         ->causedBy(auth()->user())
+    //         ->withProperties([
+    //             'student_name' => $attendance->student->name ?? '-',
+    //             'date' => $attendance->date,
+    //             'status' => $attendance->status,
+    //         ])
+    //     ->log("Membatalkan/menghapus presensi gerbang siswa {$attendance->student->name}");
+    //     if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
+    //     if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
+    //     $attendance->delete();
+
+    //     return response()->json(['success' => true, 'message' => 'Presensi gerbang berhasil dibatalkan.']);
+    // }
+
+    // Endpoint DELETE Gate
+public function deleteGate($id)
+{
+    $attendance = DailyAttendance::with('student')->find($id);
+
+    if (!$attendance) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data presensi tidak ditemukan atau sudah dihapus.'
+        ], 404);
     }
+
+    // Hapus bukti foto dari storage jika ada
+    if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
+    if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
+
+    // Proses hapus ini akan otomatis memicu Trait LogsActivity di Model secara tunggal
+    $attendance->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Presensi gerbang berhasil dibatalkan.'
+    ]);
+}
+
+//     public function deleteGate($id)
+// {
+//     $attendance = DailyAttendance::with('student')->find($id);
+
+//     if (!$attendance) {
+//         return response()->json([
+//             'success' => false,
+//             'message' => 'Data presensi sudah dihapus atau tidak ditemukan.'
+//         ], 404);
+//     }
+
+//     $studentName = $attendance->student->name ?? 'Siswa';
+
+//     try {
+//         if (function_exists('activity')) {
+//             activity('Presensi Gerbang')
+//                 ->performedOn($attendance)
+//                 ->causedBy(auth()->user())
+//                 ->withProperties([
+//                     'student_name' => $studentName,
+//                     'date'         => $attendance->date,
+//                     'status'       => $attendance->status,
+//                 ])
+//                 ->log("Membatalkan/menghapus presensi gerbang siswa {$studentName}");
+//         }
+//     } catch (\Throwable $e) {
+//         \Log::error('Spatie Activitylog Error: ' . $e->getMessage());
+//     }
+
+//     if ($attendance->photo_in) \Storage::disk('public')->delete($attendance->photo_in);
+//     if ($attendance->photo_out) \Storage::disk('public')->delete($attendance->photo_out);
+
+//     $attendance->delete();
+
+//     return response()->json([
+//         'success' => true,
+//         'message' => 'Presensi gerbang berhasil dibatalkan.'
+//     ], 200);
+// }
 
     // Endpoint DELETE Subject
     public function deleteSubject($id)

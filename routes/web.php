@@ -95,6 +95,7 @@ use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\AdminAcademicYearController;
 use App\Http\Controllers\Admin\StudentAttendanceReportController;
 use App\Http\Controllers\Admin\AttendanceManageController;
+use App\Http\Controllers\Admin\ActivityLogController;
 
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
@@ -506,6 +507,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/admin/attendance/subject/{id}', [AttendanceManageController::class, 'deleteSubject'])->name('admin.attendance.subject.delete');
         Route::delete('/admin/attendance/prayer/{id}', [AttendanceManageController::class, 'deletePrayer'])->name('admin.attendance.prayer.delete');
 
+        Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
+        Route::delete('/admin/activity-logs/clear', [ActivityLogController::class, 'clearLog'])->name('admin.activity-logs.clear');
         Route::get('/admin/holidays', [HolidayController::class, 'index'])->name('admin.holidays.index');
         Route::get('/admin/holidays/events', [HolidayController::class, 'getEvents'])->name('admin.holidays.events');
         Route::post('/admin/holidays', [HolidayController::class, 'store'])->name('admin.holidays.store');
