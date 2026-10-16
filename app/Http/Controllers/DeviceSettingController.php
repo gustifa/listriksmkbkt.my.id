@@ -34,7 +34,7 @@ class DeviceSettingController extends Controller
         return view('admin.device_settings.index', compact('settings', 'students'));
     }
 
-    
+
     public function updateSettings(Request $request)
     {
         $request->validate([
@@ -59,5 +59,29 @@ class DeviceSettingController extends Controller
         }
 
         return redirect()->back()->with('success', 'Pengaturan kunci perangkat berhasil diperbarui.');
+    }
+
+    public function resetDevice(Request $request, $id)
+    {
+        $student = User::findOrFail($id);
+        
+        // Reset kedua slot perangkat
+        $student->forceFill([
+            'device_id_1' => null,
+            'device_id_2' => null,
+        ])->save();
+
+        // Catat ke Activitylog jika ada
+        if (function_exists('activity')) {
+            activity('Kelola Perangkat')
+                ->performedOn($student)
+                ->causedBy(auth()->user())
+                ->log("Mereset penguncian HP siswa {$student->name}");
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Tautan perangkat milik {$student->name} berhasil di-reset.",
+        ]);
     }
 }

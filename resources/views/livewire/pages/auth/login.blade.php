@@ -37,12 +37,27 @@ new #[Layout('layouts.guest')] class extends Component
             ]);
 
         } catch (ValidationException $e) {
-            // Error Handling (Login Gagal)
-            $this->dispatch('show-alert', [
-                'icon' => 'error',
-                'title' => 'Gagal Masuk!',
-                'message' => 'Email atau Password salah.',
-            ]);
+            // Cek apakah ada error khusus 'device_error' dari Listener / Session
+            $deviceError = session('device_error');
+
+            if ($deviceError) {
+                $this->dispatch('show-alert', [
+                    'icon' => 'error',
+                    'title' => 'Akses Ditolak!',
+                    'message' => $deviceError,
+                ]);
+            } else {
+                // Ambil pesan error spesifik dari validation exception jika ada
+                $errorMessage = $e->validator->errors()->first('email') 
+                    ?? $e->validator->errors()->first('form.login') 
+                    ?? 'Email atau Password salah.';
+
+                $this->dispatch('show-alert', [
+                    'icon' => 'error',
+                    'title' => 'Gagal Masuk!',
+                    'message' => $errorMessage,
+                ]);
+            }
 
             throw $e;
         }

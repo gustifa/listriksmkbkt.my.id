@@ -11,6 +11,7 @@ use Illuminate\Auth\Events\Login;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout; // <-- 2. Tambahkan ini
 use Illuminate\Auth\Events\Logout; // <-- 1. Tambahkan ini
+use App\Listeners\BindStudentDeviceOnLogin;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -54,5 +55,12 @@ class AppServiceProvider extends ServiceProvider
         //     Logout::class,
         //     LogSuccessfulLogout::class
         // );
+
+        Event::listen(
+        \Illuminate\Auth\Events\Login::class,
+        \App\Listeners\BindStudentDeviceOnLogin::class
+    );
+
+        
     }
 }

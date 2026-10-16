@@ -182,6 +182,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('reports.missing_attendance')}}"><i class='bx bx-id-card'></i>Alfa</a></li>
                         <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-id-card'></i>Manage</a></li>
                         <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-id-card'></i>Log</a></li>
+                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-id-card'></i>Reset</a></li>
                     </ul>
                 </li>
 
