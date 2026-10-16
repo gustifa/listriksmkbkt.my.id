@@ -106,6 +106,7 @@ use App\Http\Controllers\HomeController;
 
 Route::get('/cek-waktu', function () {
     // Cek query database di hosting
+    $today = \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d');
     $holiday = \App\Models\Holiday::where(function($q) {
                     $q->where('is_active', true)
                       ->orWhere('is_active', 1)
