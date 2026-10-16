@@ -184,6 +184,7 @@
                                         <th>Nama Sholat</th>
                                         <th>Lokasi / Masjid</th>
                                         <th class="text-center">Status</th>
+                                        <th class="text-center">Aksi</th> <!-- Tambahkan ini -->
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -211,6 +212,19 @@
                                                         {{ ucfirst($prayer->status) }}
                                                     </span>
                                                 @endif
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-detail-sholat"
+                                                        data-tanggal="{{ \Carbon\Carbon::parse($prayer->date)->translatedFormat('d F Y') }}"
+                                                        data-jam="{{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB"
+                                                        data-sholat="Sholat {{ ucfirst($prayer->prayer_name) }}"
+                                                        data-lokasi="{{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}"
+                                                        data-status="{{ ucfirst($prayer->status) }}"
+                                                        data-catatan="{{ $prayer->notes ?? '-' }}"
+                                                        data-foto="{{ $prayer->photo_evidence ? asset('storage/' . $prayer->photo_evidence) : '' }}"
+                                                    <i class="fas fa-eye me-1"></i> Detail
+                                                </button>
                                             </td>
                                         </tr>
                                     @empty
@@ -406,6 +420,84 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL DETAIL SHOLAT -->
+<div class="modal fade" id="modalDetailSholat" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-mosque me-2"></i> Detail Presensi Sholat
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Foto Presensi -->
+                <div id="containerFotoSholat" class="text-center mb-3 d-none">
+                    <img id="detailFotoSholat" src="" alt="Foto Sholat" class="img-fluid rounded-3 border shadow-sm" style="max-height: 200px; object-fit: cover;">
+                </div>
+
+                <div class="list-group list-group-flush rounded-3 border">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-pray me-2 text-primary"></i>Nama Sholat</span>
+                        <strong id="detailNamaSholat" class="text-dark"></strong>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="far fa-calendar-alt me-2 text-primary"></i>Tanggal & Waktu</span>
+                        <span id="detailWaktuSholat" class="fw-bold"></span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-map-marker-alt me-2 text-danger"></i>Lokasi / Masjid</span>
+                        <span id="detailLokasiSholat" class="fw-semibold"></span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="fas fa-info-circle me-2 text-info"></i>Status</span>
+                        <span id="detailStatusSholat" class="badge bg-success rounded-pill px-3 py-1"></span>
+                    </div>
+                    <div class="list-group-item">
+                        <span class="text-muted d-block mb-1"><i class="fas fa-comment-alt me-2 text-secondary"></i>Catatan:</span>
+                        <small id="detailCatatanSholat" class="text-dark fw-normal"></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DETAIL SHOLAT -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnDetails = document.querySelectorAll('.btn-detail-sholat');
+        const modalElement = new bootstrap.Modal(document.getElementById('modalDetailSholat'));
+
+        btnDetails.forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.getElementById('detailNamaSholat').textContent = this.dataset.sholat;
+                document.getElementById('detailWaktuSholat').textContent = `${this.dataset.tanggal} (${this.dataset.jam})`;
+                document.getElementById('detailLokasiSholat').textContent = this.dataset.lokasi;
+                document.getElementById('detailStatusSholat').textContent = this.dataset.status;
+                document.getElementById('detailCatatanSholat').textContent = this.dataset.catatan;
+
+                const fotoUrl = this.dataset.foto;
+                const containerFoto = document.getElementById('containerFotoSholat');
+                const imgFoto = document.getElementById('detailFotoSholat');
+
+                if (fotoUrl && fotoUrl.trim() !== '') {
+                    imgFoto.src = fotoUrl;
+                    containerFoto.classList.remove('d-none');
+                } else {
+                    containerFoto.classList.add('d-none');
+                    imgFoto.src = '';
+                }
+
+                modalElement.show();
+            });
+        });
+    });
+</script>
 
 <!-- SCRIPT UNTUK TAMPILKAN INPUT FILE -->
 <script>
