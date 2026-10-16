@@ -94,6 +94,7 @@ use App\Http\Controllers\Admin\CapacityReportController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\AdminAcademicYearController;
 use App\Http\Controllers\Admin\StudentAttendanceReportController;
+use App\Http\Controllers\Admin\AttendanceManageController;
 
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
@@ -499,6 +500,11 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
             'create', 'edit', 'show'
         ]);
+        // Route untuk batalkan/hapus absensi
+        Route::get('/admin/attendance/manage', [AttendanceManageController::class, 'index'])->name('admin.attendance.manage.index');
+        Route::delete('/admin/attendance/gate/{id}', [AttendanceManageController::class, 'deleteGate'])->name('admin.attendance.gate.delete');
+        Route::delete('/admin/attendance/subject/{id}', [AttendanceManageController::class, 'deleteSubject'])->name('admin.attendance.subject.delete');
+        Route::delete('/admin/attendance/prayer/{id}', [AttendanceManageController::class, 'deletePrayer'])->name('admin.attendance.prayer.delete');
 
         Route::get('/admin/holidays', [HolidayController::class, 'index'])->name('admin.holidays.index');
         Route::get('/admin/holidays/events', [HolidayController::class, 'getEvents'])->name('admin.holidays.events');
