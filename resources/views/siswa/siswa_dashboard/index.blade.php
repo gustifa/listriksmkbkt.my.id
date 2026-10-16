@@ -309,7 +309,7 @@
                                                         data-masuk="{{ $gate->arrival_time ? \Carbon\Carbon::parse($gate->arrival_time)->format('H:i') . ' WIB' : '-' }}"
                                                         data-pulang="{{ $gate->departure_time ? \Carbon\Carbon::parse($gate->departure_time)->format('H:i') . ' WIB' : '-' }}"
                                                         data-status="{{ ucfirst($gate->status) }}"
-                                                        data-catatan="{{ $gate->notes ?? '-' }}"
+                                                        data-pencatat="{{ $gate->recorded_by ?? '-' }}"
                                                         data-foto-masuk="{{ $gate->photo_in ? asset('storage/' . $gate->photo_in) : '' }}"
                                                         data-foto-pulang="{{ $gate->photo_out ? asset('storage/' . $gate->photo_out) : '' }}">
                                                     <i class="fas fa-eye me-1"></i> Detail
@@ -608,8 +608,8 @@
                         <span id="detailStatusGerbang" class="badge rounded-pill px-3 py-1"></span>
                     </div>
                     <div class="list-group-item">
-                        <span class="text-muted d-block mb-1"><i class="fas fa-comment-alt me-2 text-secondary"></i>Catatan:</span>
-                        <small id="detailCatatanGerbang" class="text-dark fw-normal"></small>
+                        <span class="text-muted d-block mb-1"><i class="fas fa-user-check me-2 text-secondary"></i>Dicatat Oleh / Metode:</span>
+                        <small id="detailPencatatGerbang" class="text-dark fw-bold"></small>
                     </div>
                 </div>
             </div>
@@ -623,55 +623,73 @@
 <!-- SCRIPT DETAIL GERBANG -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const btnGerbangs = document.querySelectorAll('.btn-detail-gerbang');
-        const modalGerbang = new bootstrap.Modal(document.getElementById('modalDetailGerbang'));
+    const btnGerbangs = document.querySelectorAll('.btn-detail-gerbang');
+    const modalGerbang = new bootstrap.Modal(document.getElementById('modalDetailGerbang'));
 
-        btnGerbangs.forEach(btn => {
-            btn.addEventListener('click', function () {
-                document.getElementById('detailTanggalGerbang').textContent = this.dataset.tanggal;
-                document.getElementById('detailJamMasuk').textContent = this.dataset.masuk;
-                document.getElementById('detailJamPulang').textContent = this.dataset.pulang;
-                document.getElementById('detailStatusGerbang').textContent = this.dataset.status;
-                document.getElementById('detailCatatanGerbang').textContent = this.dataset.catatan;
+    btnGerbangs.forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.getElementById('detailTanggalGerbang').textContent = this.dataset.tanggal;
+            document.getElementById('detailJamMasuk').textContent = this.dataset.masuk;
+            document.getElementById('detailJamPulang').textContent = this.dataset.pulang;
+            document.getElementById('detailPencatatGerbang').textContent = this.dataset.pencatat;
 
-                // Penanganan Foto Masuk & Pulang
-                const fotoMasuk = this.dataset.fotoMasuk;
-                const fotoPulang = this.dataset.fotoPulang;
-                
-                const containerFoto = document.getElementById('containerFotoGerbang');
-                const boxMasuk = document.getElementById('boxFotoMasuk');
-                const boxPulang = document.getElementById('boxFotoPulang');
-                const imgMasuk = document.getElementById('detailFotoMasuk');
-                const imgPulang = document.getElementById('detailFotoPulang');
+            // Pengaturan Status & Badge Warna Dynamic
+            const statusTxt = this.dataset.status || '-';
+            const statusBadge = document.getElementById('detailStatusGerbang');
+            statusBadge.textContent = statusTxt;
 
-                let hasPhoto = false;
+            // Clear class warna sebelumnya
+            statusBadge.className = 'badge rounded-pill px-3 py-1';
+            
+            const lowerStatus = statusTxt.toLowerCase();
+            if (lowerStatus === 'hadir') {
+                statusBadge.classList.add('bg-success', 'text-white');
+            } else if (lowerStatus === 'terlambat') {
+                statusBadge.classList.add('bg-warning', 'text-dark');
+            } else if (lowerStatus === 'izin' || lowerStatus === 'sakit') {
+                statusBadge.classList.add('bg-info', 'text-dark');
+            } else {
+                statusBadge.classList.add('bg-danger', 'text-white');
+            }
 
-                if (fotoMasuk && fotoMasuk.trim() !== '') {
-                    imgMasuk.src = fotoMasuk;
-                    boxMasuk.classList.remove('d-none');
-                    hasPhoto = true;
-                } else {
-                    boxMasuk.classList.add('d-none');
-                }
+            // Penanganan Foto Masuk & Pulang
+            const fotoMasuk = this.dataset.fotoMasuk;
+            const fotoPulang = this.dataset.fotoPulang;
+            
+            const containerFoto = document.getElementById('containerFotoGerbang');
+            const boxMasuk = document.getElementById('boxFotoMasuk');
+            const boxPulang = document.getElementById('boxFotoPulang');
+            const imgMasuk = document.getElementById('detailFotoMasuk');
+            const imgPulang = document.getElementById('detailFotoPulang');
 
-                if (fotoPulang && fotoPulang.trim() !== '') {
-                    imgPulang.src = fotoPulang;
-                    boxPulang.classList.remove('d-none');
-                    hasPhoto = true;
-                } else {
-                    boxPulang.classList.add('d-none');
-                }
+            let hasPhoto = false;
 
-                if (hasPhoto) {
-                    containerFoto.classList.remove('d-none');
-                } else {
-                    containerFoto.classList.add('d-none');
-                }
+            if (fotoMasuk && fotoMasuk.trim() !== '') {
+                imgMasuk.src = fotoMasuk;
+                boxMasuk.classList.remove('d-none');
+                hasPhoto = true;
+            } else {
+                boxMasuk.classList.add('d-none');
+            }
 
-                modalGerbang.show();
-            });
+            if (fotoPulang && fotoPulang.trim() !== '') {
+                imgPulang.src = fotoPulang;
+                boxPulang.classList.remove('d-none');
+                hasPhoto = true;
+            } else {
+                boxPulang.classList.add('d-none');
+            }
+
+            if (hasPhoto) {
+                containerFoto.classList.remove('d-none');
+            } else {
+                containerFoto.classList.add('d-none');
+            }
+
+            modalGerbang.show();
         });
     });
+});
 </script>
 
 <!-- SCRIPT DETAIL SHOLAT -->
