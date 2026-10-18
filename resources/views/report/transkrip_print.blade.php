@@ -6,7 +6,9 @@
     <title>Transkrip Absensi Siswa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
+        * { 
+            box-sizing: border-box; 
+        }
         
         body {
             margin: 0;
@@ -17,34 +19,71 @@
             color: #000;
         }
 
+        /* WADAH UTAMA DOKUMEN PER SISWA */
         .student-document {
             position: relative;
             box-sizing: border-box;
             counter-reset: student-page;
             page-break-after: always;
             page-break-inside: avoid;
-            padding-bottom: 35px;
-            min-height: 265mm;
+            padding-bottom: 35px; /* Ruang aman khusus footer */
+            min-height: 265mm;    /* Presisi A4 */
         }
 
         .student-document:last-child {
             page-break-after: auto;
         }
 
-        .kop-surat { border-bottom: 3px double #000; padding-bottom: 3px; margin-bottom: 6px; }
-        .logo-kop { max-height: 55px; max-width: 100%; object-fit: contain; }
+        .kop-surat { 
+            border-bottom: 3px double #000; 
+            padding-bottom: 3px; 
+            margin-bottom: 6px; 
+        }
         
+        .logo-kop { 
+            max-height: 55px; 
+            max-width: 100%; 
+            object-fit: contain; 
+        }
+        
+        /* TABLE STYLING RINGKAS PRESISI */
         .table-bordered th, .table-bordered td { 
             border: 1px solid #000 !important; 
-            padding: 1.5px 3px !important; 
+            padding: 2px 4px !important; 
             font-size: 8pt !important; 
         }
-        .table-header th { background-color: #f2f2f2 !important; text-align: center; font-weight: bold; }
         
-        .signature-wrapper { position: relative; height: 35px; }
-        .img-ttd { position: absolute; z-index: 2; height: 35px; top: 0; left: 50%; transform: translateX(-50%); }
-        .img-stempel { position: absolute; z-index: 1; height: 42px; top: -5px; left: 35%; opacity: 0.85; }
+        .table-header th { 
+            background-color: #f2f2f2 !important; 
+            text-align: center; 
+            font-weight: bold; 
+        }
+        
+        /* SIGNATURE WRAPPER */
+        .signature-wrapper { 
+            position: relative; 
+            height: 35px; 
+        }
+        
+        .img-ttd { 
+            position: absolute; 
+            z-index: 2; 
+            height: 35px; 
+            top: 0; 
+            left: 50%; 
+            transform: translateX(-50%); 
+        }
+        
+        .img-stempel { 
+            position: absolute; 
+            z-index: 1; 
+            height: 42px; 
+            top: -5px; 
+            left: 35%; 
+            opacity: 0.85; 
+        }
 
+        /* FOOTER TERKUNCI PRESISI DI BAGIAN BAWAH KERTAS */
         .document-footer {
             position: absolute;
             bottom: 0;
@@ -58,12 +97,19 @@
         }
 
         @media print {
-            .no-print { display: none !important; }
+            .no-print { 
+                display: none !important; 
+            }
+            
             @page { 
                 size: {{ $settings['paper_size'] ?? 'a4' }} {{ $settings['paper_orientation'] ?? 'portrait' }}; 
                 margin: 0.5cm 1cm 0.5cm 1cm;
             }
-            body { padding: 0; background: #fff; }
+            
+            body { 
+                padding: 0; 
+                background: #fff; 
+            }
             
             .student-document {
                 min-height: 270mm;
@@ -78,7 +124,7 @@
 </head>
 <body class="p-2">
 
-    <!-- Tombol Cetak -->
+    <!-- Tombol Cetak (Tidak ikut dicetak) -->
     <div class="mb-2 text-end no-print">
         <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold px-3">
             <i class="fas fa-print me-1"></i> Cetak / Download PDF
@@ -124,13 +170,13 @@
                 </div>
             </div>
 
-            <!-- JUDUL -->
+            <!-- JUDUL DOKUMEN -->
             <div class="text-center mb-1">
                 <h6 class="fw-bold text-decoration-underline mb-0" style="font-size: 9.5pt;">TRANSKRIP REKAPITULASI KEHADIRAN SISWA</h6>
                 <small style="font-size: 7.5pt;">Periode: {{ \Carbon\Carbon::parse($startDate)->translatedFormat('d F Y') }} s/d {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d F Y') }}</small>
             </div>
 
-            <!-- BIODATA -->
+            <!-- BIODATA SISWA -->
             <table class="table table-borderless mb-1" style="font-size: 8pt; width: 100%;">
                 <tr>
                     <td width="15%" class="fw-bold p-0">Nama Siswa</td>
@@ -181,51 +227,53 @@
                 </table>
             @endif
 
-            <!-- II. ABSENSI PEMBELAJARAN -->
-@if(!empty($includeLearning))
-    <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
-    <table class="table table-bordered mb-1">
-        <thead>
-            <tr class="table-header">
-                <th width="5%">No</th>
-                <th width="15%">Tanggal</th>
-                <th>Mata Pelajaran & Guru Pengampu</th>
-                <th width="20%">Jam Absen</th>
-                <th width="15%">Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($learningAttendances as $idx => $learn)
-                @php
-                    // Ambil nama mapel dan nama guru
-                    $subjectName = $learn->schedule->subject->name 
-                        ?? $learn->subject_name 
-                        ?? '-';
+            <!-- II. ABSENSI PEMBELAJARAN (KBM) -->
+            @if(!empty($includeLearning))
+                <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
+                <table class="table table-bordered mb-1">
+                    <thead>
+                        <tr class="table-header">
+                            <th width="5%">No</th>
+                            <th width="15%">Tanggal</th>
+                            <th>Mata Pelajaran & Guru Pengampu</th>
+                            <th width="20%">Jam Absen</th>
+                            <th width="15%">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($learningAttendances as $idx => $learn)
+                            @php
+                                // Ambil nama mapel dan nama guru dari relasi schedule
+                                $subjectName = $learn->schedule->subject->name 
+                                    ?? $learn->schedule->subject->subject_name 
+                                    ?? $learn->subject_name 
+                                    ?? '-';
 
-                    $teacherName = $learn->schedule->teacher->name 
-                        ?? $learn->teacher->name 
-                        ?? '-';
-                @endphp
-                <tr>
-                    <td class="text-center">{{ $idx + 1 }}</td>
-                    <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
-                    <td>
-                        <strong>{{ $subjectName }}</strong><br>
-                        <small class="text-muted" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
-                    </td>
-                    <td class="text-center">{{ $learn->check_in_time ?? $learn->created_at->format('H:i:s') }}</td>
-                    <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM pada periode ini.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-@endif
+                                $teacherName = $learn->schedule->teacher->name 
+                                    ?? $learn->schedule->teacher->user->name 
+                                    ?? $learn->teacher->name 
+                                    ?? '-';
+                            @endphp
+                            <tr>
+                                <td class="text-center">{{ $idx + 1 }}</td>
+                                <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
+                                <td>
+                                    <strong>{{ $subjectName }}</strong><br>
+                                    <small class="text-muted" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
+                                </td>
+                                <td class="text-center">{{ $learn->check_in_time ?? ($learn->created_at ? $learn->created_at->format('H:i:s') : '-') }}</td>
+                                <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM pada periode ini.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            @endif
 
-            <!-- III. ABSENSI SHOLAT -->
+            <!-- III. ABSENSI SHOLAT & IBADAH -->
             @if(!empty($includePrayer))
                 <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">III. REKAPITULASI ABSENSI SHOLAT & IBADAH</div>
                 <table class="table table-bordered mb-1">
@@ -310,7 +358,7 @@
                 </table>
             </div>
 
-            <!-- FOOTER RESMI SEKOLAH -->
+            <!-- FOOTER RESMI SEKOLAH (TERKUNCI PRESISI) -->
             <div class="document-footer">
                 <div class="row align-items-center">
                     <div class="col-8">

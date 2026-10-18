@@ -9,8 +9,8 @@ use App\Models\Teacher;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\PrayerAttendance;
-use Carbon\Carbon;
 use App\Models\Setting;
+use Carbon\Carbon;
 
 class TranskripAbsensiController extends Controller
 {
@@ -18,67 +18,54 @@ class TranskripAbsensiController extends Controller
      * Halaman Utama Filter Cetak Transkrip
      */
     public function index(Request $request)
-{
-    $user = auth()->user();
-    
-    // Deteksi Role Pengguna
-    $isWaliKelas = $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
-    $isBK        = $user->hasRole('bk') || $user->role === 'bk';
+    {
+        $user = auth()->user();
+        
+        // Deteksi Role Pengguna
+        $isWaliKelas = $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
+        $isBK        = $user->hasRole('bk') || $user->role === 'bk';
 
-    $classrooms = collect();
-    $students   = collect();
+        $classrooms = collect();
+        $students   = collect();
 
-    if ($isWaliKelas) {
-        // 1. Cari ID Guru dari user yang login
-        $teacher = Teacher::where('user_id', $user->id)->first();
-        $teacherId = $teacher ? $teacher->id : $user->id;
+        if ($isWaliKelas) {
+            // Wali Kelas: Ambil kelas binaannya saja
+            $teacher = Teacher::where('user_id', $user->id)->first();
+            $teacherId = $teacher ? $teacher->id : $user->id;
 
-        // 2. Ambil HANYA kelas yang diampu oleh Wali Kelas ini
-        $classrooms = Classroom::where('homeroom_teacher_id', $teacherId)
-            ->orWhere('homeroom_teacher_id', $user->id)
-            ->get();
-            
-        $classroomIds = $classrooms->pluck('id');
+            $classrooms = Classroom::where('homeroom_teacher_id', $teacherId)
+                ->orWhere('homeroom_teacher_id', $user->id)
+                ->get();
+            $classroomIds = $classrooms->pluck('id');
 
-        // 3. Ambil HANYA siswa yang berada di kelas binaan tersebut
-        $students = Student::whereIn('classroom_id', $classroomIds)
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
+            $students = Student::whereIn('classroom_id', $classroomIds)
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get();
 
-    } elseif ($isBK) {
-        // Guru BK: Ambil kelas bimbingannya
-        $teacher = Teacher::where('user_id', $user->id)->first();
-        $teacherId = $teacher ? $teacher->id : $user->id;
+        } elseif ($isBK) {
+            // Guru BK: Ambil kelas bimbingannya
+            $teacher = Teacher::where('user_id', $user->id)->first();
+            $teacherId = $teacher ? $teacher->id : $user->id;
 
-        $classrooms = Classroom::where('counseling_teacher_id', $teacherId)
-            ->orWhere('counseling_teacher_id', $user->id)
-            ->get();
+            $classrooms = Classroom::where('counseling_teacher_id', $teacherId)
+                ->orWhere('counseling_teacher_id', $user->id)
+                ->get();
 
-        // Jika tidak diset khusus per kelas, berikan seluruh kelas untuk BK
-        if ($classrooms->isEmpty()) {
+            if ($classrooms->isEmpty()) {
+                $classrooms = Classroom::orderBy('name')->get();
+            }
+
+            $students = Student::where('status', 'active')->orderBy('name')->get();
+
+        } else {
+            // Admin: Ambil seluruh kelas dan siswa
             $classrooms = Classroom::orderBy('name')->get();
+            $students   = Student::where('status', 'active')->orderBy('name')->get();
         }
 
-        $students = Student::where('status', 'active')->orderBy('name')->get();
-
-    } else {
-        // Admin: Ambil seluruh kelas dan siswa
-        $classrooms = Classroom::orderBy('name')->get();
-        $students   = Student::where('status', 'active')->orderBy('name')->get();
+        return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK'));
     }
-
-    // Ambil data absensi KBM beserta relasi mapel dan guru
-    $learning = $includeLearning 
-        ? Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
-            ->where('student_id', $st->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->orderBy('date', 'asc')
-            ->get() 
-        : collect();
-
-    return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK', 'learning', 'includeLearning'));
-}
 
     /**
      * Halaman Cetak Transkrip Absensi A4
@@ -135,16 +122,29 @@ class TranskripAbsensiController extends Controller
 
         $reports = [];
         foreach ($students as $st) {
+            // 1. Absensi Gerbang
             $gate = $includeGate 
-                ? DailyAttendance::where('student_id', $st->id)->whereBetween('date', [$startDate, $endDate])->orderBy('date', 'asc')->get() 
+                ? DailyAttendance::where('student_id', $st->id)
+                    ->whereBetween('date', [$startDate, $endDate])
+                    ->orderBy('date', 'asc')
+                    ->get() 
                 : collect();
 
+            // 2. Absensi Pembelajaran (KBM) dengan Relasi Mapel & Guru
             $learning = $includeLearning 
-                ? Attendance::where('student_id', $st->id)->whereBetween('date', [$startDate, $endDate])->orderBy('date', 'asc')->get() 
+                ? Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
+                    ->where('student_id', $st->id)
+                    ->whereBetween('date', [$startDate, $endDate])
+                    ->orderBy('date', 'asc')
+                    ->get() 
                 : collect();
 
+            // 3. Absensi Sholat & Ibadah
             $prayer = $includePrayer 
-                ? PrayerAttendance::where('student_id', $st->id)->whereBetween('date', [$startDate, $endDate])->orderBy('date', 'asc')->get() 
+                ? PrayerAttendance::where('student_id', $st->id)
+                    ->whereBetween('date', [$startDate, $endDate])
+                    ->orderBy('date', 'asc')
+                    ->get() 
                 : collect();
 
             $classroom = $st->classroom;
@@ -182,32 +182,29 @@ class TranskripAbsensiController extends Controller
     }
 
     /**
-     * Konfigurasi Data Sekolah & TTD
+     * Konfigurasi Data Sekolah & Logo Kop Surat
      */
     private function getSchoolData()
-{
-    // Ambil path file logo dari tabel settings database
-    $logoLeftPath  = Setting::where('key', 'logo_left')->value('value');  // Contoh: 'settings/logo_provinsi.png'
-    $logoRightPath = Setting::where('key', 'logo_right')->value('value'); // Contoh: 'settings/logo_smk.png'
+    {
+        $logoLeftPath  = Setting::where('key', 'logo_left')->value('value');
+        $logoRightPath = Setting::where('key', 'logo_right')->value('value');
 
-    return [
-        'school_name'      => Setting::where('key', 'school_name')->value('value') ?? 'SMK NEGERI 1 BUKITTINGGI',
-        'provinsi_name'    => Setting::where('key', 'provinsi_name')->value('value') ?? 'SUMATERA BARAT',
-        'school_address'   => Setting::where('key', 'school_address')->value('value') ?? 'Jl. Iskandar Teja Sukmana - Padang Gamuak, Kota Bukittinggi',
-        'school_email'     => Setting::where('key', 'school_email')->value('value') ?? 'info@smkn1bukittinggi.sch.id',
-        'school_web'       => Setting::where('key', 'school_web')->value('value') ?? 'www.smkn1bukittinggi.sch.id',
-        'sign_title'       => 'Kepala Sekolah',
-        'sign_name'        => Setting::where('key', 'headmaster_name')->value('value') ?? 'Gustian Budiarto, M.Pd',
-        'sign_nip'         => Setting::where('key', 'headmaster_nip')->value('value') ?? '19740731 200801 1 002',
-        'sign_city'        => 'Bukittinggi',
-        'paper_size'       => 'a4',
-        'paper_orientation'=> 'portrait',
-        
-        // Pembacaan URL file logo yang tersimpan di storage
-        'logo_left'  => ($logoLeftPath && \Storage::disk('public')->exists($logoLeftPath)) ? asset('storage/' . $logoLeftPath) : null,
-        'logo_right' => ($logoRightPath && \Storage::disk('public')->exists($logoRightPath)) ? asset('storage/' . $logoRightPath) : null,
-        'sign_image' => null,
-        'stempel'    => null,
-    ];
-}
+        return [
+            'school_name'      => Setting::where('key', 'school_name')->value('value') ?? 'SMK NEGERI 1 BUKITTINGGI',
+            'provinsi_name'    => Setting::where('key', 'provinsi_name')->value('value') ?? 'SUMATERA BARAT',
+            'school_address'   => Setting::where('key', 'school_address')->value('value') ?? 'Jl. Iskandar Teja Sukmana - Padang Gamuak, Kota Bukittinggi',
+            'school_email'     => Setting::where('key', 'school_email')->value('value') ?? 'info@smkn1bukittinggi.sch.id',
+            'school_web'       => Setting::where('key', 'school_web')->value('value') ?? 'www.smkn1bukittinggi.sch.id',
+            'sign_title'       => 'Kepala Sekolah',
+            'sign_name'        => Setting::where('key', 'headmaster_name')->value('value') ?? 'Gustian Budiarto, M.Pd',
+            'sign_nip'         => Setting::where('key', 'headmaster_nip')->value('value') ?? '19740731 200801 1 002',
+            'sign_city'        => 'Bukittinggi',
+            'paper_size'       => 'a4',
+            'paper_orientation'=> 'portrait',
+            'logo_left'        => ($logoLeftPath && \Storage::disk('public')->exists($logoLeftPath)) ? asset('storage/' . $logoLeftPath) : null,
+            'logo_right'       => ($logoRightPath && \Storage::disk('public')->exists($logoRightPath)) ? asset('storage/' . $logoRightPath) : null,
+            'sign_image'       => null,
+            'stempel'          => null,
+        ];
+    }
 }
