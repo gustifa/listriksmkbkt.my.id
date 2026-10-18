@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Classroom;
 use App\Models\Teacher;
+use App\Models\Schedule;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\PrayerAttendance;
@@ -114,13 +115,15 @@ class TranskripAbsensiController extends Controller
         }
 
         $settings = $this->getSchoolData();
-        $start = Carbon::parse($startDate);
-        $end   = Carbon::parse($endDate);
+        $start    = Carbon::parse($startDate);
+        $end      = Carbon::parse($endDate);
 
         $reports = [];
         foreach ($students as $st) {
             
-            // 1. ABSENSI GERBANG (AUTO TANPA KETERANGAN JIKA TANGGAL KOSONG)
+            // -----------------------------------------------------------------
+            // 1. ABSENSI GERBANG (DAILY ATTENDANCE)
+            // -----------------------------------------------------------------
             $gate = collect();
             if ($includeGate) {
                 $existingGate = DailyAttendance::where('student_id', $st->id)
@@ -131,7 +134,7 @@ class TranskripAbsensiController extends Controller
                     });
 
                 for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-                    if ($date->isSunday()) continue; // Skip hari Minggu
+                    if ($date->isSunday()) continue; // Abaikan hari Minggu
 
                     $dateStr = $date->toDateString();
                     if ($existingGate->has($dateStr)) {
@@ -147,33 +150,74 @@ class TranskripAbsensiController extends Controller
                 }
             }
 
-            // 2. ABSENSI PEMBELAJARAN (KBM)
+            // -----------------------------------------------------------------
+            // 2. ABSENSI PEMBELAJARAN (KBM) - MENGAMBIL JADWAL ASLI KELAS
+            // -----------------------------------------------------------------
             $learning = collect();
             if ($includeLearning) {
+                // Ambil jadwal pelajaran aktif milik kelas siswa
+                $classSchedules = Schedule::with(['subject', 'teacher'])
+                    ->where('classroom_id', $st->classroom_id)
+                    ->orderBy('start_time', 'asc')
+                    ->get();
+
+                // Ambil data kehadiran KBM riil siswa
                 $existingLearning = Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
                     ->where('student_id', $st->id)
                     ->whereBetween('date', [$startDate, $endDate])
-                    ->orderBy('date', 'asc')
                     ->get();
 
-                if ($existingLearning->isNotEmpty()) {
-                    $learning = $existingLearning;
-                } else {
-                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-                        if ($date->isSunday()) continue;
-                        $learning->push((object)[
-                            'date'          => $date->toDateString(),
-                            'schedule'      => null,
-                            'subject_name'  => 'Pelajaran Efektif',
-                            'teacher'       => null,
-                            'check_in_time' => '-',
-                            'status'        => 'Tanpa Keterangan'
-                        ]);
+                for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                    if ($date->isSunday()) continue;
+
+                    $dateStr    = $date->toDateString();
+                    $dayNameEng = strtolower($date->format('l'));                       // contoh: 'monday'
+                    $dayNameInd = strtolower($date->locale('id')->isoFormat('dddd'));  // contoh: 'senin'
+
+                    // Filter jadwal kelas pada hari berjalan
+                    $daySchedules = $classSchedules->filter(function($sch) use ($dayNameEng, $dayNameInd) {
+                        $schDay = strtolower($sch->day);
+                        return $schDay === $dayNameEng || $schDay === $dayNameInd;
+                    });
+
+                    if ($daySchedules->isNotEmpty()) {
+                        foreach ($daySchedules as $sch) {
+                            // Cek apakah ada record presensi siswa untuk jadwal ini
+                            $attendRecord = $existingLearning->first(function($att) use ($dateStr, $sch) {
+                                return Carbon::parse($att->date)->toDateString() === $dateStr 
+                                    && $att->schedule_id == $sch->id;
+                            });
+
+                            if ($attendRecord) {
+                                $learning->push($attendRecord);
+                            } else {
+                                // Jika tidak absen, tetap gunakan data mapel & guru dari jadwal kelas
+                                $learning->push((object)[
+                                    'date'          => $dateStr,
+                                    'schedule'      => $sch,
+                                    'subject_name'  => $sch->subject->name ?? ($sch->subject->subject_name ?? 'Mata Pelajaran'),
+                                    'teacher'       => $sch->teacher,
+                                    'check_in_time' => '-',
+                                    'status'        => 'Tanpa Keterangan'
+                                ]);
+                            }
+                        }
+                    } else {
+                        // Fallback jika tidak ada jadwal terdaftar pada hari efektif tersebut
+                        $attendRecord = $existingLearning->first(function($att) use ($dateStr) {
+                            return Carbon::parse($att->date)->toDateString() === $dateStr;
+                        });
+
+                        if ($attendRecord) {
+                            $learning->push($attendRecord);
+                        }
                     }
                 }
             }
 
+            // -----------------------------------------------------------------
             // 3. ABSENSI SHOLAT & IBADAH
+            // -----------------------------------------------------------------
             $prayer = collect();
             if ($includePrayer) {
                 $existingPrayer = PrayerAttendance::where('student_id', $st->id)
@@ -196,6 +240,7 @@ class TranskripAbsensiController extends Controller
                 }
             }
 
+            // Resolusi Guru Wali Kelas & BK
             $classroom = $st->classroom;
             $homeroomTeacher   = $classroom ? $classroom->homeroomTeacher : null;
             $counselingTeacher = $classroom ? $classroom->counselingTeacher : null;
@@ -222,7 +267,7 @@ class TranskripAbsensiController extends Controller
             ];
         }
 
-        // PENENTUAN NAMA FILE DOWNLOAD PDF
+        // PENENTUAN FORMAT NAMA FILE DOWNLOAD PDF
         $nowFormatted = Carbon::now()->format('dmy_Hi');
         if ($mode === 'student' && $students->count() === 1) {
             $studentName = Str::slug($students->first()->name, '_');
@@ -243,7 +288,7 @@ class TranskripAbsensiController extends Controller
     }
 
     /**
-     * Konfigurasi Data Sekolah & Logo Database
+     * Data Pengaturan Sekolah & Logo Kop Surat
      */
     private function getSchoolData()
     {
