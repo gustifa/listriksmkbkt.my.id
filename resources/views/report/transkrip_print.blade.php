@@ -228,13 +228,13 @@
                                 <td class="text-center">{{ $idx + 1 }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
                                 <td>
-                                    <strong>{{ $subjectName }}</strong>
+                                    <strong>{{ $subjectName }}</strong> <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
                                     @if($scheduleTime !== '-')
                                         <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
                                             Jadwal: {{ $scheduleTime }}
                                         </small>
                                     @endif
-                                    <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
+                                    
                                     
                                 </td>
                                 <td class="text-center">{{ $learn->check_in_time ?? '-' }}</td>
