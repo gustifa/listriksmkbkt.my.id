@@ -1,15 +1,23 @@
 <x-app-layout>
     <div class="page-content py-3">
         <div class="container-fluid">
-            <div class="card shadow border-0">
+            <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white fw-bold py-3">
                     <i class="fas fa-file-invoice me-2"></i> Cetak Transkrip Absensi Siswa
                 </div>
                 <div class="card-body p-4">
+                    
+                    @if(session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i> {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
                     <form id="form-transkrip" method="GET" action="{{ route('transkrip.print') }}" target="_blank">
                         <div class="row g-3">
                             
-                            <!-- 1. Opsi Target Cetak -->
+                            <!-- 1. OPSI CETAK -->
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Opsi Cetak</label>
                                 <select id="mode" name="mode" class="form-select" onchange="toggleModeOptions()">
@@ -109,7 +117,6 @@
 
     <script>
         $(document).ready(function() {
-            // Inisialisasi Select2
             initSelect2();
         });
 
@@ -141,7 +148,6 @@
                 $('#container-classroom').addClass('d-none');
             }
 
-            // Re-initialize Select2 saat opsi dinamis berganti agar ukuran tidak terdistorsi
             initSelect2();
         }
     </script>

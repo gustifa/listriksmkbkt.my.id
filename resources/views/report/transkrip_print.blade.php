@@ -6,9 +6,7 @@
     <title>Transkrip Absensi Siswa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
         
         body {
             margin: 0;
@@ -19,15 +17,14 @@
             color: #000;
         }
 
-        /* WADAH UTAMA PRESISI KERTAS A4 PER SISWA */
         .student-document {
             position: relative;
             box-sizing: border-box;
             counter-reset: student-page;
             page-break-after: always;
             page-break-inside: avoid;
-            padding-bottom: 35px; /* Ruang aman khusus footer */
-            min-height: 265mm;    /* Menjaga bentuk A4 presisi */
+            padding-bottom: 35px;
+            min-height: 265mm;
         }
 
         .student-document:last-child {
@@ -37,7 +34,6 @@
         .kop-surat { border-bottom: 3px double #000; padding-bottom: 3px; margin-bottom: 6px; }
         .logo-kop { max-height: 55px; max-width: 100%; object-fit: contain; }
         
-        /* PADDING TABEL DIPERAT AGAR TIDAK MELUAP */
         .table-bordered th, .table-bordered td { 
             border: 1px solid #000 !important; 
             padding: 1.5px 3px !important; 
@@ -45,12 +41,10 @@
         }
         .table-header th { background-color: #f2f2f2 !important; text-align: center; font-weight: bold; }
         
-        /* TANDA TANGAN RINGKAS */
         .signature-wrapper { position: relative; height: 35px; }
         .img-ttd { position: absolute; z-index: 2; height: 35px; top: 0; left: 50%; transform: translateX(-50%); }
         .img-stempel { position: absolute; z-index: 1; height: 42px; top: -5px; left: 35%; opacity: 0.85; }
 
-        /* FOOTER DIKUNCI PRESISI DI BAGIAN BAWAH KERTAS */
         .document-footer {
             position: absolute;
             bottom: 0;
@@ -303,7 +297,7 @@
                 </table>
             </div>
 
-            <!-- FOOTER RESMI TERKUNCI DI BAGIAN PALING BAWAH KERTAS A4 -->
+            <!-- FOOTER RESMI SEKOLAH -->
             <div class="document-footer">
                 <div class="row align-items-center">
                     <div class="col-8">
