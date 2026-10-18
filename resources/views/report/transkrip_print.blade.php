@@ -234,7 +234,6 @@
                                             Jadwal: {{ $scheduleTime }}
                                         </small>
                                     @endif
-                                    <br>
                                     <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
                                     
                                 </td>
