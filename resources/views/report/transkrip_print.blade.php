@@ -227,7 +227,7 @@
                 </table>
             @endif
 
-            <!-- II. ABSENSI PEMBELAJARAN (KBM) -->
+           <!-- II. ABSENSI PEMBELAJARAN (KBM) -->
             @if(!empty($includeLearning))
                 <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
                 <table class="table table-bordered mb-1">
@@ -235,15 +235,15 @@
                         <tr class="table-header">
                             <th width="5%">No</th>
                             <th width="15%">Tanggal</th>
-                            <th>Mata Pelajaran & Guru Pengampu</th>
-                            <th width="20%">Jam Absen</th>
+                            <th>Mata Pelajaran, Guru & Jam Pelajaran</th>
+                            <th width="18%">Jam Absen</th>
                             <th width="15%">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($learningAttendances as $idx => $learn)
                             @php
-                                // Ambil nama mapel dan nama guru dari relasi schedule
+                                // Ambil nama mapel, nama guru, dan rentang jam pelajaran dari relasi schedule
                                 $subjectName = $learn->schedule->subject->name 
                                     ?? $learn->schedule->subject->subject_name 
                                     ?? $learn->subject_name 
@@ -253,13 +253,24 @@
                                     ?? $learn->schedule->teacher->user->name 
                                     ?? $learn->teacher->name 
                                     ?? '-';
+
+                                // Format Rentang Jam Pelajaran (contoh: 07:30 - 09:00 WIB)
+                                $scheduleTime = '-';
+                                if (!empty($learn->schedule) && !empty($learn->schedule->start_time) && !empty($learn->schedule->end_time)) {
+                                    $startTime = \Carbon\Carbon::parse($learn->schedule->start_time)->format('H:i');
+                                    $endTime   = \Carbon\Carbon::parse($learn->schedule->end_time)->format('H:i');
+                                    $scheduleTime = $startTime . ' - ' . $endTime . ' WIB';
+                                }
                             @endphp
                             <tr>
                                 <td class="text-center">{{ $idx + 1 }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
                                 <td>
                                     <strong>{{ $subjectName }}</strong><br>
-                                    <small class="text-muted" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
+                                    <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
+                                    <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
+                                        <i class="fas fa-clock me-1"></i>Jadwal: {{ $scheduleTime }}
+                                    </small>
                                 </td>
                                 <td class="text-center">{{ $learn->check_in_time ?? ($learn->created_at ? $learn->created_at->format('H:i:s') : '-') }}</td>
                                 <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
