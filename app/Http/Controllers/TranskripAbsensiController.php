@@ -77,7 +77,7 @@ class TranskripAbsensiController extends Controller
             ->get() 
         : collect();
 
-    return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK', 'learning'));
+    return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK', 'learning', 'includeLearning'));
 }
 
     /**
