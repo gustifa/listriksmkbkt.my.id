@@ -15,14 +15,24 @@ use Carbon\Carbon;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $todayDate   = Carbon::today()->toDateString();
         $currentTime = Carbon::now()->format('H:i:s');
 
-        // Ambil nama hari dalam Bahasa Indonesia dan Inggris
-        $todayIndo = Carbon::now()->locale('id')->isoFormat('dddd'); // contoh: 'Senin'
-        $todayEng  = Carbon::now()->format('l');                      // contoh: 'Monday'
+        // Ambil nama hari berjalan
+        $todayIndo = Carbon::now()->locale('id')->isoFormat('dddd'); // contoh: 'Minggu'
+        $todayEng  = Carbon::now()->format('l');                      
+
+        // List Hari Aktif Sekolah untuk Tab Filter Navigasi Publik
+        $daysList = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+
+        // Ambil hari yang dipilih dari request URL, jika tidak ada/hari minggu, default ke hari berjalan atau 'senin'
+        $selectedDay = strtolower($request->input('day', $todayIndo));
+        if ($selectedDay === 'minggu' || !in_array($selectedDay, $daysList)) {
+            // Jika diakses hari Minggu/tidak valid, default tampilkan hari Senin agar jadwal tidak kosong
+            $selectedDay = 'senin';
+        }
 
         // Closure kondisi status aktif siswa
         $statusCondition = function($q) {
@@ -35,12 +45,9 @@ class HomeController extends Controller
         // 1. Pengaturan Waktu Absensi
         $attendanceSetting = AttendanceSetting::first();
 
-        // 2. Query Jadwal Pelajaran Hari Ini (Case-Insensitive & Multi-Language)
+        // 2. Query Jadwal Pelajaran Berdasarkan Hari yang Dipilih (Public View)
         $todaySchedules = Schedule::with(['subject', 'teacher', 'classroom', 'room'])
-            ->where(function($query) use ($todayIndo, $todayEng) {
-                $query->whereRaw('LOWER(day) = ?', [strtolower($todayIndo)])
-                      ->orWhereRaw('LOWER(day) = ?', [strtolower($todayEng)]);
-            })
+            ->whereRaw('LOWER(day) = ?', [$selectedDay])
             ->orderBy('start_time', 'asc')
             ->get();
 
@@ -54,8 +61,7 @@ class HomeController extends Controller
             'total'     => $attendances->count(),
         ];
 
-        // 4. HITUNG MONITORING REAL-TIME (BELUM ABSEN MASUK, PULANG & MAPEL)
-        // A. Belum Absen Masuk Gerbang (Hanya siswa berkelas)
+        // 4. HITUNG MONITORING REAL-TIME
         $noArrivalCount = Student::whereNotNull('classroom_id')
             ->where($statusCondition)
             ->whereDoesntHave('dailyAttendances', function ($q) use ($todayDate) {
@@ -64,7 +70,6 @@ class HomeController extends Controller
             })
             ->count();
 
-        // B. Belum Absen Pulang Gerbang (Hanya siswa berkelas)
         $noDepartureCount = Student::whereNotNull('classroom_id')
             ->where($statusCondition)
             ->whereHas('dailyAttendances', function ($q) use ($todayDate) {
@@ -77,7 +82,6 @@ class HomeController extends Controller
             })
             ->count();
 
-        // C. Jadwal Mapel Bermasalah Hari Ini
         $troubledSchedulesCount = Schedule::where(function($q) use ($todayIndo, $todayEng) {
                 $q->whereRaw('LOWER(day) = ?', [strtolower($todayIndo)])
                   ->orWhereRaw('LOWER(day) = ?', [strtolower($todayEng)]);
@@ -92,7 +96,7 @@ class HomeController extends Controller
         $waGateway = WhatsappGateway::latest()->first();
         $isWaActive = $waGateway ? ($waGateway->status === 'connected') : false;
 
-        // 6. Timeline PKL / Magang yang STATUSNYA AKTIF
+        // 6. Timeline PKL / Magang
         $internshipTimeline = InternshipTimeline::where(function($query) {
             $query->whereRaw('LOWER(status) = ?', ['aktif'])
                   ->orWhereRaw('LOWER(status) = ?', ['active'])
@@ -101,10 +105,8 @@ class HomeController extends Controller
         ->latest()
         ->get();
 
-        // 7. Jurnal Mengajar Terbaru
+        // 7. Jurnal & Tahfiz
         $latestJournal = TeachingJournal::with('schedule')->latest()->first();
-
-        // 8. Catatan Tahfiz Terbaru
         $latestTahfiz = TahfizRecord::with('student')->latest()->first();
 
         return view('welcome', compact(
@@ -118,6 +120,8 @@ class HomeController extends Controller
             'latestJournal',
             'todaySchedules',
             'todayIndo',
+            'selectedDay',
+            'daysList',
             'latestTahfiz'
         ));
     }
