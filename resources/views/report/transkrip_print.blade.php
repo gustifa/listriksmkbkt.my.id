@@ -228,14 +228,18 @@
                                 <td class="text-center">{{ $idx + 1 }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
                                 <td>
-                                    <strong>{{ $subjectName }}</strong> <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
-                                    @if($scheduleTime !== '-')
-                                        <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
-                                            Jadwal: {{ $scheduleTime }}
-                                        </small>
-                                    @endif
+                                    <!-- BARIS 1: NAMA MATA PELAJARAN -->
+                                    <strong class="d-block text-dark">{{ $subjectName }}</strong>
                                     
-                                    
+                                    <!-- BARIS 2: GURU & JADWAL TERGABUNG DALAM 1 BARIS -->
+                                    <div class="d-flex justify-content-between align-items-center" style="font-size: 7pt;">
+                                        <small class="text-muted">Guru: {{ $teacherName }}</small>
+                                        @if($scheduleTime !== '-')
+                                            <small class="text-primary fw-semibold">
+                                                Jadwal: {{ $scheduleTime }}
+                                            </small>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="text-center">{{ $learn->check_in_time ?? '-' }}</td>
                                 <td class="text-center fw-bold">
