@@ -11,6 +11,7 @@ use App\Models\Attendance;
 use App\Models\PrayerAttendance;
 use App\Models\Setting;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class TranskripAbsensiController extends Controller
 {
@@ -21,7 +22,6 @@ class TranskripAbsensiController extends Controller
     {
         $user = auth()->user();
         
-        // Deteksi Role Pengguna
         $isWaliKelas = $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
         $isBK        = $user->hasRole('bk') || $user->role === 'bk';
 
@@ -29,7 +29,6 @@ class TranskripAbsensiController extends Controller
         $students   = collect();
 
         if ($isWaliKelas) {
-            // Wali Kelas: Ambil kelas binaannya saja
             $teacher = Teacher::where('user_id', $user->id)->first();
             $teacherId = $teacher ? $teacher->id : $user->id;
 
@@ -44,7 +43,6 @@ class TranskripAbsensiController extends Controller
                 ->get();
 
         } elseif ($isBK) {
-            // Guru BK: Ambil kelas bimbingannya
             $teacher = Teacher::where('user_id', $user->id)->first();
             $teacherId = $teacher ? $teacher->id : $user->id;
 
@@ -59,7 +57,6 @@ class TranskripAbsensiController extends Controller
             $students = Student::where('status', 'active')->orderBy('name')->get();
 
         } else {
-            // Admin: Ambil seluruh kelas dan siswa
             $classrooms = Classroom::orderBy('name')->get();
             $students   = Student::where('status', 'active')->orderBy('name')->get();
         }
@@ -82,7 +79,6 @@ class TranskripAbsensiController extends Controller
         $startDate   = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate     = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
 
-        // Dynamic Checkbox Components
         $includeGate     = $request->has('include_gate');
         $includeLearning = $request->has('include_learning');
         $includePrayer   = $request->has('include_prayer');
@@ -90,7 +86,6 @@ class TranskripAbsensiController extends Controller
         $studentsQuery = Student::with(['classroom.homeroomTeacher', 'classroom.counselingTeacher'])
             ->where('status', 'active');
 
-        // Filter Hak Akses & Mode Cetak
         if ($isWaliKelas) {
             $teacher = Teacher::where('user_id', $user->id)->first();
             $teacherId = $teacher ? $teacher->id : $user->id;
@@ -119,46 +114,98 @@ class TranskripAbsensiController extends Controller
         }
 
         $settings = $this->getSchoolData();
+        $start = Carbon::parse($startDate);
+        $end   = Carbon::parse($endDate);
 
         $reports = [];
         foreach ($students as $st) {
-            // 1. Absensi Gerbang
-            $gate = $includeGate 
-                ? DailyAttendance::where('student_id', $st->id)
+            
+            // 1. ABSENSI GERBANG (AUTO TANPA KETERANGAN JIKA TANGGAL KOSONG)
+            $gate = collect();
+            if ($includeGate) {
+                $existingGate = DailyAttendance::where('student_id', $st->id)
                     ->whereBetween('date', [$startDate, $endDate])
-                    ->orderBy('date', 'asc')
-                    ->get() 
-                : collect();
+                    ->get()
+                    ->keyBy(function($item) {
+                        return Carbon::parse($item->date)->toDateString();
+                    });
 
-            // 2. Absensi Pembelajaran (KBM) dengan Relasi Mapel & Guru
-            $learning = $includeLearning 
-                ? Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
+                for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                    if ($date->isSunday()) continue; // Skip hari Minggu
+
+                    $dateStr = $date->toDateString();
+                    if ($existingGate->has($dateStr)) {
+                        $gate->push($existingGate->get($dateStr));
+                    } else {
+                        $gate->push((object)[
+                            'date'           => $dateStr,
+                            'arrival_time'   => '-',
+                            'departure_time' => '-',
+                            'status'         => 'Tanpa Keterangan'
+                        ]);
+                    }
+                }
+            }
+
+            // 2. ABSENSI PEMBELAJARAN (KBM)
+            $learning = collect();
+            if ($includeLearning) {
+                $existingLearning = Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
                     ->where('student_id', $st->id)
                     ->whereBetween('date', [$startDate, $endDate])
                     ->orderBy('date', 'asc')
-                    ->get() 
-                : collect();
+                    ->get();
 
-            // 3. Absensi Sholat & Ibadah
-            $prayer = $includePrayer 
-                ? PrayerAttendance::where('student_id', $st->id)
+                if ($existingLearning->isNotEmpty()) {
+                    $learning = $existingLearning;
+                } else {
+                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                        if ($date->isSunday()) continue;
+                        $learning->push((object)[
+                            'date'          => $date->toDateString(),
+                            'schedule'      => null,
+                            'subject_name'  => 'Pelajaran Efektif',
+                            'teacher'       => null,
+                            'check_in_time' => '-',
+                            'status'        => 'Tanpa Keterangan'
+                        ]);
+                    }
+                }
+            }
+
+            // 3. ABSENSI SHOLAT & IBADAH
+            $prayer = collect();
+            if ($includePrayer) {
+                $existingPrayer = PrayerAttendance::where('student_id', $st->id)
                     ->whereBetween('date', [$startDate, $endDate])
                     ->orderBy('date', 'asc')
-                    ->get() 
-                : collect();
+                    ->get();
+
+                if ($existingPrayer->isNotEmpty()) {
+                    $prayer = $existingPrayer;
+                } else {
+                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                        if ($date->isSunday()) continue;
+                        $prayer->push((object)[
+                            'date'          => $date->toDateString(),
+                            'prayer_name'   => 'Ibadah Harian',
+                            'check_in_time' => '-',
+                            'status'        => 'Tanpa Keterangan'
+                        ]);
+                    }
+                }
+            }
 
             $classroom = $st->classroom;
+            $homeroomTeacher   = $classroom ? $classroom->homeroomTeacher : null;
+            $counselingTeacher = $classroom ? $classroom->counselingTeacher : null;
 
-            // Resolusi Fallback Wali Kelas
-            $homeroomTeacher = $classroom ? $classroom->homeroomTeacher : null;
             if (!$homeroomTeacher && $classroom && $classroom->homeroom_teacher_id) {
                 $homeroomTeacher = Teacher::where('id', $classroom->homeroom_teacher_id)
                     ->orWhere('user_id', $classroom->homeroom_teacher_id)
                     ->first();
             }
 
-            // Resolusi Fallback Guru BK
-            $counselingTeacher = $classroom ? $classroom->counselingTeacher : null;
             if (!$counselingTeacher && $classroom && $classroom->counseling_teacher_id) {
                 $counselingTeacher = Teacher::where('id', $classroom->counseling_teacher_id)
                     ->orWhere('user_id', $classroom->counseling_teacher_id)
@@ -175,15 +222,14 @@ class TranskripAbsensiController extends Controller
             ];
         }
 
-        // TENTUKAN NAMA FILE DOWNLOAD DINAMIS
-        $nowFormatted = Carbon::now()->format('dmy_Hi'); // Contoh: 181026_2130
-        
+        // PENENTUAN NAMA FILE DOWNLOAD PDF
+        $nowFormatted = Carbon::now()->format('dmy_Hi');
         if ($mode === 'student' && $students->count() === 1) {
-            $studentName = \Str::slug($students->first()->name, '_');
+            $studentName = Str::slug($students->first()->name, '_');
             $downloadTitle = "Transkrip_Absensi_" . $studentName . "_" . $nowFormatted;
         } elseif ($mode === 'classroom' && isset($classroomId)) {
             $classroom = Classroom::find($classroomId);
-            $className = $classroom ? \Str::slug($classroom->name, '_') : 'Kelas';
+            $className = $classroom ? Str::slug($classroom->name, '_') : 'Kelas';
             $downloadTitle = "Transkrip_Absensi_Kelas_" . $className . "_" . $nowFormatted;
         } else {
             $downloadTitle = "Transkrip_Absensi_Semua_Kelas_" . $nowFormatted;
@@ -191,12 +237,13 @@ class TranskripAbsensiController extends Controller
 
         return view('report.transkrip_print', compact(
             'reports', 'startDate', 'endDate', 'settings', 
-            'includeGate', 'includeLearning', 'includePrayer', 'downloadTitle'
+            'includeGate', 'includeLearning', 'includePrayer',
+            'downloadTitle'
         ));
     }
 
     /**
-     * Konfigurasi Data Sekolah & Logo Kop Surat
+     * Konfigurasi Data Sekolah & Logo Database
      */
     private function getSchoolData()
     {

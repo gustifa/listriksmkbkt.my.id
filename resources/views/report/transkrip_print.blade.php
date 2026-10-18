@@ -6,9 +6,7 @@
     <title>{{ $downloadTitle ?? 'Transkrip_Absensi_Siswa' }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        * { 
-            box-sizing: border-box; 
-        }
+        * { box-sizing: border-box; }
         
         body {
             margin: 0;
@@ -19,71 +17,35 @@
             color: #000;
         }
 
-        /* WADAH UTAMA DOKUMEN PER SISWA */
         .student-document {
             position: relative;
             box-sizing: border-box;
             counter-reset: student-page;
             page-break-after: always;
             page-break-inside: avoid;
-            padding-bottom: 35px; /* Ruang aman khusus footer */
-            min-height: 265mm;    /* Presisi A4 */
+            padding-bottom: 35px;
+            min-height: 265mm;
         }
 
         .student-document:last-child {
             page-break-after: auto;
         }
 
-        .kop-surat { 
-            border-bottom: 3px double #000; 
-            padding-bottom: 3px; 
-            margin-bottom: 6px; 
-        }
+        .kop-surat { border-bottom: 3px double #000; padding-bottom: 3px; margin-bottom: 6px; }
+        .logo-kop { max-height: 55px; max-width: 100%; object-fit: contain; }
         
-        .logo-kop { 
-            max-height: 55px; 
-            max-width: 100%; 
-            object-fit: contain; 
-        }
-        
-        /* TABLE STYLING RINGKAS PRESISI */
         .table-bordered th, .table-bordered td { 
             border: 1px solid #000 !important; 
             padding: 2px 4px !important; 
             font-size: 8pt !important; 
         }
         
-        .table-header th { 
-            background-color: #f2f2f2 !important; 
-            text-align: center; 
-            font-weight: bold; 
-        }
+        .table-header th { background-color: #f2f2f2 !important; text-align: center; font-weight: bold; }
         
-        /* SIGNATURE WRAPPER */
-        .signature-wrapper { 
-            position: relative; 
-            height: 35px; 
-        }
-        
-        .img-ttd { 
-            position: absolute; 
-            z-index: 2; 
-            height: 35px; 
-            top: 0; 
-            left: 50%; 
-            transform: translateX(-50%); 
-        }
-        
-        .img-stempel { 
-            position: absolute; 
-            z-index: 1; 
-            height: 42px; 
-            top: -5px; 
-            left: 35%; 
-            opacity: 0.85; 
-        }
+        .signature-wrapper { position: relative; height: 35px; }
+        .img-ttd { position: absolute; z-index: 2; height: 35px; top: 0; left: 50%; transform: translateX(-50%); }
+        .img-stempel { position: absolute; z-index: 1; height: 42px; top: -5px; left: 35%; opacity: 0.85; }
 
-        /* FOOTER TERKUNCI PRESISI DI BAGIAN BAWAH KERTAS */
         .document-footer {
             position: absolute;
             bottom: 0;
@@ -97,19 +59,12 @@
         }
 
         @media print {
-            .no-print { 
-                display: none !important; 
-            }
-            
+            .no-print { display: none !important; }
             @page { 
                 size: {{ $settings['paper_size'] ?? 'a4' }} {{ $settings['paper_orientation'] ?? 'portrait' }}; 
                 margin: 0.5cm 1cm 0.5cm 1cm;
             }
-            
-            body { 
-                padding: 0; 
-                background: #fff; 
-            }
+            body { padding: 0; background: #fff; }
             
             .student-document {
                 min-height: 270mm;
@@ -124,9 +79,9 @@
 </head>
 <body class="p-2">
 
-    <!-- Tombol Cetak (Tidak ikut dicetak) -->
+    <!-- Tombol Cetak -->
     <div class="mb-2 text-end no-print">
-        <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold px-3">
+        <button onclick="triggerPrint('{{ $downloadTitle }}')" class="btn btn-primary btn-sm fw-bold px-3">
             <i class="fas fa-print me-1"></i> Cetak / Download PDF
         </button>
         <button onclick="window.close()" class="btn btn-secondary btn-sm px-3">Tutup</button>
@@ -170,13 +125,13 @@
                 </div>
             </div>
 
-            <!-- JUDUL DOKUMEN -->
+            <!-- JUDUL -->
             <div class="text-center mb-1">
                 <h6 class="fw-bold text-decoration-underline mb-0" style="font-size: 9.5pt;">TRANSKRIP REKAPITULASI KEHADIRAN SISWA</h6>
                 <small style="font-size: 7.5pt;">Periode: {{ \Carbon\Carbon::parse($startDate)->translatedFormat('d F Y') }} s/d {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d F Y') }}</small>
             </div>
 
-            <!-- BIODATA SISWA -->
+            <!-- BIODATA -->
             <table class="table table-borderless mb-1" style="font-size: 8pt; width: 100%;">
                 <tr>
                     <td width="15%" class="fw-bold p-0">Nama Siswa</td>
@@ -216,18 +171,24 @@
                                 <td class="text-center">{{ \Carbon\Carbon::parse($gate->date)->translatedFormat('d/m/Y') }}</td>
                                 <td class="text-center">{{ $gate->arrival_time ?? '-' }}</td>
                                 <td class="text-center">{{ $gate->departure_time ?? '-' }}</td>
-                                <td class="text-center fw-bold">{{ ucfirst($gate->status) }}</td>
+                                <td class="text-center fw-bold">
+                                    @if(in_array(strtolower($gate->status), ['tanpa keterangan', 'alpa']))
+                                        <span class="text-danger fw-bold">Tanpa Keterangan</span>
+                                    @else
+                                        {{ ucfirst($gate->status) }}
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi gerbang pada periode ini.</td>
+                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi gerbang.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             @endif
 
-           <!-- II. ABSENSI PEMBELAJARAN (KBM) -->
+            <!-- II. ABSENSI PEMBELAJARAN (KBM) -->
             @if(!empty($includeLearning))
                 <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
                 <table class="table table-bordered mb-1">
@@ -243,18 +204,16 @@
                     <tbody>
                         @forelse($learningAttendances as $idx => $learn)
                             @php
-                                // Ambil nama mapel, nama guru, dan rentang jam pelajaran dari relasi schedule
                                 $subjectName = $learn->schedule->subject->name 
                                     ?? $learn->schedule->subject->subject_name 
                                     ?? $learn->subject_name 
-                                    ?? '-';
+                                    ?? 'Mata Pelajaran';
 
                                 $teacherName = $learn->schedule->teacher->name 
                                     ?? $learn->schedule->teacher->user->name 
                                     ?? $learn->teacher->name 
                                     ?? '-';
 
-                                // Format Rentang Jam Pelajaran (contoh: 07:30 - 09:00 WIB)
                                 $scheduleTime = '-';
                                 if (!empty($learn->schedule) && !empty($learn->schedule->start_time) && !empty($learn->schedule->end_time)) {
                                     $startTime = \Carbon\Carbon::parse($learn->schedule->start_time)->format('H:i');
@@ -266,18 +225,26 @@
                                 <td class="text-center">{{ $idx + 1 }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
                                 <td>
-                                    <strong>{{ $subjectName }}</strong><i class="fas fa-clock me-1"></i>Jadwal: {{ $scheduleTime }}<br>
+                                    <strong>{{ $subjectName }}</strong><br>
                                     <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
-                                    <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
-                                        
-                                    </small>
+                                    @if($scheduleTime !== '-')
+                                        <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
+                                            Jadwal: {{ $scheduleTime }}
+                                        </small>
+                                    @endif
                                 </td>
-                                <td class="text-center">{{ $learn->check_in_time ?? ($learn->created_at ? $learn->created_at->format('H:i:s') : '-') }}</td>
-                                <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
+                                <td class="text-center">{{ $learn->check_in_time ?? '-' }}</td>
+                                <td class="text-center fw-bold">
+                                    @if(in_array(strtolower($learn->status), ['tanpa keterangan', 'alpa']))
+                                        <span class="text-danger fw-bold">Tanpa Keterangan</span>
+                                    @else
+                                        {{ ucfirst($learn->status) }}
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM pada periode ini.</td>
+                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -305,8 +272,10 @@
                                 <td>Sholat {{ ucfirst($prayer->prayer_name) }}</td>
                                 <td class="text-center">{{ $prayer->check_in_time ?? '-' }}</td>
                                 <td class="text-center fw-bold">
-                                    @if($prayer->status == 'berhalangan')
-                                        <span class="text-danger">Berhalangan (Udzur)</span>
+                                    @if(in_array(strtolower($prayer->status), ['tanpa keterangan', 'alpa']))
+                                        <span class="text-danger fw-bold">Tanpa Keterangan</span>
+                                    @elseif($prayer->status == 'berhalangan')
+                                        <span class="text-warning text-dark">Berhalangan (Udzur)</span>
                                     @else
                                         <span class="text-success">Hadir Sholat</span>
                                     @endif
@@ -314,7 +283,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi sholat pada periode ini.</td>
+                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi sholat.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -369,7 +338,7 @@
                 </table>
             </div>
 
-            <!-- FOOTER RESMI SEKOLAH (TERKUNCI PRESISI) -->
+            <!-- FOOTER RESMI -->
             <div class="document-footer">
                 <div class="row align-items-center">
                     <div class="col-8">
@@ -385,6 +354,15 @@
 
         </div>
     @endforeach
+
+    <script>
+        function triggerPrint(customTitle) {
+            if (customTitle) {
+                document.title = customTitle;
+            }
+            window.print();
+        }
+    </script>
 
 </body>
 </html>
