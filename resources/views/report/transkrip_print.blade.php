@@ -266,10 +266,10 @@
                                 <td class="text-center">{{ $idx + 1 }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
                                 <td>
-                                    <strong>{{ $subjectName }}</strong><br>
+                                    <strong>{{ $subjectName }}</strong><i class="fas fa-clock me-1"></i>Jadwal: {{ $scheduleTime }}<br>
                                     <small class="text-muted d-block" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
                                     <small class="text-primary fw-semibold d-block" style="font-size: 7pt;">
-                                        <i class="fas fa-clock me-1"></i>Jadwal: {{ $scheduleTime }}
+                                        
                                     </small>
                                 </td>
                                 <td class="text-center">{{ $learn->check_in_time ?? ($learn->created_at ? $learn->created_at->format('H:i:s') : '-') }}</td>
