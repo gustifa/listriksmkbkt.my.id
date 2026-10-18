@@ -182,35 +182,48 @@
             @endif
 
             <!-- II. ABSENSI PEMBELAJARAN -->
-            @if(!empty($includeLearning))
-                <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
-                <table class="table table-bordered mb-1">
-                    <thead>
-                        <tr class="table-header">
-                            <th width="5%">No</th>
-                            <th width="20%">Tanggal</th>
-                            <th width="25%">Jam Masuk</th>
-                            <th width="25%">Jam Selesai</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($learningAttendances as $idx => $learn)
-                            <tr>
-                                <td class="text-center">{{ $idx + 1 }}</td>
-                                <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
-                                <td class="text-center">{{ $learn->check_in_time ?? '-' }}</td>
-                                <td class="text-center">{{ $learn->check_out_time ?? '-' }}</td>
-                                <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM pada periode ini.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            @endif
+@if(!empty($includeLearning))
+    <div class="fw-bold mb-0 mt-1" style="font-size: 8pt;">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
+    <table class="table table-bordered mb-1">
+        <thead>
+            <tr class="table-header">
+                <th width="5%">No</th>
+                <th width="15%">Tanggal</th>
+                <th>Mata Pelajaran & Guru Pengampu</th>
+                <th width="20%">Jam Absen</th>
+                <th width="15%">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($learningAttendances as $idx => $learn)
+                @php
+                    // Ambil nama mapel dan nama guru
+                    $subjectName = $learn->schedule->subject->name 
+                        ?? $learn->subject_name 
+                        ?? '-';
+
+                    $teacherName = $learn->schedule->teacher->name 
+                        ?? $learn->teacher->name 
+                        ?? '-';
+                @endphp
+                <tr>
+                    <td class="text-center">{{ $idx + 1 }}</td>
+                    <td class="text-center">{{ \Carbon\Carbon::parse($learn->date)->translatedFormat('d/m/Y') }}</td>
+                    <td>
+                        <strong>{{ $subjectName }}</strong><br>
+                        <small class="text-muted" style="font-size: 7.5pt;">Guru: {{ $teacherName }}</small>
+                    </td>
+                    <td class="text-center">{{ $learn->check_in_time ?? $learn->created_at->format('H:i:s') }}</td>
+                    <td class="text-center fw-bold">{{ ucfirst($learn->status) }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="text-center text-muted small py-0">Tidak ada data absensi KBM pada periode ini.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+@endif
 
             <!-- III. ABSENSI SHOLAT -->
             @if(!empty($includePrayer))

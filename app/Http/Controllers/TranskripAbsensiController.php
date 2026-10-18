@@ -68,7 +68,16 @@ class TranskripAbsensiController extends Controller
         $students   = Student::where('status', 'active')->orderBy('name')->get();
     }
 
-    return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK'));
+    // Ambil data absensi KBM beserta relasi mapel dan guru
+    $learning = $includeLearning 
+        ? Attendance::with(['schedule.subject', 'schedule.teacher', 'teacher'])
+            ->where('student_id', $st->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->orderBy('date', 'asc')
+            ->get() 
+        : collect();
+
+    return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK', 'learning'));
 }
 
     /**
