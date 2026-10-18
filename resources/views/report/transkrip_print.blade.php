@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $downloadTitle ?? 'Transkrip_Absensi_Siswa' }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- SCRIPT CDN HTML2PDF UNTUK AUTO-DOWNLOAD -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         
@@ -362,6 +365,30 @@
             }
             window.print();
         }
+    </script>
+
+    <!-- SCRIPT AUTO-DOWNLOAD LAGSUNG SAAT HALAMAN SELESAI DIMATANGKAN -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const element = document.getElementById('print-area');
+            const fileName = "{{ $downloadTitle ?? 'Transkrip_Absensi' }}" + ".pdf";
+
+            const opt = {
+                margin:       [5, 10, 5, 10], // Margin (Atas, Kiri, Bawah, Kanan) dalam mm
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Proses generate & auto-download file PDF
+            html2pdf().set(opt).from(element).save().then(function () {
+                // Opsional: Tutup tab otomatis setelah file terdownload
+                setTimeout(function() {
+                    window.close();
+                }, 1000);
+            });
+        });
     </script>
 
 </body>
