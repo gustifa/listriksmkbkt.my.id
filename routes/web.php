@@ -24,6 +24,7 @@ use App\Http\Controllers\PrayerAttendanceController;
 use App\Http\Controllers\PrayerLocationController;
 use App\Http\Controllers\PrayerAttendanceReportController;
 use App\Http\Controllers\DeviceSettingController;
+use App\Http\Controllers\TranskripAbsensiController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -183,6 +184,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/edit/{student_id}', [FaceRegistrationController::class, 'edit'])->name('face.edit');
         Route::delete('/destroy/{descriptor_id}', [FaceRegistrationController::class, 'destroy'])->name('face.destroy');
     });
+    // Halaman Filter
+    Route::get('/transkrip-absensi', [TranskripAbsensiController::class, 'index'])->name('transkrip.index');
+    
+    // Route Cetak (Ubah URI agar tidak mewajibkan parameter {studentId})
+    Route::get('/transkrip-absensi/cetak', [TranskripAbsensiController::class, 'print'])->name('transkrip.print');
+
+    // Route::get('/transkrip-absensi', [TranskripAbsensiController::class, 'index'])->name('transkrip.index');
+    // Route::get('/transkrip-absensi/cetak/{studentId}', [TranskripAbsensiController::class, 'print'])->name('transkrip.print');
 
     // Route Khusus Team Teaching & Fitur Tambahan
     Route::prefix('guru/exams')->name('guru.exams.')->group(function () {

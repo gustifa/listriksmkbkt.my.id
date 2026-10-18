@@ -86,6 +86,20 @@ $status = $guruId->status ?? '0';
                 @endif
             @endrole
 
+            <!-- MENU KHUSUS WALI KELAS & GURU BK -->
+            @hasanyrole('wali_kelas|guru_bk')
+                <li class="menu-label">Wali Kelas & BK</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-file-find"></i></div>
+                        <div class="menu-title">Cetak Transkrip</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
             <!-- MENU SUPER ADMIN & ADMIN -->
             @hasanyrole('super_admin|admin')
                 <li class="menu-label">Sistem & Pengaturan</li>
@@ -109,7 +123,6 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('roles.index')}}"><i class='bx bx-radio-circle'></i>Role</a></li>
                         <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-radio-circle'></i>Inventaris</a></li>
                         <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
-                        <!-- <li><a href="{{route('admin.prayer.settings')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li> -->
                     </ul>
                 </li>
 
@@ -174,7 +187,7 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{route('report.index')}}"><i class='bx bx-border-all'></i>Pembelajaran</a></li>
                         <li><a href="{{route('daily_attendance.report')}}"><i class='bx bx-border-all'></i>Gerbang</a></li>
-                        <li><a href="{{url('/transkrip')}}"><i class='bx bx-border-all'></i>Transkip</a></li>
+                        <li><a href="{{route('transkrip.index')}}"><i class='bx bx-border-all'></i>Transkrip</a></li>
                         <li><a href="{{route('recap.index')}}"><i class='bx bx-id-card'></i>Rekap</a></li>
                         <li><a href="{{route('admin.permit.recap')}}"><i class='bx bx-id-card'></i>Izin</a></li>
                         <li><a href="{{route('admin.prayer_reports.index')}}"><i class='bx bx-id-card'></i>Sholat</a></li>
@@ -327,7 +340,6 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Absensi</div>
                     </a>
                     <ul>
-                        <!-- <li><a href="{{route('student.prayer.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li> -->
                         <li><a href="{{route('student.prayer-attendances.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
                         <li><a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Face</a></li>
                     </ul>
@@ -343,6 +355,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('student.internships.attendance.index')}}"><i class='bx bx-radio-circle'></i>Presensi</a></li>
                     </ul>
                 </li>
+
                 <li class="menu-label">Laporan</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
@@ -351,8 +364,6 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{ route('student.attendance-calendar.index') }}" class="nav-link {{ request()->routeIs('student.attendance-calendar.*') ? 'active' : '' }}"><i class='bx bx-radio-circle'></i>Kehadiran</a></li>
-                        <!-- <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Subject</a></li>
-                        <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Daily</a></li> -->
                     </ul>
                 </li>
             @endrole
