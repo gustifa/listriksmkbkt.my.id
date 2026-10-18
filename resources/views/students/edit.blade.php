@@ -21,6 +21,27 @@
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Nama Lengkap</label>
                                 <input type="text" name="name" class="form-control" value="{{ old('name', $student->name) }}" required>
+                                @error('name') <small class="text-danger">{{ $message }}</small> @enderror
+                            </div>
+
+                            {{-- PENAMBAHAN FIELD JENIS KELAMIN --}}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Jenis Kelamin</label>
+                                <div class="d-flex gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="gender" id="gender_l" value="L" {{ old('gender', $student->gender) == 'L' ? 'checked' : '' }} required>
+                                        <label class="form-check-label fw-semibold" for="gender_l">
+                                            👨 Laki-laki
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="gender" id="gender_p" value="P" {{ old('gender', $student->gender) == 'P' ? 'checked' : '' }} required>
+                                        <label class="form-check-label fw-semibold" for="gender_p">
+                                            👩 Perempuan
+                                        </label>
+                                    </div>
+                                </div>
+                                @error('gender') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
 
                             <div class="mb-3">
@@ -28,17 +49,26 @@
                                 <select name="classroom_id" class="form-select select2" required>
                                     <option value="">-- Pilih Kelas --</option>
                                     @foreach($classrooms as $class)
-                                        <option value="{{ $class->id }}" {{ $student->classroom_id == $class->id ? 'selected' : '' }}>
+                                        <option value="{{ $class->id }}" {{ old('classroom_id', $student->classroom_id) == $class->id ? 'selected' : '' }}>
                                             {{ $class->name }}
                                         </option>
                                     @endforeach
                                 </select>
+                                @error('classroom_id') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Nomor HP Orang Tua (WhatsApp)</label>
                                 <input type="number" name="phone" class="form-control" value="{{ old('phone', $student->phone) }}" placeholder="Contoh: 08123456789">
                                 <div class="form-text">Nomor ini digunakan untuk notifikasi kehadiran otomatis.</div>
+                                @error('phone') <small class="text-danger">{{ $message }}</small> @enderror
+                            </div>
+
+                            {{-- PENAMBAHAN FIELD ALAMAT --}}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Alamat Tempat Tinggal</label>
+                                <textarea name="address" class="form-control" rows="2" placeholder="Masukkan alamat siswa">{{ old('address', $student->address) }}</textarea>
+                                @error('address') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
 
                             <hr>

@@ -7,9 +7,7 @@
     .icon-box { width: 45px; text-align: center; }
     .list-group-item { border-left: 4px solid transparent; transition: all 0.2s; }
     .list-group-item:hover { background-color: #f8f9fa; }
-    .active-prayer { border-left-color: #0d6efd; background-color: #f0f7ff; }
     
-    /* Tombol Rawatib */
     .btn-rawatib { 
         font-size: 0.7rem; 
         padding: 2px 8px; 
@@ -22,9 +20,9 @@
     }
     .btn-rawatib:hover { background-color: #e9ecef; }
     .btn-rawatib.done { background-color: #198754; color: white; border-color: #198754; }
+    .btn-rawatib.excused { background-color: #d63384; color: white; border-color: #d63384; }
     .btn-rawatib.disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Container Peta Utama yang Terkunci */
     #main-map-canvas {
         height: 220px !important;
         width: 100% !important;
@@ -34,11 +32,6 @@
         position: relative !important;
         overflow: hidden !important;
         z-index: 1;
-    }
-
-    #main-map-canvas img.leaflet-tile {
-        max-width: none !important;
-        max-height: none !important;
     }
 </style>
 
@@ -57,37 +50,29 @@
                 </div>
             </div>
 
-            <!-- CARD PETA & LOKASI (HANYA MUNCUL JIKA MODE MASJID / $isMosqueMode = TRUE) -->
+            <!-- MAP CARD -->
             @if($isMosqueMode)
                 <div class="mb-3 shadow-sm card border-0 rounded-4">
                     <div class="p-3 card-body">
                         <div id="status-box" class="p-2 mb-2 badge bg-warning text-dark w-100 text-wrap" style="font-size: 0.85rem;">
                             <i class="fas fa-spinner fa-spin me-2"></i>Mendeteksi posisi lokasi Anda...
                         </div>
-                        
-                        <!-- Peta Utama -->
                         <div id="main-map-canvas" class="mb-2"></div>
-
-                        <!-- TOMBOL REFRESH LOKASI -->
                         <div class="mb-2 text-end">
                             <button id="btn-refresh-location" onclick="fetchUserLocation(true)" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" style="font-size: 0.75rem;">
                                 <i class="fas fa-crosshairs me-1"></i> Lokasi Saya Sekarang
                             </button>
                         </div>
-
                         <div class="d-flex justify-content-between align-items-center text-muted small px-1 mb-1">
                             <span><i class="fas fa-map-marker-alt me-1 text-danger"></i> Jarak Anda: <strong id="distance-text">-</strong></span>
                             <span>Maksimal: <strong>{{ $radius }} meter</strong></span>
                         </div>
-                        
-                        <!-- Info Koordinat Siswa -->
                         <div class="text-start text-secondary" style="font-size: 0.72rem;">
                             <i class="fas fa-location-arrow me-1"></i> Posisi Anda: <span id="user-coords-text" class="fw-bold font-monospace">Mencari GPS...</span>
                         </div>
                     </div>
                 </div>
             @else
-                <!-- INFORMASI MODE RUMAH -->
                 <div class="p-3 mb-3 text-center border-0 alert alert-info rounded-4 shadow-sm">
                     <i class="mb-1 fas fa-home fa-2x text-info"></i>
                     <h6 class="mb-1 fw-bold text-dark">Mode Sholat Mandiri / Rumah Active</h6>
@@ -119,19 +104,21 @@
                         }
 
                         $currentTime = \Carbon\Carbon::now()->format('H:i');
+                        $isFemale = ($student && strtoupper($student->gender) === 'P');
                     @endphp
 
                     @foreach($fardhu as $key => $data)
                         @php
                             $time = $schedule[$key] ?? '00:00'; 
-                            $isDone = isset($attendances[$key]);
+                            $statusDone = $attendances[$key] ?? null; // 'hadir' atau 'berhalangan'
+                            $isDone = !is_null($statusDone);
                             $isActive = $currentTime >= $time;
                         @endphp
 
                         <div class="list-group-item p-3 {{ $isDone ? 'bg-light' : '' }}">
                             <div class="mb-2 d-flex justify-content-between align-items-center">
                                 <div class="d-flex align-items-center">
-                                    <div class="icon-box me-3 {{ $isDone ? 'text-success' : 'text-primary' }}">
+                                    <div class="icon-box me-3 {{ $isDone ? ($statusDone == 'berhalangan' ? 'text-danger' : 'text-success') : 'text-primary' }}">
                                         @if($key == 'subuh' || $key == 'isya') <i class="fas fa-moon fa-lg"></i>
                                         @elseif($key == 'maghrib') <i class="fas fa-cloud-sun fa-lg"></i>
                                         @else <i class="fas fa-sun fa-lg"></i>
@@ -147,9 +134,15 @@
                                 
                                 <div>
                                     @if($isDone)
-                                        <button class="btn btn-sm btn-success disabled rounded-pill px-3 fw-bold" style="opacity: 0.8">
-                                            <i class="fas fa-check me-1"></i> Selesai
-                                        </button>
+                                        @if($statusDone == 'berhalangan')
+                                            <span class="badge bg-danger rounded-pill px-3 py-2">
+                                                🌸 Berhalangan
+                                            </span>
+                                        @else
+                                            <button class="btn btn-sm btn-success disabled rounded-pill px-3 fw-bold" style="opacity: 0.8">
+                                                <i class="fas fa-check me-1"></i> Selesai
+                                            </button>
+                                        @endif
                                     @else
                                         @if($isActive)
                                             <button onclick="handleAbsensi('{{ $key }}', '{{ $data['label'] }}')" class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm fw-bold">
@@ -166,9 +159,11 @@
                                 <span class="text-muted me-2 uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Rawatib:</span>
                                 <div class="flex-wrap gap-1 d-flex">
                                     @foreach($data['rawatib'] as $rKey => $rLabel)
-                                        @php $rDone = isset($attendances[$rKey]); @endphp
+                                        @php $rStatus = $attendances[$rKey] ?? null; @endphp
                                         
-                                        @if($rDone)
+                                        @if($rStatus == 'berhalangan')
+                                            <span class="btn-rawatib excused">🌸 {{ $rLabel }}</span>
+                                        @elseif($rStatus == 'hadir')
                                             <span class="btn-rawatib done"><i class="fas fa-check me-1"></i> {{ $rLabel }}</span>
                                         @else
                                             <button onclick="handleAbsensi('{{ $rKey }}', 'Rawatib {{ $rLabel }} - {{ $data['label'] }}')" 
@@ -199,18 +194,20 @@
                     @endphp
 
                     @foreach($sunnah as $sKey => $sData)
-                        @php $sDone = isset($attendances[$sKey]); @endphp
+                        @php $sStatus = $attendances[$sKey] ?? null; @endphp
                         <div class="p-3 list-group-item d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center">
                                 <div class="icon-box me-3 text-warning">
                                     <i class="fas {{ $sData['icon'] }} fa-lg"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-dark {{ $sDone ? 'text-decoration-line-through text-muted' : '' }}">{{ $sData['label'] }}</h6>
+                                    <h6 class="mb-0 fw-bold text-dark {{ $sStatus ? 'text-decoration-line-through text-muted' : '' }}">{{ $sData['label'] }}</h6>
                                     <small class="text-muted" style="font-size: 0.7rem;">{{ $sData['desc'] }}</small>
                                 </div>
                             </div>
-                            @if($sDone)
+                            @if($sStatus == 'berhalangan')
+                                <span class="badge bg-danger rounded-pill px-3">🌸 Berhalangan</span>
+                            @elseif($sStatus == 'hadir')
                                 <span class="badge bg-success rounded-pill"><i class="fas fa-check me-1"></i> Selesai</span>
                             @else
                                 <button onclick="handleAbsensi('{{ $sKey }}', '{{ $sData['label'] }}')" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 fw-bold">Absen</button>
@@ -239,6 +236,7 @@
         masjidLng: Number("{{ $masjidLng }}"),
         maxRadius: Number("{{ $radius }}"),
         isMosqueMode: {{ $isMosqueMode ? 'true' : 'false' }},
+        isFemale: {{ ($student && strtoupper($student->gender) === 'P') ? 'true' : 'false' }},
         storeUrl: "{{ route('student.prayer-attendances.store') }}",
         csrfToken: "{{ csrf_token() }}"
     };
@@ -250,11 +248,8 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         if (window.prayerConfig.isMosqueMode) {
-            setTimeout(function() {
-                initMainMap();
-            }, 200);
+            setTimeout(function() { initMainMap(); }, 200);
         } else {
-            // Ambil GPS latar belakang jika di rumah
             fetchSilentLocation();
         }
     });
@@ -264,21 +259,14 @@
         const lng = window.prayerConfig.masjidLng;
         const radius = window.prayerConfig.maxRadius;
 
-        if (mainMap !== null) {
-            mainMap.remove();
-            mainMap = null;
-        }
+        if (mainMap !== null) { mainMap.remove(); mainMap = null; }
 
         mainMap = L.map('main-map-canvas', { zoomControl: false }).setView([lat, lng], 17);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mainMap);
-
         L.circle([lat, lng], { color: '#198754', fillColor: '#198754', fillOpacity: 0.2, radius: radius }).addTo(mainMap);
-
         L.marker([lat, lng]).addTo(mainMap).bindPopup("<b>Masjid Sekolah</b>").openPopup();
 
         setTimeout(function() { if (mainMap) mainMap.invalidateSize(); }, 300);
-
         fetchUserLocation(false);
     }
 
@@ -370,7 +358,35 @@
             return;
         }
 
-        // 1. JIKA MODE WAJIB MASJID & DI LUAR RADIUS
+        // 1. POPUP DENGAN OPSI BERHALANGAN UNTUK SISWA PEREMPUAN
+        if (window.prayerConfig.isFemale) {
+            Swal.fire({
+                title: label,
+                text: 'Pilih status kehadiran ibadah Anda:',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '🟢 Hadir Sholat',
+                denyButtonText: '🌸 Berhalangan',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#198754',
+                denyButtonColor: '#d63384',
+                position: 'center'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    processHadirAbsensi(prayerKey, label);
+                } else if (result.isDenied) {
+                    submitBerhalangan(prayerKey);
+                }
+            });
+            return;
+        }
+
+        processHadirAbsensi(prayerKey, label);
+    }
+
+    function processHadirAbsensi(prayerKey, label) {
+        // MODE MASJID & DI LUAR RADIUS
         if (window.prayerConfig.isMosqueMode && currentDistance > window.prayerConfig.maxRadius) {
             Swal.fire({
                 icon: 'error',
@@ -381,7 +397,7 @@
             return;
         }
 
-        // 2. JIKA MODE RUMAH / PJJ (DENGAN VALIDASI UKURAN FOTO MAKSIMAL 2MB)
+        // MODE RUMAH (WAJIB UPLOAD FOTO)
         if (!window.prayerConfig.isMosqueMode) {
             Swal.fire({
                 title: label,
@@ -394,12 +410,9 @@
                 confirmButtonColor: '#198754',
                 position: 'center',
                 inputValidator: (file) => {
-                    if (!file) {
-                        return 'Anda wajib mengunggah foto bukti sholat!';
-                    }
-                    // Validasi Ukuran File Maksimal 2 MB (2 * 1024 * 1024 bytes)
+                    if (!file) return 'Anda wajib mengunggah foto bukti sholat!';
                     if (file.size > 2 * 1024 * 1024) {
-                        return 'Ukuran foto terlalu besar (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB). Maksimal ukuran foto adalah 2 MB!';
+                        return 'Ukuran foto terlalu besar (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB). Maksimal 2 MB!';
                     }
                 }
             }).then((result) => {
@@ -410,19 +423,36 @@
             return;
         }
 
-        // 3. JIKA MODE MASJID (KONFIRMASI BIASA)
-        Swal.fire({
-            title: label,
-            text: 'Konfirmasi kehadiran ibadah di Masjid Sekolah? (Jarak Anda: ' + currentDistance + 'm)',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Kirim Absen',
-            cancelButtonText: 'Batal',
-            confirmButtonColor: '#0d6efd',
-            position: 'center'
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                submitPrayer(prayerKey, userCoords.lat, userCoords.lng);
+        // MODE MASJID (KONFIRMASI BIASA)
+        submitPrayer(prayerKey, userCoords.lat, userCoords.lng);
+    }
+
+    function submitBerhalangan(prayerKey) {
+        Swal.fire({ title: 'Menyimpan...', position: 'center', didOpen: () => Swal.showLoading() });
+
+        $.ajax({
+            url: window.prayerConfig.storeUrl,
+            type: "POST",
+            data: {
+                _token: window.prayerConfig.csrfToken,
+                prayer_name: prayerKey,
+                status: 'berhalangan',
+                latitude: userCoords ? userCoords.lat : null,
+                longitude: userCoords ? userCoords.lng : null
+            },
+            success: function(res) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: res.message,
+                    position: 'center',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            },
+            error: function(xhr) {
+                let msg = xhr.responseJSON?.message || 'Terjadi kesalahan sistem.';
+                Swal.fire({ icon: 'error', title: 'Gagal', text: msg, position: 'center' });
             }
         });
     }
@@ -445,7 +475,8 @@
                 _token: window.prayerConfig.csrfToken, 
                 prayer_name: name, 
                 latitude: lat, 
-                longitude: lng 
+                longitude: lng,
+                status: 'hadir'
             },
             success: function(res) {
                 Swal.fire({
@@ -472,6 +503,7 @@
         formData.append('prayer_name', name);
         formData.append('latitude', lat);
         formData.append('longitude', lng);
+        formData.append('status', 'hadir');
         formData.append('photo_evidence', photoFile);
 
         $.ajax({
@@ -493,10 +525,8 @@
             error: function(xhr) {
                 let msg = 'Terjadi kesalahan pada sistem.';
 
-                // Tangkap error validasi dari controller Laravel
                 if (xhr.status === 422 && xhr.responseJSON) {
                     if (xhr.responseJSON.errors) {
-                        // Ambil pesan error validasi pertama (misal: photo_evidence max)
                         let firstKey = Object.keys(xhr.responseJSON.errors)[0];
                         msg = xhr.responseJSON.errors[firstKey][0];
                     } else if (xhr.responseJSON.message) {

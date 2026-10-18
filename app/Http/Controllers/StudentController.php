@@ -63,6 +63,7 @@ class StudentController extends Controller
         $request->validate([
             'nis' => 'required|unique:students,nis,' . $id, // Unique kecuali punya sendiri
             'name' => 'required|string|max:255',
+            'gender'       => 'required|in:L,P', // Validasi Jenis Kelamin L / P
             'classroom_id' => 'required|exists:classrooms,id',
             'phone' => 'nullable|numeric',
         ]);
@@ -70,8 +71,10 @@ class StudentController extends Controller
         $student->update([
             'nis' => $request->nis,
             'name' => $request->name,
+            'gender'       => $request->gender,
             'classroom_id' => $request->classroom_id,
             'phone' => $request->phone,
+            'address'      => $request->address,
         ]);
 
         return redirect()->route('students.index')->with('success', 'Data siswa berhasil diperbarui!');

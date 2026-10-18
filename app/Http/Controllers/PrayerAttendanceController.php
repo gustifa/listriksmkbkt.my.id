@@ -15,7 +15,7 @@ class PrayerAttendanceController extends Controller
         $today = Carbon::now()->toDateString();
         $student = Auth::user()->student;
 
-        // 1. Ambil Data Lokasi Mesjid Sekolah Utama (tanpa filter is_active agar tetap terbaca meski false)
+        // 1. Ambil Data Lokasi Mesjid Sekolah Utama
         $schoolMosque = PrayerLocation::first();
         $masjidLat = $schoolMosque ? (float) $schoolMosque->latitude : -0.312221;
         $masjidLng = $schoolMosque ? (float) $schoolMosque->longitude : 100.383403;
@@ -33,7 +33,7 @@ class PrayerAttendanceController extends Controller
             'isya'    => '19:30',
         ];
 
-        // 3. Ambil Absensi Siswa Hari Ini
+        // 3. Ambil Absensi Siswa Hari Ini beserta Statusnya
         $attendances = [];
         if ($student) {
             $records = PrayerAttendance::where('student_id', $student->id)
@@ -41,7 +41,8 @@ class PrayerAttendanceController extends Controller
                 ->get();
 
             foreach ($records as $rec) {
-                $attendances[$rec->prayer_name] = true;
+                // Menyimpan status absensi ('hadir' atau 'berhalangan')
+                $attendances[$rec->prayer_name] = $rec->status;
             }
         }
 
@@ -52,116 +53,13 @@ class PrayerAttendanceController extends Controller
             'masjidLat',
             'masjidLng',
             'radius',
-            'isMosqueMode'
+            'isMosqueMode',
+            'student'
         ));
     }
 
-    public function create()
-    {
-        return view('prayer_attendances.create');
-    }
-
-    // public function store(Request $request)
-    // {
-    //     $validated = $request->validate([
-    //         'prayer_name'    => 'required|string',
-    //         'latitude'       => 'required|numeric',
-    //         'longitude'      => 'required|numeric',
-    //         'photo_evidence' => 'nullable|image|max:2048',
-    //     ]);
-
-    //     $student = Auth::user()->student;
-
-    //     if (!$student) {
-    //         return response()->json([
-    //             'message' => 'Data profil siswa tidak ditemukan!'
-    //         ], 422);
-    //     }
-
-    //     $today = Carbon::now()->toDateString();
-
-    //     // 1. Cek Duplikasi Absensi Hari Ini
-    //     $alreadyDone = PrayerAttendance::where('student_id', $student->id)
-    //         ->where('date', $today)
-    //         ->where('prayer_name', $validated['prayer_name'])
-    //         ->exists();
-
-    //     if ($alreadyDone) {
-    //         return response()->json([
-    //             'message' => "Anda sudah mencatat ibadah {$validated['prayer_name']} hari ini."
-    //         ], 422);
-    //     }
-
-    //     $schoolMosque = PrayerLocation::first();
-    //     $locationNote = 'Masjid Sekolah';
-
-    //     // 2. Cek Mode Kebijakan Admin via is_active
-    //     if ($schoolMosque && $schoolMosque->is_active) {
-    //         // MODE MASJID: Wajib periksa radius GPS
-    //         $distance = $this->calculateDistance(
-    //             $validated['latitude'],
-    //             $validated['longitude'],
-    //             $schoolMosque->latitude,
-    //             $schoolMosque->longitude
-    //         );
-
-    //         if ($distance > $schoolMosque->radius_meters) {
-    //             return response()->json([
-    //                 'message' => "Gagal! Mode Wajib dari Masjid Sekolah. Jarak Anda ({$distance}m) melebihi radius maksimal ({$schoolMosque->radius_meters}m)."
-    //             ], 422);
-    //         }
-    //     } else {
-    //         // MODE RUMAH / PJJ: Bebas radius GPS, wajib/dianjurkan upload foto bukti
-    //         $locationNote = 'Sholat di Rumah / PJJ';
-
-    //         if (!$request->hasFile('photo_evidence')) {
-    //             return response()->json([
-    //                 'message' => 'Wajib mengunggah foto bukti sholat jika dilaksanakan dari rumah.'
-    //             ], 422);
-    //         }
-    //     }
-
-    //     // Simpan Berkas Foto Bukti jika ada
-    //     $photoPath = null;
-    //     if ($request->hasFile('photo_evidence')) {
-    //         $photoPath = $request->file('photo_evidence')->store('prayer_photos', 'public');
-    //     }
-
-    //     // 3. Simpan Transaksi Data Absensi
-    //     PrayerAttendance::create([
-    //         'student_id'     => $student->id,
-    //         'date'           => $today,
-    //         'prayer_name'    => $validated['prayer_name'],
-    //         'check_in_time'  => Carbon::now()->toTimeString(),
-    //         'status'         => 'hadir',
-    //         'photo_evidence' => $photoPath,
-    //         'notes'          => $locationNote,
-    //         'latitude'       => $validated['latitude'],
-    //         'longitude'      => $validated['longitude'],
-    //     ]);
-
-    //     return response()->json([
-    //         'message' => "Berhasil mencatat ibadah {$validated['prayer_name']}!"
-    //     ]);
-    // }
-
     public function store(Request $request)
     {
-        // Validasi input dengan Custom Message Bahasa Indonesia
-        $validated = $request->validate([
-            'prayer_name'    => 'required|string',
-            'latitude'       => 'required|numeric',
-            'longitude'      => 'required|numeric',
-            'photo_evidence' => 'nullable|image|mimes:jpg,jpeg,png|max:2048', // Maksimal 2MB (2048 KB)
-        ], [
-            'prayer_name.required'    => 'Nama sholat wajib dipilih.',
-            'latitude.required'       => 'Koordinat GPS (Latitude) tidak terdeteksi. Pastikan GPS HP aktif.',
-            'longitude.required'      => 'Koordinat GPS (Longitude) tidak terdeteksi. Pastikan GPS HP aktif.',
-            'photo_evidence.image'    => 'Berkas bukti harus berupa gambar/foto.',
-            'photo_evidence.mimes'    => 'Format foto bukti sholat harus berupa JPG, JPEG, atau PNG.',
-            'photo_evidence.max'      => 'Ukuran foto terlalu besar! Maksimal ukuran file foto adalah 2 MB.',
-        ]);
-
         $student = Auth::user()->student;
 
         if (!$student) {
@@ -171,8 +69,68 @@ class PrayerAttendanceController extends Controller
         }
 
         $today = Carbon::now()->toDateString();
+        $status = $request->input('status', 'hadir');
 
-        // 1. Cek Duplikasi Absensi Hari Ini
+        // ------------------------------------------------------------------
+        // LOGIKA KHUSUS SISWA PEREMPUAN BERHALANGAN (UDZUR SYAR'I)
+        // ------------------------------------------------------------------
+        if ($status === 'berhalangan') {
+            // Validasi: Hanya siswa perempuan (gender = 'P') yang diizinkan
+            if (strtoupper($student->gender) !== 'P') {
+                return response()->json([
+                    'message' => 'Status berhalangan hanya berlaku untuk siswa perempuan.'
+                ], 403);
+            }
+
+            // Cek Duplikasi Absensi Hari Ini
+            $alreadyDone = PrayerAttendance::where('student_id', $student->id)
+                ->where('date', $today)
+                ->where('prayer_name', $request->prayer_name)
+                ->exists();
+
+            if ($alreadyDone) {
+                return response()->json([
+                    'message' => "Anda sudah mencatat status ibadah {$request->prayer_name} hari ini."
+                ], 422);
+            }
+
+            // Simpan transaksi status berhalangan (tanpa wajib foto & radius GPS)
+            PrayerAttendance::create([
+                'student_id'     => $student->id,
+                'date'           => $today,
+                'prayer_name'    => $request->prayer_name,
+                'check_in_time'  => Carbon::now()->toTimeString(),
+                'status'         => 'berhalangan',
+                'photo_evidence' => null,
+                'notes'          => 'Berhalangan (Halangan Syar\'i)',
+                'latitude'       => $request->input('latitude'),
+                'longitude'      => $request->input('longitude'),
+                'location_type'  => 'rumah',
+            ]);
+
+            return response()->json([
+                'message' => "Status berhalangan untuk sholat {$request->prayer_name} berhasil dicatat."
+            ]);
+        }
+
+        // ------------------------------------------------------------------
+        // LOGIKA STANDAR ABSENSI SHOLAT (STATUS: HADIR)
+        // ------------------------------------------------------------------
+        $validated = $request->validate([
+            'prayer_name'    => 'required|string',
+            'latitude'       => 'required|numeric',
+            'longitude'      => 'required|numeric',
+            'photo_evidence' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ], [
+            'prayer_name.required' => 'Nama sholat wajib dipilih.',
+            'latitude.required'    => 'Koordinat GPS (Latitude) tidak terdeteksi.',
+            'longitude.required'   => 'Koordinat GPS (Longitude) tidak terdeteksi.',
+            'photo_evidence.image' => 'Berkas bukti harus berupa gambar/foto.',
+            'photo_evidence.mimes' => 'Format foto harus berupa JPG, JPEG, atau PNG.',
+            'photo_evidence.max'   => 'Ukuran foto terlalu besar! Maksimal ukuran file foto adalah 2 MB.',
+        ]);
+
+        // Cek Duplikasi Absensi
         $alreadyDone = PrayerAttendance::where('student_id', $student->id)
             ->where('date', $today)
             ->where('prayer_name', $validated['prayer_name'])
@@ -187,9 +145,8 @@ class PrayerAttendanceController extends Controller
         $schoolMosque = PrayerLocation::first();
         $locationNote = 'Masjid Sekolah';
 
-        // 2. Cek Mode Kebijakan Admin via is_active
+        // Validasi Mode Kebijakan Admin
         if ($schoolMosque && $schoolMosque->is_active) {
-            // MODE MASJID: Wajib periksa radius GPS
             $distance = $this->calculateDistance(
                 $validated['latitude'],
                 $validated['longitude'],
@@ -203,7 +160,6 @@ class PrayerAttendanceController extends Controller
                 ], 422);
             }
         } else {
-            // MODE RUMAH / PJJ: Bebas radius GPS, wajib upload foto bukti
             $locationNote = 'Sholat di Rumah / PJJ';
 
             if (!$request->hasFile('photo_evidence')) {
@@ -213,13 +169,13 @@ class PrayerAttendanceController extends Controller
             }
         }
 
-        // Simpan Berkas Foto Bukti jika ada
+        // Simpan Berkas Foto
         $photoPath = null;
         if ($request->hasFile('photo_evidence')) {
             $photoPath = $request->file('photo_evidence')->store('prayer_photos', 'public');
         }
 
-        // 3. Simpan Transaksi Data Absensi
+        // Simpan Transaksi
         PrayerAttendance::create([
             'student_id'     => $student->id,
             'date'           => $today,
@@ -230,6 +186,7 @@ class PrayerAttendanceController extends Controller
             'notes'          => $locationNote,
             'latitude'       => $validated['latitude'],
             'longitude'      => $validated['longitude'],
+            'location_type'  => $schoolMosque && $schoolMosque->is_active ? 'masjid' : 'rumah',
         ]);
 
         return response()->json([
@@ -237,14 +194,9 @@ class PrayerAttendanceController extends Controller
         ]);
     }
 
-    /**
-     * Rumus Haversine yang disamakan 100% dengan Leaflet JS Frontend
-     */
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
-        $R = 6371000; // Radius bumi dalam meter
-
-        // Konversi derajat ke radian
+        $R = 6371000;
         $lat1Rad = deg2rad((float)$lat1);
         $lon1Rad = deg2rad((float)$lon1);
         $lat2Rad = deg2rad((float)$lat2);

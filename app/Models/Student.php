@@ -14,6 +14,7 @@ class Student extends Model
     protected $fillable = [
     'nis',
     'name',
+    'gender',
     'classroom_id',
     'phone', // Pastikan ini ada jika Anda mengimport no_hp
     'user_id',
