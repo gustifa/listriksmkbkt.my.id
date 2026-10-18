@@ -175,9 +175,23 @@ class TranskripAbsensiController extends Controller
             ];
         }
 
+        // TENTUKAN NAMA FILE DOWNLOAD DINAMIS
+        $nowFormatted = Carbon::now()->format('dmy_Hi'); // Contoh: 181026_2130
+        
+        if ($mode === 'student' && $students->count() === 1) {
+            $studentName = \Str::slug($students->first()->name, '_');
+            $downloadTitle = "Transkrip_Absensi_" . $studentName . "_" . $nowFormatted;
+        } elseif ($mode === 'classroom' && isset($classroomId)) {
+            $classroom = Classroom::find($classroomId);
+            $className = $classroom ? \Str::slug($classroom->name, '_') : 'Kelas';
+            $downloadTitle = "Transkrip_Absensi_Kelas_" . $className . "_" . $nowFormatted;
+        } else {
+            $downloadTitle = "Transkrip_Absensi_Semua_Kelas_" . $nowFormatted;
+        }
+
         return view('report.transkrip_print', compact(
             'reports', 'startDate', 'endDate', 'settings', 
-            'includeGate', 'includeLearning', 'includePrayer'
+            'includeGate', 'includeLearning', 'includePrayer', 'downloadTitle'
         ));
     }
 
