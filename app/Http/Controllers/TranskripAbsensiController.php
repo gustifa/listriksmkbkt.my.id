@@ -10,6 +10,7 @@ use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\PrayerAttendance;
 use Carbon\Carbon;
+use App\Models\Setting;
 
 class TranskripAbsensiController extends Controller
 {
@@ -175,23 +176,29 @@ class TranskripAbsensiController extends Controller
      * Konfigurasi Data Sekolah & TTD
      */
     private function getSchoolData()
-    {
-        return [
-            'school_name'      => 'SMK NEGERI 1 BUKITTINGGI',
-            'provinsi_name'    => 'SUMATERA BARAT',
-            'school_address'   => 'Jl. Iskandar Teja Sukmana - Padang Gamuak, Kota Bukittinggi',
-            'school_email'     => 'info@smkn1bukittinggi.sch.id',
-            'school_web'       => 'www.smkn1bukittinggi.sch.id',
-            'sign_title'       => 'Kepala Sekolah',
-            'sign_name'        => 'Gustian Budiarto, M.Pd',
-            'sign_nip'         => '19740731 200801 1 002',
-            'sign_city'        => 'Bukittinggi',
-            'paper_size'       => 'a4',
-            'paper_orientation'=> 'portrait',
-            'logo_left'        => null, // Dapat diisi Base64 / URL Gambar Logo
-            'logo_right'       => null,
-            'sign_image'       => null,
-            'stempel'          => null,
-        ];
-    }
+{
+    // Ambil path file logo dari tabel settings database
+    $logoLeftPath  = Setting::where('key', 'logo_left')->value('value');  // Contoh: 'settings/logo_provinsi.png'
+    $logoRightPath = Setting::where('key', 'logo_right')->value('value'); // Contoh: 'settings/logo_smk.png'
+
+    return [
+        'school_name'      => Setting::where('key', 'school_name')->value('value') ?? 'SMK NEGERI 1 BUKITTINGGI',
+        'provinsi_name'    => Setting::where('key', 'provinsi_name')->value('value') ?? 'SUMATERA BARAT',
+        'school_address'   => Setting::where('key', 'school_address')->value('value') ?? 'Jl. Iskandar Teja Sukmana - Padang Gamuak, Kota Bukittinggi',
+        'school_email'     => Setting::where('key', 'school_email')->value('value') ?? 'info@smkn1bukittinggi.sch.id',
+        'school_web'       => Setting::where('key', 'school_web')->value('value') ?? 'www.smkn1bukittinggi.sch.id',
+        'sign_title'       => 'Kepala Sekolah',
+        'sign_name'        => Setting::where('key', 'headmaster_name')->value('value') ?? 'Gustian Budiarto, M.Pd',
+        'sign_nip'         => Setting::where('key', 'headmaster_nip')->value('value') ?? '19740731 200801 1 002',
+        'sign_city'        => 'Bukittinggi',
+        'paper_size'       => 'a4',
+        'paper_orientation'=> 'portrait',
+        
+        // Pembacaan URL file logo yang tersimpan di storage
+        'logo_left'  => ($logoLeftPath && \Storage::disk('public')->exists($logoLeftPath)) ? asset('storage/' . $logoLeftPath) : null,
+        'logo_right' => ($logoRightPath && \Storage::disk('public')->exists($logoRightPath)) ? asset('storage/' . $logoRightPath) : null,
+        'sign_image' => null,
+        'stempel'    => null,
+    ];
+}
 }
