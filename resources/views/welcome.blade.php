@@ -221,9 +221,6 @@
     <div class="timeline-wrapper ms-2">
 
         <!-- Item 1: Absensi Harian -->
-        @php
-            $percentage = (isset($stats['total']) && $stats['total'] > 0) ? round(($stats['hadir'] / $stats['total']) * 100) : 0;
-        @endphp
         <div class="timeline-block">
             <div class="timeline-icon-dot"><i class="fas fa-clock"></i></div>
             <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
@@ -233,8 +230,10 @@
                 </div>
                 <div class="small mb-2">
                     Masuk: <strong>{{ $attendanceSetting->start_check_in_time ?? '06:00:00' }} WIB</strong> | 
-                    Batas: <strong class="text-danger">{{ $attendanceSetting->late_limit_time ?? '15:32:00' }} WIB</strong>
+                    Batas: <strong class="text-danger">{{ $attendanceSetting->late_limit_time ?? '07:00:00' }} WIB</strong>
                 </div>
+                
+                <!-- PROGRESS BAR DENGAN PERSENTASE HASIL PERBAIKAN -->
                 <div class="progress" style="height: 6px;">
                     <div class="progress-bar bg-success" style="width: {{ $percentage }}%;"></div>
                 </div>
@@ -243,68 +242,68 @@
         </div>
 
        <!-- Item 2: Jadwal Pelajaran (Navigasi Hari Publik) -->
-<div class="timeline-block" id="jadwal">
-    <div class="timeline-icon-dot"><i class="fas fa-calendar-day"></i></div>
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-        
-        <!-- Header & Navigasi Tab Hari -->
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 pb-2 border-bottom">
-            <div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill me-1">Jadwal Pelajaran</span>
-                <small class="text-muted fw-bold" style="font-size: 0.75rem;">Hari: <span class="text-uppercase text-primary">{{ $selectedDay }}</span></small>
-            </div>
-            
-            <!-- Tombol Filter Hari (Senin - Sabtu) -->
-            <div class="d-flex gap-1 overflow-auto mt-2 mt-sm-0 py-1" style="max-width: 100%;">
-                @foreach($daysList as $dayItem)
-                    <a href="{{ url('/?day=' . $dayItem . '#jadwal') }}" 
-                       class="btn btn-xs rounded-pill px-2 py-1 fw-bold text-capitalize {{ $selectedDay == $dayItem ? 'btn-primary text-white' : 'btn-outline-secondary bg-light text-dark' }}" 
-                       style="font-size: 0.7rem;">
-                        {{ $dayItem }}
-                    </a>
-                @endforeach
+        <div class="timeline-block" id="jadwal">
+            <div class="timeline-icon-dot"><i class="fas fa-calendar-day"></i></div>
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                
+                <!-- Header & Navigasi Tab Hari -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <div>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill me-1">Jadwal Pelajaran</span>
+                        <small class="text-muted fw-bold" style="font-size: 0.75rem;">Hari: <span class="text-uppercase text-primary">{{ $selectedDay }}</span></small>
+                    </div>
+                    
+                    <!-- Tombol Filter Hari (Senin - Sabtu) -->
+                    <div class="d-flex gap-1 overflow-auto mt-2 mt-sm-0 py-1" style="max-width: 100%;">
+                        @foreach($daysList as $dayItem)
+                            <a href="{{ url('/?day=' . $dayItem . '#jadwal') }}" 
+                            class="btn btn-xs rounded-pill px-2 py-1 fw-bold text-capitalize {{ $selectedDay == $dayItem ? 'btn-primary text-white' : 'btn-outline-secondary bg-light text-dark' }}" 
+                            style="font-size: 0.7rem;">
+                                {{ $dayItem }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- DAFTAR JADWAL HARI TERPILIH -->
+                @if(isset($todaySchedules) && count($todaySchedules) > 0)
+                    <div class="row g-2">
+                        @foreach($todaySchedules as $schedule)
+                            @php
+                                $subjectName = $schedule->subject->name ?? ($schedule->subject->subject_name ?? 'Mata Pelajaran');
+                                $teacherName = $schedule->teacher->name ?? ($schedule->teacher->user->name ?? ($schedule->user->name ?? 'Guru Pengampu'));
+                                $classroomName = $schedule->classroom->name ?? ($schedule->room->name ?? 'Kelas');
+                                $timeRange = \Carbon\Carbon::parse($schedule->start_time)->format('H:i') . ' - ' . \Carbon\Carbon::parse($schedule->end_time)->format('H:i') . ' WIB';
+                            @endphp
+                            <div class="col-12 col-md-6">
+                                <div class="schedule-box d-flex justify-content-between align-items-center"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalDetailJadwal"
+                                    data-subject="{{ $subjectName }}"
+                                    data-teacher="{{ $teacherName }}"
+                                    data-classroom="{{ $classroomName }}"
+                                    data-time="{{ $timeRange }}"
+                                    data-day="{{ ucfirst($selectedDay) }}">
+                                    <div class="text-truncate me-2">
+                                        <strong class="d-block text-dark small text-truncate">{{ $subjectName }}</strong>
+                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-user-tie me-1"></i>{{ $teacherName }}</small>
+                                    </div>
+                                    <div class="text-end flex-shrink-0">
+                                        <span class="badge bg-primary text-white" style="font-size: 0.65rem;">{{ \Carbon\Carbon::parse($schedule->start_time)->format('H:i') }}</span>
+                                        <small class="d-block text-muted" style="font-size: 0.65rem;">{{ $classroomName }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Tidak ada jadwal pelajaran aktif untuk hari <strong class="text-uppercase">{{ $selectedDay }}</strong>.
+                    </div>
+                @endif
             </div>
         </div>
-
-        <!-- DAFTAR JADWAL HARI TERPILIH -->
-        @if(isset($todaySchedules) && count($todaySchedules) > 0)
-            <div class="row g-2">
-                @foreach($todaySchedules as $schedule)
-                    @php
-                        $subjectName = $schedule->subject->name ?? ($schedule->subject->subject_name ?? 'Mata Pelajaran');
-                        $teacherName = $schedule->teacher->name ?? ($schedule->teacher->user->name ?? ($schedule->user->name ?? 'Guru Pengampu'));
-                        $classroomName = $schedule->classroom->name ?? ($schedule->room->name ?? 'Kelas');
-                        $timeRange = \Carbon\Carbon::parse($schedule->start_time)->format('H:i') . ' - ' . \Carbon\Carbon::parse($schedule->end_time)->format('H:i') . ' WIB';
-                    @endphp
-                    <div class="col-12 col-md-6">
-                        <div class="schedule-box d-flex justify-content-between align-items-center"
-                             data-bs-toggle="modal" 
-                             data-bs-target="#modalDetailJadwal"
-                             data-subject="{{ $subjectName }}"
-                             data-teacher="{{ $teacherName }}"
-                             data-classroom="{{ $classroomName }}"
-                             data-time="{{ $timeRange }}"
-                             data-day="{{ ucfirst($selectedDay) }}">
-                            <div class="text-truncate me-2">
-                                <strong class="d-block text-dark small text-truncate">{{ $subjectName }}</strong>
-                                <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-user-tie me-1"></i>{{ $teacherName }}</small>
-                            </div>
-                            <div class="text-end flex-shrink-0">
-                                <span class="badge bg-primary text-white" style="font-size: 0.65rem;">{{ \Carbon\Carbon::parse($schedule->start_time)->format('H:i') }}</span>
-                                <small class="d-block text-muted" style="font-size: 0.65rem;">{{ $classroomName }}</small>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="text-center text-muted py-3">
-                <i class="fas fa-info-circle me-1"></i>
-                Tidak ada jadwal pelajaran aktif untuk hari <strong class="text-uppercase">{{ $selectedDay }}</strong>.
-            </div>
-        @endif
-    </div>
-</div>
 
         <!-- Item 3: PKL AKTIF -->
         @php

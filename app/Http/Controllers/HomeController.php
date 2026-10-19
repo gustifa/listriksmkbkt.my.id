@@ -109,6 +109,21 @@ class HomeController extends Controller
         $latestJournal = TeachingJournal::with('schedule')->latest()->first();
         $latestTahfiz = TahfizRecord::with('student')->latest()->first();
 
+        // --- PERBAIKAN: HITUNG TOTAL POPULASI SISWA AKTIF ---
+        $totalActiveStudents = Student::whereNotNull('classroom_id')
+            ->where($statusCondition)
+            ->count();
+
+        // Total siswa yang secara fisik hadir di sekolah (Tepat Waktu + Terlambat)
+        $totalHadirFisik = $stats['hadir'] + $stats['terlambat'];
+
+        // Perhitungan Persentase Kehadiran yang Akurat
+        $percentage = ($totalActiveStudents > 0) 
+            ? round(($totalHadirFisik / $totalActiveStudents) * 100) 
+            : 0;
+
+        // Tambahkan 'percentage' ke compact()
+
         return view('welcome', compact(
             'attendanceSetting',
             'stats',
@@ -122,7 +137,8 @@ class HomeController extends Controller
             'todayIndo',
             'selectedDay',
             'daysList',
-            'latestTahfiz'
+            'latestTahfiz',
+            'percentage'
         ));
     }
 }
