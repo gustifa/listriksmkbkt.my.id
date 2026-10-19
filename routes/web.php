@@ -714,7 +714,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
         Route::get('/students/edit/{id}', [StudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/update/{id}', [StudentController::class, 'update'])->name('students.update');
-        Route::get('/students/destroy/{id}', [StudentController::class, 'destroy'])->name('students.destroy');
+        Route::delete('/students/destroy/{id}', [StudentController::class, 'destroy'])->name('students.destroy');
 
         // --- 4. MANAJEMEN KARTU SISWA ---
         Route::get('/print-cards', [CardController::class, 'index'])->name('print.index');
