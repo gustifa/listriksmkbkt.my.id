@@ -14,33 +14,61 @@ class StudentController extends Controller
     /**
      * Tampilkan Daftar Siswa (dengan Pencarian & Pagination)
      */
+    // public function index(Request $request)
+    // {
+    //     $query = Student::with('classroom');
+
+    //     // Logika Pencarian
+    //     if ($request->has('search')) {
+    //         $search = $request->search;
+    //         $query->where(function($q) use ($search) {
+    //             $q->where('name', 'LIKE', "%{$search}%")
+    //               ->orWhere('nis', 'LIKE', "%{$search}%");
+    //         });
+    //     }
+
+    //     // Filter Kelas (Opsional)
+    //     if ($request->has('classroom_id') && $request->classroom_id != '') {
+    //         $query->where('classroom_id', $request->classroom_id);
+    //     }
+
+    //     // Ambil data dengan pagination (10 per halaman)
+    //     //$students = $query->orderBy('classroom_id')->orderBy('name')->paginate(10);
+    //     $students = $query->orderBy('classroom_id')->orderBy('name')->where('status', 'active')->get()->all();
+
+    //     // Ambil daftar kelas untuk filter
+    //     $classrooms = Classroom::orderBy('name')->get();
+
+    //     return view('students.index', compact('students', 'classrooms'));
+    // }
+
     public function index(Request $request)
-    {
-        $query = Student::with('classroom');
+{
+    $query = Student::with('classroom');
 
-        // Logika Pencarian
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('nis', 'LIKE', "%{$search}%");
-            });
-        }
-
-        // Filter Kelas (Opsional)
-        if ($request->has('classroom_id') && $request->classroom_id != '') {
-            $query->where('classroom_id', $request->classroom_id);
-        }
-
-        // Ambil data dengan pagination (10 per halaman)
-        //$students = $query->orderBy('classroom_id')->orderBy('name')->paginate(10);
-        $students = $query->orderBy('classroom_id')->orderBy('name')->where('status', 'active')->get()->all();
-
-        // Ambil daftar kelas untuk filter
-        $classrooms = Classroom::orderBy('name')->get();
-
-        return view('students.index', compact('students', 'classrooms'));
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            // Gunakan ILIKE khusus PostgreSQL agar case-insensitive
+            $q->where('name', 'ilike', "%{$search}%")
+              ->orWhere('nis', 'ilike', "%{$search}%");
+        });
     }
+
+    if ($request->filled('classroom_id')) {
+        $query->where('classroom_id', $request->classroom_id);
+    }
+
+    $students = $query->orderBy('name')->paginate(10);
+    $classrooms = Classroom::orderBy('name')->get();
+
+    // Jika request dikirim via AJAX, kembalikan hanya partial view tabel
+    if ($request->ajax()) {
+        return view('students.partials.student_table', compact('students'))->render();
+    }
+
+    return view('students.index', compact('students', 'classrooms'));
+}
 
     /**
      * Form Edit Siswa
