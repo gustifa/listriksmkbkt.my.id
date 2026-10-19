@@ -727,7 +727,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/print-accounts/class/{classroom}', [CardController::class, 'printAccountsClass'])
         ->name('print.accounts.class');
 
-        // Cetak Full 1 Kelas
+        // Cetak Full 1 Kelas kartu
         Route::get('/print-cards/class/{id}', [CardController::class, 'printByClass'])->name('print.class');
 
         // [BARU] Pilih Siswa Tertentu & Cetak
