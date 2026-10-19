@@ -4,23 +4,19 @@
     <div class="page-content">
         <div class="col-md-12">
             <!--breadcrumb-->
-    <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-        <div class="breadcrumb-title pe-3">Maping</div>
-        <div class="ps-3">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 p-0">
-                    <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="fas fa-users me-2"></i></a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">Data Murid & Registrasi Wajah</li>
-                </ol>
-            </nav>
-        </div>
-       
-    </div>
+            <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
+                <div class="breadcrumb-title pe-3">Maping</div>
+                <div class="ps-3">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0 p-0">
+                            <li class="breadcrumb-item"><a href="{{ url('/admin/dashboard') }}"><i class="fas fa-users me-2"></i></a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Data Murid & Registrasi Wajah</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
 
             <div class="mb-4 d-flex justify-content-between align-items-center">
-                <!-- <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-users me-2"></i> Data Murid & Registrasi Wajah</h5> -->
-                
                 <div>
                     <a href="{{ route('students.import') }}" class="btn btn-success me-2">
                         <i class="bx bx-import"></i> Import Excel
@@ -32,6 +28,7 @@
                 </div>
             </div>
 
+            <!-- Filter Card -->
             <div class="border-0 shadow card mb-4">
                 <div class="card-body">
                     <form action="{{ route('students.index') }}" method="GET">
@@ -57,6 +54,7 @@
                 </div>
             </div>
 
+            <!-- Table Card -->
             <div class="card shadow border-0">
                 <div class="card-body">
                     <div class="table-responsive">
@@ -107,11 +105,11 @@
                                                     <i class="bx bx-id-card"></i>
                                                 </a>
 
-                                                <form action="{{ route('students.destroy', $student->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin hapus siswa ini? Data absensi & wajah juga akan terhapus.');">
+                                                <form action="{{ route('students.destroy', $student->id) }}" method="POST" class="d-inline form-delete">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger" title="Hapus Siswa">
-                                                        <i class="bx bx-trash"></i>
+                                                    <button type="button" class="btn btn-danger btn-sm btn-delete" title="Hapus Data">
+                                                        <i class="fas fa-trash"></i>
                                                     </button>
                                                 </form>
                                             </div>
@@ -133,4 +131,58 @@
 
         </div>
     </div>
+
+    <!-- Script SweetAlert2 & Event Handlers -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Handling Konfirmasi Hapus Data dengan SweetAlert2
+            const deleteButtons = document.querySelectorAll('.btn-delete');
+
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    
+                    const form = this.closest('.form-delete');
+
+                    Swal.fire({
+                        title: 'Apakah Anda yakin?',
+                        text: "Data siswa yang dihapus tidak dapat dikembalikan!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Ya, Hapus!',
+                        cancelButtonText: 'Batal',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+
+            // 2. Handling Flash Message Notifikasi Berhasil / Gagal dari Session
+            @if(session('success'))
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: "{{ session('success') }}",
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+            @endif
+
+            @if(session('error'))
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: "{{ session('error') }}",
+                    timer: 3000,
+                    showConfirmButton: true
+                });
+            @endif
+        });
+    </script>
 </x-app-layout>
