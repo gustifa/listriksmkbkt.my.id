@@ -95,7 +95,7 @@ class AbsensiSheetImport implements ToCollection, WithHeadingRow, WithChunkReadi
                 continue;
             }
 
-            // 2. Cek/Buat Penempatan PKL (Internship & Industry)
+            // 2. Cek/Buat Penempatan PKL (Mencegah Unique Violation)
             $formattedDate = $this->parseDate($waktuRaw);
             $internshipId  = $this->internships[$studentId] ?? null;
 
@@ -115,20 +115,29 @@ class AbsensiSheetImport implements ToCollection, WithHeadingRow, WithChunkReadi
                 }
                 $industryId = $this->industries[$namaIndustri];
 
-                $newInternshipId = (string) Str::uuid();
-                DB::table('internships')->insert([
-                    'id'          => $newInternshipId,
-                    'student_id'  => $studentId,
-                    'industry_id' => $industryId,
-                    'start_date'  => $formattedDate,
-                    'end_date'    => Carbon::parse($formattedDate)->addMonths(6)->format('Y-m-d'),
-                    'status'      => 'active',
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
+                $existingInternship = Internship::where('student_id', $studentId)
+                    ->where('industry_id', $industryId)
+                    ->where('status', 'active')
+                    ->first();
 
-                $this->internships[$studentId] = $newInternshipId;
-                $internshipId = $newInternshipId;
+                if ($existingInternship) {
+                    $internshipId = $existingInternship->id;
+                } else {
+                    $newInternshipId = (string) Str::uuid();
+                    DB::table('internships')->insert([
+                        'id'          => $newInternshipId,
+                        'student_id'  => $studentId,
+                        'industry_id' => $industryId,
+                        'start_date'  => $formattedDate,
+                        'end_date'    => Carbon::parse($formattedDate)->addMonths(6)->format('Y-m-d'),
+                        'status'      => 'active',
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                    $internshipId = $newInternshipId;
+                }
+
+                $this->internships[$studentId] = $internshipId;
             }
 
             // 3. Format Waktu
@@ -156,7 +165,6 @@ class AbsensiSheetImport implements ToCollection, WithHeadingRow, WithChunkReadi
             // Kunci Unik Kombinasi (student_id + date)
             $uniqueKey = $studentId . '_' . $formattedDate;
 
-            // Gunakan $uniqueKey sebagai key array untuk MENELIMINASI baris duplikat dalam 1 batch
             $recordsToInsert[$uniqueKey] = [
                 'id'             => (string) Str::uuid(),
                 'student_id'     => $studentId,
@@ -171,17 +179,16 @@ class AbsensiSheetImport implements ToCollection, WithHeadingRow, WithChunkReadi
             ];
         }
 
-        // 5. Gunakan UPSERT pada array yang sudah dibersihkan dari duplikat
+        // 5. Upsert Data Ke Absensi
         if (!empty($recordsToInsert)) {
-            // Ambil hanya nilainya saja (reset key unik)
             $cleanRows = array_values($recordsToInsert);
 
             $batches = array_chunk($cleanRows, 200);
             foreach ($batches as $batch) {
                 DB::table('internship_attendances')->upsert(
                     $batch,
-                    ['student_id', 'date'], // Constraint Kunci Unik
-                    ['status', 'activity_log', 'updated_at'] // Kolom yang di-update
+                    ['student_id', 'date'],
+                    ['status', 'activity_log', 'updated_at']
                 );
             }
             $this->parentImport->incrementImported(count($cleanRows));
