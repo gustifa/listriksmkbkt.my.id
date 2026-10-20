@@ -8,6 +8,8 @@ use App\Models\Classroom;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\StudentExport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -111,12 +113,51 @@ class StudentController extends Controller
     /**
      * Hapus Siswa
      */
+    // public function destroy($id)
+    // {
+    //     $student = Student::findOrFail($id);
+    //     $student->delete();
+
+    //     return redirect()->route('students.index')->with('success', 'Data siswa berhasil dihapus!');
+    // }
+
     public function destroy($id)
     {
-        $student = Student::findOrFail($id);
-        $student->delete();
+        DB::beginTransaction();
+        try {
+            $student = Student::findOrFail($id);
 
-        return redirect()->route('students.index')->with('success', 'Data siswa berhasil dihapus!');
+            // 1. Cek dan hapus akun User terkait jika ada (berdasarkan user_id)
+            if ($student->user_id) {
+                User::where('id', $student->user_id)->delete();
+            }
+
+            // 2. Hapus data Siswa
+            $student->delete();
+
+            DB::commit();
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'status'  => 'success',
+                    'message' => 'Data siswa beserta akun user berhasil dihapus!'
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Data siswa beserta akun user berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Gagal menghapus data: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+        }
     }
 
     public function removeClassroom($id)

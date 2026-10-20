@@ -25,6 +25,8 @@ use App\Http\Controllers\PrayerLocationController;
 use App\Http\Controllers\PrayerAttendanceReportController;
 use App\Http\Controllers\DeviceSettingController;
 use App\Http\Controllers\TranskripAbsensiController;
+use App\Http\Controllers\UkkPackageController;
+use App\Http\Controllers\UkkController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -199,6 +201,19 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{exam}/generate-token', [ExamController::class, 'generateToken'])->name('generate-token');
         Route::get('{exam}/report', [ExamController::class, 'showReport'])->name('report');
         Route::get('{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('unsubmitted');
+    });
+
+    Route::prefix('ukk')->name('ukk.')->group(function () {
+    // Manajemen Paket & Unit UKK
+        Route::resource('packages', UkkPackageController::class)->except(['create', 'edit']);
+        Route::post('packages/{packageId}/units', [UkkPackageController::class, 'storeUnit'])->name('packages.units.store');
+        Route::delete('units/{unitId}', [UkkPackageController::class, 'destroyUnit'])->name('units.destroy');
+
+        // Penjadwalan, Penilaian & Sertifikat UKK
+        Route::get('/', [UkkController::class, 'index'])->name('index');
+        Route::post('/generate-schedule', [UkkController::class, 'generateSchedule'])->name('generate');
+        Route::post('/store-score/{id}', [UkkController::class, 'storeScore'])->name('store_score');
+        Route::get('/certificate/{student_id}', [UkkController::class, 'printCertificate'])->name('certificate');
     });
 
     // Pengaturan Lokasi Sholat Sekolah (Khusus Admin/Guru)
