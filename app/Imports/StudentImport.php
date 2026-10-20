@@ -9,7 +9,6 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class StudentImport implements ToCollection, WithStartRow, WithChunkReading
@@ -25,7 +24,7 @@ class StudentImport implements ToCollection, WithStartRow, WithChunkReading
         set_time_limit(600); // Batas waktu 10 menit
         ini_set('memory_limit', '512M');
 
-        // Pre-fetch data referensi ke memori RAM untuk mencegah N+1 Query
+        // Pre-fetch data referensi ke memori RAM
         $this->classrooms       = Classroom::pluck('id', 'name')->toArray();
         $this->users            = User::pluck('id', 'email')->toArray();
         $this->existingStudents = Student::pluck('id', 'nis')->toArray(); // ['NIS' => 'UUID']
@@ -127,22 +126,33 @@ class StudentImport implements ToCollection, WithStartRow, WithChunkReading
                 'guardian_income'  => !empty($row[40]) ? trim((string)$row[40]) : null,
             ];
 
-            // Menggunakan Eloquent updateOrCreate agar pemetaan nama kolom akurat dan aman
+            // 1. Cek dari memori cache RAM dulu
             if (isset($this->existingStudents[$nis])) {
-                $student = Student::where('nis', $nis)->first();
-                if ($student) {
-                    $student->update($dataToSave);
-                    $this->updatedCount++;
-                }
+                $studentId = $this->existingStudents[$nis];
+                Student::where('id', $studentId)->update($dataToSave);
+                $this->updatedCount++;
             } else {
-                $dataToSave['id']          = (string) Str::uuid();
-                $dataToSave['nis']         = $nis;
-                $dataToSave['status']      = 'active';
-                $dataToSave['is_promoted'] = false;
+                // 2. Jika tidak ada di cache RAM, lakukan double check langsung ke Database
+                $existingDbStudent = Student::where('nis', $nis)->first();
 
-                $newStudent = Student::create($dataToSave);
-                $this->existingStudents[$nis] = $newStudent->id;
-                $this->createdCount++;
+                if ($existingDbStudent) {
+                    $existingDbStudent->update($dataToSave);
+                    $this->existingStudents[$nis] = $existingDbStudent->id; // Update cache RAM
+                    $this->updatedCount++;
+                } else {
+                    // 3. Jika benar-benar belum ada -> Buat siswa baru
+                    $newUuid = (string) Str::uuid();
+                    $dataToSave['id']          = $newUuid;
+                    $dataToSave['nis']         = $nis;
+                    $dataToSave['status']      = 'active';
+                    $dataToSave['is_promoted'] = false;
+
+                    Student::create($dataToSave);
+                    
+                    // PENTING: Catat UUID baru ke cache RAM agar jika NIS ini muncul lagi, sistem akan melakukan UPDATE bukan INSERT
+                    $this->existingStudents[$nis] = $newUuid; 
+                    $this->createdCount++;
+                }
             }
         }
     }
