@@ -199,6 +199,22 @@ class InternshipController extends Controller
         return redirect()->back()->with('success', 'Data penempatan PKL dihapus.');
     }
 
+    public function bulkUpdatePeriod(Request $request)
+{
+    $request->validate([
+        'start_date' => 'required|date',
+        'end_date'   => 'required|date|after_or_equal:start_date',
+    ]);
+
+    // Update semua data penempatan PKL sekaligus
+    Internship::query()->update([
+        'start_date' => $request->start_date,
+        'end_date'   => $request->end_date,
+    ]);
+
+    return redirect()->back()->with('success', 'Periode PKL seluruh siswa berhasil diperbarui!');
+}
+
 
 }
 

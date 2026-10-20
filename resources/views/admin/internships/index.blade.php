@@ -12,7 +12,11 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-primary"><i class="fas fa-briefcase me-2"></i>Penempatan PKL Siswa</h4>
             <div class="d-flex gap-2">
-                <button class="btn btn-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addInternshipModal">
+                <!-- Tombol Pemicu Modal -->
+                <button type="button" class="btn btn-warning btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode">
+                    <i class="fas fa-calendar-alt"></i> Ubah Periode Semua Siswa
+                </button>
+                <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addInternshipModal">
                     <i class="fas fa-plus me-1"></i> Penempatan Baru
                 </button>
             </div>
@@ -280,6 +284,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Update Periode -->
+<div class="modal fade" id="modalUpdatePeriode" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('admin.internships.bulk_update_period') }}" method="POST" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title">Ubah Periode PKL Massal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Tanggal Mulai PKL</label>
+                    <input type="date" name="start_date" class="form-control" value="2026-06-15" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tanggal Selesai PKL</label>
+                    <input type="date" name="end_date" class="form-control" value="2026-12-15" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
 
     <!-- Include CDN jQuery & Select2 (JS) -->
     @push('scripts')
