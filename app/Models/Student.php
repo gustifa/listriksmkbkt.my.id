@@ -11,18 +11,27 @@ class Student extends Model
 {
     use HasUuid; // <--- 2. Pasang Trait
     // protected $guarded = [];
+//     protected $fillable = [
+//     'nis',
+//     'name',
+//     'gender',
+//     'classroom_id',
+//     'phone', // Pastikan ini ada jika Anda mengimport no_hp
+//     'user_id',
+//     'signature', // Tambahan baru
+//     'status',
+//     'last_classroom_id',
+//     'is_promoted'
+// ];
+
     protected $fillable = [
-    'nis',
-    'name',
-    'gender',
-    'classroom_id',
-    'phone', // Pastikan ini ada jika Anda mengimport no_hp
-    'user_id',
-    'signature', // Tambahan baru
-    'status',
-    'last_classroom_id',
-    'is_promoted'
-];
+        'id', 'user_id', 'nis', 'nisn', 'nik', 'name', 'gender', 'pob', 'dob', 'religion',
+        'phone', 'email', 'address', 'rt', 'rw', 'dusun', 'subdistrict', 'district', 'postal_code',
+        'status', 'classroom_id', 'is_promoted', 'previous_school',
+        'father_name', 'father_nik', 'father_education', 'father_job', 'father_income',
+        'mother_name', 'mother_nik', 'mother_education', 'mother_job', 'mother_income',
+        'guardian_name', 'guardian_nik', 'guardian_education', 'guardian_job', 'guardian_income',
+    ];
 
     public function user()
     {

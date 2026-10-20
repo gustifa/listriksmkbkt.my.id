@@ -28,6 +28,10 @@ class StudentImportController extends Controller
             'file' => 'required|mimes:xlsx,xls,csv|max:5120'
         ]);
 
+        // Hilangkan batas waktu PHP khusus untuk request import ini
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
         try {
             // 2. Buat Instance Import
             $import = new StudentImport();
@@ -36,53 +40,39 @@ class StudentImportController extends Controller
             Excel::import($import, $request->file('file'));
 
             // 4. Sinkronisasi Akun User
-            // Menjalankan command untuk generate user bagi siswa yang baru diimpor
-            // dan belum memiliki user_id.
+            // Menjalankan command untuk generate user bagi siswa yang baru diimpor/diupdate
             Artisan::call('siswa:generate-users');
 
-            // 5. Ambil Statistik Hasil Import
-            $duplicates   = $import->getDuplicates();
-            $successCount = $import->getSuccessCount();
+            // 5. Ambil Statistik Hasil Import (Tambah Baru & Update Data)
+            $createdCount = $import->getCreatedCount();
+            $updatedCount = $import->getUpdatedCount();
+            $totalProcessed = $createdCount + $updatedCount;
 
             // 6. Logika Notifikasi (SweetAlert)
-            if (count($duplicates) > 0) {
-                // Kasus: Ada Data Duplikat
-                $duplicateList = '<ul style="text-align: left; font-size: 0.9em; margin-bottom:0;">';
-                foreach (array_slice($duplicates, 0, 5) as $dup) {
-                    $duplicateList .= "<li>- " . e($dup) . "</li>";
+            if ($totalProcessed > 0) {
+                $htmlMessage = "Proses import data siswa selesai:<br><ul style='text-align: left; margin-top: 10px;'>";
+                
+                if ($createdCount > 0) {
+                    $htmlMessage .= "<li><b>{$createdCount}</b> data siswa baru berhasil ditambahkan.</li>";
                 }
                 
-                if (count($duplicates) > 5) {
-                    $sisa = count($duplicates) - 5;
-                    $duplicateList .= "<li>... dan <b>{$sisa}</b> lainnya.</li>";
+                if ($updatedCount > 0) {
+                    $htmlMessage .= "<li><b>{$updatedCount}</b> data siswa lama berhasil diperbarui.</li>";
                 }
-                $duplicateList .= '</ul>';
-
-                $isPartial = $successCount > 0;
+                
+                $htmlMessage .= "</ul>Akun login siswa telah disinkronkan otomatis.";
 
                 $notification = [
-                    'icon'  => $isPartial ? 'warning' : 'error',
-                    'title' => 'Import Selesai dengan Catatan',
-                    'html'  => $isPartial
-                        ? "<b>{$successCount}</b> siswa berhasil disimpan & akun dibuat.<br><br>Namun <b>" . count($duplicates) . "</b> data dilewati karena NIS sudah ada:<br>{$duplicateList}"
-                        : "Gagal menyimpan! Semua data (<b>" . count($duplicates) . "</b>) memiliki NIS yang sudah terdaftar.<br>{$duplicateList}"
+                    'icon'  => 'success',
+                    'title' => 'Import Selesai!',
+                    'html'  => $htmlMessage
                 ];
-
             } else {
-                // Kasus: Berhasil Semua atau File Kosong
-                if ($successCount > 0) {
-                    $notification = [
-                        'icon'  => 'success',
-                        'title' => 'Import Berhasil!',
-                        'text'  => "Total {$successCount} data siswa berhasil diimport dan akun login telah siap digunakan."
-                    ];
-                } else {
-                    $notification = [
-                        'icon'  => 'info',
-                        'title' => 'Data Kosong',
-                        'text'  => 'Tidak ada data valid yang ditemukan dalam file Excel tersebut.'
-                    ];
-                }
+                $notification = [
+                    'icon'  => 'info',
+                    'title' => 'Data Kosong',
+                    'text'  => 'Tidak ada data siswa valid yang ditemukan atau diproses dari file Excel tersebut.'
+                ];
             }
 
             return redirect()->back()->with('swal', $notification);
@@ -94,10 +84,11 @@ class StudentImportController extends Controller
             $notification = [
                 'icon'  => 'error',
                 'title' => 'Terjadi Kesalahan',
-                'text'  => 'Sistem gagal memproses file. Pastikan format header (nis, nama_siswa, kelas) sudah benar. Pesan: ' . $e->getMessage()
+                'text'  => 'Sistem gagal memproses file Excel. Pesan kesalahan: ' . $e->getMessage()
             ];
 
-            return redirect()->back()->with('swal', $notification);
+            // return redirect()->back()->with('swal', $notification);
+            return response()->json($notification);
         }
     }
 }
