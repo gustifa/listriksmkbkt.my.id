@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Imports\AttendanceImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\User;
 
 class InternshipAttendanceController extends Controller
 {
@@ -249,4 +250,36 @@ class InternshipAttendanceController extends Controller
 
         return response()->download($filePath, 'Template_Import_Absensi_PKL.xlsx');
     }
+
+    /**
+ * Memproses permintaan/pengajuan pembimbing PKL oleh siswa.
+ */
+public function requestAdvisor(Request $request)
+{
+    $request->validate([
+        'advisor_id' => 'required|exists:users,id',
+    ], [
+        'advisor_id.required' => 'Pilih pembimbing terlebih dahulu.',
+        'advisor_id.exists'   => 'Pembimbing tidak ditemukan di sistem.',
+    ]);
+
+    $user = Auth::user();
+    $student = Student::where('user_id', $user->id)->firstOrFail();
+
+    // Cari/Update penempatan PKL aktif siswa
+    $internship = Internship::where('student_id', $student->id)
+        ->where('status', 'active')
+        ->first();
+
+    if (!$internship) {
+        return back()->with('error', 'Data penempatan PKL aktif tidak ditemukan.');
+    }
+
+    // Assign / simpan pembimbing
+    $internship->update([
+        'advisor_id' => $request->advisor_id,
+    ]);
+
+    return back()->with('success', 'Permintaan pembimbing PKL berhasil dikirim!');
+}
 }

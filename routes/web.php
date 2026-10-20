@@ -40,6 +40,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileSignatureController;
 use App\Http\Controllers\AttendanceReportController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\AttendanceImportController;
 
 use App\Http\Controllers\DailyAttendanceController;
 use App\Http\Controllers\CardController;
@@ -195,6 +196,8 @@ Route::middleware(['auth'])->group(function () {
     // Route Cetak (Ubah URI agar tidak mewajibkan parameter {studentId})
     Route::get('/transkrip-absensi/cetak', [TranskripAbsensiController::class, 'print'])->name('transkrip.print');
 
+    Route::get('/attendances/import', [AttendanceImportController::class, 'index'])->name('attendances.import.index');
+    Route::post('/attendances/import', [AttendanceImportController::class, 'store'])->name('attendances.import.store');
     // Route::get('/transkrip-absensi', [TranskripAbsensiController::class, 'index'])->name('transkrip.index');
     // Route::get('/transkrip-absensi/cetak/{studentId}', [TranskripAbsensiController::class, 'print'])->name('transkrip.print');
 
@@ -876,7 +879,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('admin/internships/{id}/status', [InternshipController::class, 'updateStatus'])->name('admin.internships.status');
         Route::delete('admin/internships/{id}', [InternshipController::class, 'destroy'])->name('admin.internships.destroy');
         Route::get('admin/internships', [InternshipController::class, 'index'])->name('admin.internships.index');
-        Route::post('admin/internships/assign/{id}', [InternshipController::class, 'assignAdvisor'])->name('admin.internships.assign');
+        Route::patch('admin/internships/assign/{id}', [InternshipController::class, 'assignAdvisor'])->name('admin.internships.assign');
         // Route untuk Import Industri
         Route::post('admin/industries/import', [IndustryController::class, 'import'])->name('industries.import');
 
@@ -959,7 +962,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/internships/attendance', [InternshipAttendanceController::class, 'index'])->name('internships.attendance.index');
 
             Route::post('/internships/attendance', [InternshipAttendanceController::class, 'store'])->name('internships.attendance.store');
-
+            Route::post('/internships/request-advisor', [InternshipAttendanceController::class, 'requestAdvisor'])->name('internships.request_advisor');
             Route::get('internships/transcript', [InternshipStudentController::class, 'transcript'])->name('internships.transcript');
             Route::get('internships/transcript/print', [InternshipStudentController::class, 'printTranscript'])->name('internships.print_transcript');
 

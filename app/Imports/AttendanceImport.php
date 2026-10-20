@@ -2,127 +2,221 @@
 
 namespace App\Imports;
 
-use App\Models\InternshipAttendance; // atau App\Models\Attendance tergantung nama Model Anda
 use App\Models\Student;
 use App\Models\Internship;
+use App\Models\Industry;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Exception;
 
-class AttendanceImport implements ToModel, WithHeadingRow
+class AttendanceImport implements WithMultipleSheets
 {
-    public function model(array $row)
+    private $importedCount = 0;
+    private $skippedCount = 0;
+
+    public function sheets(): array
     {
-        // Mengubah key array menjadi lowercase
-        $row = array_change_key_case($row, CASE_LOWER);
+        return [
+            'Absensi' => new AbsensiSheetImport($this),
+        ];
+    }
 
-        $nis       = trim($row['nisn'] ?? $row['nis'] ?? '');
-        $rawDate   = trim($row['tanggal'] ?? $row['date'] ?? '');
-        $jamMasuk  = trim($row['jam_masuk'] ?? $row['check_in'] ?? '');
-        $jamPulang = trim($row['jam_pulang'] ?? $row['check_out'] ?? '');
-        $status    = strtolower(trim($row['status'] ?? 'present'));
-        $jurnal    = trim($row['jurnal'] ?? $row['journal'] ?? '');
+    public function incrementImported($count = 1)
+    {
+        $this->importedCount += $count;
+    }
 
-        // Abaikan baris kosong
-        if (empty($nis) && empty($rawDate)) {
-            return null;
-        }
+    public function incrementSkipped($count = 1)
+    {
+        $this->skippedCount += $count;
+    }
 
-        if (empty($nis)) {
-            throw new Exception("Ditemukan baris dengan Tanggal '{$rawDate}' tetapi NIS/NISN kosong.");
-        }
+    public function getImportedCount(): int
+    {
+        return $this->importedCount;
+    }
 
-        // 1. Cari data siswa berdasarkan kolom 'nis'
-        $student = Student::where('nis', $nis)->first();
+    public function getSkippedCount(): int
+    {
+        return $this->skippedCount;
+    }
+}
 
-        if (!$student) {
-            throw new Exception("Siswa dengan NIS '{$nis}' tidak ditemukan di database.");
-        }
+class AbsensiSheetImport implements ToCollection, WithHeadingRow, WithChunkReading
+{
+    private $students = [];
+    private $internships = [];
+    private $industries = [];
+    private $parentImport;
 
-        // 2. Cari data Penempatan PKL Siswa (internship_id)
-        $internship = Internship::where('student_id', $student->id)->first();
+    public function __construct(AttendanceImport $parentImport)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
 
-        if (!$internship) {
-            throw new Exception("Siswa dengan NIS '{$nis}' ({{ $student->name }}) belum terdaftar pada data Penempatan PKL (Internship).");
-        }
+        $this->parentImport = $parentImport;
 
-        // 3. Parsing Tanggal & Jam
-        $formattedDate      = $this->parseDate($rawDate, $nis);
-        $formattedJamMasuk  = $this->parseTime($jamMasuk) ?? '07:00:00'; // Fallback default time jika kosong
-        $formattedJamPulang = $this->parseTime($jamPulang);
+        // Cache data penting ke RAM
+        $this->students    = Student::pluck('id', 'nis')->toArray();
+        $this->internships = Internship::pluck('id', 'student_id')->toArray();
+        $this->industries  = Industry::pluck('id', 'name')->toArray();
+    }
 
-        // 4. Normalisasi Status
-        $mappedStatus = match ($status) {
-            'present', 'hadir', 'h' => 'present',
-            'sick', 'sakit', 's'     => 'sick',
-            'permit', 'izin', 'i'   => 'permit',
-            'absent', 'alpa', 'a'   => 'absent',
-            default                 => 'present',
-        };
+    public function collection(Collection $rows)
+    {
+        $recordsToInsert = [];
 
-        // 5. Simpan / Update ke Tabel internship_attendances
-        return InternshipAttendance::updateOrCreate(
-            [
-                'student_id'    => $student->id,
-                'internship_id' => $internship->id,
-                'date'          => $formattedDate,
-            ],
-            [
+        foreach ($rows as $row) {
+            $rowArray = array_change_key_case($row->toArray(), CASE_LOWER);
+
+            $nis       = trim($rowArray['username_siswa'] ?? $rowArray['nisn'] ?? $rowArray['nis'] ?? '');
+            $waktuRaw  = trim($rowArray['waktu'] ?? $rowArray['tanggal'] ?? $rowArray['date'] ?? '');
+            $tempatPkl = trim($rowArray['tempat_pkl'] ?? '');
+            $jamMasuk  = trim($rowArray['jam_masuk'] ?? $rowArray['check_in'] ?? '');
+            $jamPulang = trim($rowArray['jam_pulang'] ?? $rowArray['check_out'] ?? '');
+            $status    = strtolower(trim($rowArray['status'] ?? 'present'));
+            $jurnal    = trim($rowArray['catatan'] ?? $rowArray['jurnal'] ?? $rowArray['journal'] ?? '');
+
+            if (empty($nis) || empty($waktuRaw)) {
+                continue;
+            }
+
+            // 1. Ambil Student ID
+            $studentId = $this->students[$nis] ?? null;
+            if (!$studentId) {
+                $this->parentImport->incrementSkipped();
+                continue;
+            }
+
+            // 2. Cek/Buat Penempatan PKL (Internship & Industry)
+            $formattedDate = $this->parseDate($waktuRaw);
+            $internshipId  = $this->internships[$studentId] ?? null;
+
+            if (!$internshipId) {
+                $namaIndustri = (!empty($tempatPkl) && $tempatPkl !== '-') ? $tempatPkl : 'Tempat PKL Belum Diset';
+
+                if (!isset($this->industries[$namaIndustri])) {
+                    $indId = (string) Str::uuid();
+                    DB::table('industries')->insert([
+                        'id'         => $indId,
+                        'name'       => $namaIndustri,
+                        'address'    => '-',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $this->industries[$namaIndustri] = $indId;
+                }
+                $industryId = $this->industries[$namaIndustri];
+
+                $newInternshipId = (string) Str::uuid();
+                DB::table('internships')->insert([
+                    'id'          => $newInternshipId,
+                    'student_id'  => $studentId,
+                    'industry_id' => $industryId,
+                    'start_date'  => $formattedDate,
+                    'end_date'    => Carbon::parse($formattedDate)->addMonths(6)->format('Y-m-d'),
+                    'status'      => 'active',
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+
+                $this->internships[$studentId] = $newInternshipId;
+                $internshipId = $newInternshipId;
+            }
+
+            // 3. Format Waktu
+            $formattedJamMasuk  = $this->parseTime($jamMasuk ?: $waktuRaw) ?? '07:00:00';
+            $formattedJamPulang = $this->parseTime($jamPulang);
+
+            if ($status === 'pulang') {
+                $formattedJamPulang = $formattedJamMasuk;
+            }
+
+            // 4. Deteksi Jurnal "Tanpa keterangan" -> Ubah Status ke 'alpha'
+            if (empty($jurnal) || str_contains(strtolower($jurnal), 'tanpa keterangan')) {
+                $mappedStatus = 'alpha';
+                $jurnal = 'Tanpa keterangan';
+            } else {
+                $mappedStatus = match ($status) {
+                    'present', 'hadir', 'h', 'masuk', 'pulang' => 'present',
+                    'sick', 'sakit', 's'                       => 'sick',
+                    'permit', 'izin', 'i'                     => 'permit',
+                    'absent', 'alpa', 'a', 'alpha'            => 'alpha',
+                    default                                   => 'present',
+                };
+            }
+
+            // Kunci Unik Kombinasi (student_id + date)
+            $uniqueKey = $studentId . '_' . $formattedDate;
+
+            // Gunakan $uniqueKey sebagai key array untuk MENELIMINASI baris duplikat dalam 1 batch
+            $recordsToInsert[$uniqueKey] = [
+                'id'             => (string) Str::uuid(),
+                'student_id'     => $studentId,
+                'internship_id'  => $internshipId,
+                'date'           => $formattedDate,
                 'time'           => $formattedJamMasuk,
                 'check_out_time' => $formattedJamPulang,
                 'status'         => $mappedStatus,
-                'activity_log'   => $jurnal ?: null,
-            ]
-        );
+                'activity_log'   => $jurnal,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ];
+        }
+
+        // 5. Gunakan UPSERT pada array yang sudah dibersihkan dari duplikat
+        if (!empty($recordsToInsert)) {
+            // Ambil hanya nilainya saja (reset key unik)
+            $cleanRows = array_values($recordsToInsert);
+
+            $batches = array_chunk($cleanRows, 200);
+            foreach ($batches as $batch) {
+                DB::table('internship_attendances')->upsert(
+                    $batch,
+                    ['student_id', 'date'], // Constraint Kunci Unik
+                    ['status', 'activity_log', 'updated_at'] // Kolom yang di-update
+                );
+            }
+            $this->parentImport->incrementImported(count($cleanRows));
+        }
     }
 
-    /**
-     * Parsing Tanggal Excel / String ke Format YYYY-MM-DD
-     */
-    private function parseDate($value, $nis)
+    public function chunkSize(): int
+    {
+        return 1000;
+    }
+
+    private function parseDate($value)
     {
         try {
-            if (empty($value)) {
-                throw new Exception("Tanggal kosong.");
-            }
-
+            if (empty($value)) return now()->format('Y-m-d');
             if (is_numeric($value)) {
                 return Date::excelToDateTimeObject($value)->format('Y-m-d');
             }
-
             $cleaned = str_replace('/', '-', $value);
-
             if (preg_match('/^\d{1,2}-\d{1,2}-\d{4}$/', $cleaned)) {
                 return Carbon::createFromFormat('d-m-Y', $cleaned)->format('Y-m-d');
             }
-
-            if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}$/', $cleaned)) {
-                return Carbon::parse($cleaned)->format('Y-m-d');
-            }
-
             return Carbon::parse($cleaned)->format('Y-m-d');
-
         } catch (Exception $e) {
-            throw new Exception("Gagal membaca format tanggal: '{$value}' untuk NIS: {$nis}");
+            return now()->format('Y-m-d');
         }
     }
 
-    /**
-     * Parsing Jam Excel / String ke Format HH:MM:SS
-     */
     private function parseTime($value)
     {
-        if (empty($value)) {
-            return null;
-        }
-
+        if (empty($value)) return null;
         try {
             if (is_numeric($value)) {
                 return Date::excelToDateTimeObject($value)->format('H:i:s');
             }
-
             return Carbon::parse($value)->format('H:i:s');
         } catch (Exception $e) {
             return null;
