@@ -19,8 +19,8 @@ return new class extends Migration
             // Jika students dan users memakai UUID:
             $table->foreignUuid('student_id')->constrained('students')->onDelete('cascade');
             $table->foreignUuid('ukk_package_id')->constrained('ukk_packages')->onDelete('cascade');
-            $table->foreignUuid('internal_examiner_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->foreignUuid('external_examiner_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignUuid('internal_examiner_id')->nullable()->constrained('teachers')->onDelete('set null');
+            $table->foreignUuid('external_examiner_id')->nullable()->constrained('external_examiners')->onDelete('set null');
             
             /* Catatan: Jika tabel students/users Anda masih memakai ID auto-increment (bigint),
                gunakan foreignId() untuk student_id dan examiner_id:

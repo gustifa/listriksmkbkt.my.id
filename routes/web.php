@@ -27,6 +27,7 @@ use App\Http\Controllers\DeviceSettingController;
 use App\Http\Controllers\TranskripAbsensiController;
 use App\Http\Controllers\UkkPackageController;
 use App\Http\Controllers\UkkController;
+use App\Http\Controllers\ExternalExaminerController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -186,6 +187,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/edit/{student_id}', [FaceRegistrationController::class, 'edit'])->name('face.edit');
         Route::delete('/destroy/{descriptor_id}', [FaceRegistrationController::class, 'destroy'])->name('face.destroy');
     });
+    Route::post('/ukk/assign-examiners', [UkkController::class, 'assignExaminers'])->name('ukk.assign-examiners');
+    Route::post('/external-examiners', [ExternalExaminerController::class, 'store'])->name('external_examiners.store');
     // Halaman Filter
     Route::get('/transkrip-absensi', [TranskripAbsensiController::class, 'index'])->name('transkrip.index');
     
@@ -207,7 +210,14 @@ Route::middleware(['auth'])->group(function () {
     // Manajemen Paket & Unit UKK
         Route::resource('packages', UkkPackageController::class)->except(['create', 'edit']);
         Route::post('packages/{packageId}/units', [UkkPackageController::class, 'storeUnit'])->name('packages.units.store');
+        Route::post('/packages/import', [UkkPackageController::class, 'import'])->name('packages.import');
+        Route::get('/packages/download-template', [UkkPackageController::class, 'downloadTemplate'])->name('packages.download_template');
         Route::delete('units/{unitId}', [UkkPackageController::class, 'destroyUnit'])->name('units.destroy');
+
+       // 2. DAFTARKAN RESOURCE DENGAN VALIDASI FORMAT UUID
+        Route::resource('packages', UkkPackageController::class)
+            ->except(['create', 'edit'])
+            ->whereUuid('package'); // Hanya terima format UUID valid untuk parameter {package}
 
         // Penjadwalan, Penilaian & Sertifikat UKK
         Route::get('/', [UkkController::class, 'index'])->name('index');

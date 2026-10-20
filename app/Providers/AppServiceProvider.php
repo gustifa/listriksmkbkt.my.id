@@ -59,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
         \Illuminate\Auth\Events\Login::class,
         \App\Listeners\BindStudentDeviceOnLogin::class
+        
     );
 
         

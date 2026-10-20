@@ -14,7 +14,7 @@ class UkkPackage extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['major_code', 'package_name', 'academic_year'];
+    protected $fillable = ['major_code', 'major_name', 'package_name', 'academic_year', ];
 
     public function units()
     {

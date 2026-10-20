@@ -48,7 +48,18 @@ $status = $guruId->status ?? '0';
             @role('guru')
                 <!-- Menu Guru -->
                 @if(Auth::user()->hasRole('guru') && Auth::user()->teacher)
-                    <li class="menu-label">Pembelajaran</li>
+                    <li class="menu-label">Pembelajaran & LMS</li>
+                    <li>
+                        <a class="has-arrow" href="javascript:;">
+                            <div class="parent-icon"><i class='bx bx-book-open'></i></div>
+                            <div class="menu-title">LMS / E-Learning</div>
+                        </a>
+                        <ul>
+                            <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
+                            <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Siswa</a></li>
+                        </ul>
+                    </li>
+
                     <li>
                         <a class="has-arrow" href="javascript:;">
                             <div class="parent-icon"><i class='bx bx-bookmark-heart'></i></div>
@@ -64,7 +75,7 @@ $status = $guruId->status ?? '0';
                     @if(Auth::user()->teacher->isAdvisor())
                     <li>
                         <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class='bx bx-bookmark-heart'></i></div>
+                            <div class="parent-icon"><i class='bx bx-briefcase-alt-2'></i></div>
                             <div class="menu-title">PKL</div>
                         </a>
                         <ul>
@@ -75,8 +86,23 @@ $status = $guruId->status ?? '0';
                 @endif
             @endrole
 
-            <!-- MENU PENGATURAN (Super Admin & Admin) -->
+            <!-- MENU KHUSUS WALI KELAS & GURU BK -->
+            @hasanyrole('wali_kelas|guru_bk')
+                <li class="menu-label">Wali Kelas & BK</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-file-find"></i></div>
+                        <div class="menu-title">Cetak Transkrip</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            <!-- MENU SUPER ADMIN & ADMIN -->
             @hasanyrole('super_admin|admin')
+                <li class="menu-label">Sistem & Pengaturan</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-cog"></i></div>
@@ -88,6 +114,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('all.user')}}"><i class='bx bx-user'></i>User</a></li>
                         <li><a href="{{route('settings.attendance')}}"><i class='bx bx-barcode-reader'></i>Presensi</a></li>
                         <li><a href="{{route('time_slots.index')}}"><i class='bx bx-barcode-reader'></i>Jam PBM</a></li>
+                        <li><a href="{{route('admin.holidays.index')}}"><i class='bx bx-radio-circle'></i>Libur</a></li>
                         <li><a href="{{route('programs.index')}}"><i class='bx bx-minus-front'></i>Program Keahlian</a></li>
                         <li><a href="{{route('majors.index')}}"><i class='bx bx-minus-front'></i>Jurusan</a></li>
                         <li><a href="{{route('subjects.index')}}"><i class='bx bx-minus-front'></i>Mapel</a></li>
@@ -95,13 +122,26 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('permissions.index')}}"><i class='bx bx-radio-circle'></i>Permission</a></li>
                         <li><a href="{{route('roles.index')}}"><i class='bx bx-radio-circle'></i>Role</a></li>
                         <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-radio-circle'></i>Inventaris</a></li>
-                        <li><a href="{{route('admin.prayer.settings')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                    </ul>
+                </li>
+
+                <!-- LMS / E-LEARNING (DIBAWAH SISTEM & PENGATURAN) -->
+                <li class="menu-label">LMS / E-Learning</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-book-open'></i></div>
+                        <div class="menu-title">Kelola LMS</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
+                        <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Siswa</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                        <div class="parent-icon"><i class="bx bx-group"></i></div>
                         <div class="menu-title">Maping</div>
                     </a>
                     <ul>
@@ -116,7 +156,7 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                        <div class="parent-icon"><i class="bx bx-building-house"></i></div>
                         <div class="menu-title">PKL</div>
                     </a>
                     <ul>
@@ -147,15 +187,21 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{route('report.index')}}"><i class='bx bx-border-all'></i>Pembelajaran</a></li>
                         <li><a href="{{route('daily_attendance.report')}}"><i class='bx bx-border-all'></i>Gerbang</a></li>
-                        <li><a href="{{url('/transkrip')}}"><i class='bx bx-border-all'></i>Transkip</a></li>
+                        <li><a href="{{route('transkrip.index')}}"><i class='bx bx-border-all'></i>Transkrip</a></li>
                         <li><a href="{{route('recap.index')}}"><i class='bx bx-id-card'></i>Rekap</a></li>
                         <li><a href="{{route('admin.permit.recap')}}"><i class='bx bx-id-card'></i>Izin</a></li>
+                        <li><a href="{{route('admin.prayer_reports.index')}}"><i class='bx bx-id-card'></i>Sholat</a></li>
+                        <li><a href="{{route('admin.reports.student-calendar.index')}}"><i class='bx bx-id-card'></i>Kalender</a></li>
+                        <li><a href="{{route('reports.missing_attendance')}}"><i class='bx bx-id-card'></i>Alfa</a></li>
+                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-id-card'></i>Manage</a></li>
+                        <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-id-card'></i>Log</a></li>
+                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-id-card'></i>Reset</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bxs-report"></i></div>
+                        <div class="parent-icon"><i class="bx bx-award"></i></div>
                         <div class="menu-title">Sertifikat</div>
                     </a>
                     <ul>
@@ -217,7 +263,7 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                        <div class="parent-icon"><i class="bx bx-user-voice"></i></div>
                         <div class="menu-title">Pembinaan</div>
                     </a>
                     <ul>
@@ -230,7 +276,7 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                        <div class="parent-icon"><i class="bx bx-door-open"></i></div>
                         <div class="menu-title">Izin Toilet</div>
                     </a>
                     <ul>
@@ -253,10 +299,22 @@ $status = $guruId->status ?? '0';
 
             <!-- MENU SISWA -->
             @role('siswa')
+                <li class="menu-label">Pembelajaran & LMS</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-book-reader'></i></div>
+                        <div class="menu-title">Pembelajaran</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
+                        <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Saya</a></li>
+                    </ul>
+                </li>
+
                 <li class="menu-label">My Profile</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-barcode'></i></div>
+                        <div class="parent-icon"><i class='bx bxs-user-detail'></i></div>
                         <div class="menu-title">My Profile</div>
                     </a>
                     <ul>
@@ -268,7 +326,7 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-user'></i></div>
+                        <div class="parent-icon"><i class='bx bxs-edit'></i></div>
                         <div class="menu-title">CBT</div>
                     </a>
                     <ul>
@@ -278,23 +336,34 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-barcode'></i></div>
+                        <div class="parent-icon"><i class='bx bxs-time'></i></div>
                         <div class="menu-title">Absensi</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('student.prayer.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <li><a href="{{route('student.prayer-attendances.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
                         <li><a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Face</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-barcode'></i></div>
+                        <div class="parent-icon"><i class='bx bxs-briefcase'></i></div>
                         <div class="menu-title">PKL</div>
                     </a>
                     <ul>
                         <li><a href="{{route('student.internships.index')}}"><i class='bx bx-radio-circle'></i>Tentukan</a></li>
                         <li><a href="{{route('student.internships.attendance.index')}}"><i class='bx bx-radio-circle'></i>Presensi</a></li>
+                    </ul>
+                </li>
+
+                <li class="menu-label">Laporan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bxs-user-detail'></i></div>
+                        <div class="menu-title">Rekap</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('student.attendance-calendar.index') }}" class="nav-link {{ request()->routeIs('student.attendance-calendar.*') ? 'active' : '' }}"><i class='bx bx-radio-circle'></i>Kehadiran</a></li>
                     </ul>
                 </li>
             @endrole

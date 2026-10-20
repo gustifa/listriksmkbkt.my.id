@@ -39,11 +39,16 @@ class UkkAssessment extends Model
 
     public function internalExaminer()
     {
-        return $this->belongsTo(User::class, 'internal_examiner_id');
+        return $this->belongsTo(Teacher::class, 'internal_examiner_id');
     }
 
+    // public function externalExaminer()
+    // {
+    //     return $this->belongsTo(User::class, 'external_examiner_id');
+    // }
+
     public function externalExaminer()
-    {
-        return $this->belongsTo(User::class, 'external_examiner_id');
-    }
+{
+    return $this->belongsTo(ExternalExaminer::class, 'external_examiner_id');
+}
 }

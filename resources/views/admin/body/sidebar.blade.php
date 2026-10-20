@@ -83,6 +83,18 @@ $status = $guruId->status ?? '0';
                         </ul>
                     </li>
                     @endif
+
+                    <!-- MENU UKK UNTUK GURU PENGUJI -->
+                    <li class="menu-label">Uji Kompetensi Keahlian</li>
+                    <li>
+                        <a class="has-arrow" href="javascript:;">
+                            <div class="parent-icon"><i class='bx bx-award'></i></div>
+                            <div class="menu-title">UKK</div>
+                        </a>
+                        <ul>
+                            <li><a href="{{ route('ukk.index') }}"><i class='bx bx-radio-circle'></i>Penilaian & Plotting</a></li>
+                        </ul>
+                    </li>
                 @endif
             @endrole
 
@@ -126,19 +138,7 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- LMS / E-LEARNING (DIBAWAH SISTEM & PENGATURAN) -->
-                <li class="menu-label">LMS / E-Learning</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bx-book-open'></i></div>
-                        <div class="menu-title">Kelola LMS</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
-                        <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Siswa</a></li>
-                    </ul>
-                </li>
-
+                <!-- MENU MAPING (DIPINDAHKAN KE SISTEM & PENGATURAN) -->
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-group"></i></div>
@@ -154,6 +154,19 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
+                <!-- LMS / E-LEARNING -->
+                <li class="menu-label">LMS / E-Learning</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-book-open'></i></div>
+                        <div class="menu-title">Kelola LMS</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
+                        <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Siswa</a></li>
+                    </ul>
+                </li>
+
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-building-house"></i></div>
@@ -164,6 +177,18 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('admin.pkl.mapping')}}"><i class='bx bx-radio-circle'></i>01.Maping</a></li>
                         <li><a href="{{route('industries.index')}}"><i class='bx bx-radio-circle'></i>02.DUDI</a></li>
                         <li><a href="{{route('admin.internships.index')}}"><i class='bx bx-radio-circle'></i>03.Penempatan</a></li>
+                    </ul>
+                </li>
+
+                <!-- MENU UKK (UJI KOMPETENSI KEAHLIAN) UNTUK ADMIN -->
+                <li class="menu-label">Uji Kompetensi Keahlian</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-award"></i></div>
+                        <div class="menu-title">UKK</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('ukk.index') }}"><i class='bx bx-radio-circle'></i>Penilaian & Plotting</a></li>
                     </ul>
                 </li>
 
