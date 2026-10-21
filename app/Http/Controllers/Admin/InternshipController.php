@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Classroom;
 
+
 class InternshipController extends Controller
 {
     public function index(Request $request)
@@ -213,6 +214,20 @@ class InternshipController extends Controller
     ]);
 
     return redirect()->back()->with('success', 'Periode PKL seluruh siswa berhasil diperbarui!');
+}
+
+public function updateIndustry(Request $request, $id)
+{
+    $request->validate([
+        'industry_id' => 'required|exists:industries,id',
+    ]);
+
+    $internship = Internship::findOrFail($id);
+    $internship->update([
+        'industry_id' => $request->industry_id,
+    ]);
+
+    return redirect()->back()->with('success', 'Tempat PKL siswa berhasil diperbarui!');
 }
 
 

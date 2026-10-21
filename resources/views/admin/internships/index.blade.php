@@ -2,10 +2,10 @@
 
 <x-app-layout>
     <!-- Include CDN Select2 (CSS) -->
-    <!-- @push('styles')
+    @push('styles')
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-    @endpush -->
+    @endpush
 
     <div class="page-content">
         <!-- Header -->
@@ -13,20 +13,20 @@
             <h4 class="fw-bold text-primary"><i class="fas fa-briefcase me-2"></i>Penempatan PKL Siswa</h4>
             <div class="d-flex gap-2">
                 <!-- Tombol Pemicu Modal -->
-                <button type="button" class="btn btn-warning btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode">
+                <button type="button" class="btn btn-warning btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode" data-toggle="modal" data-target="#modalUpdatePeriode">
                     <i class="fas fa-calendar-alt"></i> Ubah Periode Semua Siswa
                 </button>
-                <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addInternshipModal">
+                <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addInternshipModal" data-toggle="modal" data-target="#addInternshipModal">
                     <i class="fas fa-plus me-1"></i> Penempatan Baru
                 </button>
             </div>
         </div>
 
         @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert" data-dismiss="alert"></button></div>
         @endif
         @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show"><i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            <div class="alert alert-danger alert-dismissible fade show"><i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert" data-dismiss="alert"></button></div>
         @endif
 
         <div class="card border-0 shadow-lg mb-4">
@@ -106,8 +106,19 @@
                                     <small class="text-muted">{{ $item->student->nis }} • {{ $item->student->classroom->name ?? '-' }}</small>
                                 </td>
                                 <td>
-                                    <div class="fw-bold text-primary">{{ $item->industry->name }}</div>
-                                    <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ Str::limit($item->industry->address, 30) }}</small>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="fw-bold text-primary">{{ $item->industry->name }}</div>
+                                            <small class="text-muted">
+                                                <i class="fas fa-map-marker-alt me-1"></i> 
+                                                {{ \Illuminate\Support\Str::limit($item->industry->address, 30) }}
+                                            </small>
+                                        </div>
+                                        <!-- Tombol Pemicu Modal Edit Tempat PKL -->
+                                        <button type="button" class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#modalEditIndustry-{{ $item->id }}" data-toggle="modal" data-target="#modalEditIndustry-{{ $item->id }}" title="Ubah Tempat PKL">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="text-sm">
@@ -190,7 +201,7 @@
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i> Penempatan Siswa PKL</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"></button>
                 </div>
                 <form action="{{ route('admin.internships.store') }}" method="POST">
                     @csrf
@@ -245,7 +256,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-primary">Simpan Penempatan</button>
                     </div>
                 </form>
@@ -262,7 +273,7 @@
                     @method('PATCH')
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title"><i class="fas fa-chalkboard-teacher me-2"></i> Tentukan Pembimbing</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -277,7 +288,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-success">Simpan / Setujui</button>
                     </div>
                 </form>
@@ -285,36 +296,76 @@
         </div>
     </div>
 
-    <!-- Modal Update Periode -->
-<div class="modal fade" id="modalUpdatePeriode" tabindex="-1">
-    <div class="modal-dialog">
-        <form action="{{ route('admin.internships.bulk_update_period') }}" method="POST" class="modal-content">
-            @csrf
-            <div class="modal-header">
-                <h5 class="modal-title">Ubah Periode PKL Massal</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Tanggal Mulai PKL</label>
-                    <input type="date" name="start_date" class="form-control" value="2026-06-15" required>
+    <!-- MODAL UPDATE PERIODE MASSAL -->
+    <div class="modal fade" id="modalUpdatePeriode" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="{{ route('admin.internships.bulk_update_period') }}" method="POST" class="modal-content">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Ubah Periode PKL Massal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal"></button>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Tanggal Selesai PKL</label>
-                    <input type="date" name="end_date" class="form-control" value="2026-12-15" required>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal Mulai PKL</label>
+                        <input type="date" name="start_date" class="form-control" value="2026-06-15" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal Selesai PKL</label>
+                        <input type="date" name="end_date" class="form-control" value="2026-12-15" required>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-    <!-- Include CDN jQuery & Select2 (JS) -->
+    <!-- MODAL EDIT TEMPAT PKL SISWA (DILOOP TERPISAH DENGAN SELECT2) -->
+    @foreach($internships as $item)
+    <div class="modal fade" id="modalEditIndustry-{{ $item->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{{ route('admin.internships.update_industry', $item->id) }}" method="POST" class="modal-content">
+                @csrf
+                @method('PATCH')
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fs-6 fw-bold">
+                        <i class="fas fa-building me-2"></i>Ubah Tempat PKL Siswa
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nama Siswa</label>
+                        <input type="text" class="form-control bg-light" value="{{ $item->student->name }} ({{ $item->student->nis }})" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pilih Tempat PKL / Industri Baru</label>
+                        <select name="industry_id" class="form-select select2-edit-industry" required>
+                            <option value="">-- Pilih Industri --</option>
+                            @foreach($industries as $industry)
+                                <option value="{{ $industry->id }}" {{ $item->industry_id == $industry->id ? 'selected' : '' }}>
+                                    {{ $industry->name }} - {{ $industry->address }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">
+                        <i class="fas fa-save me-1"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endforeach
+
+    <!-- INCLUDE CDN JQUERY & SELECT2 (JS) -->
     @push('scripts')
-    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
@@ -340,6 +391,15 @@
                 width: '100%',
                 dropdownParent: $('#advisorModal')
             });
+
+            // Inisialisasi Select2 secara otomatis ketika Modal Edit Tempat PKL dibuka
+            $('[id^="modalEditIndustry-"]').on('shown.bs.modal', function () {
+                $(this).find('.select2-edit-industry').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: $(this)
+                });
+            });
         });
 
         function setAdvisor(internshipId, currentAdvisorId) {
@@ -349,8 +409,13 @@
 
             $('#modal_advisor_select').val(currentAdvisorId).trigger('change');
             
-            var myModal = new bootstrap.Modal(document.getElementById('advisorModal'));
-            myModal.show();
+            var modalElem = document.getElementById('advisorModal');
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var myModal = new bootstrap.Modal(modalElem);
+                myModal.show();
+            } else {
+                $(modalElem).modal('show');
+            }
         }
     </script>
     @endpush

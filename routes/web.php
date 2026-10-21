@@ -544,8 +544,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/admin/attendance/gate/{id}', [AttendanceManageController::class, 'deleteGate'])->name('admin.attendance.gate.delete');
         Route::delete('/admin/attendance/subject/{id}', [AttendanceManageController::class, 'deleteSubject'])->name('admin.attendance.subject.delete');
         Route::delete('/admin/attendance/prayer/{id}', [AttendanceManageController::class, 'deletePrayer'])->name('admin.attendance.prayer.delete');
-        // PKL ADMIN
-        Route::post('/admin/internships/bulk-update-period', [InternshipController::class, 'bulkUpdatePeriod'])->name('admin.internships.bulk_update_period');
+       
         // --- Route Pengaturan Kunci Perangkat (HP) Siswa ---
         Route::get('/admin/device-settings', [DeviceSettingController::class, 'index'])->name('admin.device-settings.index');
         Route::post('/admin/device-settings/update', [DeviceSettingController::class, 'updateSettings'])->name('admin.device-settings.update');
@@ -881,9 +880,10 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('admin/internships/{id}', [InternshipController::class, 'destroy'])->name('admin.internships.destroy');
         Route::get('admin/internships', [InternshipController::class, 'index'])->name('admin.internships.index');
         Route::patch('admin/internships/assign/{id}', [InternshipController::class, 'assignAdvisor'])->name('admin.internships.assign');
+        Route::patch('/admin/internships/{id}/update-industry', [InternshipController::class, 'updateIndustry'])->name('admin.internships.update_industry');
         // Route untuk Import Industri
         Route::post('admin/industries/import', [IndustryController::class, 'import'])->name('industries.import');
-
+        Route::post('/admin/internships/bulk-update-period', [InternshipController::class, 'bulkUpdatePeriod'])->name('admin.internships.bulk_update_period');
         // Mapping Kelas PKL
         Route::get('/admin/pkl/mapping', [PKLMappingController::class, 'index'])->name('admin.pkl.mapping');
         Route::put('/admin/pkl/mapping', [PKLMappingController::class, 'update'])->name('admin.pkl.mapping.update');
