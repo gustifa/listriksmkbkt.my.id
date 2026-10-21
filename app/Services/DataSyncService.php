@@ -464,6 +464,7 @@ class DataSyncService
 
                 $zip = new ZipArchive();
                 if ($zip->open($tempZipPath) === true) {
+                    $photoCount = $zip->numFiles; // Hitung jumlah file gambar di dalam ZIP
                     $zip->extractTo(storage_path('app/public'));
                     $zip->close();
                     @unlink($tempZipPath);
@@ -471,7 +472,7 @@ class DataSyncService
                     SyncLog::create([
                         'type' => 'pull',
                         'table_name' => 'attendance_photos',
-                        'records_count' => 1,
+                        'records_count' => $photoCount, // Catat jumlah foto riil
                         'status' => 'success',
                         'synced_at' => now(),
                     ]);
