@@ -68,7 +68,7 @@ class SyncDashboardController extends Controller
         return redirect()->back()->with($result['status'], $result['message']);
     }
 
-    **
+    /**
  * Khusus Server Online: Generate Token API Sanctum & Simpan ke Tabel Settings
  */
 public function generateToken(Request $request)
