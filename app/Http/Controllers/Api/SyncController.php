@@ -159,68 +159,131 @@ class SyncController extends Controller
     /**
      * ONLINE -> LOKAL: Penarikan File Foto Presensi (Opsi Hapus atau Simpan di Hosting)
      */
+    // public function pullAttendancePhotos(Request $request)
+    // {
+    //     set_time_limit(600);
+
+    //     $dailyPhotos = DailyAttendance::whereNotNull('photo_in')
+    //         ->orWhereNotNull('photo_out')
+    //         ->limit(100)
+    //         ->get(['photo_in', 'photo_out']);
+
+    //     $prayerPhotos = PrayerAttendance::whereNotNull('photo_evidence')
+    //         ->limit(100)
+    //         ->get(['photo_evidence']);
+
+    //     $filesToZip = [];
+
+    //     foreach ($dailyPhotos as $daily) {
+    //         if ($daily->photo_in && Storage::disk('public')->exists($daily->photo_in)) {
+    //             $filesToZip[] = $daily->photo_in;
+    //         }
+    //         if ($daily->photo_out && Storage::disk('public')->exists($daily->photo_out)) {
+    //             $filesToZip[] = $daily->photo_out;
+    //         }
+    //     }
+
+    //     foreach ($prayerPhotos as $prayer) {
+    //         if ($prayer->photo_evidence && Storage::disk('public')->exists($prayer->photo_evidence)) {
+    //             $filesToZip[] = $prayer->photo_evidence;
+    //         }
+    //     }
+
+    //     if (empty($filesToZip)) {
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'message' => 'Tidak ada file foto baru untuk ditarik.',
+    //             'photos_count' => 0
+    //         ]);
+    //     }
+
+    //     $zipFileName = 'photos_sync_' . time() . '.zip';
+    //     $zipPath = storage_path('app/public/' . $zipFileName);
+
+    //     $zip = new ZipArchive();
+    //     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+    //         foreach ($filesToZip as $file) {
+    //             $fullPath = storage_path('app/public/' . $file);
+    //             if (file_exists($fullPath)) {
+    //                 $zip->addFile($fullPath, $file);
+    //             }
+    //         }
+    //         $zip->close();
+    //     }
+
+    //     // Hapus file dari hosting HANYA jika parameter delete_online_storage = true
+    //     $shouldDelete = filter_var($request->get('delete_online_storage', false), FILTER_VALIDATE_BOOLEAN);
+    //     if ($shouldDelete) {
+    //         foreach ($filesToZip as $file) {
+    //             Storage::disk('public')->delete($file);
+    //         }
+    //     }
+
+    //     return response()->download($zipPath)->deleteFileAfterSend(true);
+    // }
+
     public function pullAttendancePhotos(Request $request)
-    {
-        set_time_limit(600);
+{
+    set_time_limit(600);
 
-        $dailyPhotos = DailyAttendance::whereNotNull('photo_in')
-            ->orWhereNotNull('photo_out')
-            ->limit(100)
-            ->get(['photo_in', 'photo_out']);
+    $dailyPhotos = DailyAttendance::whereNotNull('photo_in')
+        ->orWhereNotNull('photo_out')
+        ->limit(100)
+        ->get(['photo_in', 'photo_out']);
 
-        $prayerPhotos = PrayerAttendance::whereNotNull('photo_evidence')
-            ->limit(100)
-            ->get(['photo_evidence']);
+    $prayerPhotos = PrayerAttendance::whereNotNull('photo_evidence')
+        ->limit(100)
+        ->get(['photo_evidence']);
 
-        $filesToZip = [];
+    $filesToZip = [];
 
-        foreach ($dailyPhotos as $daily) {
-            if ($daily->photo_in && Storage::disk('public')->exists($daily->photo_in)) {
-                $filesToZip[] = $daily->photo_in;
-            }
-            if ($daily->photo_out && Storage::disk('public')->exists($daily->photo_out)) {
-                $filesToZip[] = $daily->photo_out;
-            }
+    foreach ($dailyPhotos as $daily) {
+        if ($daily->photo_in && Storage::disk('public')->exists($daily->photo_in)) {
+            $filesToZip[] = $daily->photo_in;
         }
-
-        foreach ($prayerPhotos as $prayer) {
-            if ($prayer->photo_evidence && Storage::disk('public')->exists($prayer->photo_evidence)) {
-                $filesToZip[] = $prayer->photo_evidence;
-            }
+        if ($daily->photo_out && Storage::disk('public')->exists($daily->photo_out)) {
+            $filesToZip[] = $daily->photo_out;
         }
-
-        if (empty($filesToZip)) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Tidak ada file foto baru untuk ditarik.',
-                'photos_count' => 0
-            ]);
-        }
-
-        $zipFileName = 'photos_sync_' . time() . '.zip';
-        $zipPath = storage_path('app/public/' . $zipFileName);
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
-            foreach ($filesToZip as $file) {
-                $fullPath = storage_path('app/public/' . $file);
-                if (file_exists($fullPath)) {
-                    $zip->addFile($fullPath, $file);
-                }
-            }
-            $zip->close();
-        }
-
-        // Hapus file dari hosting HANYA jika parameter delete_online_storage = true
-        $shouldDelete = filter_var($request->get('delete_online_storage', false), FILTER_VALIDATE_BOOLEAN);
-        if ($shouldDelete) {
-            foreach ($filesToZip as $file) {
-                Storage::disk('public')->delete($file);
-            }
-        }
-
-        return response()->download($zipPath)->deleteFileAfterSend(true);
     }
+
+    foreach ($prayerPhotos as $prayer) {
+        if ($prayer->photo_evidence && Storage::disk('public')->exists($prayer->photo_evidence)) {
+            $filesToZip[] = $prayer->photo_evidence;
+        }
+    }
+
+    if (empty($filesToZip)) {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Tidak ada file foto baru untuk ditarik.',
+            'photos_count' => 0
+        ]);
+    }
+
+    $zipFileName = 'photos_sync_' . time() . '.zip';
+    $zipPath = storage_path('app/public/' . $zipFileName);
+
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+        foreach ($filesToZip as $file) {
+            $fullPath = Storage::disk('public')->path($file);
+            if (file_exists($fullPath)) {
+                // Pertahankan relative path dalam ZIP
+                $zip->addFile($fullPath, $file);
+            }
+        }
+        $zip->close();
+    }
+
+    $shouldDelete = filter_var($request->get('delete_online_storage', false), FILTER_VALIDATE_BOOLEAN);
+    if ($shouldDelete) {
+        foreach ($filesToZip as $file) {
+            Storage::disk('public')->delete($file);
+        }
+    }
+
+    return response()->download($zipPath)->deleteFileAfterSend(true);
+}
 
     public function generateToken()
     {

@@ -437,60 +437,120 @@ class DataSyncService
      * Penarikan File Foto Presensi dari Online ke Lokal
      * @param bool $deleteOnlineStorage (true = Hapus di Online, false = Simpan di Online)
      */
-    public function pullAttendancePhotos(bool $deleteOnlineStorage = false): array
-    {
-        set_time_limit(600);
+    // public function pullAttendancePhotos(bool $deleteOnlineStorage = false): array
+    // {
+    //     set_time_limit(600);
 
-        if (empty($this->baseUrl) || empty($this->token)) {
-            return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+    //     if (empty($this->baseUrl) || empty($this->token)) {
+    //         return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+    //     }
+
+    //     try {
+    //         $response = Http::withoutVerifying()
+    //             ->withToken($this->token)
+    //             ->timeout(300)
+    //             ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
+    //                 'delete_online_storage' => $deleteOnlineStorage ? '1' : '0'
+    //             ]);
+
+    //         if ($response->header('Content-Type') === 'application/json' || str_contains($response->header('Content-Type'), 'json')) {
+    //             $resData = $response->json();
+    //             return ['status' => 'success', 'message' => $resData['message'] ?? 'Tidak ada foto baru untuk ditarik.'];
+    //         }
+
+    //         if ($response->successful()) {
+    //             $tempZipPath = storage_path('app/temp_photos_' . time() . '.zip');
+    //             file_put_contents($tempZipPath, $response->body());
+
+    //             $zip = new ZipArchive();
+    //             if ($zip->open($tempZipPath) === true) {
+    //                 $photoCount = $zip->numFiles; // Hitung jumlah file gambar di dalam ZIP
+    //                 $zip->extractTo(storage_path('app/public'));
+    //                 $zip->close();
+    //                 @unlink($tempZipPath);
+
+    //                 SyncLog::create([
+    //                     'type' => 'pull',
+    //                     'table_name' => 'attendance_photos',
+    //                     'records_count' => $photoCount, // Catat jumlah foto riil
+    //                     'status' => 'success',
+    //                     'synced_at' => now(),
+    //                 ]);
+
+    //                 $msg = $deleteOnlineStorage 
+    //                     ? 'Berhasil menarik foto presensi & mengosongkan storage hosting online.' 
+    //                     : 'Berhasil menarik foto presensi (file di hosting tetap tersimpan).';
+
+    //                 return ['status' => 'success', 'message' => $msg];
+    //             }
+
+    //             throw new \Exception('Gagal mengekstrak berkas foto ZIP.');
+    //         }
+
+    //         throw new \Exception('HTTP ' . $response->status() . ': Gagal mengunduh berkas foto.');
+
+    //     } catch (\Exception $e) {
+    //         return ['status' => 'error', 'message' => 'Gagal Pull Foto: ' . $e->getMessage()];
+    //     }
+    // }
+
+    public function pullAttendancePhotos(bool $deleteOnlineStorage = false): array
+{
+    set_time_limit(600);
+
+    if (empty($this->baseUrl) || empty($this->token)) {
+        return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+    }
+
+    try {
+        $response = Http::withoutVerifying()
+            ->withToken($this->token)
+            ->timeout(300)
+            ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
+                'delete_online_storage' => $deleteOnlineStorage ? '1' : '0'
+            ]);
+
+        if ($response->header('Content-Type') === 'application/json' || str_contains($response->header('Content-Type'), 'json')) {
+            $resData = $response->json();
+            return ['status' => 'success', 'message' => $resData['message'] ?? 'Tidak ada foto baru untuk ditarik.'];
         }
 
-        try {
-            $response = Http::withoutVerifying()
-                ->withToken($this->token)
-                ->timeout(300)
-                ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
-                    'delete_online_storage' => $deleteOnlineStorage ? '1' : '0'
+        if ($response->successful()) {
+            $tempZipPath = storage_path('app/temp_photos_' . time() . '.zip');
+            file_put_contents($tempZipPath, $response->body());
+
+            $zip = new ZipArchive();
+            if ($zip->open($tempZipPath) === true) {
+                $photoCount = $zip->numFiles;
+                
+                // Ekstrak langsung ke disk public (storage/app/public)
+                $extractPath = Storage::disk('public')->path('');
+                $zip->extractTo($extractPath);
+                $zip->close();
+                @unlink($tempZipPath);
+
+                SyncLog::create([
+                    'type' => 'pull',
+                    'table_name' => 'attendance_photos',
+                    'records_count' => $photoCount,
+                    'status' => 'success',
+                    'synced_at' => now(),
                 ]);
 
-            if ($response->header('Content-Type') === 'application/json' || str_contains($response->header('Content-Type'), 'json')) {
-                $resData = $response->json();
-                return ['status' => 'success', 'message' => $resData['message'] ?? 'Tidak ada foto baru untuk ditarik.'];
+                $msg = $deleteOnlineStorage 
+                    ? "Berhasil menarik {$photoCount} foto presensi & mengosongkan storage hosting online." 
+                    : "Berhasil menarik {$photoCount} foto presensi (file di hosting tetap tersimpan).";
+
+                return ['status' => 'success', 'message' => $msg];
             }
 
-            if ($response->successful()) {
-                $tempZipPath = storage_path('app/temp_photos_' . time() . '.zip');
-                file_put_contents($tempZipPath, $response->body());
-
-                $zip = new ZipArchive();
-                if ($zip->open($tempZipPath) === true) {
-                    $photoCount = $zip->numFiles; // Hitung jumlah file gambar di dalam ZIP
-                    $zip->extractTo(storage_path('app/public'));
-                    $zip->close();
-                    @unlink($tempZipPath);
-
-                    SyncLog::create([
-                        'type' => 'pull',
-                        'table_name' => 'attendance_photos',
-                        'records_count' => $photoCount, // Catat jumlah foto riil
-                        'status' => 'success',
-                        'synced_at' => now(),
-                    ]);
-
-                    $msg = $deleteOnlineStorage 
-                        ? 'Berhasil menarik foto presensi & mengosongkan storage hosting online.' 
-                        : 'Berhasil menarik foto presensi (file di hosting tetap tersimpan).';
-
-                    return ['status' => 'success', 'message' => $msg];
-                }
-
-                throw new \Exception('Gagal mengekstrak berkas foto ZIP.');
-            }
-
-            throw new \Exception('HTTP ' . $response->status() . ': Gagal mengunduh berkas foto.');
-
-        } catch (\Exception $e) {
-            return ['status' => 'error', 'message' => 'Gagal Pull Foto: ' . $e->getMessage()];
+            throw new \Exception('Gagal mengekstrak berkas foto ZIP.');
         }
+
+        throw new \Exception('HTTP ' . $response->status() . ': Gagal mengunduh berkas foto.');
+
+    } catch (\Exception $e) {
+        return ['status' => 'error', 'message' => 'Gagal Pull Foto: ' . $e->getMessage()];
     }
+}
 }
