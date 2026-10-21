@@ -497,7 +497,9 @@ class DataSyncService
 
     public function pullAttendancePhotos(bool $deleteOnlineStorage = false): array
 {
-    set_time_limit(600);
+    // Naikkan batas waktu dan memori PHP secara dinamis untuk proses ini
+    set_time_limit(900);
+    ini_set('memory_limit', '512M');
 
     if (empty($this->baseUrl) || empty($this->token)) {
         return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
@@ -506,7 +508,7 @@ class DataSyncService
     try {
         $response = Http::withoutVerifying()
             ->withToken($this->token)
-            ->timeout(300)
+            ->timeout(600)
             ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
                 'delete_online_storage' => $deleteOnlineStorage ? '1' : '0'
             ]);
