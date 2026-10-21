@@ -13,6 +13,7 @@ use App\Models\Attendance;
 use App\Models\StudentViolation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class SyncController extends Controller
 {
@@ -35,21 +36,59 @@ class SyncController extends Controller
     //     ]);
     // }
 
-    public function pullMasterData(Request $request)
-    {
-        // Ambil data users dan buat password ikut terkirim dalam JSON
-        $users = User::all()->makeVisible(['password']);
+    // public function pullMasterData(Request $request)
+    // {
+    //     // Ambil data users dan buat password ikut terkirim dalam JSON
+    //     $users = User::all()->makeVisible(['password']);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'users' => $users,
-                'classrooms' => Classroom::all(),
-                'teachers' => Teacher::all(),
-                'students' => Student::all(),
-            ]
-        ]);
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data' => [
+    //             'users' => $users,
+    //             'classrooms' => Classroom::all(),
+    //             'teachers' => Teacher::all(),
+    //             'students' => Student::all(),
+    //         ]
+    //     ]);
+    // }
+
+    public function pullMasterData(Request $request)
+{
+    $lastSyncedAtRaw = $request->get('last_synced_at');
+
+    // Parse tanggal agar diformat dengan presisi Y-m-d H:i:s
+    $lastSyncedAt = null;
+    if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
+        try {
+            $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            $lastSyncedAt = null;
+        }
     }
+
+    if ($lastSyncedAt) {
+        $users = User::where('updated_at', '>', $lastSyncedAt)->get()->makeVisible(['password']);
+        $classrooms = Classroom::where('updated_at', '>', $lastSyncedAt)->get();
+        $teachers = Teacher::where('updated_at', '>', $lastSyncedAt)->get();
+        $students = Student::where('updated_at', '>', $lastSyncedAt)->get();
+    } else {
+        // Jika belum pernah tarik data / pertama kali
+        $users = User::all()->makeVisible(['password']);
+        $classrooms = Classroom::all();
+        $teachers = Teacher::all();
+        $students = Student::all();
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'data' => [
+            'users' => $users,
+            'classrooms' => $classrooms,
+            'teachers' => $teachers,
+            'students' => $students,
+        ]
+    ]);
+}
 
     /**
      * LOKAL -> ONLINE: Menerima Data Transaksi dari Server Lokal
