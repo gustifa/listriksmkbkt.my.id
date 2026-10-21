@@ -154,7 +154,7 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- MENU SYSTEM (LENGKAP DENGAN SINKRONISASI, MANAGE, LOG, RESET, UPDATE, DATABASE, SERVER, & WA) -->
+                <!-- MENU SYSTEM (LENGKAP DENGAN SINKRONISASI, MANAGE, LOG, RESET, UPDATE, DATABASE, SERVER, WA, & LISENSI) -->
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-chip"></i></div>
@@ -169,6 +169,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('database.index')}}"><i class='bx bx-id-card'></i>Database</a></li>
                         <li><a href="{{route('pm2.index')}}"><i class='bx bx-id-card'></i>Server</a></li>
                         <li><a href="{{route('whatsapp.index')}}"><i class='bx bx-id-card'></i>WA</a></li>
+                        <li><a href="{{route('license.index')}}"><i class='bx bx-key'></i>Lisensi</a></li>
                     </ul>
                 </li>
 
