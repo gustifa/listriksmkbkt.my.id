@@ -9,6 +9,8 @@ use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\TimeSlotController;
 use App\Models\Student;
+use App\Http\Controllers\LicenseController;
+use App\Http\Controllers\LicenseGeneratorController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -190,6 +192,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/edit/{student_id}', [FaceRegistrationController::class, 'edit'])->name('face.edit');
         Route::delete('/destroy/{descriptor_id}', [FaceRegistrationController::class, 'destroy'])->name('face.destroy');
     });
+
+    Route::get('/admin/license-generator', [LicenseGeneratorController::class, 'index'])->name('admin.license-generator.index');
+    Route::post('/admin/license-generator/generate', [LicenseGeneratorController::class, 'generate'])->name('admin.license-generator.generate');
     Route::post('/ukk/assign-examiners', [UkkController::class, 'assignExaminers'])->name('ukk.assign-examiners');
     Route::post('/external-examiners', [ExternalExaminerController::class, 'store'])->name('external_examiners.store');
     // Halaman Filter
@@ -263,16 +268,21 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('materials', CourseMaterialController::class);
         // Route::resource('assignments', AssignmentController::class)->except(['index', 'show']);
     Route::resource('assignments', AssignmentController::class);
+
+    Route::prefix('license')->name('license.')->group(function () {
+            Route::get('/', [LicenseController::class, 'index'])->name('index');
+            Route::post('/upload', [LicenseController::class, 'upload'])->name('upload');
+        });
 });
 
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'check.license'])->group(function () {
 
     // Route Siswa
     // Route::get('/siswa/exams/{exam}/start', [ExamController::class, 'startExam'])->name('student.exam.start');
     // Route::post('/siswa/exams/{exam}/begin', [ExamController::class, 'beginExam'])->name('student.exam.begin');
     // Route::post('/siswa/exams/session/{session}/submit', [ExamController::class, 'submitExam'])->name('student.exam.submit');
-
+        
 
 
 

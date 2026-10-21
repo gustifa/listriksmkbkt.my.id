@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Sembunyikan Controller & View Generator Lisensi dari Git
+app/Http/Controllers/LicenseGeneratorController.php
+resources/views/admin/license_generator/
+
