@@ -138,5 +138,15 @@ public function generateToken(Request $request)
     );
 }
 
+public function pullPhotos(DataSyncService $syncService)
+{
+    $result = $syncService->pullAttendancePhotos();
+
+    return redirect()->back()->with(
+        $result['status'] === 'success' ? 'success' : 'error',
+        $result['message']
+    );
+}
+
     
 }
