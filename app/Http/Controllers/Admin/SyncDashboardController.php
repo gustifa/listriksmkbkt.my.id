@@ -73,10 +73,10 @@ class SyncDashboardController extends Controller
  */
 public function generateToken(Request $request)
 {
-    $user = auth()->user();
+    // $user = auth()->user();
     
-    // 1. Hapus token lama Sanctum jika ada
-    $user->tokens()->where('name', 'sync-token')->delete();
+    // // 1. Hapus token lama Sanctum jika ada
+    // $user->tokens()->where('name', 'sync-token')->delete();
     
     // 2. Buat token Sanctum baru
     $newToken = $user->createToken('sync-token')->plainTextToken;
