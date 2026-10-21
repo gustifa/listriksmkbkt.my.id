@@ -15,20 +15,194 @@ class ClassroomController extends Controller
     /**
      * Menampilkan daftar kelas.
      */
+    // public function index(Request $request)
+    // {
+    //     $query = Classroom::with(['major', 'students', 'homeroomTeacher', 'counselingTeacher', 'classLeader']);
+
+    //     if ($request->has('search')) {
+    //         $query->where('name', 'like', '%' . $request->search . '%');
+    //     }
+
+    //     $classrooms = $query->latest()->paginate(100);
+    //     // Ambil daftar siswa yang BELUM MEMILIKI KELAS
+    //     $unassignedStudents = Student::whereNull('classroom_id')->orderBy('name', 'asc')->get();
+
+    //     return view('classrooms.index', compact('classrooms', 'unassignedStudents'));
+    // }
+
+    /**
+     * Menampilkan daftar kelas (Pencarian Persis & Support AJAX)
+     */
+    // public function index(Request $request)
+    // {
+    //     $query = Classroom::with(['major', 'homeroomTeacher', 'counselingTeacher', 'classLeader'])
+    //         ->withCount('students');
+
+    //     // Filter Pencarian Persis (Exact Match)
+    //     if ($request->filled('search')) {
+    //         $query->where('name', '=', trim($request->search));
+    //     }
+
+    //     $classrooms = $query->latest()->paginate(12)->withQueryString();
+
+    //     // Ambil data pendukung
+    //     $allTeachers = Teacher::orderBy('name')->select('id', 'name')->get();
+
+    //     $takenHomeroomIds = Classroom::whereNotNull('homeroom_teacher_id')
+    //         ->pluck('homeroom_teacher_id')
+    //         ->toArray();
+
+    //     $unassignedStudents = Student::whereNull('classroom_id')
+    //         ->select('id', 'name', 'nis')
+    //         ->orderBy('name', 'asc')
+    //         ->take(100)
+    //         ->get();
+
+    //     // Jika request dari AJAX, kembalikan Partial View HTML
+    //     if ($request->ajax()) {
+    //         return response()->json([
+    //             'html' => view('classrooms.partials.classroom_data', compact('classrooms', 'allTeachers', 'takenHomeroomIds', 'unassignedStudents'))->render()
+    //         ]);
+    //     }
+
+    //     return view('classrooms.index', compact(
+    //         'classrooms',
+    //         'allTeachers',
+    //         'takenHomeroomIds',
+    //         'unassignedStudents'
+    //     ));
+    // }
+
+    /**
+     * Menampilkan daftar kelas (Live Search AJAX & Fitur Drag and Drop)
+     */
     public function index(Request $request)
-    {
-        $query = Classroom::with(['major', 'students', 'homeroomTeacher', 'counselingTeacher', 'classLeader']);
+{
+    $query = Classroom::with(['major', 'homeroomTeacher', 'counselingTeacher', 'classLeader'])
+        ->withCount('students');
 
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        $classrooms = $query->latest()->paginate(100);
-        // Ambil daftar siswa yang BELUM MEMILIKI KELAS
-        $unassignedStudents = Student::whereNull('classroom_id')->orderBy('name', 'asc')->get();
-
-        return view('classrooms.index', compact('classrooms', 'unassignedStudents'));
+    if ($request->filled('search')) {
+        $query->where('name', 'like', '%' . trim($request->search) . '%');
     }
+
+    $classrooms = $query->latest()->paginate(12)->withQueryString();
+
+    $allTeachers = Teacher::orderBy('name')->select('id', 'name')->get();
+
+    $takenHomeroomIds = Classroom::whereNotNull('homeroom_teacher_id')
+        ->pluck('homeroom_teacher_id')
+        ->toArray();
+
+    // AMBIL SISWA TANPA KELAS DENGAN PATH DEDIKASI
+    // Ambil kelas pertama sebagai default path untuk render awal modal
+    $firstClassroomId = $classrooms->first()->id ?? 0;
+
+    $unassignedStudents = Student::whereNull('classroom_id')
+        ->select('id', 'name', 'nis', 'nisn')
+        ->orderBy('name', 'asc')
+        ->paginate(15)
+        ->withPath(route('classrooms.unassigned_students', $firstClassroomId));
+
+    if ($request->ajax()) {
+        return response()->json([
+            'html' => view('classrooms.partials.classroom_data', compact('classrooms', 'allTeachers', 'takenHomeroomIds', 'unassignedStudents'))->render()
+        ]);
+    }
+
+    return view('classrooms.index', compact(
+        'classrooms',
+        'allTeachers',
+        'takenHomeroomIds',
+        'unassignedStudents'
+    ));
+}
+
+
+//     public function searchUnassignedStudents(Request $request, $classroomId)
+// {
+//     $query = Student::whereNull('classroom_id');
+
+//     if ($request->filled('q')) {
+//         $search = trim($request->q);
+//         $query->where(function($q) use ($search) {
+//             $q->where('name', 'like', '%' . $search . '%')
+//               ->orWhere('nis', 'like', '%' . $search . '%')
+//               ->orWhere('nisn', 'like', '%' . $search . '%');
+//         });
+//     }
+
+//     // Ambil 15 siswa per halaman
+//     $students = $query->orderBy('name', 'asc')
+//                       ->select('id', 'name', 'nis', 'nisn')
+//                       ->paginate(15);
+
+//     // Render HTML partial item siswa + link paginasinya
+//     $html = view('classrooms.partials.unassigned_list_items', compact('students', 'classroomId'))->render();
+
+//     return response()->json([
+//         'html' => $html,
+//         'total' => $students->total()
+//     ]);
+// }
+
+// public function searchUnassignedStudents(Request $request, $classroomId)
+// {
+//     $query = Student::whereNull('classroom_id');
+
+//     if ($request->filled('q')) {
+//         $search = trim($request->q);
+//         $query->where(function($q) use ($search) {
+//             $q->where('name', 'like', '%' . $search . '%')
+//               ->orWhere('nis', 'like', '%' . $search . '%')
+//               ->orWhere('nisn', 'like', '%' . $search . '%');
+//         });
+//     }
+
+//     // Set path khusus agar link paginasi mengarah ke route ini
+//     $students = $query->orderBy('name', 'asc')
+//                       ->select('id', 'name', 'nis', 'nisn')
+//                       ->paginate(10)
+//                       ->withPath(route('classrooms.unassigned_students', $classroomId));
+
+//     $html = view('classrooms.partials.unassigned_list_items', compact('students', 'classroomId'))->render();
+
+//     return response()->json([
+//         'html' => $html,
+//         'total' => $students->total()
+//     ]);
+// }
+
+public function searchUnassignedStudents(Request $request, $classroomId)
+{
+    $query = Student::whereNull('classroom_id');
+
+    if ($request->filled('q')) {
+        $search = trim($request->q);
+        $query->where(function($q) use ($search) {
+            $q->where('name', 'like', '%' . $search . '%')
+              ->orWhere('nis', 'like', '%' . $search . '%')
+              ->orWhere('nisn', 'like', '%' . $search . '%');
+        });
+    }
+
+    $students = $query->orderBy('name', 'asc')
+                      ->select('id', 'name', 'nis', 'nisn')
+                      ->paginate(10)
+                      ->withPath(route('classrooms.unassigned_students', $classroomId));
+
+    $itemsHtml = view('classrooms.partials.unassigned_list_items', compact('students', 'classroomId'))->render();
+    
+    // Render paginasi secara terpisah
+    $paginationHtml = $students->hasPages() 
+        ? $students->links('pagination::bootstrap-4')->render() 
+        : '';
+
+    return response()->json([
+        'html_items' => $itemsHtml,
+        'html_pagination' => $paginationHtml,
+        'total' => $students->total()
+    ]);
+}
 
     /**
      * Menampilkan form tambah kelas.

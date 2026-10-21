@@ -10,32 +10,23 @@
             <div class="ps-3">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0 p-0">
-                        <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="bx bx-home-alt"></i></a></li>
+                        <li class="breadcrumb-item"><a href="{{ url('/admin/dashboard') }}"><i class="bx bx-home-alt"></i></a></li>
                         <li class="breadcrumb-item active" aria-current="page">Rombongan Belajar</li>
                     </ol>
                 </nav>
             </div>
         </div>
 
-        {{-- LOGIC: Ambil Data Guru, Filter Wali Kelas, & Siswa Tanpa Kelas --}}
-        @php
-            $allTeachers = \App\Models\Teacher::orderBy('name')->get();
-            $takenHomeroomIds = \App\Models\Classroom::whereNotNull('homeroom_teacher_id')->pluck('homeroom_teacher_id')->toArray();
-            $unassignedStudents = \App\Models\Student::whereNull('classroom_id')->orderBy('name', 'asc')->get();
-        @endphp
-
-        <!-- Top Actions Bar: Form Cari & Switcher Mode -->
+        <!-- Top Actions Bar: Form Live Search & Switcher Mode -->
         <div class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <!-- Form Pencarian -->
-            <form action="{{ route('classrooms.index') }}" method="GET" class="flex-grow-1 me-2" style="max-width: 400px;">
+            <div class="flex-grow-1 me-2" style="max-width: 400px;">
                 <div class="input-group shadow-sm">
-                    <input type="text" name="search" class="form-control" placeholder="Cari Nama Kelas..." value="{{ request('search') }}">
-                    <button type="submit" class="btn btn-dark"><i class="bx bx-search"></i> Cari</button>
+                    <span class="input-group-text bg-white border-end-0"><i class="bx bx-search text-muted"></i></span>
+                    <input type="text" id="search-input" name="search" class="form-control border-start-0 ps-0" placeholder="Ketik nama kelas..." value="{{ request('search') }}" autocomplete="off">
                 </div>
-            </form>
+            </div>
 
-            <!-- Toggle Switcher View: Card vs Tabel -->
-            <div class="btn-group bg-white p-1 rounded-3 border shadow-sm" role="group" aria-label="View Switcher">
+            <div class="btn-group bg-white p-1 rounded-3 border shadow-sm" role="group">
                 <button type="button" class="btn btn-sm btn-white text-dark fw-bold border-0 active" id="btn-view-card" onclick="switchClassroomView('card')">
                     <i class="bx bx-grid-alt me-1"></i> Card
                 </button>
@@ -45,7 +36,7 @@
             </div>
         </div>
 
-        <!-- Menampilkan Error Validasi -->
+        <!-- Alert Error Validasi -->
         @if ($errors->any())
             <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
                 <ul class="mb-0">
@@ -57,459 +48,235 @@
             </div>
         @endif
 
-        <!-- 1. TAMPILAN BENTUK CARD -->
-        <div id="view-card-container">
-            <div class="row g-3">
-                @forelse($classrooms as $key => $room)
-                    <div class="col-md-6 col-lg-4 col-xl-3">
-                        <div class="card border-0 shadow-sm rounded-3 h-100">
-                            <div class="card-body p-3 d-flex flex-column justify-content-between">
-                                <div>
-                                    <!-- Header Card Nama Kelas & Badge Siswa -->
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h5 class="fw-bold text-dark mb-0">{{ $room->name }}</h5>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#studentsModalCard{{ $room->id }}">
-                                            <i class="fas fa-users me-1"></i> {{ $room->students->count() }}
-                                        </button>
-                                    </div>
-
-                                    <!-- Detail Perangkat Kelas -->
-                                    <div class="bg-light rounded p-2 mb-3 small">
-                                        <div class="mb-2">
-                                            <small class="text-muted d-block fw-semibold">Wali Kelas:</small>
-                                            @if($room->homeroomTeacher)
-                                                <span class="badge bg-primary">{{ $room->homeroomTeacher->name }}</span>
-                                            @else
-                                                <span class="text-muted italic">- Belum ada -</span>
-                                            @endif
-                                        </div>
-                                        <div class="mb-2">
-                                            <small class="text-muted d-block fw-semibold">Guru BK:</small>
-                                            @if($room->counselingTeacher)
-                                                <span class="badge bg-info text-dark">{{ $room->counselingTeacher->name }}</span>
-                                            @else
-                                                <span class="text-muted italic">- Belum ada -</span>
-                                            @endif
-                                        </div>
-                                        <div>
-                                            <small class="text-muted d-block fw-semibold">Ketua Kelas:</small>
-                                            @if($room->classLeader)
-                                                <span class="fw-bold text-dark"><i class="fas fa-crown text-warning me-1"></i> {{ $room->classLeader->name }}</span>
-                                            @else
-                                                <span class="text-muted italic">- Kosong -</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Tombol Aksi Card -->
-                                <div class="d-flex gap-1 justify-content-between pt-2 border-top">
-                                    <button type="button" class="btn btn-sm btn-info text-white flex-fill" data-bs-toggle="modal" data-bs-target="#officialsModalCard{{ $room->id }}" title="Setting Kelas">
-                                        <i class="fas fa-user-cog me-1"></i> Setting
-                                    </button>
-                                    <a href="{{ route('classrooms.print_ids', $room->id) }}" class="btn btn-sm btn-dark" target="_blank" title="Cetak ID Card">
-                                        <i class="fas fa-id-card"></i>
-                                    </a>
-                                    <a href="{{ route('classrooms.edit', $room->id) }}" class="btn btn-sm btn-warning text-white" title="Edit Nama">
-                                        <i class="bx bx-message-square-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger" title="Hapus" onclick="confirmDelete('{{ $room->id }}', '{{ $room->name }}')">
-                                        <i class="bx bx-message-square-x"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MODAL DAFTAR SISWA CARD -->
-<div class="modal fade" id="studentsModalCard{{ $room->id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">
-                    <i class="fas fa-users me-2"></i> Kelola Siswa {{ $room->name }}
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-start">
-                
-                <!-- FORM TAMBAH SISWA YANG BELUM MEMILIKI KELAS -->
-                <div class="card border bg-light mb-3">
-                    <div class="card-body p-3">
-                        <label class="form-label fw-bold text-dark small mb-2">
-                            <i class="fas fa-user-plus me-1 text-primary"></i> Tambah Siswa ke Kelas Ini
-                        </label>
-                        <form action="{{ route('students.assign_class', $room->id) }}" method="POST">
-                            @csrf
-                            <div class="input-group">
-                                <select name="student_id" class="form-select form-select-sm" required>
-                                    <option value="">-- Pilih Siswa (Tanpa Kelas) --</option>
-                                    @forelse($unassignedStudents as $unStudent)
-                                        <option value="{{ $unStudent->id }}">
-                                            {{ $unStudent->name }} (NIS: {{ $unStudent->nis ?? '-' }})
-                                        </option>
-                                    @empty
-                                        <option value="" disabled>Semua siswa sudah masuk kelas</option>
-                                    @endforelse
-                                </select>
-                                <button type="submit" class="btn btn-primary btn-sm fw-bold" @if($unassignedStudents->isEmpty()) disabled @endif>
-                                    <i class="fas fa-plus me-1"></i> Tambah
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <hr class="my-3">
-
-                <!-- DAFTAR SISWA SAAT INI -->
-                <h6 class="fw-bold text-secondary mb-2 small">
-                    Daftar Siswa di Kelas Ini ({{ $room->students->count() }} Siswa)
-                </h6>
-
-                @if($room->students->count() > 0)
-                    <div class="list-group list-group-flush">
-                        @foreach($room->students as $student)
-                            <div class="p-2 list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <span class="fw-bold text-dark">{{ $student->name }}</span><br>
-                                    <small class="text-muted">NIS: {{ $student->nis ?? '-' }}</small>
-                                </div>
-                                <div class="gap-2 d-flex align-items-center">
-                                    @if($student->face_descriptor)
-                                        <span class="badge bg-success" title="Wajah Terdaftar"><i class="fas fa-smile"></i></span>
-                                    @else
-                                        <span class="badge bg-secondary" title="Belum Rekam Wajah"><i class="fas fa-user-slash"></i></span>
-                                    @endif
-
-                                    <!-- Form Keluarkan Siswa -->
-                                    <form id="remove-student-card-form-{{ $student->id }}" action="{{ route('students.remove_class', $student->id) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" title="Keluarkan dari Kelas" onclick="confirmRemoveStudentCard('{{ $student->id }}', '{{ $student->name }}')">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="py-4 text-center text-muted">
-                        <i class="fas fa-user-slash fa-2x mb-2 opacity-50"></i>
-                        <p class="mb-0 small">Belum ada siswa di kelas ini.</p>
-                    </div>
-                @endif
-            </div>
-            <div class="modal-footer bg-light py-2">
-                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Tutup</button>
-            </div>
+        <!-- DYNAMIC CONTAINER AJAX -->
+        <div id="classroom-data-container">
+            @include('classrooms.partials.classroom_data')
         </div>
+
+        <!-- Form Tersembunyi untuk Hapus Kelas -->
+        <form id="global-delete-form" action="" method="POST" class="d-none">
+            @csrf
+            @method('DELETE')
+        </form>
     </div>
-</div>
 
-                    <!-- MODAL SETTING PERANGKAT KELAS CARD -->
-                    <div class="modal fade" id="officialsModalCard{{ $room->id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="text-white modal-header bg-primary">
-                                    <h5 class="modal-title fw-bold">
-                                        <i class="fas fa-chalkboard-teacher me-2"></i> Setting Kelas {{ $room->name }}
-                                    </h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-
-                                <form action="{{ route('classrooms.update', $room->id) }}" method="POST">
-                                    @csrf
-                                    @method('PUT')
-                                    <input type="hidden" name="name" value="{{ $room->name }}">
-
-                                    <div class="modal-body text-start">
-                                        <!-- WALI KELAS -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Wali Kelas</label>
-                                            <select name="homeroom_teacher_id" class="form-select">
-                                                <option value="">-- Pilih Wali Kelas --</option>
-                                                @foreach($allTeachers as $teacher)
-                                                    @if(!in_array($teacher->id, $takenHomeroomIds) || $room->homeroom_teacher_id == $teacher->id)
-                                                        <option value="{{ $teacher->id }}" {{ $room->homeroom_teacher_id == $teacher->id ? 'selected' : '' }}>
-                                                            {{ $teacher->name }}
-                                                        </option>
-                                                    @endif
-                                                @endforeach
-                                            </select>
-                                        </div>
-
-                                        <!-- GURU BK -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Guru BK</label>
-                                            <select name="counseling_teacher_id" class="form-select">
-                                                <option value="">-- Pilih Guru BK --</option>
-                                                @foreach($allTeachers as $teacher)
-                                                    <option value="{{ $teacher->id }}" {{ $room->counseling_teacher_id == $teacher->id ? 'selected' : '' }}>
-                                                        {{ $teacher->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-
-                                        <!-- KETUA KELAS -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Ketua Kelas</label>
-                                            <select name="class_leader_id" class="form-select">
-                                                <option value="">-- Pilih Ketua Kelas --</option>
-                                                @foreach($room->students as $student)
-                                                    <option value="{{ $student->id }}" {{ $room->class_leader_id == $student->id ? 'selected' : '' }}>
-                                                        {{ $student->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                        <button type="submit" class="btn btn-primary">Simpan</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="col-12 text-center py-5 text-muted">
-                        <p class="mb-0">Data kelas belum tersedia.</p>
-                    </div>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- 2. TAMPILAN BENTUK TABEL -->
-        <div id="view-table-container" class="d-none">
-            <div class="border-0 shadow card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="example" class="table align-middle table-hover table-striped">
-                            <thead class="text-center table-dark">
-                                <tr>
-                                    <th width="5%">No</th>
-                                    <th>Nama Kelas</th>
-                                    <th>Wali Kelas</th>
-                                    <th>Guru BK</th>
-                                    <th>Ketua Kelas</th>
-                                    <th width="10%">Siswa</th>
-                                    <th width="15%">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($classrooms as $key => $room)
-                                    <tr>
-                                        <td class="text-center">{{ $classrooms->firstItem() + $key }}</td>
-                                        <td class="text-center fw-bold">{{ $room->name }}</td>
-
-                                        <td>
-                                            @if($room->homeroomTeacher)
-                                                <span class="badge bg-primary">{{ $room->homeroomTeacher->name }}</span>
-                                            @else
-                                                <span class="text-muted small text-italic">- Belum ada -</span>
-                                            @endif
-                                        </td>
-
-                                        <td>
-                                            @if($room->counselingTeacher)
-                                                <span class="badge bg-info text-dark">{{ $room->counselingTeacher->name }}</span>
-                                            @else
-                                                <span class="text-muted small text-italic">- Belum ada -</span>
-                                            @endif
-                                        </td>
-
-                                        <td>
-                                            @if($room->classLeader)
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <i class="fas fa-crown text-warning me-1"></i>
-                                                    <span class="fw-bold text-dark">{{ $room->classLeader->name }}</span>
-                                                </div>
-                                            @else
-                                                <span class="text-muted small text-italic">- Kosong -</span>
-                                            @endif
-                                        </td>
-
-                                        <td class="text-center">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#studentsModal{{ $room->id }}">
-                                                <i class="fas fa-users me-1"></i> {{ $room->students->count() }}
-                                            </button>
-
-                                            <!-- MODAL DAFTAR SISWA -->
-                                            <div class="modal fade" id="studentsModal{{ $room->id }}" tabindex="-1" aria-hidden="true">
-                                                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header bg-light">
-                                                            <h5 class="modal-title fw-bold">
-                                                                <i class="fas fa-user-graduate me-2"></i> Siswa Kelas {{ $room->name }}
-                                                            </h5>
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                        </div>
-                                                        <div class="modal-body text-start">
-                                                            @if($room->students->count() > 0)
-                                                                <div class="list-group list-group-flush">
-                                                                    @foreach($room->students as $student)
-                                                                        <div class="p-2 list-group-item d-flex justify-content-between align-items-center">
-                                                                            <div>
-                                                                                <span class="fw-bold">{{ $student->name }}</span><br>
-                                                                                <small class="text-muted">NIS: {{ $student->nis }}</small>
-                                                                            </div>
-                                                                            <div class="gap-2 d-flex align-items-center">
-                                                                                @if($student->face_descriptor)
-                                                                                    <span class="badge bg-success" title="Wajah Terdaftar"><i class="fas fa-smile"></i></span>
-                                                                                @else
-                                                                                    <span class="badge bg-secondary" title="Belum Rekam Wajah"><i class="fas fa-user-slash"></i></span>
-                                                                                @endif
-
-                                                                                <form id="remove-student-form-{{ $student->id }}" action="{{ route('students.remove_class', $student->id) }}" method="POST">
-                                                                                    @csrf
-                                                                                    @method('PATCH')
-                                                                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-circle" title="Keluarkan dari Kelas" onclick="confirmRemoveStudent('{{ $student->id }}', '{{ $student->name }}')">
-                                                                                        <i class="fas fa-times"></i>
-                                                                                    </button>
-                                                                                </form>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endforeach
-                                                                </div>
-                                                            @else
-                                                                <div class="py-4 text-center text-muted">
-                                                                    <p class="mb-0">Belum ada siswa di kelas ini.</p>
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td class="text-center">
-                                            <div class="btn-group" role="group">
-                                                <button type="button" class="text-white btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#officialsModal{{ $room->id }}" title="Atur Wali Kelas & BK">
-                                                    <i class="fas fa-user-cog"></i>
-                                                </button>
-                                                <a href="{{ route('classrooms.print_ids', $room->id) }}" class="text-white btn btn-sm btn-dark" target="_blank" title="Cetak ID Card Se-Kelas">
-                                                    <i class="fas fa-id-card"></i>
-                                                </a>
-                                                <a href="{{ route('classrooms.edit', $room->id) }}" class="text-white btn btn-sm btn-warning" title="Edit Nama">
-                                                    <i class="bx bx-message-square-edit"></i>
-                                                </a>
-                                                <form id="delete-form-{{ $room->id }}" action="{{ route('classrooms.destroy', $room->id) }}" method="POST" class="d-inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="button" class="btn btn-sm btn-danger" title="Hapus" onclick="confirmDelete('{{ $room->id }}', '{{ $room->name }}')">
-                                                        <i class="bx bx-message-square-x"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-
-                                            <!-- MODAL SETTING PERANGKAT KELAS TABEL -->
-                                            <div class="modal fade" id="officialsModal{{ $room->id }}" tabindex="-1" aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <div class="text-white modal-header bg-primary">
-                                                            <h5 class="modal-title fw-bold">
-                                                                <i class="fas fa-chalkboard-teacher me-2"></i> Setting Kelas {{ $room->name }}
-                                                            </h5>
-                                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                        </div>
-
-                                                        <form action="{{ route('classrooms.update', $room->id) }}" method="POST">
-                                                            @csrf
-                                                            @method('PUT')
-                                                            <input type="hidden" name="name" value="{{ $room->name }}">
-
-                                                            <div class="modal-body text-start">
-                                                                <div class="mb-3">
-                                                                    <label class="form-label fw-bold">Wali Kelas</label>
-                                                                    <select name="homeroom_teacher_id" class="form-select">
-                                                                        <option value="">-- Pilih Wali Kelas --</option>
-                                                                        @foreach($allTeachers as $teacher)
-                                                                            @if(!in_array($teacher->id, $takenHomeroomIds) || $room->homeroom_teacher_id == $teacher->id)
-                                                                                <option value="{{ $teacher->id }}" {{ $room->homeroom_teacher_id == $teacher->id ? 'selected' : '' }}>
-                                                                                    {{ $teacher->name }}
-                                                                                </option>
-                                                                            @endif
-                                                                        @endforeach
-                                                                    </select>
-                                                                </div>
-
-                                                                <div class="mb-3">
-                                                                    <label class="form-label fw-bold">Guru BK</label>
-                                                                    <select name="counseling_teacher_id" class="form-select">
-                                                                        <option value="">-- Pilih Guru BK --</option>
-                                                                        @foreach($allTeachers as $teacher)
-                                                                            <option value="{{ $teacher->id }}" {{ $room->counseling_teacher_id == $teacher->id ? 'selected' : '' }}>
-                                                                                {{ $teacher->name }}
-                                                                            </option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                </div>
-
-                                                                <div class="mb-3">
-                                                                    <label class="form-label fw-bold">Ketua Kelas</label>
-                                                                    <select name="class_leader_id" class="form-select">
-                                                                        <option value="">-- Pilih Ketua Kelas --</option>
-                                                                        @foreach($room->students as $student)
-                                                                            <option value="{{ $student->id }}" {{ $room->class_leader_id == $student->id ? 'selected' : '' }}>
-                                                                                {{ $student->name }}
-                                                                            </option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                                                <button type="submit" class="btn btn-primary">Simpan</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="7" class="py-5 text-center text-muted">
-                                            <p class="mb-0">Data kelas belum tersedia.</p>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- CDN SORTABLE JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
     <!-- SCRIPT SECTION -->
     <script>
-        // Function Switcher Tampilan Card vs Tabel
+        let currentMode = 'card';
+        let searchTimeout = null;
+        let unassignedSearchTimeout = null;
+
+        // Switcher Tampilan Card vs Tabel
         function switchClassroomView(mode) {
+            currentMode = mode;
             const cardContainer = document.getElementById('view-card-container');
             const tableContainer = document.getElementById('view-table-container');
             const btnCard = document.getElementById('btn-view-card');
             const btnTable = document.getElementById('btn-view-table');
 
             if (mode === 'card') {
-                cardContainer.classList.remove('d-none');
-                tableContainer.classList.add('d-none');
+                if (cardContainer) cardContainer.classList.remove('d-none');
+                if (tableContainer) tableContainer.classList.add('d-none');
                 btnCard.classList.add('active', 'bg-primary', 'text-white');
                 btnTable.classList.remove('active', 'bg-primary', 'text-white');
             } else {
-                tableContainer.classList.remove('d-none');
-                cardContainer.classList.add('d-none');
+                if (tableContainer) tableContainer.classList.remove('d-none');
+                if (cardContainer) cardContainer.classList.add('d-none');
                 btnTable.classList.add('active', 'bg-primary', 'text-white');
                 btnCard.classList.remove('active', 'bg-primary', 'text-white');
             }
         }
 
+        // AJAX Fetch Data Kelas Utama
+        function fetchClassroomData(url) {
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('classroom-data-container').innerHTML = data.html;
+                switchClassroomView(currentMode);
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Live Search Kelas Utama
+        document.getElementById('search-input').addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const searchVal = encodeURIComponent(e.target.value);
+            
+            searchTimeout = setTimeout(function() {
+                const fetchUrl = "{{ route('classrooms.index') }}?search=" + searchVal;
+                fetchClassroomData(fetchUrl);
+            }, 300);
+        });
+
+        // 1. Paginasi Halaman Utama Kelas (Eksklusif di luar modal)
+        document.addEventListener('click', function(e) {
+            const mainPaginationLink = e.target.closest('#classroom-data-container > .ajax-pagination a');
+            if (mainPaginationLink) {
+                e.preventDefault();
+                fetchClassroomData(mainPaginationLink.href);
+            }
+        });
+
+        // Fetch Data Siswa Tanpa Kelas di Modal (Paginasi & Search Server-Side)
+        function fetchUnassignedStudents(roomId, url = null) {
+            if (!roomId) return; // Mencegah pemanggilan jika roomId tidak valid
+
+            const searchVal = document.getElementById('input-search-unassigned-' + roomId)?.value || '';
+            const targetUrl = url || "{{ url('classrooms') }}/" + roomId + "/unassigned-students?q=" + encodeURIComponent(searchVal);
+
+            fetch(targetUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const listContainer = document.getElementById('unassigned-list-' + roomId);
+                const paginationContainer = document.getElementById('unassigned-pagination-' + roomId);
+                const badge = document.getElementById('count-unassigned-' + roomId);
+
+                if (listContainer && data.html_items) {
+                    listContainer.innerHTML = data.html_items;
+                }
+                if (paginationContainer && data.html_pagination !== undefined) {
+                    paginationContainer.innerHTML = data.html_pagination;
+                }
+                if (badge && data.total !== undefined) {
+                    badge.textContent = data.total;
+                }
+
+                initSortableForContainers(roomId);
+            })
+            .catch(error => console.error('Error fetching students:', error));
+        }
+
+        // Listener Paginasi Khusus Modal Siswa Tanpa Kelas
+document.addEventListener('click', function(e) {
+    const modalPaginationLink = e.target.closest('.unassigned-pagination a');
+    if (modalPaginationLink) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const paginationContainer = e.target.closest('.unassigned-pagination');
+        const roomId = paginationContainer ? paginationContainer.getAttribute('data-room-id') : null;
+        
+        if (roomId) {
+            // Memanggil fetch AJAX menggunakan URL bawaan link paginasi modal
+            fetchUnassignedStudents(roomId, modalPaginationLink.href);
+        }
+    }
+});
+
+        // Live Search Server-Side Siswa Tanpa Kelas
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('search-unassigned-server')) {
+                const roomId = e.target.getAttribute('data-room-id');
+                clearTimeout(unassignedSearchTimeout);
+                unassignedSearchTimeout = setTimeout(() => {
+                    fetchUnassignedStudents(roomId);
+                }, 300);
+            }
+        });
+
+        // Filter Client-Side Siswa Rombel (Kanan)
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('filter-assigned-client')) {
+                const query = e.target.value.toLowerCase().trim();
+                const targetListId = e.target.getAttribute('data-target-list');
+                const listContainer = document.getElementById(targetListId);
+
+                if (listContainer) {
+                    const items = listContainer.querySelectorAll('.student-card-item');
+                    items.forEach(item => {
+                        const searchText = item.getAttribute('data-search-text');
+                        if (searchText && searchText.includes(query)) {
+                            item.classList.remove('d-none');
+                        } else {
+                            item.classList.add('d-none');
+                        }
+                    });
+                }
+            }
+        });
+
+        // Inisialisasi SortableJS (Drag & Drop)
+        function initSortableForContainers(roomId) {
+            if (!roomId) return;
+            const leftContainer = document.getElementById('unassigned-list-' + roomId);
+            const rightContainer = document.getElementById('assigned-list-' + roomId);
+
+            if (leftContainer && rightContainer) {
+                [leftContainer, rightContainer].forEach(container => {
+                    if (!container.classList.contains('sortable-initialized')) {
+                        container.classList.add('sortable-initialized');
+
+                        new Sortable(container, {
+                            group: 'shared-students-' + roomId,
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            onEnd: function (evt) {
+                                const itemEl = evt.item;
+                                const studentId = itemEl.getAttribute('data-student-id');
+                                const targetContainer = evt.to;
+                                const isAddingToClass = targetContainer.id.startsWith('assigned-list');
+
+                                let url = isAddingToClass 
+                                    ? "{{ url('students/assign-class') }}/" + roomId 
+                                    : "{{ url('students/remove-class') }}/" + studentId;
+
+                                let method = isAddingToClass ? 'POST' : 'PATCH';
+
+                                fetch(url, {
+                                    method: method,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: JSON.stringify({ student_id: studentId })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    updateStudentCounts(roomId);
+                                })
+                                .catch(error => console.error('Error:', error));
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        // Event Modal Dibuka
+        document.addEventListener('shown.bs.modal', function (event) {
+            const modal = event.target;
+            if (!modal.id.startsWith('studentsModal')) return;
+
+            const roomId = modal.getAttribute('data-room-id') || modal.id.replace('studentsModal', '');
+            initSortableForContainers(roomId);
+        });
+
+        // Counter Jumlah Siswa Realtime
+        function updateStudentCounts(roomId) {
+            const leftItems = document.querySelectorAll('#unassigned-list-' + roomId + ' .student-card-item');
+            const rightItems = document.querySelectorAll('#assigned-list-' + roomId + ' .student-card-item');
+
+            const countUnassigned = document.getElementById('count-unassigned-' + roomId);
+            const countAssigned = document.getElementById('count-assigned-' + roomId);
+            const cardBadge = document.getElementById('card-badge-count-' + roomId);
+            const tableBadge = document.getElementById('table-badge-count-' + roomId);
+
+            if (countUnassigned) countUnassigned.textContent = leftItems.length;
+            if (countAssigned) countAssigned.textContent = rightItems.length;
+            if (cardBadge) cardBadge.textContent = rightItems.length;
+            if (tableBadge) tableBadge.textContent = rightItems.length;
+        }
+
+        // Konfirmasi Hapus Kelas
         function confirmDelete(id, name) {
             Swal.fire({
                 title: 'Hapus Kelas?',
@@ -517,46 +284,13 @@
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya',
-                cancelButtonText: 'Batal'
+                cancelButtonText: 'Batal',
+                confirmButtonText: 'Ya'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    document.getElementById('delete-form-' + id).submit();
-                }
-            });
-        }
-
-        function confirmRemoveStudent(id, name) {
-            Swal.fire({
-                title: 'Keluarkan Siswa?',
-                text: "Keluarkan " + name + " dari kelas?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('remove-student-form-' + id).submit();
-                }
-            });
-        }
-
-        function confirmRemoveStudentCard(id, name) {
-            Swal.fire({
-                title: 'Keluarkan Siswa?',
-                text: "Keluarkan " + name + " dari kelas?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('remove-student-card-form-' + id).submit();
+                    let form = document.getElementById('global-delete-form');
+                    form.action = "{{ url('classrooms') }}/" + id;
+                    form.submit();
                 }
             });
         }

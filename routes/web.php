@@ -694,6 +694,7 @@ Route::middleware(['auth'])->group(function () {
         // Route::resource('teachers', TeacherController::class);
         // Route::resource('teachers', TeacherController::class)->except(['create', 'store', 'show']);
         Route::resource('classrooms', ClassroomController::class);
+        Route::get('/classrooms/{id}/unassigned-students', [ClassroomController::class, 'searchUnassignedStudents'])->name('classrooms.unassigned_students');
         // Route::prefix('maping/rombel')->name('classrooms.')->group(function() {
         //     Route::get('/', [ClassroomController::class, 'index'])->name('index');
         //     Route::get('/create', [ClassroomController::class, 'create'])->name('create');
