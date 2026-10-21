@@ -42,5 +42,7 @@ Route::middleware('auth:sanctum')->prefix('v1/sync')->group(function () {
     Route::get('/pull', [SyncController::class, 'pullMasterData']);
     Route::post('/push', [SyncController::class, 'pushTransactionData']);
     Route::get('/pull-attendances', [SyncController::class, 'pullAttendanceData']); // Route baru
+    // Tambahkan baris route ini
+    Route::get('/pull-photos', [SyncController::class, 'pullAttendancePhotos']);
 });
 
