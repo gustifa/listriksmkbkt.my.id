@@ -19,18 +19,34 @@ class SyncController extends Controller
     /**
      * ONLINE -> LOKAL: Mengambil Data Master Terbaru
      */
+    // public function pullMasterData(Request $request)
+    // {
+    //     $lastSyncedAt = $request->query('last_synced_at', '1970-01-01 00:00:00');
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'timestamp' => now()->toDateTimeString(),
+    //         'data' => [
+    //             'users' => User::where('updated_at', '>', $lastSyncedAt)->get(),
+    //             'classrooms' => Classroom::where('updated_at', '>', $lastSyncedAt)->get(),
+    //             'teachers' => Teacher::where('updated_at', '>', $lastSyncedAt)->get(),
+    //             'students' => Student::where('updated_at', '>', $lastSyncedAt)->get(),
+    //         ]
+    //     ]);
+    // }
+
     public function pullMasterData(Request $request)
     {
-        $lastSyncedAt = $request->query('last_synced_at', '1970-01-01 00:00:00');
+        // Ambil data users dan buat password ikut terkirim dalam JSON
+        $users = User::all()->makeVisible(['password']);
 
         return response()->json([
             'status' => 'success',
-            'timestamp' => now()->toDateTimeString(),
             'data' => [
-                'users' => User::where('updated_at', '>', $lastSyncedAt)->get(),
-                'classrooms' => Classroom::where('updated_at', '>', $lastSyncedAt)->get(),
-                'teachers' => Teacher::where('updated_at', '>', $lastSyncedAt)->get(),
-                'students' => Student::where('updated_at', '>', $lastSyncedAt)->get(),
+                'users' => $users,
+                'classrooms' => Classroom::all(),
+                'teachers' => Teacher::all(),
+                'students' => Student::all(),
             ]
         ]);
     }

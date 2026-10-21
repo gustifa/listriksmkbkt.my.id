@@ -56,17 +56,6 @@ class SyncDashboardController extends Controller
         ));
     }
 
-    public function runPush()
-    {
-        $result = $this->syncService->pushLocalData();
-        return redirect()->back()->with($result['status'], $result['message']);
-    }
-
-    public function runPull()
-    {
-        $result = $this->syncService->pullMasterData();
-        return redirect()->back()->with($result['status'], $result['message']);
-    }
 
     /**
  * Khusus Server Online: Generate Token Sanctum
@@ -124,6 +113,19 @@ public function generateToken(Request $request)
         );
 
         return redirect()->back()->with('success', 'URL Server Online berhasil diperbarui!');
+    }
+
+
+    public function runPush()
+    {
+        $result = $this->syncService->pushLocalData();
+        return redirect()->back()->with($result['status'], $result['message']);
+    }
+
+    public function runPull()
+    {
+        $result = $this->syncService->pullMasterData();
+        return redirect()->back()->with($result['status'], $result['message']);
     }
 
     

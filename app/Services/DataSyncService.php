@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\StudentViolation;
@@ -11,7 +13,6 @@ use App\Models\Teacher;
 use App\Models\Classroom;
 use App\Models\User;
 use App\Models\SyncLog;
-use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
 
 class DataSyncService
@@ -22,15 +23,12 @@ class DataSyncService
     public function __construct()
     {
         // Ambil URL dari database settings, jika belum ada fallback ke config .env
-        $this->baseUrl = rtrim(
-            Setting::where('key', 'sync_server_url')->value('value') 
-            ?? config('services.online_server.url', ''), 
-            '/'
-        );
+        $urlSetting = Setting::where('key', 'sync_server_url')->value('value');
+        $this->baseUrl = rtrim($urlSetting ?? config('services.online_server.url', ''), '/');
         
         // Ambil Token dari database settings
-        $this->token = Setting::where('key', 'sync_api_token')->value('value') 
-                    ?? config('services.online_server.token', '');
+        $tokenSetting = Setting::where('key', 'sync_api_token')->value('value');
+        $this->token = trim($tokenSetting ?? config('services.online_server.token', ''));
     }
 
     /**
@@ -38,6 +36,14 @@ class DataSyncService
      */
     public function pushLocalData(): array
     {
+        if (empty($this->baseUrl)) {
+            return ['status' => 'error', 'message' => 'URL Server Online belum diatur. Silakan atur URL terlebih dahulu.'];
+        }
+
+        if (empty($this->token)) {
+            return ['status' => 'error', 'message' => 'API Token belum diatur. Silakan masukkan token dari Server Online.'];
+        }
+
         $dailyAttendances = DailyAttendance::where('is_synced', false)->limit(100)->get();
         $attendances = Attendance::where('is_synced', false)->limit(100)->get();
         $violations = StudentViolation::where('is_synced', false)->limit(100)->get();
@@ -50,6 +56,7 @@ class DataSyncService
 
         try {
             $response = Http::withToken($this->token)
+                ->acceptJson()
                 ->timeout(30)
                 ->post("{$this->baseUrl}/api/v1/sync/push", [
                     'daily_attendances' => $dailyAttendances->toArray(),
@@ -82,7 +89,9 @@ class DataSyncService
                 return ['status' => 'success', 'message' => "Berhasil sinkron {$totalRecords} data ke online."];
             }
 
-            throw new \Exception($response->json('message') ?? 'Terjadi kesalahan pada server online.');
+            $statusCode = $response->status();
+            $errorMsg = $response->json('message') ?? $response->body() ?? 'Terjadi kesalahan pada server online.';
+            throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
 
         } catch (\Exception $e) {
             SyncLog::create([
@@ -94,79 +103,285 @@ class DataSyncService
                 'synced_at' => now(),
             ]);
 
-            return ['status' => 'error', 'message' => $e->getMessage()];
+            return ['status' => 'error', 'message' => 'Gagal Push Data: ' . $e->getMessage()];
         }
     }
 
     /**
      * Eksekusi Pull (Online ke Lokal)
      */
-    public function pullMasterData(): array
-    {
-        $lastPull = SyncLog::where('type', 'pull')
-            ->where('status', 'success')
-            ->latest('synced_at')
-            ->value('synced_at');
+    // public function pullMasterData(): array
+    // {
+    //     if (empty($this->baseUrl)) {
+    //         return ['status' => 'error', 'message' => 'URL Server Online belum diatur. Silakan atur URL terlebih dahulu.'];
+    //     }
 
-        $lastSyncedAt = $lastPull ? $lastPull->toDateTimeString() : '1970-01-01 00:00:00';
+    //     if (empty($this->token)) {
+    //         return ['status' => 'error', 'message' => 'API Token belum diatur. Silakan masukkan token dari Server Online.'];
+    //     }
 
-        try {
-            $response = Http::withToken($this->token)
-                ->timeout(30)
-                ->get("{$this->baseUrl}/api/v1/sync/pull", [
-                    'last_synced_at' => $lastSyncedAt
-                ]);
+    //     $lastPull = SyncLog::where('type', 'pull')
+    //         ->where('status', 'success')
+    //         ->latest('synced_at')
+    //         ->value('synced_at');
 
-            if ($response->successful()) {
-                $masterData = $response->json('data');
-                $count = 0;
+    //     $lastSyncedAt = $lastPull ? $lastPull->toDateTimeString() : '1970-01-01 00:00:00';
 
-                DB::beginTransaction();
+    //     try {
+    //         $response = Http::withToken($this->token)
+    //             ->acceptJson()
+    //             ->timeout(30)
+    //             ->get("{$this->baseUrl}/api/v1/sync/pull", [
+    //                 'last_synced_at' => $lastSyncedAt
+    //             ]);
 
-                foreach ($masterData['users'] ?? [] as $row) {
-                    User::updateOrCreate(['id' => $row['id']], $row);
-                    $count++;
+    //         if ($response->successful()) {
+    //             $masterData = $response->json('data');
+    //             $count = 0;
+
+    //             DB::beginTransaction();
+
+    //             foreach ($masterData['users'] ?? [] as $row) {
+    //                 // Cari user berdasarkan email terlebih dahulu, atau ID
+    //                 $existingUser = User::where('email', $row['email'])
+    //                     ->orWhere('id', $row['id'])
+    //                     ->first();
+
+    //                 if (!isset($row['password']) || empty($row['password'])) {
+    //                     if ($existingUser) {
+    //                         // Pertahankan password lokal jika user sudah ada
+    //                         unset($row['password']);
+    //                     } else {
+    //                         // Berikan password default jika user baru
+    //                         $row['password'] = Hash::make('password123');
+    //                     }
+    //                 }
+
+    //                 if ($existingUser) {
+    //                     // Update user yang sudah ada berdasarkan ID/Email yang ditemukan
+    //                     $existingUser->update($row);
+    //                 } else {
+    //                     // Buat user baru jika belum ada di lokal
+    //                     User::create($row);
+    //                 }
+
+    //                 $count++;
+    //             }
+
+    //             // 2. Synchronize Classrooms
+    //             foreach ($masterData['classrooms'] ?? [] as $row) {
+    //                 Classroom::updateOrCreate(['id' => $row['id']], $row);
+    //                 $count++;
+    //             }
+
+    //             // 3. Synchronize Teachers
+    //             foreach ($masterData['teachers'] ?? [] as $row) {
+    //                 Teacher::updateOrCreate(['id' => $row['id']], $row);
+    //                 $count++;
+    //             }
+
+    //             // 4. Synchronize Students
+    //             foreach ($masterData['students'] ?? [] as $row) {
+    //                 Student::updateOrCreate(['id' => $row['id']], $row);
+    //                 $count++;
+    //             }
+
+    //             DB::commit();
+
+    //             SyncLog::create([
+    //                 'type' => 'pull',
+    //                 'table_name' => 'master_data',
+    //                 'records_count' => $count,
+    //                 'status' => 'success',
+    //                 'synced_at' => now(),
+    //             ]);
+
+    //             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
+    //         }
+
+    //         $statusCode = $response->status();
+    //         $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
+    //         throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+
+    //         SyncLog::create([
+    //             'type' => 'pull',
+    //             'table_name' => 'master_data',
+    //             'records_count' => 0,
+    //             'status' => 'failed',
+    //             'error_message' => $e->getMessage(),
+    //             'synced_at' => now(),
+    //         ]);
+
+    //         return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
+    //     }
+    // }
+
+    /**
+ * Eksekusi Pull (Online ke Lokal)
+ */
+public function pullMasterData(): array
+{
+    if (empty($this->baseUrl)) {
+        return ['status' => 'error', 'message' => 'URL Server Online belum diatur. Silakan atur URL terlebih dahulu.'];
+    }
+
+    if (empty($this->token)) {
+        return ['status' => 'error', 'message' => 'API Token belum diatur. Silakan masukkan token dari Server Online.'];
+    }
+
+    $lastPull = SyncLog::where('type', 'pull')
+        ->where('status', 'success')
+        ->latest('synced_at')
+        ->value('synced_at');
+
+    $lastSyncedAt = $lastPull ? $lastPull->toDateTimeString() : '1970-01-01 00:00:00';
+
+    try {
+        $response = Http::withToken($this->token)
+            ->acceptJson()
+            ->timeout(30)
+            ->get("{$this->baseUrl}/api/v1/sync/pull", [
+                'last_synced_at' => $lastSyncedAt
+            ]);
+
+        if ($response->successful()) {
+            $masterData = $response->json('data');
+            $count = 0;
+
+            DB::beginTransaction();
+
+            // 1. Synchronize Users (Update ID Lokal agar Sama dengan ID Online)
+            foreach ($masterData['users'] ?? [] as $row) {
+                $existingUser = User::where('email', $row['email'])
+                    ->orWhere('id', $row['id'])
+                    ->first();
+
+                if (!isset($row['password']) || empty($row['password'])) {
+                    if ($existingUser) {
+                        unset($row['password']);
+                    } else {
+                        $row['password'] = Hash::make('password123');
+                    }
                 }
-                foreach ($masterData['classrooms'] ?? [] as $row) {
-                    Classroom::updateOrCreate(['id' => $row['id']], $row);
-                    $count++;
-                }
-                foreach ($masterData['teachers'] ?? [] as $row) {
-                    Teacher::updateOrCreate(['id' => $row['id']], $row);
-                    $count++;
-                }
-                foreach ($masterData['students'] ?? [] as $row) {
-                    Student::updateOrCreate(['id' => $row['id']], $row);
-                    $count++;
-                }
 
-                DB::commit();
-
-                SyncLog::create([
-                    'type' => 'pull',
-                    'table_name' => 'master_data',
-                    'records_count' => $count,
-                    'status' => 'success',
-                    'synced_at' => now(),
-                ]);
-
-                return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
+                if ($existingUser) {
+                    $existingUser->update($row);
+                } else {
+                    User::create($row);
+                }
+                $count++;
             }
 
-            throw new \Exception('Gagal mengambil data master dari online.');
+            // 2. Synchronize Classrooms
+            foreach ($masterData['classrooms'] ?? [] as $row) {
+                $existingClassroom = Classroom::where('name', $row['name'])
+                    ->orWhere('id', $row['id'])
+                    ->first();
 
-        } catch (\Exception $e) {
-            DB::rollBack();
+                if ($existingClassroom) {
+                    $existingClassroom->update($row);
+                } else {
+                    Classroom::create($row);
+                }
+                $count++;
+            }
+
+            // 3. Synchronize Teachers (Validasi user_id)
+            foreach ($masterData['teachers'] ?? [] as $row) {
+                if (!empty($row['user_id'])) {
+                    $userExists = User::where('id', $row['user_id'])->exists();
+                    if (!$userExists) {
+                        $row['user_id'] = null;
+                    }
+                }
+
+                $query = Teacher::where('id', $row['id']);
+                if (!empty($row['nip'])) {
+                    $query->orWhere('nip', $row['nip']);
+                }
+                if (!empty($row['email'])) {
+                    $query->orWhere('email', $row['email']);
+                }
+                
+                $existingTeacher = $query->first();
+
+                if ($existingTeacher) {
+                    $existingTeacher->update($row);
+                } else {
+                    Teacher::create($row);
+                }
+                $count++;
+            }
+
+            // 4. Synchronize Students (Validasi classroom_id dan user_id)
+            foreach ($masterData['students'] ?? [] as $row) {
+                // Check Foreign Key classroom_id
+                if (!empty($row['classroom_id'])) {
+                    $classroomExists = Classroom::where('id', $row['classroom_id'])->exists();
+                    if (!$classroomExists) {
+                        $row['classroom_id'] = null;
+                    }
+                }
+
+                // Check Foreign Key user_id
+                if (!empty($row['user_id'])) {
+                    $userExists = User::where('id', $row['user_id'])->exists();
+                    if (!$userExists) {
+                        $row['user_id'] = null;
+                    }
+                }
+
+                $query = Student::where('id', $row['id']);
+                if (!empty($row['nisn'])) {
+                    $query->orWhere('nisn', $row['nisn']);
+                }
+                if (!empty($row['nis'])) {
+                    $query->orWhere('nis', $row['nis']);
+                }
+
+                $existingStudent = $query->first();
+
+                if ($existingStudent) {
+                    $existingStudent->update($row);
+                } else {
+                    Student::create($row);
+                }
+                $count++;
+            }
+
+            DB::commit();
+
             SyncLog::create([
                 'type' => 'pull',
                 'table_name' => 'master_data',
-                'records_count' => 0,
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'records_count' => $count,
+                'status' => 'success',
                 'synced_at' => now(),
             ]);
 
-            return ['status' => 'error', 'message' => $e->getMessage()];
+            return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
         }
+
+        $statusCode = $response->status();
+        $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
+        throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        SyncLog::create([
+            'type' => 'pull',
+            'table_name' => 'master_data',
+            'records_count' => 0,
+            'status' => 'failed',
+            'error_message' => $e->getMessage(),
+            'synced_at' => now(),
+        ]);
+
+        return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
     }
+}
 }
