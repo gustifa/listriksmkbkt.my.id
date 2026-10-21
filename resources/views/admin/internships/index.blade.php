@@ -9,14 +9,13 @@
 
     <div class="page-content">
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="mb-4 d-flex justify-content-between align-items-center">
             <h4 class="fw-bold text-primary"><i class="fas fa-briefcase me-2"></i>Penempatan PKL Siswa</h4>
-            <div class="d-flex gap-2">
-                <!-- Tombol Pemicu Modal -->
-                <button type="button" class="btn btn-warning btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode" data-toggle="modal" data-target="#modalUpdatePeriode">
+            <div class="gap-2 d-flex">
+                <button type="button" class="mb-3 btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode" data-toggle="modal" data-target="#modalUpdatePeriode">
                     <i class="fas fa-calendar-alt"></i> Ubah Periode Semua Siswa
                 </button>
-                <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addInternshipModal" data-toggle="modal" data-target="#addInternshipModal">
+                <button type="button" class="mb-3 btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInternshipModal" data-toggle="modal" data-target="#addInternshipModal">
                     <i class="fas fa-plus me-1"></i> Penempatan Baru
                 </button>
             </div>
@@ -29,8 +28,8 @@
             <div class="alert alert-danger alert-dismissible fade show"><i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert" data-dismiss="alert"></button></div>
         @endif
 
-        <div class="card border-0 shadow-lg mb-4">
-            <div class="card-header bg-white py-3">
+        <div class="mb-4 border-0 shadow-lg card">
+            <div class="py-3 bg-white card-header">
                 <!-- FORM FILTER & PENCARIAN SISWA -->
                 <form method="GET" class="row g-2 align-items-center">
                     
@@ -84,9 +83,9 @@
                 </form>
             </div>
             
-            <div class="card-body p-0">
+            <div class="p-0 card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table mb-0 table-hover align-middle">
                         <thead class="bg-light">
                             <tr>
                                 <th class="ps-4">Siswa</th>
@@ -133,12 +132,12 @@
                                             <span>{{ $item->advisor->name }}</span>
                                             
                                             @if($item->advisor_status == 'pending')
-                                                <button class="btn btn-sm btn-warning ms-2 py-0 px-2" title="Siswa Mengajukan Ini (Klik untuk Setujui/Ganti)" 
+                                                <button class="px-2 py-0 btn btn-sm btn-warning ms-2" title="Siswa Mengajukan Ini (Klik untuk Setujui/Ganti)" 
                                                         onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
                                                     <i class="fas fa-clock"></i> Req
                                                 </button>
                                             @else
-                                                <button class="btn btn-sm btn-light text-secondary ms-2 py-0 px-2" title="Ganti Pembimbing" 
+                                                <button class="px-2 py-0 btn btn-sm btn-light text-secondary ms-2" title="Ganti Pembimbing" 
                                                         onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -183,13 +182,13 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="7" class="text-center py-5 text-muted">Belum ada data penempatan PKL.</td></tr>
+                            <tr><td colspan="7" class="py-5 text-center text-muted">Belum ada data penempatan PKL.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="card-footer bg-white">
+            <div class="bg-white card-footer">
                 {{ $internships->withQueryString()->links() }}
             </div>
         </div>
@@ -199,7 +198,7 @@
     <div class="modal fade" id="addInternshipModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
+                <div class="text-white modal-header bg-primary">
                     <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i> Penempatan Siswa PKL</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"></button>
                 </div>
@@ -271,7 +270,7 @@
                 <form action="" method="POST" id="formAdvisor">
                     @csrf
                     @method('PATCH')
-                    <div class="modal-header bg-success text-white">
+                    <div class="text-white modal-header bg-success">
                         <h5 class="modal-title"><i class="fas fa-chalkboard-teacher me-2"></i> Tentukan Pembimbing</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"></button>
                     </div>
@@ -323,14 +322,14 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT TEMPAT PKL SISWA (DILOOP TERPISAH DENGAN SELECT2) -->
+    <!-- MODAL EDIT TEMPAT PKL SISWA -->
     @foreach($internships as $item)
     <div class="modal fade" id="modalEditIndustry-{{ $item->id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <form action="{{ route('admin.internships.update_industry', $item->id) }}" method="POST" class="modal-content">
                 @csrf
                 @method('PATCH')
-                <div class="modal-header bg-primary text-white">
+                <div class="text-white modal-header bg-primary">
                     <h5 class="modal-title fs-6 fw-bold">
                         <i class="fas fa-building me-2"></i>Ubah Tempat PKL Siswa
                     </h5>
@@ -392,13 +391,28 @@
                 dropdownParent: $('#advisorModal')
             });
 
-            // Inisialisasi Select2 secara otomatis ketika Modal Edit Tempat PKL dibuka
+            // Inisialisasi ulang Select2 dengan aman saat modal dibuka
             $('[id^="modalEditIndustry-"]').on('shown.bs.modal', function () {
-                $(this).find('.select2-edit-industry').select2({
+                let $select = $(this).find('.select2-edit-industry');
+                
+                // Hancurkan jika sudah diinisialisasi sebelumnya untuk mencegah bug CSS/overflow
+                if ($select.hasClass("select2-hidden-accessible")) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
                     theme: 'bootstrap-5',
                     width: '100%',
                     dropdownParent: $(this)
                 });
+            });
+
+            // Cleanup saat modal ditutup
+            $('[id^="modalEditIndustry-"]').on('hidden.bs.modal', function () {
+                let $select = $(this).find('.select2-edit-industry');
+                if ($select.hasClass("select2-hidden-accessible")) {
+                    $select.select2('destroy');
+                }
             });
         });
 
