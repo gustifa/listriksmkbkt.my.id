@@ -228,11 +228,11 @@ class SyncController extends Controller
 
     $dailyPhotos = DailyAttendance::whereNotNull('photo_in')
         ->orWhereNotNull('photo_out')
-        ->limit(100)
+        // ->limit(100)
         ->get(['photo_in', 'photo_out']);
 
     $prayerPhotos = PrayerAttendance::whereNotNull('photo_evidence')
-        ->limit(100)
+        // ->limit(100)
         ->get(['photo_evidence']);
 
     $filesToZip = [];

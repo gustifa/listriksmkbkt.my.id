@@ -17,6 +17,7 @@ use App\Models\SyncLog;
 use App\Models\Setting;
 use App\Models\PrayerAttendance;
 use ZipArchive;
+use Illuminate\Support\Facades\Storage; // <-- TAMBAHKAN IMPOR INI
 
 class DataSyncService
 {
@@ -523,9 +524,8 @@ class DataSyncService
             if ($zip->open($tempZipPath) === true) {
                 $photoCount = $zip->numFiles;
                 
-                // Ekstrak langsung ke disk public (storage/app/public)
-                $extractPath = Storage::disk('public')->path('');
-                $zip->extractTo($extractPath);
+                // Ekstrak tepat ke folder storage/app/public
+                $zip->extractTo(storage_path('app/public'));
                 $zip->close();
                 @unlink($tempZipPath);
 
