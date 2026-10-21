@@ -19,21 +19,6 @@
         </div>
     </div>
 
-    <!-- Alert Message -->
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
     <!-- Card Pengaturan Server & Token -->
     <div class="row mb-4">
         <!-- URL Server Online (Hanya Tampil di Server Lokal) -->
@@ -181,9 +166,9 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('admin.sync.push') }}" method="POST">
+                    <form id="formPushData" action="{{ route('admin.sync.push') }}" method="POST">
                         @csrf
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold text-white shadow-sm" {{ ($totalUnsynced ?? 0) == 0 ? 'disabled' : '' }}>
+                        <button type="button" id="btnPushData" class="btn btn-primary w-100 py-2 fw-bold text-white shadow-sm" {{ ($totalUnsynced ?? 0) == 0 ? 'disabled' : '' }}>
                             <i class="fas fa-cloud-upload-alt me-1"></i> Sinkron Sekarang (Push)
                         </button>
                     </form>
@@ -217,20 +202,24 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('admin.sync.pull') }}" method="POST">
-                        @csrf
-                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold text-white shadow-sm">
-                            <i class="fas fa-cloud-download-alt me-1"></i> Tarik Data Master (Pull)
-                        </button>
-                    </form>
+                    <!-- Tombol Aksi Pull (Dibuat Sejajar / Flex Group) -->
+                    <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
+                        <!-- Form Pull Master -->
+                        <form id="formPullMaster" action="{{ route('admin.sync.pull') }}" method="POST" class="w-100">
+                            @csrf
+                            <button type="button" id="btnPullMaster" class="btn btn-success fw-bold text-white w-100 py-2">
+                                <i class="fas fa-cloud-download-alt me-1"></i> Tarik Data Master (Pull)
+                            </button>
+                        </form>
 
-                    <!-- Tombol Tarik Data Absensi -->
-<form action="{{ route('admin.sync.pull-attendances') }}" method="POST" class="d-inline">
-    @csrf
-    <button type="submit" class="btn btn-warning fw-bold text-white" onclick="return confirm('Apakah Anda yakin ingin menarik data absensi dari server online?')">
-        <i class="bx bx-download"></i> Tarik Data Absensi (Pull)
-    </button>
-</form>
+                        <!-- Form Pull Absensi -->
+                        <form id="formPullAttendances" action="{{ route('admin.sync.pull-attendances') }}" method="POST" class="w-100">
+                            @csrf
+                            <button type="button" id="btnPullAttendances" class="btn btn-warning fw-bold text-white w-100 py-2">
+                                <i class="fas fa-download me-1"></i> Tarik Data Absensi (Pull)
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -302,8 +291,11 @@
     </div>
 </div>
 
+<!-- Library SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-// Toggle Mata (Lihat / Sembunyikan Token)
+// Toggle Lihat/Sembunyikan Token
 function toggleTokenVisibility() {
     var tokenInput = document.getElementById("apiTokenInput");
     var toggleIcon = document.getElementById("toggleIcon");
@@ -324,10 +316,148 @@ function copyToken() {
     var tokenInput = document.getElementById("apiTokenInput");
     if(tokenInput && tokenInput.value && !tokenInput.value.includes('Klik button')) {
         navigator.clipboard.writeText(tokenInput.value);
-        alert("API Token berhasil disalin ke clipboard!");
+        Swal.fire({
+            icon: 'success',
+            title: 'Tersalin!',
+            text: 'API Token berhasil disalin ke clipboard.',
+            timer: 2000,
+            showConfirmButton: false
+        });
     } else {
-        alert("Belum ada token valid yang dapat disalin.");
+        Swal.fire({
+            icon: 'warning',
+            title: 'Perhatian',
+            text: 'Belum ada token valid yang dapat disalin.'
+        });
     }
 }
+
+// -------------------------------------------------------------
+// SWEETALERT2: SINKRONISASI PULL DATA MASTER
+// -------------------------------------------------------------
+document.getElementById('btnPullMaster')?.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    Swal.fire({
+        title: 'Tarik Data Master?',
+        text: "Sistem akan menarik data siswa, guru, kelas, dan user terbaru dari Server Online.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Tarik Sekarang!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Menarik Data Master...',
+                html: 'Mohon tunggu, proses sinkronisasi sedang berlangsung.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 100%"></div></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            document.getElementById('formPullMaster').submit();
+        }
+    });
+});
+
+// -------------------------------------------------------------
+// SWEETALERT2: SINKRONISASI PULL DATA ABSENSI
+// -------------------------------------------------------------
+document.getElementById('btnPullAttendances')?.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    Swal.fire({
+        title: 'Tarik Data Absensi?',
+        text: "Sistem akan menarik pembaruan data presensi harian, pembelajaran, dan sholat dari Server Online.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Tarik Sekarang!',
+        cancelButtonText: 'Batal',
+        customClass: {
+            confirmButton: 'text-white'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Menarik Data Absensi...',
+                html: 'Mohon tunggu, proses penarikan data presensi sedang berjalan.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%"></div></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            document.getElementById('formPullAttendances').submit();
+        }
+    });
+});
+
+// -------------------------------------------------------------
+// SWEETALERT2: SINKRONISASI PUSH DATA LOKAL
+// -------------------------------------------------------------
+document.getElementById('btnPushData')?.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    Swal.fire({
+        title: 'Kirim Data ke Online?',
+        text: "Data transaksi lokal yang belum disinkronkan akan dikirimkan ke Server Online.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Kirim Sekarang!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Mengirim Data...',
+                html: 'Mohon tunggu, proses pengiriman data ke server online sedang berjalan.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            document.getElementById('formPushData').submit();
+        }
+    });
+});
 </script>
+
+<!-- Notification Popup dari Controller -->
+@if(session('success'))
+<script>
+    Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: "{{ session('success') }}",
+        confirmButtonColor: '#0d6efd',
+        timer: 4000,
+        showConfirmButton: true
+    });
+</script>
+@endif
+
+@if(session('error'))
+<script>
+    Swal.fire({
+        icon: 'error',
+        title: 'Gagal Sinkronisasi',
+        text: "{{ session('error') }}",
+        confirmButtonColor: '#dc3545',
+        showConfirmButton: true
+    });
+</script>
+@endif
 @endsection

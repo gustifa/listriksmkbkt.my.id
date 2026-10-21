@@ -534,9 +534,120 @@ public function pullMasterData(): array
 /**
  * Eksekusi Pull Data Absensi (Online ke Lokal)
  */
+// public function pullAttendanceData(): array
+// {
+//     set_time_limit(300);
+
+//     if (empty($this->baseUrl) || empty($this->token)) {
+//         return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+//     }
+
+//     $lastPull = SyncLog::where('type', 'pull')
+//         ->where('table_name', 'attendance_data')
+//         ->where('status', 'success')
+//         ->latest('synced_at')
+//         ->value('synced_at');
+
+//     $lastSyncedAt = $lastPull 
+//         ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
+//         : '1970-01-01 00:00:00';
+
+//     $currentSyncTimestamp = now();
+
+//     try {
+//         $response = Http::withoutVerifying()
+//             ->withToken($this->token)
+//             ->acceptJson()
+//             ->timeout(120)
+//             ->get("{$this->baseUrl}/api/v1/sync/pull-attendances", [
+//                 'last_synced_at' => $lastSyncedAt
+//             ]);
+
+//         if ($response->successful()) {
+//             $data = $response->json('data');
+
+//             $totalRecordsReceived = count($data['daily_attendances'] ?? []) 
+//                 + count($data['attendances'] ?? []) 
+//                 + count($data['prayer_attendances'] ?? []);
+
+//             if ($totalRecordsReceived === 0) {
+//                 SyncLog::create([
+//                     'type' => 'pull',
+//                     'table_name' => 'attendance_data',
+//                     'records_count' => 0,
+//                     'status' => 'success',
+//                     'synced_at' => $currentSyncTimestamp,
+//                 ]);
+
+//                 return ['status' => 'success', 'message' => 'Data absensi sudah yang terbaru (0 record ditarik).'];
+//             }
+
+//             $count = 0;
+//             DB::beginTransaction();
+
+//             // 1. Daily Attendances (Absensi Gerbang)
+//             foreach ($data['daily_attendances'] ?? [] as $row) {
+//                 $row['is_synced'] = true; // Tandai sudah sinkron
+//                 DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
+//                 $count++;
+//             }
+
+//             // 2. Attendances (Absensi Pembelajaran)
+//             foreach ($data['attendances'] ?? [] as $row) {
+//                 $row['is_synced'] = true;
+//                 Attendance::updateOrCreate(['id' => $row['id']], $row);
+//                 $count++;
+//             }
+
+//             // 3. Prayer Attendances (Absensi Sholat)
+//             foreach ($data['prayer_attendances'] ?? [] as $row) {
+//                 $row['is_synced'] = true;
+//                 PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
+//                 $count++;
+//             }
+
+//             DB::commit();
+
+//             SyncLog::create([
+//                 'type' => 'pull',
+//                 'table_name' => 'attendance_data',
+//                 'records_count' => $count,
+//                 'status' => 'success',
+//                 'synced_at' => $currentSyncTimestamp,
+//             ]);
+
+//             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data absensi dari online."];
+//         }
+
+//         $statusCode = $response->status();
+//         $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data absensi.';
+//         throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+
+//         SyncLog::create([
+//             'type' => 'pull',
+//             'table_name' => 'attendance_data',
+//             'records_count' => 0,
+//             'status' => 'failed',
+//             'error_message' => $e->getMessage(),
+//             'synced_at' => now(),
+//         ]);
+
+//         return ['status' => 'error', 'message' => 'Gagal Pull Absensi: ' . $e->getMessage()];
+//     }
+// }
+
+/**
+ * Eksekusi Pull Data Absensi (Online ke Lokal)
+ */
 public function pullAttendanceData(): array
 {
     set_time_limit(300);
+
+    // Matikan activity log selama proses sinkronisasi
+    activity()->disableLogging();
 
     if (empty($this->baseUrl) || empty($this->token)) {
         return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
@@ -587,7 +698,7 @@ public function pullAttendanceData(): array
 
             // 1. Daily Attendances (Absensi Gerbang)
             foreach ($data['daily_attendances'] ?? [] as $row) {
-                $row['is_synced'] = true; // Tandai sudah sinkron
+                $row['is_synced'] = true;
                 DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
                 $count++;
             }
@@ -616,6 +727,9 @@ public function pullAttendanceData(): array
                 'synced_at' => $currentSyncTimestamp,
             ]);
 
+            // Hidupkan kembali activity log
+            activity()->enableLogging();
+
             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data absensi dari online."];
         }
 
@@ -625,6 +739,9 @@ public function pullAttendanceData(): array
 
     } catch (\Exception $e) {
         DB::rollBack();
+
+        // Pastikan activity log diaktifkan kembali jika terjadi error
+        activity()->enableLogging();
 
         SyncLog::create([
             'type' => 'pull',

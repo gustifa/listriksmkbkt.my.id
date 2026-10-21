@@ -138,7 +138,7 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- MENU MAPING (DIPINDAHKAN KE SISTEM & PENGATURAN) -->
+                <!-- MENU MAPING -->
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-group"></i></div>
@@ -151,6 +151,24 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{url('/face/register')}}"><i class='bx bxs-file-find'></i>Scan Wajah</a></li>
                         <li><a href="{{url('/teaching-assignments')}}"><i class='bx bx-home-smile'></i>PBM</a></li>
                         <li><a href="{{url('/schedule/all')}}"><i class='bx bx-home-smile'></i>Jadwal</a></li>
+                    </ul>
+                </li>
+
+                <!-- MENU SYSTEM (LENGKAP DENGAN SINKRONISASI, MANAGE, LOG, RESET, UPDATE, DATABASE, SERVER, & WA) -->
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-chip"></i></div>
+                        <div class="menu-title">System</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('admin.sync.index')}}"><i class='bx bx-sync'></i>Sinkronisasi Data</a></li>
+                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-id-card'></i>Manage</a></li>
+                        <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-id-card'></i>Log</a></li>
+                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-id-card'></i>Reset</a></li>
+                        <li><a href="{{route('system.update.index')}}"><i class='bx bx-id-card'></i>Update</a></li>
+                        <li><a href="{{route('database.index')}}"><i class='bx bx-id-card'></i>Database</a></li>
+                        <li><a href="{{route('pm2.index')}}"><i class='bx bx-id-card'></i>Server</a></li>
+                        <li><a href="{{route('whatsapp.index')}}"><i class='bx bx-id-card'></i>WA</a></li>
                     </ul>
                 </li>
 
@@ -218,9 +236,6 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('admin.prayer_reports.index')}}"><i class='bx bx-id-card'></i>Sholat</a></li>
                         <li><a href="{{route('admin.reports.student-calendar.index')}}"><i class='bx bx-id-card'></i>Kalender</a></li>
                         <li><a href="{{route('reports.missing_attendance')}}"><i class='bx bx-id-card'></i>Alfa</a></li>
-                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-id-card'></i>Manage</a></li>
-                        <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-id-card'></i>Log</a></li>
-                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-id-card'></i>Reset</a></li>
                     </ul>
                 </li>
 
@@ -241,19 +256,6 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{route('whatsapp.broadcast')}}"><i class='bx bx-broadcast'></i>Broadcast</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bx-credit-card'></i></div>
-                        <div class="menu-title">Aplikasi</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{route('system.update.index')}}"><i class='bx bx-id-card'></i>Update</a></li>
-                        <li><a href="{{route('database.index')}}"><i class='bx bx-id-card'></i>Database</a></li>
-                        <li><a href="{{route('pm2.index')}}"><i class='bx bx-id-card'></i>Server</a></li>
-                        <li><a href="{{route('whatsapp.index')}}"><i class='bx bx-id-card'></i>WA</a></li>
                     </ul>
                 </li>
             @endrole
