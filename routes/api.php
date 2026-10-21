@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Api\PrayerServerSyncController;
 use App\Http\Controllers\Api\PrayerApiController;
 
+
+use App\Http\Controllers\Api\SyncController;
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -36,4 +39,9 @@ Route::post('/attendance', [AttendanceApiController::class, 'storeAttendance']);
 // Endpoint untuk sinkronisasi antar server
 Route::get('/prayer/sync-export', [PrayerServerSyncController::class, 'exportData']);
 Route::get('/sync/export-all', [PrayerServerSyncController::class, 'exportAll']);
+
+Route::middleware('auth:sanctum')->prefix('v1/sync')->group(function () {
+    Route::get('/pull', [SyncController::class, 'pullMasterData']);
+    Route::post('/push', [SyncController::class, 'pushTransactionData']);
+});
 

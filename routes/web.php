@@ -103,6 +103,8 @@ use App\Http\Controllers\Admin\StudentAttendanceReportController;
 use App\Http\Controllers\Admin\AttendanceManageController;
 use App\Http\Controllers\Admin\ActivityLogController;
 
+use App\Http\Controllers\Admin\SyncDashboardController;
+
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
 use App\Http\Controllers\Student\DashboardStudentController;
@@ -539,6 +541,15 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
             'create', 'edit', 'show'
         ]);
+
+        Route::prefix('admin/sync')->name('admin.sync.')->group(function () {
+            Route::get('/', [SyncDashboardController::class, 'index'])->name('index');
+            Route::post('/push', [SyncDashboardController::class, 'runPush'])->name('push');
+            Route::post('/pull', [SyncDashboardController::class, 'runPull'])->name('pull');
+            Route::post('/generate-token', [SyncDashboardController::class, 'generateToken'])->name('generate-token');
+            Route::post('/update-token', [SyncDashboardController::class, 'updateToken'])->name('update-token');
+            Route::post('/update-url', [SyncDashboardController::class, 'updateServerUrl'])->name('update-url');
+        });
         // Route Cetak Transkrip & Sertifikat untuk Admin
         Route::get('/admin/internships/{id}/transcript', [InternshipController::class, 'printTranscript'])->name('admin.internships.transcript');
         Route::get('/admin/internships/{id}/certificate', [InternshipController::class, 'printCertificate'])->name('admin.internships.certificate');

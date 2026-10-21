@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'online_server' => [
+        'url' => env('ONLINE_SERVER_URL', 'https://listriksmkbkt.my.id'),
+        'token' => env('ONLINE_SERVER_API_TOKEN', ''),
+    ],
+
 ];
