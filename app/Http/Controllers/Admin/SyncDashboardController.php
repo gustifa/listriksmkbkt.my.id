@@ -138,15 +138,26 @@ public function generateToken(Request $request)
     );
 }
 
-public function pullPhotos(DataSyncService $syncService)
-{
-    $result = $syncService->pullAttendancePhotos();
+// public function pullPhotos(DataSyncService $syncService)
+// {
+//     $result = $syncService->pullAttendancePhotos();
 
-    return redirect()->back()->with(
-        $result['status'] === 'success' ? 'success' : 'error',
-        $result['message']
-    );
-}
+//     return redirect()->back()->with(
+//         $result['status'] === 'success' ? 'success' : 'error',
+//         $result['message']
+//     );
+// }
+
+public function pullPhotos(Request $request)
+    {
+        $deleteOnlineStorage = $request->input('delete_online_storage', '0') === '1';
+        $result = $this->syncService->pullAttendancePhotos($deleteOnlineStorage);
+
+        return redirect()->back()->with(
+            $result['status'] === 'success' ? 'success' : 'error',
+            $result['message']
+        );
+    }
 
     
 }

@@ -21,7 +21,6 @@
 
     <!-- Card Pengaturan Server & Token -->
     <div class="row mb-4">
-        <!-- URL Server Online (Hanya Tampil di Server Lokal) -->
         @if($serverRole === 'local')
             <div class="col-md-6 mb-3 mb-md-0">
                 <div class="card border-0 shadow-sm h-100">
@@ -55,7 +54,6 @@
             </div>
         @endif
 
-        <!-- Card API Token Sinkronisasi (Dinamis: Online vs Lokal) -->
         <div class="{{ $serverRole === 'local' ? 'col-md-6' : 'col-md-12' }}">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
@@ -76,7 +74,6 @@
                     </div>
 
                     @if($serverRole === 'online')
-                        <!-- TAMPILAN DI SERVER ONLINE: Tombol Generate & Copy Token -->
                         <div class="row align-items-center mt-3">
                             <div class="col-md-8 mb-2 mb-md-0">
                                 <div class="input-group">
@@ -105,7 +102,6 @@
                             </div>
                         </div>
                     @else
-                        <!-- TAMPILAN DI SERVER LOKAL: Form Input/Tempel Token -->
                         <form action="{{ route('admin.sync.update-token') }}" method="POST" class="mt-3">
                             @csrf
                             <div class="input-group">
@@ -132,7 +128,7 @@
 
     <!-- Panel Sinkronisasi Dua Arah -->
     <div class="row mb-4">
-        <!-- Panel Kiri: Lokal ke Online (Push) -->
+        <!-- Panel Kiri: Push -->
         <div class="col-md-6 mb-3 mb-md-0">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4 d-flex flex-column justify-content-between">
@@ -176,7 +172,7 @@
             </div>
         </div>
 
-        <!-- Panel Kanan: Online ke Lokal (Pull) -->
+        <!-- Panel Kanan: Pull -->
         <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4 d-flex flex-column justify-content-between">
@@ -196,13 +192,13 @@
                             <div class="d-flex">
                                 <i class="fas fa-info-circle fa-lg me-2 mt-1"></i>
                                 <div class="small">
-                                    Gunakan tombol <strong>Tarik Foto Presensi</strong> secara berkala untuk memindahkan foto ke server lokal dan menghemat penyimpanan hosting online.
+                                    Pilih <strong>Tarik Foto (Simpan)</strong> jika ingin menyimpan foto di hosting, atau <strong>Cleanup Hosting</strong> untuk menghemat disk space hosting.
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tombol Aksi Pull Group -->
+                    <!-- Group Tombol Pull -->
                     <div class="d-flex flex-column gap-2 mt-2">
                         <div class="d-flex flex-column flex-sm-row gap-2">
                             <!-- Form Pull Master -->
@@ -222,12 +218,20 @@
                             </form>
                         </div>
 
-                        <!-- Form Pull Foto Presensi (Cleanup Hosting) -->
+                        <!-- Form Pull Foto Presensi (Dua pilihan) -->
                         <form id="formPullPhotos" action="{{ route('admin.sync.pull-photos') }}" method="POST" class="w-100">
                             @csrf
-                            <button type="button" id="btnPullPhotos" class="btn btn-info fw-bold text-white w-100 py-2 shadow-sm">
-                                <i class="fas fa-images me-1"></i> Tarik Foto Presensi (Cleanup Hosting)
-                            </button>
+                            <input type="hidden" name="delete_online_storage" id="deleteOnlineStorageInput" value="0">
+                            
+                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                <button type="button" id="btnPullPhotosKeep" class="btn btn-outline-info fw-bold w-100 py-2">
+                                    <i class="fas fa-images me-1"></i> Tarik Foto (Simpan)
+                                </button>
+
+                                <button type="button" id="btnPullPhotosDelete" class="btn btn-info fw-bold text-white w-100 py-2 shadow-sm">
+                                    <i class="fas fa-broom me-1"></i> Tarik Foto & Cleanup
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -258,7 +262,7 @@
                     @forelse($logs ?? [] as $log)
                         <tr>
                             <td class="ps-4 fw-semibold text-dark">
-                                {{ $log->synced_at ? $log->synced_at->format('d/m/Y H:i:s') : '-' }}
+                                {{ $log->synced_at ? \Carbon\Carbon::parse($log->synced_at)->format('d/m/Y H:i:s') : '-' }}
                             </td>
                             <td>
                                 @if($log->type == 'push')
@@ -293,11 +297,6 @@
                 </tbody>
             </table>
         </div>
-        @if(isset($logs) && method_exists($logs, 'hasPages') && $logs->hasPages())
-            <div class="card-footer bg-white py-3">
-                {{ $logs->links() }}
-            </div>
-        @endif
     </div>
 </div>
 
@@ -305,7 +304,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Toggle Lihat/Sembunyikan Token
 function toggleTokenVisibility() {
     var tokenInput = document.getElementById("apiTokenInput");
     var toggleIcon = document.getElementById("toggleIcon");
@@ -321,7 +319,6 @@ function toggleTokenVisibility() {
     }
 }
 
-// Salin Token
 function copyToken() {
     var tokenInput = document.getElementById("apiTokenInput");
     if(tokenInput && tokenInput.value && !tokenInput.value.includes('Klik button')) {
@@ -342,12 +339,9 @@ function copyToken() {
     }
 }
 
-// -------------------------------------------------------------
-// SWEETALERT2: SINKRONISASI PULL DATA MASTER
-// -------------------------------------------------------------
+// 1. PULL MASTER DATA
 document.getElementById('btnPullMaster')?.addEventListener('click', function (e) {
     e.preventDefault();
-
     Swal.fire({
         title: 'Tarik Data Master?',
         text: "Sistem akan menarik data siswa, guru, kelas, dan user terbaru dari Server Online.",
@@ -365,22 +359,16 @@ document.getElementById('btnPullMaster')?.addEventListener('click', function (e)
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+                didOpen: () => { Swal.showLoading(); }
             });
-
             document.getElementById('formPullMaster').submit();
         }
     });
 });
 
-// -------------------------------------------------------------
-// SWEETALERT2: SINKRONISASI PULL DATA ABSENSI
-// -------------------------------------------------------------
+// 2. PULL ATTENDANCE DATA
 document.getElementById('btnPullAttendances')?.addEventListener('click', function (e) {
     e.preventDefault();
-
     Swal.fire({
         title: 'Tarik Data Absensi?',
         text: "Sistem akan menarik pembaruan data presensi harian, pembelajaran, dan sholat dari Server Online.",
@@ -390,9 +378,7 @@ document.getElementById('btnPullAttendances')?.addEventListener('click', functio
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Ya, Tarik Sekarang!',
         cancelButtonText: 'Batal',
-        customClass: {
-            confirmButton: 'text-white'
-        }
+        customClass: { confirmButton: 'text-white' }
     }).then((result) => {
         if (result.isConfirmed) {
             Swal.fire({
@@ -401,58 +387,75 @@ document.getElementById('btnPullAttendances')?.addEventListener('click', functio
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+                didOpen: () => { Swal.showLoading(); }
             });
-
             document.getElementById('formPullAttendances').submit();
         }
     });
 });
 
-// -------------------------------------------------------------
-// SWEETALERT2: SINKRONISASI PULL FOTO PRESENSI (CLEANUP HOSTING)
-// -------------------------------------------------------------
-document.getElementById('btnPullPhotos')?.addEventListener('click', function (e) {
+// 3. PULL PHOTOS (KEEP AT HOSTING)
+document.getElementById('btnPullPhotosKeep')?.addEventListener('click', function (e) {
     e.preventDefault();
+    document.getElementById('deleteOnlineStorageInput').value = "0";
 
     Swal.fire({
-        title: 'Tarik Foto Presensi & Cleanup Hosting?',
-        text: "File foto presensi di server online akan diunduh ke server lokal dan otomatis dihapus dari hosting online untuk mengosongkan ruang penyimpanan.",
-        icon: 'warning',
+        title: 'Tarik Foto Presensi?',
+        text: "File foto presensi akan diunduh ke server lokal. File asli di hosting online TIDAK akan dihapus.",
+        icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#0dcaf0',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Ya, Pindahkan Foto!',
+        confirmButtonText: 'Ya, Tarik Foto!',
         cancelButtonText: 'Batal',
-        customClass: {
-            confirmButton: 'text-white'
-        }
+        customClass: { confirmButton: 'text-white' }
     }).then((result) => {
         if (result.isConfirmed) {
             Swal.fire({
-                title: 'Sedang Memindahkan Berkas Foto...',
-                html: 'Mohon tunggu, file foto sedang dikompresi dan dipindahkan ke server lokal.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 100%"></div></div>',
+                title: 'Sedang Menarik Foto...',
+                html: 'Mohon tunggu, berkas foto sedang diunduh ke lokal.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 100%"></div></div>',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+                didOpen: () => { Swal.showLoading(); }
             });
-
             document.getElementById('formPullPhotos').submit();
         }
     });
 });
 
-// -------------------------------------------------------------
-// SWEETALERT2: SINKRONISASI PUSH DATA LOKAL
-// -------------------------------------------------------------
+// 4. PULL PHOTOS (CLEANUP HOSTING)
+document.getElementById('btnPullPhotosDelete')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    document.getElementById('deleteOnlineStorageInput').value = "1";
+
+    Swal.fire({
+        title: 'Tarik Foto & Bersihkan Hosting?',
+        text: "File foto presensi akan diunduh ke server lokal dan LANGSUNG DIHAPUS dari hosting online untuk menghemat ruang penyimpanan.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Pindahkan & Hapus di Online!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Memindahkan & Membersihkan...',
+                html: 'Mohon tunggu, foto sedang dipindahkan ke lokal dan dihapus dari hosting.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 100%"></div></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            document.getElementById('formPullPhotos').submit();
+        }
+    });
+});
+
+// 5. PUSH DATA LOKAL
 document.getElementById('btnPushData')?.addEventListener('click', function (e) {
     e.preventDefault();
-
     Swal.fire({
         title: 'Kirim Data ke Online?',
         text: "Data transaksi lokal yang belum disinkronkan akan dikirimkan ke Server Online.",
@@ -470,18 +473,14 @@ document.getElementById('btnPushData')?.addEventListener('click', function (e) {
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+                didOpen: () => { Swal.showLoading(); }
             });
-
             document.getElementById('formPushData').submit();
         }
     });
 });
 </script>
 
-<!-- Notification Popup dari Controller -->
 @if(session('success'))
 <script>
     Swal.fire({

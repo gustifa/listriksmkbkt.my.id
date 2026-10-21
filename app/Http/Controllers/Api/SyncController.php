@@ -48,7 +48,6 @@ class SyncController extends Controller
             $students = Student::all();
         }
 
-        // Urutan array disesuaikan: Users -> Teachers -> Classrooms -> Students
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -79,7 +78,6 @@ class SyncController extends Controller
                 'student_violations' => [],
             ];
 
-            // 1. Sync Daily Attendances
             if ($request->has('daily_attendances')) {
                 foreach ($request->daily_attendances as $row) {
                     unset($row['is_synced']);
@@ -88,7 +86,6 @@ class SyncController extends Controller
                 }
             }
 
-            // 2. Sync Attendances
             if ($request->has('attendances')) {
                 foreach ($request->attendances as $row) {
                     unset($row['is_synced']);
@@ -97,7 +94,6 @@ class SyncController extends Controller
                 }
             }
 
-            // 3. Sync Violations
             if ($request->has('student_violations')) {
                 foreach ($request->student_violations as $row) {
                     unset($row['is_synced']);
@@ -123,7 +119,7 @@ class SyncController extends Controller
     }
 
     /**
-     * Endpoint Khusus Pull Data Absensi dari Online ke Lokal
+     * ONLINE -> LOKAL: Mengambil Data Absensi Terbaru
      */
     public function pullAttendanceData(Request $request)
     {
@@ -161,7 +157,7 @@ class SyncController extends Controller
     }
 
     /**
-     * ONLINE -> LOKAL: Penarikan File Foto Presensi & Auto-Delete Storage Hosting
+     * ONLINE -> LOKAL: Penarikan File Foto Presensi (Opsi Hapus atau Simpan di Hosting)
      */
     public function pullAttendancePhotos(Request $request)
     {
@@ -215,8 +211,9 @@ class SyncController extends Controller
             $zip->close();
         }
 
-        // Hapus file foto dari storage online jika diminta oleh request lokal
-        if ($request->get('delete_online_storage') == true) {
+        // Hapus file dari hosting HANYA jika parameter delete_online_storage = true
+        $shouldDelete = filter_var($request->get('delete_online_storage', false), FILTER_VALIDATE_BOOLEAN);
+        if ($shouldDelete) {
             foreach ($filesToZip as $file) {
                 Storage::disk('public')->delete($file);
             }
@@ -251,24 +248,5 @@ class SyncController extends Controller
         }
 
         return back()->with('success', 'API Token Sinkronisasi berhasil diperbarui!');
-    }
-
-    public function index()
-    {
-        $syncToken = DB::table('settings')->where('key', 'sync_api_token')->value('value');
-        $syncLogs = DB::table('sync_logs')->latest()->take(10)->get();
-        $pendingGateAttendance = DB::table('gate_attendances')->where('is_synced', false)->count();
-        $pendingSubjectAttendance = DB::table('subject_attendances')->where('is_synced', false)->count();
-        $pendingViolations = DB::table('student_violations')->where('is_synced', false)->count();
-        $totalPendingPush = $pendingGateAttendance + $pendingSubjectAttendance + $pendingViolations;
-
-        return view('admin.sync.index', compact(
-            'syncToken',
-            'syncLogs',
-            'pendingGateAttendance',
-            'pendingSubjectAttendance',
-            'pendingViolations',
-            'totalPendingPush'
-        ));
     }
 }

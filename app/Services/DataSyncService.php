@@ -25,11 +25,9 @@ class DataSyncService
 
     public function __construct()
     {
-        // Ambil URL dari database settings, jika belum ada fallback ke config .env
         $urlSetting = Setting::where('key', 'sync_server_url')->value('value');
         $this->baseUrl = rtrim($urlSetting ?? config('services.online_server.url', ''), '/');
         
-        // Ambil Token dari database settings
         $tokenSetting = Setting::where('key', 'sync_api_token')->value('value');
         $this->token = trim($tokenSetting ?? config('services.online_server.token', ''));
     }
@@ -71,7 +69,6 @@ class DataSyncService
             if ($response->successful()) {
                 $processed = $response->json('processed_ids');
 
-                // Tandai data lokal sebagai sudah disinkronkan
                 if (!empty($processed['daily_attendances'])) {
                     DailyAttendance::whereIn('id', $processed['daily_attendances'])->update(['is_synced' => true]);
                 }
@@ -118,7 +115,6 @@ class DataSyncService
     {
         set_time_limit(300);
 
-        // Matikan activity log selama proses sinkronisasi untuk menghindari konflik log ID
         if (function_exists('activity')) {
             activity()->disableLogging();
         }
@@ -127,14 +123,12 @@ class DataSyncService
             return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
         }
 
-        // Ambil log sukses terakhir
         $lastPull = SyncLog::where('type', 'pull')
             ->where('table_name', 'master_data')
             ->where('status', 'success')
             ->latest('synced_at')
             ->value('synced_at');
 
-        // Format eksplisit Y-m-d H:i:s
         $lastSyncedAt = $lastPull 
             ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
             : '1970-01-01 00:00:00';
@@ -177,7 +171,7 @@ class DataSyncService
                 $count = 0;
                 DB::beginTransaction();
 
-                // Nonaktifkan Foreign Key Check & Trigger PostgreSQL sementara saat sinkronisasi
+                // Matikan constraint PostgreSQL sementara selama sinkronisasi
                 try {
                     DB::statement("SET session_replication_role = 'replica';");
                 } catch (\Exception $ex) {
@@ -202,12 +196,11 @@ class DataSyncService
                     $count++;
                 }
 
-                // 2. Teachers (Pencegahan Not-Null Constraint & Foreign Key Violation)
+                // 2. Teachers (Pencegahan Not-Null Constraint user_id)
                 foreach ($masterData['teachers'] ?? [] as $row) {
                     if (!empty($row['user_id'])) {
                         $userExists = User::where('id', $row['user_id'])->exists();
                         if (!$userExists) {
-                            // Jika user_id belum ada di lokal, buatkan akun user dummy agar tidak melanggar Not-Null
                             User::create([
                                 'id' => $row['user_id'],
                                 'name' => $row['name'] ?? 'Guru Sync',
@@ -256,7 +249,6 @@ class DataSyncService
                     $count++;
                 }
 
-                // Kembalikan PostgreSQL ke mode normal
                 try {
                     DB::statement("SET session_replication_role = 'origin';");
                 } catch (\Exception $ex) {}
@@ -313,7 +305,6 @@ class DataSyncService
     {
         set_time_limit(300);
 
-        // Matikan activity log selama proses sinkronisasi
         if (function_exists('activity')) {
             activity()->disableLogging();
         }
@@ -369,35 +360,30 @@ class DataSyncService
                 $count = 0;
                 DB::beginTransaction();
 
-                // Nonaktifkan Foreign Key Check di PostgreSQL agar attendances_schedule_id_foreign dilewati
                 try {
                     DB::statement("SET session_replication_role = 'replica';");
                 } catch (\Exception $ex) {
                     DB::statement('SET CONSTRAINTS ALL DEFERRED;');
                 }
 
-                // 1. Daily Attendances (Absensi Gerbang)
                 foreach ($data['daily_attendances'] ?? [] as $row) {
                     $row['is_synced'] = true;
                     DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
                     $count++;
                 }
 
-                // 2. Attendances (Absensi Pembelajaran)
                 foreach ($data['attendances'] ?? [] as $row) {
                     $row['is_synced'] = true;
                     Attendance::updateOrCreate(['id' => $row['id']], $row);
                     $count++;
                 }
 
-                // 3. Prayer Attendances (Absensi Sholat)
                 foreach ($data['prayer_attendances'] ?? [] as $row) {
                     $row['is_synced'] = true;
                     PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
                     $count++;
                 }
 
-                // Kembalikan ke mode normal
                 try {
                     DB::statement("SET session_replication_role = 'origin';");
                 } catch (\Exception $ex) {}
@@ -448,9 +434,10 @@ class DataSyncService
     }
 
     /**
-     * Penarikan File Foto Presensi dari Online ke Lokal (Hemat Storage Online)
+     * Penarikan File Foto Presensi dari Online ke Lokal
+     * @param bool $deleteOnlineStorage (true = Hapus di Online, false = Simpan di Online)
      */
-    public function pullAttendancePhotos(): array
+    public function pullAttendancePhotos(bool $deleteOnlineStorage = false): array
     {
         set_time_limit(600);
 
@@ -463,7 +450,7 @@ class DataSyncService
                 ->withToken($this->token)
                 ->timeout(300)
                 ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
-                    'delete_online_storage' => true
+                    'delete_online_storage' => $deleteOnlineStorage ? '1' : '0'
                 ]);
 
             if ($response->header('Content-Type') === 'application/json' || str_contains($response->header('Content-Type'), 'json')) {
@@ -489,7 +476,11 @@ class DataSyncService
                         'synced_at' => now(),
                     ]);
 
-                    return ['status' => 'success', 'message' => 'Berhasil menarik foto presensi dan mengosongkan storage hosting online.'];
+                    $msg = $deleteOnlineStorage 
+                        ? 'Berhasil menarik foto presensi & mengosongkan storage hosting online.' 
+                        : 'Berhasil menarik foto presensi (file di hosting tetap tersimpan).';
+
+                    return ['status' => 'success', 'message' => $msg];
                 }
 
                 throw new \Exception('Gagal mengekstrak berkas foto ZIP.');
