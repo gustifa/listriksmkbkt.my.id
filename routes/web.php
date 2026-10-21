@@ -539,6 +539,9 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
             'create', 'edit', 'show'
         ]);
+        // Route Cetak Transkrip & Sertifikat untuk Admin
+        Route::get('/admin/internships/{id}/transcript', [InternshipController::class, 'printTranscript'])->name('admin.internships.transcript');
+        Route::get('/admin/internships/{id}/certificate', [InternshipController::class, 'printCertificate'])->name('admin.internships.certificate');
         // Route untuk batalkan/hapus absensi
         Route::get('/admin/attendance/manage', [AttendanceManageController::class, 'index'])->name('admin.attendance.manage.index');
         Route::delete('/admin/attendance/gate/{id}', [AttendanceManageController::class, 'deleteGate'])->name('admin.attendance.gate.delete');

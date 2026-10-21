@@ -230,6 +230,31 @@ public function updateIndustry(Request $request, $id)
     return redirect()->back()->with('success', 'Tempat PKL siswa berhasil diperbarui!');
 }
 
+public function printTranscript($id)
+{
+    // Hapus 'grades' dari eager loading with()
+    $internship = \App\Models\Internship::with([
+        'student.classroom', 
+        'industry', 
+        'advisor', 
+        'grade'
+    ])->findOrFail($id);
+
+    // Ambil variabel pendukung untuk view PDF
+    $student = $internship->student;
+    $grade   = $internship->grade;
+
+    return view('admin.internships.transcript_pdf', compact('internship', 'student', 'grade'));
+}
+
+public function printCertificate($id)
+{
+    $internship = Internship::with(['student', 'industry'])->findOrFail($id);
+    
+    // Panggil view cetak sertifikat yang sudah ada
+    return view('admin.internships.certificate_pdf', compact('internship'));
+}
+
 
 }
 

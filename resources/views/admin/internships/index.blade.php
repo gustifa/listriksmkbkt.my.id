@@ -5,17 +5,29 @@
     @push('styles')
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        .card-mobile-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease-in-out;
+        }
+        .card-mobile-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+    </style>
     @endpush
 
     <div class="page-content">
         <!-- Header -->
-        <div class="mb-4 d-flex justify-content-between align-items-center">
-            <h4 class="fw-bold text-primary"><i class="fas fa-briefcase me-2"></i>Penempatan PKL Siswa</h4>
-            <div class="gap-2 d-flex">
-                <button type="button" class="mb-3 btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode" data-toggle="modal" data-target="#modalUpdatePeriode">
-                    <i class="fas fa-calendar-alt"></i> Ubah Periode Semua Siswa
+        <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="fw-bold text-primary mb-0"><i class="fas fa-briefcase me-2"></i>Penempatan PKL Siswa</h4>
+            <div class="gap-2 d-flex flex-wrap">
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalUpdatePeriode" data-toggle="modal" data-target="#modalUpdatePeriode">
+                    <i class="fas fa-calendar-alt me-1"></i> Ubah Periode Massal
                 </button>
-                <button type="button" class="mb-3 btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInternshipModal" data-toggle="modal" data-target="#addInternshipModal">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInternshipModal" data-toggle="modal" data-target="#addInternshipModal">
                     <i class="fas fa-plus me-1"></i> Penempatan Baru
                 </button>
             </div>
@@ -34,7 +46,7 @@
                 <form method="GET" class="row g-2 align-items-center">
                     
                     <!-- Input Ketik Nama Siswa (Select2) -->
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <select name="student_id" class="form-select select2-filter" onchange="this.form.submit()">
                             <option value="">-- Ketik Nama / NIS Siswa --</option>
                             @foreach($all_students as $st)
@@ -46,7 +58,7 @@
                     </div>
 
                     <!-- Filter Tempat PKL -->
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <select name="industry_id" class="form-select" onchange="this.form.submit()">
                             <option value="">-- Semua Tempat PKL --</option>
                             @foreach($industries as $ind)
@@ -58,7 +70,7 @@
                     </div>
 
                     <!-- Filter Status -->
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <select name="status" class="form-select" onchange="this.form.submit()">
                             <option value="">-- Semua Status --</option>
                             <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
@@ -69,7 +81,7 @@
                     </div>
 
                     <!-- Tombol Reset Filter -->
-                    <div class="col-md-2">
+                    <div class="col-12 col-md-2">
                         @if(request('student_id') || request('industry_id') || request('status'))
                             <a href="{{ route('admin.internships.index') }}" class="btn btn-outline-danger w-100">
                                 <i class="fas fa-undo me-1"></i> Reset Filter
@@ -84,7 +96,9 @@
             </div>
             
             <div class="p-0 card-body">
-                <div class="table-responsive">
+                
+                <!-- 1. TAMPILAN KHUSUS LAPTOP / DESKTOP (TABEL STANDARD) -->
+                <div class="table-responsive d-none d-md-block">
                     <table class="table mb-0 table-hover align-middle">
                         <thead class="bg-light">
                             <tr>
@@ -94,7 +108,7 @@
                                 <th>Guru Pembimbing</th>
                                 <th class="text-center">Surat Izin</th>
                                 <th class="text-center">Status</th>
-                                <th class="text-center">Aksi</th>
+                                <th class="text-center" style="min-width: 180px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -113,7 +127,6 @@
                                                 {{ \Illuminate\Support\Str::limit($item->industry->address, 30) }}
                                             </small>
                                         </div>
-                                        <!-- Tombol Pemicu Modal Edit Tempat PKL -->
                                         <button type="button" class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#modalEditIndustry-{{ $item->id }}" data-toggle="modal" data-target="#modalEditIndustry-{{ $item->id }}" title="Ubah Tempat PKL">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -125,20 +138,16 @@
                                         <i class="far fa-calendar-check text-danger me-1"></i> {{ optional($item->end_date)->format('d M Y') ?? '-' }}
                                     </div>
                                 </td>
-                                
                                 <td>
                                     @if($item->advisor)
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>{{ $item->advisor->name }}</span>
-                                            
                                             @if($item->advisor_status == 'pending')
-                                                <button class="px-2 py-0 btn btn-sm btn-warning ms-2" title="Siswa Mengajukan Ini (Klik untuk Setujui/Ganti)" 
-                                                        onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
+                                                <button class="px-2 py-0 btn btn-sm btn-warning ms-2" title="Siswa Mengajukan Ini (Klik untuk Setujui/Ganti)" onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
                                                     <i class="fas fa-clock"></i> Req
                                                 </button>
                                             @else
-                                                <button class="px-2 py-0 btn btn-sm btn-light text-secondary ms-2" title="Ganti Pembimbing" 
-                                                        onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
+                                                <button class="px-2 py-0 btn btn-sm btn-light text-secondary ms-2" title="Ganti Pembimbing" onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id }}')">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                             @endif
@@ -149,7 +158,6 @@
                                         </button>
                                     @endif
                                 </td>
-
                                 <td class="text-center">
                                     @if($item->parent_consent_file)
                                         <a href="{{ asset('storage/'.$item->parent_consent_file) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Lihat Surat">
@@ -174,11 +182,25 @@
                                     </form>
                                 </td>
                                 <td class="text-center">
-                                    <form action="{{ route('admin.internships.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus penempatan ini?')">
-                                        @csrf 
-                                        @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-                                    </form>
+                                    <div class="gap-1 d-flex justify-content-center align-items-center">
+                                        @if($item->grade)
+                                            <a href="{{ route('admin.internships.transcript', $item->id) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Cetak Transkrip">
+                                                <i class="fas fa-file-alt"></i>
+                                            </a>
+                                            <a href="{{ route('admin.internships.certificate', $item->id) }}" target="_blank" class="btn btn-sm btn-success" title="Cetak Sertifikat">
+                                                <i class="fas fa-certificate"></i>
+                                            </a>
+                                        @else
+                                            <button class="btn btn-sm btn-outline-secondary" disabled title="Belum ada nilai"><i class="fas fa-file-alt"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary" disabled title="Belum ada nilai"><i class="fas fa-certificate"></i></button>
+                                        @endif
+
+                                        <form action="{{ route('admin.internships.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus penempatan ini?')" class="d-inline">
+                                            @csrf 
+                                            @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             @empty
@@ -187,6 +209,102 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- 2. TAMPILAN KHUSUS LAYAR HP / MOBILE (CARD MODERN) -->
+                <div class="d-block d-md-none p-3">
+                    @forelse($internships as $item)
+                    <div class="card-mobile-item p-3 mb-3">
+                        <!-- Head Card: Nama Siswa & Status -->
+                        <div class="d-flex justify-content-between align-items-start border-bottom pb-2 mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">{{ $item->student->name }}</h6>
+                                <small class="text-muted">{{ $item->student->nis }} • {{ $item->student->classroom->name ?? '-' }}</small>
+                            </div>
+                            <div>
+                                <form action="{{ route('admin.internships.status', $item->id) }}" method="POST">
+                                    @csrf 
+                                    @method('PATCH')
+                                    <select name="status" class="form-select form-select-sm fw-bold border-0 bg-light text-end
+                                        {{ $item->status == 'active' ? 'text-success' : ($item->status == 'completed' ? 'text-primary' : ($item->status == 'pending' ? 'text-warning' : 'text-danger')) }}" 
+                                        onchange="this.form.submit()">
+                                        <option value="pending" {{ $item->status == 'pending' ? 'selected' : '' }}>Pending</option>
+                                        <option value="active" {{ $item->status == 'active' ? 'selected' : '' }}>Aktif</option>
+                                        <option value="completed" {{ $item->status == 'completed' ? 'selected' : '' }}>Selesai</option>
+                                        <option value="cancelled" {{ $item->status == 'cancelled' ? 'selected' : '' }}>Batal</option>
+                                    </select>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Body Card: Detail DU/DI & Pembimbing -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small text-muted fw-bold"><i class="fas fa-building me-1"></i> Tempat PKL:</span>
+                                <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 text-dark" data-bs-toggle="modal" data-bs-target="#modalEditIndustry-{{ $item->id }}" data-toggle="modal" data-target="#modalEditIndustry-{{ $item->id }}">
+                                    <i class="fas fa-edit me-1"></i> Ubah
+                                </button>
+                            </div>
+                            <div class="fw-bold text-primary">{{ $item->industry->name }}</div>
+                            <small class="text-muted d-block mb-2">
+                                <i class="fas fa-map-marker-alt me-1"></i> {{ $item->industry->address }}
+                            </small>
+
+                            <div class="row g-2 pt-2 border-top">
+                                <div class="col-6">
+                                    <span class="small text-muted d-block"><i class="far fa-calendar-alt text-success me-1"></i> Mulai:</span>
+                                    <span class="small fw-bold">{{ optional($item->start_date)->format('d M Y') ?? '-' }}</span>
+                                </div>
+                                <div class="col-6">
+                                    <span class="small text-muted d-block"><i class="far fa-calendar-check text-danger me-1"></i> Selesai:</span>
+                                    <span class="small fw-bold">{{ optional($item->end_date)->format('d M Y') ?? '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light p-2 rounded mb-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">Pembimbing:</small>
+                                <span class="small fw-bold">{{ $item->advisor->name ?? 'Belum Ditentukan' }}</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="setAdvisor('{{ $item->id }}', '{{ $item->advisor_id ?? '' }}')">
+                                <i class="fas fa-edit me-1"></i> {{ $item->advisor ? 'Ganti' : 'Set' }}
+                            </button>
+                        </div>
+
+                        <!-- Foot Card: Surat Izin & Tombol Aksi -->
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <div>
+                                @if($item->parent_consent_file)
+                                    <a href="{{ asset('storage/'.$item->parent_consent_file) }}" target="_blank" class="btn btn-xs btn-info text-white py-1 px-2">
+                                        <i class="fas fa-file-pdf me-1"></i> Surat Izin
+                                    </a>
+                                @else
+                                    <span class="badge bg-secondary">Surat: Belum Upload</span>
+                                @endif
+                            </div>
+                            <div class="d-flex gap-1">
+                                @if($item->grade)
+                                    <a href="{{ route('admin.internships.transcript', $item->id) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Cetak Transkrip">
+                                        <i class="fas fa-file-alt"></i> Transkrip
+                                    </a>
+                                    <a href="{{ route('admin.internships.certificate', $item->id) }}" target="_blank" class="btn btn-sm btn-success" title="Cetak Sertifikat">
+                                        <i class="fas fa-certificate"></i> Sertifikat
+                                    </a>
+                                @endif
+
+                                <form action="{{ route('admin.internships.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus penempatan ini?')" class="d-inline">
+                                    @csrf 
+                                    @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center py-4 text-muted">Belum ada data penempatan PKL.</div>
+                    @endforelse
+                </div>
+
             </div>
             <div class="bg-white card-footer">
                 {{ $internships->withQueryString()->links() }}
@@ -369,7 +487,7 @@
 
     <script>
         $(document).ready(function() {
-            // Select2 Filter
+            // Select2 Filter Utama
             $('.select2-filter').select2({
                 theme: 'bootstrap-5',
                 width: '100%',
@@ -391,11 +509,10 @@
                 dropdownParent: $('#advisorModal')
             });
 
-            // Inisialisasi ulang Select2 dengan aman saat modal dibuka
+            // Re-initialization Select2 Modal Edit
             $('[id^="modalEditIndustry-"]').on('shown.bs.modal', function () {
                 let $select = $(this).find('.select2-edit-industry');
                 
-                // Hancurkan jika sudah diinisialisasi sebelumnya untuk mencegah bug CSS/overflow
                 if ($select.hasClass("select2-hidden-accessible")) {
                     $select.select2('destroy');
                 }
@@ -407,7 +524,6 @@
                 });
             });
 
-            // Cleanup saat modal ditutup
             $('[id^="modalEditIndustry-"]').on('hidden.bs.modal', function () {
                 let $select = $(this).find('.select2-edit-industry');
                 if ($select.hasClass("select2-hidden-accessible")) {
