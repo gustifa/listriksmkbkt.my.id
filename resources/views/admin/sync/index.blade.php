@@ -185,38 +185,48 @@
                             <h5 class="fw-bold text-success mb-0">
                                 <i class="fas fa-cloud-download-alt me-2"></i>Online ke Lokal (Pull)
                             </h5>
-                            <span class="badge bg-info text-white px-3 py-2 rounded-pill fw-bold">Master Data</span>
+                            <span class="badge bg-info text-white px-3 py-2 rounded-pill fw-bold">Master Data & Absensi</span>
                         </div>
 
-                        <p class="text-muted small mb-4">
-                            Menarik pembaruan data master dari server online (seperti siswa baru, perubahan kelas, data guru, dan akun pengguna) ke database lokal.
+                        <p class="text-muted small mb-3">
+                            Menarik pembaruan data master, transaksi absensi, dan arsip foto presensi dari server online ke database lokal.
                         </p>
 
-                        <div class="alert alert-info border-0 bg-info-subtle text-info-emphasis p-3 rounded-3 mb-4">
+                        <div class="alert alert-info border-0 bg-info-subtle text-info-emphasis p-3 rounded-3 mb-3">
                             <div class="d-flex">
                                 <i class="fas fa-info-circle fa-lg me-2 mt-1"></i>
                                 <div class="small">
-                                    Disarankan melakukan <strong>Pull Data Master</strong> sebelum awal jam masuk sekolah untuk memperbarui daftar registrasi siswa.
+                                    Gunakan tombol <strong>Tarik Foto Presensi</strong> secara berkala untuk memindahkan foto ke server lokal dan menghemat penyimpanan hosting online.
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tombol Aksi Pull (Dibuat Sejajar / Flex Group) -->
-                    <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
-                        <!-- Form Pull Master -->
-                        <form id="formPullMaster" action="{{ route('admin.sync.pull') }}" method="POST" class="w-100">
-                            @csrf
-                            <button type="button" id="btnPullMaster" class="btn btn-success fw-bold text-white w-100 py-2">
-                                <i class="fas fa-cloud-download-alt me-1"></i> Tarik Data Master (Pull)
-                            </button>
-                        </form>
+                    <!-- Tombol Aksi Pull Group -->
+                    <div class="d-flex flex-column gap-2 mt-2">
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            <!-- Form Pull Master -->
+                            <form id="formPullMaster" action="{{ route('admin.sync.pull') }}" method="POST" class="w-100">
+                                @csrf
+                                <button type="button" id="btnPullMaster" class="btn btn-success fw-bold text-white w-100 py-2">
+                                    <i class="fas fa-cloud-download-alt me-1"></i> Tarik Data Master
+                                </button>
+                            </form>
 
-                        <!-- Form Pull Absensi -->
-                        <form id="formPullAttendances" action="{{ route('admin.sync.pull-attendances') }}" method="POST" class="w-100">
+                            <!-- Form Pull Absensi -->
+                            <form id="formPullAttendances" action="{{ route('admin.sync.pull-attendances') }}" method="POST" class="w-100">
+                                @csrf
+                                <button type="button" id="btnPullAttendances" class="btn btn-warning fw-bold text-white w-100 py-2">
+                                    <i class="fas fa-download me-1"></i> Tarik Data Absensi
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Form Pull Foto Presensi (Cleanup Hosting) -->
+                        <form id="formPullPhotos" action="{{ route('admin.sync.pull-photos') }}" method="POST" class="w-100">
                             @csrf
-                            <button type="button" id="btnPullAttendances" class="btn btn-warning fw-bold text-white w-100 py-2">
-                                <i class="fas fa-download me-1"></i> Tarik Data Absensi (Pull)
+                            <button type="button" id="btnPullPhotos" class="btn btn-info fw-bold text-white w-100 py-2 shadow-sm">
+                                <i class="fas fa-images me-1"></i> Tarik Foto Presensi (Cleanup Hosting)
                             </button>
                         </form>
                     </div>
@@ -397,6 +407,42 @@ document.getElementById('btnPullAttendances')?.addEventListener('click', functio
             });
 
             document.getElementById('formPullAttendances').submit();
+        }
+    });
+});
+
+// -------------------------------------------------------------
+// SWEETALERT2: SINKRONISASI PULL FOTO PRESENSI (CLEANUP HOSTING)
+// -------------------------------------------------------------
+document.getElementById('btnPullPhotos')?.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    Swal.fire({
+        title: 'Tarik Foto Presensi & Cleanup Hosting?',
+        text: "File foto presensi di server online akan diunduh ke server lokal dan otomatis dihapus dari hosting online untuk mengosongkan ruang penyimpanan.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#0dcaf0',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Pindahkan Foto!',
+        cancelButtonText: 'Batal',
+        customClass: {
+            confirmButton: 'text-white'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Memindahkan Berkas Foto...',
+                html: 'Mohon tunggu, file foto sedang dikompresi dan dipindahkan ke server lokal.<br><br><div class="progress" style="height: 18px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 100%"></div></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            document.getElementById('formPullPhotos').submit();
         }
     });
 });
