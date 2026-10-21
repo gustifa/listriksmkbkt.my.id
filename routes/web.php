@@ -549,6 +549,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/generate-token', [SyncDashboardController::class, 'generateToken'])->name('generate-token');
             Route::post('/update-token', [SyncDashboardController::class, 'updateToken'])->name('update-token');
             Route::post('/update-url', [SyncDashboardController::class, 'updateServerUrl'])->name('update-url');
+            Route::post('/pull-attendances', [SyncDashboardController::class, 'pullAttendances'])->name('pull-attendances');
         });
         // Route Cetak Transkrip & Sertifikat untuk Admin
         Route::get('/admin/internships/{id}/transcript', [InternshipController::class, 'printTranscript'])->name('admin.internships.transcript');

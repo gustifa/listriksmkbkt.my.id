@@ -128,5 +128,15 @@ public function generateToken(Request $request)
         return redirect()->back()->with($result['status'], $result['message']);
     }
 
+    public function pullAttendances(DataSyncService $syncService)
+{
+    $result = $syncService->pullAttendanceData();
+
+    return redirect()->back()->with(
+        $result['status'] === 'success' ? 'success' : 'error',
+        $result['message']
+    );
+}
+
     
 }

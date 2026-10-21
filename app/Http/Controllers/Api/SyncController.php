@@ -227,5 +227,45 @@ class SyncController extends Controller
         return back()->with('success', 'API Token Sinkronisasi berhasil diperbarui!');
     }
 
+
+    /**
+ * Endpoint Khusus Pull Data Absensi dari Online ke Lokal
+ */
+public function pullAttendanceData(Request $request)
+{
+    set_time_limit(300);
+
+    $lastSyncedAtRaw = $request->get('last_synced_at');
+    $lastSyncedAt = null;
+
+    if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
+        try {
+            $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            $lastSyncedAt = null;
+        }
+    }
+
+    if ($lastSyncedAt) {
+        $dailyAttendances = DailyAttendance::where('updated_at', '>', $lastSyncedAt)->get();
+        $attendances = Attendance::where('updated_at', '>', $lastSyncedAt)->get();
+        $prayerAttendances = PrayerAttendance::where('updated_at', '>', $lastSyncedAt)->get();
+    } else {
+        // Jika pertama kali / restore penuh
+        $dailyAttendances = DailyAttendance::all();
+        $attendances = Attendance::all();
+        $prayerAttendances = PrayerAttendance::all();
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'data' => [
+            'daily_attendances' => $dailyAttendances,
+            'attendances' => $attendances,
+            'prayer_attendances' => $prayerAttendances,
+        ]
+    ]);
+}
+
     
 }

@@ -9,8 +9,6 @@ use App\Http\Controllers\Api\ScannerController;
 use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Api\PrayerServerSyncController;
 use App\Http\Controllers\Api\PrayerApiController;
-
-
 use App\Http\Controllers\Api\SyncController;
 
 Route::get('/user', function (Request $request) {
@@ -43,5 +41,6 @@ Route::get('/sync/export-all', [PrayerServerSyncController::class, 'exportAll'])
 Route::middleware('auth:sanctum')->prefix('v1/sync')->group(function () {
     Route::get('/pull', [SyncController::class, 'pullMasterData']);
     Route::post('/push', [SyncController::class, 'pushTransactionData']);
+    Route::get('/pull-attendances', [SyncController::class, 'pullAttendanceData']); // Route baru
 });
 

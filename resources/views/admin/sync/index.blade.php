@@ -223,6 +223,14 @@
                             <i class="fas fa-cloud-download-alt me-1"></i> Tarik Data Master (Pull)
                         </button>
                     </form>
+
+                    <!-- Tombol Tarik Data Absensi -->
+<form action="{{ route('admin.sync.pull-attendances') }}" method="POST" class="d-inline">
+    @csrf
+    <button type="submit" class="btn btn-warning fw-bold text-white" onclick="return confirm('Apakah Anda yakin ingin menarik data absensi dari server online?')">
+        <i class="bx bx-download"></i> Tarik Data Absensi (Pull)
+    </button>
+</form>
                 </div>
             </div>
         </div>
