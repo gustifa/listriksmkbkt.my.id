@@ -68,18 +68,23 @@ class SyncDashboardController extends Controller
         return redirect()->back()->with($result['status'], $result['message']);
     }
 
+    /**
+     * Khusus Server Online: Generate Token API Sanctum
+     */
     public function generateToken(Request $request)
     {
-        // Generate string token acak
-        $newToken = Str::random(60);
+        $user = auth()->user();
+        
+        // Hapus token lama dengan nama 'sync-token' jika ada
+        $user->tokens()->where('name', 'sync-token')->delete();
+        
+        // Buat token Sanctum baru
+        $newToken = $user->createToken('sync-token')->plainTextToken;
 
-        // Simpan atau update ke tabel settings dengan key 'sync_api_token'
-        Setting::updateOrCreate(
-            ['key' => 'sync_api_token'],
-            ['value' => $newToken]
-        );
-
-        return redirect()->back()->with('success', 'API Token Sinkronisasi berhasil diperbarui dan disimpan ke database!');
+        return redirect()->back()->with([
+            'success' => 'API Token berhasil di-generate dari Server Online!',
+            'plain_token' => $newToken
+        ]);
     }
 
     /**
@@ -99,17 +104,22 @@ class SyncDashboardController extends Controller
         return redirect()->back()->with('success', 'API Token dari Server Online berhasil disimpan!');
     }
 
+    /**
+     * Simpan URL Server Online
+     */
     public function updateServerUrl(Request $request)
-{
-    $request->validate([
-        'server_url' => 'required|url',
-    ]);
+    {
+        $request->validate([
+            'server_url' => 'required|url',
+        ]);
 
-    Setting::updateOrCreate(
-        ['key' => 'sync_server_url'],
-        ['value' => rtrim($request->server_url, '/')]
-    );
+        Setting::updateOrCreate(
+            ['key' => 'sync_server_url'],
+            ['value' => rtrim($request->server_url, '/')]
+        );
 
-    return redirect()->back()->with('success', 'URL Server Online berhasil diperbarui!');
-}
+        return redirect()->back()->with('success', 'URL Server Online berhasil diperbarui!');
+    }
+
+    
 }
