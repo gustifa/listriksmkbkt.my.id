@@ -18,12 +18,12 @@ class LicenseController extends Controller
      * Tampilan Halaman Aktivasi Lisensi
      */
     public function index()
-    {
-        $serverSignature = $this->licenseService->getServerSignature();
-        $check = $this->licenseService->verifyLicense();
+{
+    $serverSignature = $this->licenseService->getServerSignature();
+    $check = $this->licenseService->verifyLicense();
 
-        return view('license.index', compact('serverSignature', 'check'));
-    }
+    return view('license.index', compact('serverSignature', 'check'));
+}
 
     /**
      * Proses Upload File Lisensi (.lic)
