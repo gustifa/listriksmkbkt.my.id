@@ -14,6 +14,7 @@ use App\Models\StudentViolation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Models\PrayerAttendance; // <-- Pastikan namespace model ini ada
 
 class SyncController extends Controller
 {
