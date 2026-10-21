@@ -11,11 +11,12 @@ use Spatie\Permission\Traits\HasRoles;
 use App\Traits\HasUuid; // <--- 1. Import Trait
 use App\Models\Student;
 use App\Models\Classroom;
+use Laravel\Sanctum\HasApiTokens; // 1. Import HasApiTokens
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, HasUuid;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, HasUuid;
 
     /**
      * The attributes that are mass assignable.

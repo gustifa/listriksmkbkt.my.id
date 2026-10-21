@@ -69,26 +69,25 @@ class SyncDashboardController extends Controller
     }
 
     /**
- * Khusus Server Online: Generate Token API Sanctum & Simpan ke Tabel Settings
+ * Khusus Server Online: Generate Token Sanctum
  */
 public function generateToken(Request $request)
 {
-    // $user = auth()->user();
+    $user = auth()->user();
+
+    if (!$user) {
+        return redirect()->back()->with('error', 'Sesi pengguna tidak ditemukan.');
+    }
     
-    // // 1. Hapus token lama Sanctum jika ada
-    // $user->tokens()->where('name', 'sync-token')->delete();
+    // 1. Hapus token sinkronisasi lama pengguna jika ada
+    $user->tokens()->where('name', 'sync-token')->delete();
     
-    // 2. Buat token Sanctum baru
+    // 2. Generate token Sanctum baru (Sanctum otomatis meng-hash token di personal_access_tokens)
     $newToken = $user->createToken('sync-token')->plainTextToken;
 
-    // 3. Simpan / Update token ke tabel settings (dengan UUID Primary Key)
-    Setting::updateOrCreate(
-        ['key' => 'sync_api_token'],
-        ['value' => $newToken]
-    );
-
+    // 3. Kembalikan token HANYA via session flash agar tampil di layar sekali saja untuk disalin
     return redirect()->back()->with([
-        'success' => 'API Token berhasil di-generate dan disimpan ke tabel settings!',
+        'success' => 'API Token baru berhasil dibuat! Silakan salin dan simpan token ini ke Server Lokal.',
         'plain_token' => $newToken
     ]);
 }
