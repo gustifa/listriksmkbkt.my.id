@@ -177,8 +177,12 @@ class DataSyncService
                 $count = 0;
                 DB::beginTransaction();
 
-                // Nonaktifkan Foreign Key Check sementara di PostgreSQL
-                DB::statement('SET CONSTRAINTS ALL DEFERRED;');
+                // Abaikan pemeriksaan foreign key sementara di PostgreSQL
+                try {
+                    DB::statement("SET session_replication_role = 'replica';");
+                } catch (\Exception $ex) {
+                    DB::statement('SET CONSTRAINTS ALL DEFERRED;');
+                }
 
                 // 1. Users
                 foreach ($masterData['users'] ?? [] as $row) {
@@ -198,11 +202,20 @@ class DataSyncService
                     $count++;
                 }
 
-                // 2. Teachers (Diproses SEBELUM Classrooms untuk memenuhi FK counseling_teacher_id)
+                // 2. Teachers (Pencegahan Foreign Key Violation additional_task_id & user_id)
                 foreach ($masterData['teachers'] ?? [] as $row) {
                     if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
                         $row['user_id'] = null;
                     }
+
+                    // Validasi Foreign Key additional_task_id jika tabel referensi belum lengkap di lokal
+                    if (!empty($row['additional_task_id'])) {
+                        $hasTable = DB::getSchemaBuilder()->hasTable('additional_tasks');
+                        if (!$hasTable || !DB::table('additional_tasks')->where('id', $row['additional_task_id'])->exists()) {
+                            $row['additional_task_id'] = null;
+                        }
+                    }
+
                     $query = Teacher::where('id', $row['id']);
                     if (!empty($row['nip'])) $query->orWhere('nip', $row['nip']);
                     if (!empty($row['email'])) $query->orWhere('email', $row['email']);
@@ -216,7 +229,7 @@ class DataSyncService
                     $count++;
                 }
 
-                // 3. Classrooms (Aman karena data guru sudah di-insert terlebih dahulu)
+                // 3. Classrooms
                 foreach ($masterData['classrooms'] ?? [] as $row) {
                     $existingClassroom = Classroom::where('name', $row['name'])->orWhere('id', $row['id'])->first();
                     if ($existingClassroom) { 
@@ -248,6 +261,13 @@ class DataSyncService
                     $count++;
                 }
 
+                // Kembalikan ke mode normal
+                try {
+                    DB::statement("SET session_replication_role = 'origin';");
+                } catch (\Exception $ex) {
+                    // Ignore fallback
+                }
+
                 DB::commit();
 
                 SyncLog::create([
@@ -271,6 +291,10 @@ class DataSyncService
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            try {
+                DB::statement("SET session_replication_role = 'origin';");
+            } catch (\Exception $ex) {}
 
             if (function_exists('activity')) {
                 activity()->enableLogging();
