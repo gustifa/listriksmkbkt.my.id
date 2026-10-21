@@ -5,7 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\StudentViolation;
@@ -177,7 +177,7 @@ class DataSyncService
                 $count = 0;
                 DB::beginTransaction();
 
-                // Abaikan pemeriksaan foreign key sementara di PostgreSQL
+                // Nonaktifkan Foreign Key Check & Trigger PostgreSQL sementara saat sinkronisasi
                 try {
                     DB::statement("SET session_replication_role = 'replica';");
                 } catch (\Exception $ex) {
@@ -202,17 +202,18 @@ class DataSyncService
                     $count++;
                 }
 
-                // 2. Teachers (Pencegahan Foreign Key Violation additional_task_id & user_id)
+                // 2. Teachers (Pencegahan Not-Null Constraint & Foreign Key Violation)
                 foreach ($masterData['teachers'] ?? [] as $row) {
-                    if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
-                        $row['user_id'] = null;
-                    }
-
-                    // Validasi Foreign Key additional_task_id jika tabel referensi belum lengkap di lokal
-                    if (!empty($row['additional_task_id'])) {
-                        $hasTable = DB::getSchemaBuilder()->hasTable('additional_tasks');
-                        if (!$hasTable || !DB::table('additional_tasks')->where('id', $row['additional_task_id'])->exists()) {
-                            $row['additional_task_id'] = null;
+                    if (!empty($row['user_id'])) {
+                        $userExists = User::where('id', $row['user_id'])->exists();
+                        if (!$userExists) {
+                            // Jika user_id belum ada di lokal, buatkan akun user dummy agar tidak melanggar Not-Null
+                            User::create([
+                                'id' => $row['user_id'],
+                                'name' => $row['name'] ?? 'Guru Sync',
+                                'email' => $row['email'] ?? ('guru_' . Str::random(5) . '@school.id'),
+                                'password' => Hash::make('password123'),
+                            ]);
                         }
                     }
 
@@ -242,12 +243,6 @@ class DataSyncService
 
                 // 4. Students
                 foreach ($masterData['students'] ?? [] as $row) {
-                    if (!empty($row['classroom_id']) && !Classroom::where('id', $row['classroom_id'])->exists()) {
-                        $row['classroom_id'] = null;
-                    }
-                    if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
-                        $row['user_id'] = null;
-                    }
                     $query = Student::where('id', $row['id']);
                     if (!empty($row['nisn'])) $query->orWhere('nisn', $row['nisn']);
                     if (!empty($row['nis'])) $query->orWhere('nis', $row['nis']);
@@ -261,12 +256,10 @@ class DataSyncService
                     $count++;
                 }
 
-                // Kembalikan ke mode normal
+                // Kembalikan PostgreSQL ke mode normal
                 try {
                     DB::statement("SET session_replication_role = 'origin';");
-                } catch (\Exception $ex) {
-                    // Ignore fallback
-                }
+                } catch (\Exception $ex) {}
 
                 DB::commit();
 
@@ -376,6 +369,13 @@ class DataSyncService
                 $count = 0;
                 DB::beginTransaction();
 
+                // Nonaktifkan Foreign Key Check di PostgreSQL agar attendances_schedule_id_foreign dilewati
+                try {
+                    DB::statement("SET session_replication_role = 'replica';");
+                } catch (\Exception $ex) {
+                    DB::statement('SET CONSTRAINTS ALL DEFERRED;');
+                }
+
                 // 1. Daily Attendances (Absensi Gerbang)
                 foreach ($data['daily_attendances'] ?? [] as $row) {
                     $row['is_synced'] = true;
@@ -396,6 +396,11 @@ class DataSyncService
                     PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
                     $count++;
                 }
+
+                // Kembalikan ke mode normal
+                try {
+                    DB::statement("SET session_replication_role = 'origin';");
+                } catch (\Exception $ex) {}
 
                 DB::commit();
 
@@ -420,6 +425,10 @@ class DataSyncService
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            try {
+                DB::statement("SET session_replication_role = 'origin';");
+            } catch (\Exception $ex) {}
 
             if (function_exists('activity')) {
                 activity()->enableLogging();
