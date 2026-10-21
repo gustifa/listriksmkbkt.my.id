@@ -11,85 +11,54 @@ use App\Models\User;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\StudentViolation;
+use App\Models\PrayerAttendance;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
-use App\Models\PrayerAttendance; // <-- Pastikan namespace model ini ada
+use ZipArchive;
 
 class SyncController extends Controller
 {
     /**
      * ONLINE -> LOKAL: Mengambil Data Master Terbaru
      */
-    // public function pullMasterData(Request $request)
-    // {
-    //     $lastSyncedAt = $request->query('last_synced_at', '1970-01-01 00:00:00');
-
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'timestamp' => now()->toDateTimeString(),
-    //         'data' => [
-    //             'users' => User::where('updated_at', '>', $lastSyncedAt)->get(),
-    //             'classrooms' => Classroom::where('updated_at', '>', $lastSyncedAt)->get(),
-    //             'teachers' => Teacher::where('updated_at', '>', $lastSyncedAt)->get(),
-    //             'students' => Student::where('updated_at', '>', $lastSyncedAt)->get(),
-    //         ]
-    //     ]);
-    // }
-
-    // public function pullMasterData(Request $request)
-    // {
-    //     // Ambil data users dan buat password ikut terkirim dalam JSON
-    //     $users = User::all()->makeVisible(['password']);
-
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => [
-    //             'users' => $users,
-    //             'classrooms' => Classroom::all(),
-    //             'teachers' => Teacher::all(),
-    //             'students' => Student::all(),
-    //         ]
-    //     ]);
-    // }
-
     public function pullMasterData(Request $request)
-{
-    $lastSyncedAtRaw = $request->get('last_synced_at');
+    {
+        $lastSyncedAtRaw = $request->get('last_synced_at');
 
-    // Parse tanggal agar diformat dengan presisi Y-m-d H:i:s
-    $lastSyncedAt = null;
-    if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
-        try {
-            $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            $lastSyncedAt = null;
+        $lastSyncedAt = null;
+        if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
+            try {
+                $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
+            } catch (\Exception $e) {
+                $lastSyncedAt = null;
+            }
         }
-    }
 
-    if ($lastSyncedAt) {
-        $users = User::where('updated_at', '>', $lastSyncedAt)->get()->makeVisible(['password']);
-        $classrooms = Classroom::where('updated_at', '>', $lastSyncedAt)->get();
-        $teachers = Teacher::where('updated_at', '>', $lastSyncedAt)->get();
-        $students = Student::where('updated_at', '>', $lastSyncedAt)->get();
-    } else {
-        // Jika belum pernah tarik data / pertama kali
-        $users = User::all()->makeVisible(['password']);
-        $classrooms = Classroom::all();
-        $teachers = Teacher::all();
-        $students = Student::all();
-    }
+        if ($lastSyncedAt) {
+            $users = User::where('updated_at', '>', $lastSyncedAt)->get()->makeVisible(['password']);
+            $teachers = Teacher::where('updated_at', '>', $lastSyncedAt)->get();
+            $classrooms = Classroom::where('updated_at', '>', $lastSyncedAt)->get();
+            $students = Student::where('updated_at', '>', $lastSyncedAt)->get();
+        } else {
+            $users = User::all()->makeVisible(['password']);
+            $teachers = Teacher::all();
+            $classrooms = Classroom::all();
+            $students = Student::all();
+        }
 
-    return response()->json([
-        'status' => 'success',
-        'data' => [
-            'users' => $users,
-            'classrooms' => $classrooms,
-            'teachers' => $teachers,
-            'students' => $students,
-        ]
-    ]);
-}
+        // Urutan array disesuaikan: Users -> Teachers -> Classrooms -> Students
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'users' => $users,
+                'teachers' => $teachers,
+                'classrooms' => $classrooms,
+                'students' => $students,
+            ]
+        ]);
+    }
 
     /**
      * LOKAL -> ONLINE: Menerima Data Transaksi dari Server Lokal
@@ -153,34 +122,140 @@ class SyncController extends Controller
         }
     }
 
-    // public function generateToken()
-    // {
-    //     // Generate token acak yang aman (64 karakter)
-    //     $newToken = 'sk_live_' . Str::random(56);
+    /**
+     * Endpoint Khusus Pull Data Absensi dari Online ke Lokal
+     */
+    public function pullAttendanceData(Request $request)
+    {
+        set_time_limit(300);
 
-    //     // Simpan ke setting sekolah / database
-    //     $setting = SchoolSetting::first();
-    //     if ($setting) {
-    //         $setting->update(['sync_api_token' => $newToken]);
-    //     }
+        $lastSyncedAtRaw = $request->get('last_synced_at');
+        $lastSyncedAt = null;
 
-    //     return back()->with('success', 'API Token baru berhasil dibuat!');
-    // }
+        if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
+            try {
+                $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
+            } catch (\Exception $e) {
+                $lastSyncedAt = null;
+            }
+        }
 
-    // public function index()
-    // {
-    //     // Ambil token dari tabel settings
-    //     $syncToken = DB::table('settings')->where('key', 'sync_api_token')->value('value');
+        if ($lastSyncedAt) {
+            $dailyAttendances = DailyAttendance::where('updated_at', '>', $lastSyncedAt)->get();
+            $attendances = Attendance::where('updated_at', '>', $lastSyncedAt)->get();
+            $prayerAttendances = PrayerAttendance::where('updated_at', '>', $lastSyncedAt)->get();
+        } else {
+            $dailyAttendances = DailyAttendance::all();
+            $attendances = Attendance::all();
+            $prayerAttendances = PrayerAttendance::all();
+        }
 
-    //     return view('admin.sync.index', compact('syncToken'));
-    // }
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'daily_attendances' => $dailyAttendances,
+                'attendances' => $attendances,
+                'prayer_attendances' => $prayerAttendances,
+            ]
+        ]);
+    }
+
+    /**
+     * ONLINE -> LOKAL: Penarikan File Foto Presensi & Auto-Delete Storage Hosting
+     */
+    public function pullAttendancePhotos(Request $request)
+    {
+        set_time_limit(600);
+
+        $dailyPhotos = DailyAttendance::whereNotNull('photo_in')
+            ->orWhereNotNull('photo_out')
+            ->limit(100)
+            ->get(['photo_in', 'photo_out']);
+
+        $prayerPhotos = PrayerAttendance::whereNotNull('photo_evidence')
+            ->limit(100)
+            ->get(['photo_evidence']);
+
+        $filesToZip = [];
+
+        foreach ($dailyPhotos as $daily) {
+            if ($daily->photo_in && Storage::disk('public')->exists($daily->photo_in)) {
+                $filesToZip[] = $daily->photo_in;
+            }
+            if ($daily->photo_out && Storage::disk('public')->exists($daily->photo_out)) {
+                $filesToZip[] = $daily->photo_out;
+            }
+        }
+
+        foreach ($prayerPhotos as $prayer) {
+            if ($prayer->photo_evidence && Storage::disk('public')->exists($prayer->photo_evidence)) {
+                $filesToZip[] = $prayer->photo_evidence;
+            }
+        }
+
+        if (empty($filesToZip)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tidak ada file foto baru untuk ditarik.',
+                'photos_count' => 0
+            ]);
+        }
+
+        $zipFileName = 'photos_sync_' . time() . '.zip';
+        $zipPath = storage_path('app/public/' . $zipFileName);
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+            foreach ($filesToZip as $file) {
+                $fullPath = storage_path('app/public/' . $file);
+                if (file_exists($fullPath)) {
+                    $zip->addFile($fullPath, $file);
+                }
+            }
+            $zip->close();
+        }
+
+        // Hapus file foto dari storage online jika diminta oleh request lokal
+        if ($request->get('delete_online_storage') == true) {
+            foreach ($filesToZip as $file) {
+                Storage::disk('public')->delete($file);
+            }
+        }
+
+        return response()->download($zipPath)->deleteFileAfterSend(true);
+    }
+
+    public function generateToken()
+    {
+        $newToken = 'sk_live_' . Str::random(52);
+
+        $setting = DB::table('settings')->where('key', 'sync_api_token')->first();
+
+        if ($setting) {
+            DB::table('settings')
+                ->where('key', 'sync_api_token')
+                ->update([
+                    'value'      => $newToken,
+                    'updated_at' => now(),
+                ]);
+        } else {
+            $maxId = DB::table('settings')->max('id') ?? 0;
+
+            DB::table('settings')->insert([
+                'id'         => $maxId + 1,
+                'key'        => 'sync_api_token',
+                'value'      => $newToken,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return back()->with('success', 'API Token Sinkronisasi berhasil diperbarui!');
+    }
 
     public function index()
     {
-        // Ambil token dari tabel settings berdasarkan key 'sync_api_token'
         $syncToken = DB::table('settings')->where('key', 'sync_api_token')->value('value');
-
-        // Data riwayat dan counter pending push
         $syncLogs = DB::table('sync_logs')->latest()->take(10)->get();
         $pendingGateAttendance = DB::table('gate_attendances')->where('is_synced', false)->count();
         $pendingSubjectAttendance = DB::table('subject_attendances')->where('is_synced', false)->count();
@@ -196,77 +271,4 @@ class SyncController extends Controller
             'totalPendingPush'
         ));
     }
-    
-    public function generateToken()
-    {
-        $newToken = 'sk_live_' . Str::random(52);
-
-        // Cek apakah key 'sync_api_token' sudah ada
-        $setting = DB::table('settings')->where('key', 'sync_api_token')->first();
-
-        if ($setting) {
-            // Update jika key sudah ada di tabel
-            DB::table('settings')
-                ->where('key', 'sync_api_token')
-                ->update([
-                    'value'      => $newToken,
-                    'updated_at' => now(),
-                ]);
-        } else {
-            // Jika belum ada, ambil MAX(id) + 1 untuk menghindari konflik PostgreSQL sequence
-            $maxId = DB::table('settings')->max('id') ?? 0;
-
-            DB::table('settings')->insert([
-                'id'         => $maxId + 1,
-                'key'        => 'sync_api_token',
-                'value'      => $newToken,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
-        return back()->with('success', 'API Token Sinkronisasi berhasil diperbarui!');
-    }
-
-
-    /**
- * Endpoint Khusus Pull Data Absensi dari Online ke Lokal
- */
-public function pullAttendanceData(Request $request)
-{
-    set_time_limit(300);
-
-    $lastSyncedAtRaw = $request->get('last_synced_at');
-    $lastSyncedAt = null;
-
-    if ($lastSyncedAtRaw && $lastSyncedAtRaw !== '1970-01-01 00:00:00') {
-        try {
-            $lastSyncedAt = Carbon::parse($lastSyncedAtRaw)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            $lastSyncedAt = null;
-        }
-    }
-
-    if ($lastSyncedAt) {
-        $dailyAttendances = DailyAttendance::where('updated_at', '>', $lastSyncedAt)->get();
-        $attendances = Attendance::where('updated_at', '>', $lastSyncedAt)->get();
-        $prayerAttendances = PrayerAttendance::where('updated_at', '>', $lastSyncedAt)->get();
-    } else {
-        // Jika pertama kali / restore penuh
-        $dailyAttendances = DailyAttendance::all();
-        $attendances = Attendance::all();
-        $prayerAttendances = PrayerAttendance::all();
-    }
-
-    return response()->json([
-        'status' => 'success',
-        'data' => [
-            'daily_attendances' => $dailyAttendances,
-            'attendances' => $attendances,
-            'prayer_attendances' => $prayerAttendances,
-        ]
-    ]);
-}
-
-    
 }

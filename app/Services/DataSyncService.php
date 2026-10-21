@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use App\Models\StudentViolation;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Models\SyncLog;
 use App\Models\Setting;
 use App\Models\PrayerAttendance;
+use ZipArchive;
 
 class DataSyncService
 {
@@ -110,652 +112,360 @@ class DataSyncService
     }
 
     /**
-     * Eksekusi Pull (Online ke Lokal)
+     * Eksekusi Pull Data Master (Online ke Lokal)
      */
-    // public function pullMasterData(): array
-    // {
-    //     if (empty($this->baseUrl)) {
-    //         return ['status' => 'error', 'message' => 'URL Server Online belum diatur. Silakan atur URL terlebih dahulu.'];
-    //     }
+    public function pullMasterData(): array
+    {
+        set_time_limit(300);
 
-    //     if (empty($this->token)) {
-    //         return ['status' => 'error', 'message' => 'API Token belum diatur. Silakan masukkan token dari Server Online.'];
-    //     }
+        // Matikan activity log selama proses sinkronisasi untuk menghindari konflik log ID
+        if (function_exists('activity')) {
+            activity()->disableLogging();
+        }
 
-    //     $lastPull = SyncLog::where('type', 'pull')
-    //         ->where('status', 'success')
-    //         ->latest('synced_at')
-    //         ->value('synced_at');
+        if (empty($this->baseUrl) || empty($this->token)) {
+            return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+        }
 
-    //     $lastSyncedAt = $lastPull ? $lastPull->toDateTimeString() : '1970-01-01 00:00:00';
+        // Ambil log sukses terakhir
+        $lastPull = SyncLog::where('type', 'pull')
+            ->where('table_name', 'master_data')
+            ->where('status', 'success')
+            ->latest('synced_at')
+            ->value('synced_at');
 
-    //     try {
-    //         $response = Http::withToken($this->token)
-    //             ->acceptJson()
-    //             ->timeout(30)
-    //             ->get("{$this->baseUrl}/api/v1/sync/pull", [
-    //                 'last_synced_at' => $lastSyncedAt
-    //             ]);
+        // Format eksplisit Y-m-d H:i:s
+        $lastSyncedAt = $lastPull 
+            ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
+            : '1970-01-01 00:00:00';
 
-    //         if ($response->successful()) {
-    //             $masterData = $response->json('data');
-    //             $count = 0;
+        $currentSyncTimestamp = now();
 
-    //             DB::beginTransaction();
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($this->token)
+                ->acceptJson()
+                ->timeout(120)
+                ->get("{$this->baseUrl}/api/v1/sync/pull", [
+                    'last_synced_at' => $lastSyncedAt
+                ]);
 
-    //             foreach ($masterData['users'] ?? [] as $row) {
-    //                 // Cari user berdasarkan email terlebih dahulu, atau ID
-    //                 $existingUser = User::where('email', $row['email'])
-    //                     ->orWhere('id', $row['id'])
-    //                     ->first();
-
-    //                 if (!isset($row['password']) || empty($row['password'])) {
-    //                     if ($existingUser) {
-    //                         // Pertahankan password lokal jika user sudah ada
-    //                         unset($row['password']);
-    //                     } else {
-    //                         // Berikan password default jika user baru
-    //                         $row['password'] = Hash::make('password123');
-    //                     }
-    //                 }
-
-    //                 if ($existingUser) {
-    //                     // Update user yang sudah ada berdasarkan ID/Email yang ditemukan
-    //                     $existingUser->update($row);
-    //                 } else {
-    //                     // Buat user baru jika belum ada di lokal
-    //                     User::create($row);
-    //                 }
-
-    //                 $count++;
-    //             }
-
-    //             // 2. Synchronize Classrooms
-    //             foreach ($masterData['classrooms'] ?? [] as $row) {
-    //                 Classroom::updateOrCreate(['id' => $row['id']], $row);
-    //                 $count++;
-    //             }
-
-    //             // 3. Synchronize Teachers
-    //             foreach ($masterData['teachers'] ?? [] as $row) {
-    //                 Teacher::updateOrCreate(['id' => $row['id']], $row);
-    //                 $count++;
-    //             }
-
-    //             // 4. Synchronize Students
-    //             foreach ($masterData['students'] ?? [] as $row) {
-    //                 Student::updateOrCreate(['id' => $row['id']], $row);
-    //                 $count++;
-    //             }
-
-    //             DB::commit();
-
-    //             SyncLog::create([
-    //                 'type' => 'pull',
-    //                 'table_name' => 'master_data',
-    //                 'records_count' => $count,
-    //                 'status' => 'success',
-    //                 'synced_at' => now(),
-    //             ]);
-
-    //             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
-    //         }
-
-    //         $statusCode = $response->status();
-    //         $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
-    //         throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-
-    //         SyncLog::create([
-    //             'type' => 'pull',
-    //             'table_name' => 'master_data',
-    //             'records_count' => 0,
-    //             'status' => 'failed',
-    //             'error_message' => $e->getMessage(),
-    //             'synced_at' => now(),
-    //         ]);
-
-    //         return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
-    //     }
-    // }
-
-    /**
- * Eksekusi Pull (Online ke Lokal)
- */
-// public function pullMasterData(): array
-// {
-//     if (empty($this->baseUrl)) {
-//         return ['status' => 'error', 'message' => 'URL Server Online belum diatur. Silakan atur URL terlebih dahulu.'];
-//     }
-
-//     if (empty($this->token)) {
-//         return ['status' => 'error', 'message' => 'API Token belum diatur. Silakan masukkan token dari Server Online.'];
-//     }
-
-//     $lastPull = SyncLog::where('type', 'pull')
-//         ->where('status', 'success')
-//         ->latest('synced_at')
-//         ->value('synced_at');
-
-//     $lastSyncedAt = $lastPull ? $lastPull->toDateTimeString() : '1970-01-01 00:00:00';
-
-//     try {
-//         $response = Http::withoutVerifying() // <-- Tambahkan ini
-//             ->withToken($this->token)
-//             ->acceptJson()
-//             ->timeout(30)
-//             ->get("{$this->baseUrl}/api/v1/sync/pull", [
-//                 'last_synced_at' => $lastSyncedAt
-//             ]);
-
-//         if ($response->successful()) {
-//             $masterData = $response->json('data');
-//             $count = 0;
-
-//             DB::beginTransaction();
-
-//             // 1. Synchronize Users (Update ID Lokal agar Sama dengan ID Online)
-//             foreach ($masterData['users'] ?? [] as $row) {
-//                 $existingUser = User::where('email', $row['email'])
-//                     ->orWhere('id', $row['id'])
-//                     ->first();
-
-//                 if (!isset($row['password']) || empty($row['password'])) {
-//                     if ($existingUser) {
-//                         unset($row['password']);
-//                     } else {
-//                         $row['password'] = Hash::make('password123');
-//                     }
-//                 }
-
-//                 if ($existingUser) {
-//                     $existingUser->update($row);
-//                 } else {
-//                     User::create($row);
-//                 }
-//                 $count++;
-//             }
-
-//             // 2. Synchronize Classrooms
-//             foreach ($masterData['classrooms'] ?? [] as $row) {
-//                 $existingClassroom = Classroom::where('name', $row['name'])
-//                     ->orWhere('id', $row['id'])
-//                     ->first();
-
-//                 if ($existingClassroom) {
-//                     $existingClassroom->update($row);
-//                 } else {
-//                     Classroom::create($row);
-//                 }
-//                 $count++;
-//             }
-
-//             // 3. Synchronize Teachers (Validasi user_id)
-//             foreach ($masterData['teachers'] ?? [] as $row) {
-//                 if (!empty($row['user_id'])) {
-//                     $userExists = User::where('id', $row['user_id'])->exists();
-//                     if (!$userExists) {
-//                         $row['user_id'] = null;
-//                     }
-//                 }
-
-//                 $query = Teacher::where('id', $row['id']);
-//                 if (!empty($row['nip'])) {
-//                     $query->orWhere('nip', $row['nip']);
-//                 }
-//                 if (!empty($row['email'])) {
-//                     $query->orWhere('email', $row['email']);
-//                 }
+            if ($response->successful()) {
+                $masterData = $response->json('data');
                 
-//                 $existingTeacher = $query->first();
+                $totalRecordsReceived = count($masterData['users'] ?? []) 
+                    + count($masterData['teachers'] ?? [])
+                    + count($masterData['classrooms'] ?? []) 
+                    + count($masterData['students'] ?? []);
 
-//                 if ($existingTeacher) {
-//                     $existingTeacher->update($row);
-//                 } else {
-//                     Teacher::create($row);
-//                 }
-//                 $count++;
-//             }
+                if ($totalRecordsReceived === 0) {
+                    SyncLog::create([
+                        'type' => 'pull',
+                        'table_name' => 'master_data',
+                        'records_count' => 0,
+                        'status' => 'success',
+                        'synced_at' => $currentSyncTimestamp,
+                    ]);
 
-//             // 4. Synchronize Students (Validasi classroom_id dan user_id)
-//             foreach ($masterData['students'] ?? [] as $row) {
-//                 // Check Foreign Key classroom_id
-//                 if (!empty($row['classroom_id'])) {
-//                     $classroomExists = Classroom::where('id', $row['classroom_id'])->exists();
-//                     if (!$classroomExists) {
-//                         $row['classroom_id'] = null;
-//                     }
-//                 }
+                    if (function_exists('activity')) {
+                        activity()->enableLogging();
+                    }
 
-//                 // Check Foreign Key user_id
-//                 if (!empty($row['user_id'])) {
-//                     $userExists = User::where('id', $row['user_id'])->exists();
-//                     if (!$userExists) {
-//                         $row['user_id'] = null;
-//                     }
-//                 }
+                    return ['status' => 'success', 'message' => 'Data master sudah yang terbaru (0 record ditarik).'];
+                }
 
-//                 $query = Student::where('id', $row['id']);
-//                 if (!empty($row['nisn'])) {
-//                     $query->orWhere('nisn', $row['nisn']);
-//                 }
-//                 if (!empty($row['nis'])) {
-//                     $query->orWhere('nis', $row['nis']);
-//                 }
+                $count = 0;
+                DB::beginTransaction();
 
-//                 $existingStudent = $query->first();
+                // Nonaktifkan Foreign Key Check sementara di PostgreSQL
+                DB::statement('SET CONSTRAINTS ALL DEFERRED;');
 
-//                 if ($existingStudent) {
-//                     $existingStudent->update($row);
-//                 } else {
-//                     Student::create($row);
-//                 }
-//                 $count++;
-//             }
+                // 1. Users
+                foreach ($masterData['users'] ?? [] as $row) {
+                    $existingUser = User::where('email', $row['email'])->orWhere('id', $row['id'])->first();
+                    if (!isset($row['password']) || empty($row['password'])) {
+                        if ($existingUser) { 
+                            unset($row['password']); 
+                        } else { 
+                            $row['password'] = Hash::make('password123'); 
+                        }
+                    }
+                    if ($existingUser) { 
+                        $existingUser->update($row); 
+                    } else { 
+                        User::create($row); 
+                    }
+                    $count++;
+                }
 
-//             DB::commit();
+                // 2. Teachers (Diproses SEBELUM Classrooms untuk memenuhi FK counseling_teacher_id)
+                foreach ($masterData['teachers'] ?? [] as $row) {
+                    if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
+                        $row['user_id'] = null;
+                    }
+                    $query = Teacher::where('id', $row['id']);
+                    if (!empty($row['nip'])) $query->orWhere('nip', $row['nip']);
+                    if (!empty($row['email'])) $query->orWhere('email', $row['email']);
+                    $existingTeacher = $query->first();
 
-//             SyncLog::create([
-//                 'type' => 'pull',
-//                 'table_name' => 'master_data',
-//                 'records_count' => $count,
-//                 'status' => 'success',
-//                 'synced_at' => now(),
-//             ]);
+                    if ($existingTeacher) { 
+                        $existingTeacher->update($row); 
+                    } else { 
+                        Teacher::create($row); 
+                    }
+                    $count++;
+                }
 
-//             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
-//         }
+                // 3. Classrooms (Aman karena data guru sudah di-insert terlebih dahulu)
+                foreach ($masterData['classrooms'] ?? [] as $row) {
+                    $existingClassroom = Classroom::where('name', $row['name'])->orWhere('id', $row['id'])->first();
+                    if ($existingClassroom) { 
+                        $existingClassroom->update($row); 
+                    } else { 
+                        Classroom::create($row); 
+                    }
+                    $count++;
+                }
 
-//         $statusCode = $response->status();
-//         $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
-//         throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+                // 4. Students
+                foreach ($masterData['students'] ?? [] as $row) {
+                    if (!empty($row['classroom_id']) && !Classroom::where('id', $row['classroom_id'])->exists()) {
+                        $row['classroom_id'] = null;
+                    }
+                    if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
+                        $row['user_id'] = null;
+                    }
+                    $query = Student::where('id', $row['id']);
+                    if (!empty($row['nisn'])) $query->orWhere('nisn', $row['nisn']);
+                    if (!empty($row['nis'])) $query->orWhere('nis', $row['nis']);
+                    $existingStudent = $query->first();
 
-//     } catch (\Exception $e) {
-//         DB::rollBack();
+                    if ($existingStudent) { 
+                        $existingStudent->update($row); 
+                    } else { 
+                        Student::create($row); 
+                    }
+                    $count++;
+                }
 
-//         SyncLog::create([
-//             'type' => 'pull',
-//             'table_name' => 'master_data',
-//             'records_count' => 0,
-//             'status' => 'failed',
-//             'error_message' => $e->getMessage(),
-//             'synced_at' => now(),
-//         ]);
+                DB::commit();
 
-//         return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
-//     }
-// }
-
-public function pullMasterData(): array
-{
-    set_time_limit(300);
-
-    if (empty($this->baseUrl) || empty($this->token)) {
-        return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
-    }
-
-    // Ambil log sukses terakhir
-    $lastPull = SyncLog::where('type', 'pull')
-        ->where('status', 'success')
-        ->latest('synced_at')
-        ->value('synced_at');
-
-    // Format eksplisit Y-m-d H:i:s
-    $lastSyncedAt = $lastPull 
-        ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
-        : '1970-01-01 00:00:00';
-
-    // Catat timestamp penarikan saat ini sebelum proses loop
-    $currentSyncTimestamp = now();
-
-    try {
-        $response = Http::withoutVerifying()
-            ->withToken($this->token)
-            ->acceptJson()
-            ->timeout(120)
-            ->get("{$this->baseUrl}/api/v1/sync/pull", [
-                'last_synced_at' => $lastSyncedAt
-            ]);
-
-        if ($response->successful()) {
-            $masterData = $response->json('data');
-            
-            // Cek jika seluruh array data kosong (0 data)
-            $totalRecordsReceived = count($masterData['users'] ?? []) 
-                + count($masterData['classrooms'] ?? []) 
-                + count($masterData['teachers'] ?? []) 
-                + count($masterData['students'] ?? []);
-
-            if ($totalRecordsReceived === 0) {
-                // Catat log sukses dengan 0 record
                 SyncLog::create([
                     'type' => 'pull',
                     'table_name' => 'master_data',
-                    'records_count' => 0,
+                    'records_count' => $count,
                     'status' => 'success',
                     'synced_at' => $currentSyncTimestamp,
                 ]);
 
-                return ['status' => 'success', 'message' => 'Data master sudah yang terbaru (0 record ditarik).'];
-            }
-
-            $count = 0;
-            DB::beginTransaction();
-
-            // 1. Users
-            foreach ($masterData['users'] ?? [] as $row) {
-                $existingUser = User::where('email', $row['email'])->orWhere('id', $row['id'])->first();
-                if (!isset($row['password']) || empty($row['password'])) {
-                    if ($existingUser) { unset($row['password']); } 
-                    else { $row['password'] = Hash::make('password123'); }
+                if (function_exists('activity')) {
+                    activity()->enableLogging();
                 }
-                if ($existingUser) { $existingUser->update($row); } 
-                else { User::create($row); }
-                $count++;
+
+                return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
             }
 
-            // 2. Classrooms
-            foreach ($masterData['classrooms'] ?? [] as $row) {
-                $existingClassroom = Classroom::where('name', $row['name'])->orWhere('id', $row['id'])->first();
-                if ($existingClassroom) { $existingClassroom->update($row); } 
-                else { Classroom::create($row); }
-                $count++;
+            $statusCode = $response->status();
+            $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
+            throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (function_exists('activity')) {
+                activity()->enableLogging();
             }
-
-            // 3. Teachers
-            foreach ($masterData['teachers'] ?? [] as $row) {
-                if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
-                    $row['user_id'] = null;
-                }
-                $query = Teacher::where('id', $row['id']);
-                if (!empty($row['nip'])) $query->orWhere('nip', $row['nip']);
-                if (!empty($row['email'])) $query->orWhere('email', $row['email']);
-                $existingTeacher = $query->first();
-
-                if ($existingTeacher) { $existingTeacher->update($row); } 
-                else { Teacher::create($row); }
-                $count++;
-            }
-
-            // 4. Students
-            foreach ($masterData['students'] ?? [] as $row) {
-                if (!empty($row['classroom_id']) && !Classroom::where('id', $row['classroom_id'])->exists()) {
-                    $row['classroom_id'] = null;
-                }
-                if (!empty($row['user_id']) && !User::where('id', $row['user_id'])->exists()) {
-                    $row['user_id'] = null;
-                }
-                $query = Student::where('id', $row['id']);
-                if (!empty($row['nisn'])) $query->orWhere('nisn', $row['nisn']);
-                if (!empty($row['nis'])) $query->orWhere('nis', $row['nis']);
-                $existingStudent = $query->first();
-
-                if ($existingStudent) { $existingStudent->update($row); } 
-                else { Student::create($row); }
-                $count++;
-            }
-
-            DB::commit();
 
             SyncLog::create([
                 'type' => 'pull',
                 'table_name' => 'master_data',
-                'records_count' => $count,
-                'status' => 'success',
-                'synced_at' => $currentSyncTimestamp,
+                'records_count' => 0,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'synced_at' => now(),
             ]);
 
-            return ['status' => 'success', 'message' => "Berhasil menarik {$count} data master terbaru."];
+            return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Eksekusi Pull Data Absensi (Online ke Lokal)
+     */
+    public function pullAttendanceData(): array
+    {
+        set_time_limit(300);
+
+        // Matikan activity log selama proses sinkronisasi
+        if (function_exists('activity')) {
+            activity()->disableLogging();
         }
 
-        $statusCode = $response->status();
-        $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data master dari online.';
-        throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+        if (empty($this->baseUrl) || empty($this->token)) {
+            return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
+        }
 
-    } catch (\Exception $e) {
-        DB::rollBack();
+        $lastPull = SyncLog::where('type', 'pull')
+            ->where('table_name', 'attendance_data')
+            ->where('status', 'success')
+            ->latest('synced_at')
+            ->value('synced_at');
 
-        SyncLog::create([
-            'type' => 'pull',
-            'table_name' => 'master_data',
-            'records_count' => 0,
-            'status' => 'failed',
-            'error_message' => $e->getMessage(),
-            'synced_at' => now(),
-        ]);
+        $lastSyncedAt = $lastPull 
+            ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
+            : '1970-01-01 00:00:00';
 
-        return ['status' => 'error', 'message' => 'Gagal Pull Data: ' . $e->getMessage()];
-    }
-}
+        $currentSyncTimestamp = now();
 
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($this->token)
+                ->acceptJson()
+                ->timeout(120)
+                ->get("{$this->baseUrl}/api/v1/sync/pull-attendances", [
+                    'last_synced_at' => $lastSyncedAt
+                ]);
 
-/**
- * Eksekusi Pull Data Absensi (Online ke Lokal)
- */
-// public function pullAttendanceData(): array
-// {
-//     set_time_limit(300);
+            if ($response->successful()) {
+                $data = $response->json('data');
 
-//     if (empty($this->baseUrl) || empty($this->token)) {
-//         return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
-//     }
+                $totalRecordsReceived = count($data['daily_attendances'] ?? []) 
+                    + count($data['attendances'] ?? []) 
+                    + count($data['prayer_attendances'] ?? []);
 
-//     $lastPull = SyncLog::where('type', 'pull')
-//         ->where('table_name', 'attendance_data')
-//         ->where('status', 'success')
-//         ->latest('synced_at')
-//         ->value('synced_at');
+                if ($totalRecordsReceived === 0) {
+                    SyncLog::create([
+                        'type' => 'pull',
+                        'table_name' => 'attendance_data',
+                        'records_count' => 0,
+                        'status' => 'success',
+                        'synced_at' => $currentSyncTimestamp,
+                    ]);
 
-//     $lastSyncedAt = $lastPull 
-//         ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
-//         : '1970-01-01 00:00:00';
+                    if (function_exists('activity')) {
+                        activity()->enableLogging();
+                    }
 
-//     $currentSyncTimestamp = now();
+                    return ['status' => 'success', 'message' => 'Data absensi sudah yang terbaru (0 record ditarik).'];
+                }
 
-//     try {
-//         $response = Http::withoutVerifying()
-//             ->withToken($this->token)
-//             ->acceptJson()
-//             ->timeout(120)
-//             ->get("{$this->baseUrl}/api/v1/sync/pull-attendances", [
-//                 'last_synced_at' => $lastSyncedAt
-//             ]);
+                $count = 0;
+                DB::beginTransaction();
 
-//         if ($response->successful()) {
-//             $data = $response->json('data');
+                // 1. Daily Attendances (Absensi Gerbang)
+                foreach ($data['daily_attendances'] ?? [] as $row) {
+                    $row['is_synced'] = true;
+                    DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
+                    $count++;
+                }
 
-//             $totalRecordsReceived = count($data['daily_attendances'] ?? []) 
-//                 + count($data['attendances'] ?? []) 
-//                 + count($data['prayer_attendances'] ?? []);
+                // 2. Attendances (Absensi Pembelajaran)
+                foreach ($data['attendances'] ?? [] as $row) {
+                    $row['is_synced'] = true;
+                    Attendance::updateOrCreate(['id' => $row['id']], $row);
+                    $count++;
+                }
 
-//             if ($totalRecordsReceived === 0) {
-//                 SyncLog::create([
-//                     'type' => 'pull',
-//                     'table_name' => 'attendance_data',
-//                     'records_count' => 0,
-//                     'status' => 'success',
-//                     'synced_at' => $currentSyncTimestamp,
-//                 ]);
+                // 3. Prayer Attendances (Absensi Sholat)
+                foreach ($data['prayer_attendances'] ?? [] as $row) {
+                    $row['is_synced'] = true;
+                    PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
+                    $count++;
+                }
 
-//                 return ['status' => 'success', 'message' => 'Data absensi sudah yang terbaru (0 record ditarik).'];
-//             }
+                DB::commit();
 
-//             $count = 0;
-//             DB::beginTransaction();
-
-//             // 1. Daily Attendances (Absensi Gerbang)
-//             foreach ($data['daily_attendances'] ?? [] as $row) {
-//                 $row['is_synced'] = true; // Tandai sudah sinkron
-//                 DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
-//                 $count++;
-//             }
-
-//             // 2. Attendances (Absensi Pembelajaran)
-//             foreach ($data['attendances'] ?? [] as $row) {
-//                 $row['is_synced'] = true;
-//                 Attendance::updateOrCreate(['id' => $row['id']], $row);
-//                 $count++;
-//             }
-
-//             // 3. Prayer Attendances (Absensi Sholat)
-//             foreach ($data['prayer_attendances'] ?? [] as $row) {
-//                 $row['is_synced'] = true;
-//                 PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
-//                 $count++;
-//             }
-
-//             DB::commit();
-
-//             SyncLog::create([
-//                 'type' => 'pull',
-//                 'table_name' => 'attendance_data',
-//                 'records_count' => $count,
-//                 'status' => 'success',
-//                 'synced_at' => $currentSyncTimestamp,
-//             ]);
-
-//             return ['status' => 'success', 'message' => "Berhasil menarik {$count} data absensi dari online."];
-//         }
-
-//         $statusCode = $response->status();
-//         $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data absensi.';
-//         throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
-
-//     } catch (\Exception $e) {
-//         DB::rollBack();
-
-//         SyncLog::create([
-//             'type' => 'pull',
-//             'table_name' => 'attendance_data',
-//             'records_count' => 0,
-//             'status' => 'failed',
-//             'error_message' => $e->getMessage(),
-//             'synced_at' => now(),
-//         ]);
-
-//         return ['status' => 'error', 'message' => 'Gagal Pull Absensi: ' . $e->getMessage()];
-//     }
-// }
-
-/**
- * Eksekusi Pull Data Absensi (Online ke Lokal)
- */
-public function pullAttendanceData(): array
-{
-    set_time_limit(300);
-
-    // Matikan activity log selama proses sinkronisasi
-    activity()->disableLogging();
-
-    if (empty($this->baseUrl) || empty($this->token)) {
-        return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
-    }
-
-    $lastPull = SyncLog::where('type', 'pull')
-        ->where('table_name', 'attendance_data')
-        ->where('status', 'success')
-        ->latest('synced_at')
-        ->value('synced_at');
-
-    $lastSyncedAt = $lastPull 
-        ? \Carbon\Carbon::parse($lastPull)->format('Y-m-d H:i:s') 
-        : '1970-01-01 00:00:00';
-
-    $currentSyncTimestamp = now();
-
-    try {
-        $response = Http::withoutVerifying()
-            ->withToken($this->token)
-            ->acceptJson()
-            ->timeout(120)
-            ->get("{$this->baseUrl}/api/v1/sync/pull-attendances", [
-                'last_synced_at' => $lastSyncedAt
-            ]);
-
-        if ($response->successful()) {
-            $data = $response->json('data');
-
-            $totalRecordsReceived = count($data['daily_attendances'] ?? []) 
-                + count($data['attendances'] ?? []) 
-                + count($data['prayer_attendances'] ?? []);
-
-            if ($totalRecordsReceived === 0) {
                 SyncLog::create([
                     'type' => 'pull',
                     'table_name' => 'attendance_data',
-                    'records_count' => 0,
+                    'records_count' => $count,
                     'status' => 'success',
                     'synced_at' => $currentSyncTimestamp,
                 ]);
 
-                return ['status' => 'success', 'message' => 'Data absensi sudah yang terbaru (0 record ditarik).'];
+                if (function_exists('activity')) {
+                    activity()->enableLogging();
+                }
+
+                return ['status' => 'success', 'message' => "Berhasil menarik {$count} data absensi dari online."];
             }
 
-            $count = 0;
-            DB::beginTransaction();
+            $statusCode = $response->status();
+            $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data absensi.';
+            throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
 
-            // 1. Daily Attendances (Absensi Gerbang)
-            foreach ($data['daily_attendances'] ?? [] as $row) {
-                $row['is_synced'] = true;
-                DailyAttendance::updateOrCreate(['id' => $row['id']], $row);
-                $count++;
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (function_exists('activity')) {
+                activity()->enableLogging();
             }
-
-            // 2. Attendances (Absensi Pembelajaran)
-            foreach ($data['attendances'] ?? [] as $row) {
-                $row['is_synced'] = true;
-                Attendance::updateOrCreate(['id' => $row['id']], $row);
-                $count++;
-            }
-
-            // 3. Prayer Attendances (Absensi Sholat)
-            foreach ($data['prayer_attendances'] ?? [] as $row) {
-                $row['is_synced'] = true;
-                PrayerAttendance::updateOrCreate(['id' => $row['id']], $row);
-                $count++;
-            }
-
-            DB::commit();
 
             SyncLog::create([
                 'type' => 'pull',
                 'table_name' => 'attendance_data',
-                'records_count' => $count,
-                'status' => 'success',
-                'synced_at' => $currentSyncTimestamp,
+                'records_count' => 0,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'synced_at' => now(),
             ]);
 
-            // Hidupkan kembali activity log
-            activity()->enableLogging();
+            return ['status' => 'error', 'message' => 'Gagal Pull Absensi: ' . $e->getMessage()];
+        }
+    }
 
-            return ['status' => 'success', 'message' => "Berhasil menarik {$count} data absensi dari online."];
+    /**
+     * Penarikan File Foto Presensi dari Online ke Lokal (Hemat Storage Online)
+     */
+    public function pullAttendancePhotos(): array
+    {
+        set_time_limit(600);
+
+        if (empty($this->baseUrl) || empty($this->token)) {
+            return ['status' => 'error', 'message' => 'URL Server atau API Token belum diatur.'];
         }
 
-        $statusCode = $response->status();
-        $errorMsg = $response->json('message') ?? $response->body() ?? 'Gagal mengambil data absensi.';
-        throw new \Exception("HTTP {$statusCode}: {$errorMsg}");
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($this->token)
+                ->timeout(300)
+                ->get("{$this->baseUrl}/api/v1/sync/pull-photos", [
+                    'delete_online_storage' => true
+                ]);
 
-    } catch (\Exception $e) {
-        DB::rollBack();
+            if ($response->header('Content-Type') === 'application/json' || str_contains($response->header('Content-Type'), 'json')) {
+                $resData = $response->json();
+                return ['status' => 'success', 'message' => $resData['message'] ?? 'Tidak ada foto baru untuk ditarik.'];
+            }
 
-        // Pastikan activity log diaktifkan kembali jika terjadi error
-        activity()->enableLogging();
+            if ($response->successful()) {
+                $tempZipPath = storage_path('app/temp_photos_' . time() . '.zip');
+                file_put_contents($tempZipPath, $response->body());
 
-        SyncLog::create([
-            'type' => 'pull',
-            'table_name' => 'attendance_data',
-            'records_count' => 0,
-            'status' => 'failed',
-            'error_message' => $e->getMessage(),
-            'synced_at' => now(),
-        ]);
+                $zip = new ZipArchive();
+                if ($zip->open($tempZipPath) === true) {
+                    $zip->extractTo(storage_path('app/public'));
+                    $zip->close();
+                    @unlink($tempZipPath);
 
-        return ['status' => 'error', 'message' => 'Gagal Pull Absensi: ' . $e->getMessage()];
+                    SyncLog::create([
+                        'type' => 'pull',
+                        'table_name' => 'attendance_photos',
+                        'records_count' => 1,
+                        'status' => 'success',
+                        'synced_at' => now(),
+                    ]);
+
+                    return ['status' => 'success', 'message' => 'Berhasil menarik foto presensi dan mengosongkan storage hosting online.'];
+                }
+
+                throw new \Exception('Gagal mengekstrak berkas foto ZIP.');
+            }
+
+            throw new \Exception('HTTP ' . $response->status() . ': Gagal mengunduh berkas foto.');
+
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'message' => 'Gagal Pull Foto: ' . $e->getMessage()];
+        }
     }
-}
-
-
-
 }
