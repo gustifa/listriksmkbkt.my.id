@@ -43,14 +43,14 @@
             <div class="mb-3 text-white shadow card border-0 rounded-4" style="background: linear-gradient(45deg, #15803d, #16a34a);">
                 <div class="p-4 text-center card-body">
                     <h5 class="mb-1 text-white-50">Jadwal Ibadah Hari Ini</h5>
-                    <h2 class="mb-0 fw-bold">{{ $isMosqueMode ? 'Masjid Sekolah' : 'Sholat Mandiri / Rumah' }}</h2>
+                    <h2 class="mb-0 fw-bold">{{ $isMosqueMode ? 'Absensi Sholat Siswa' : 'Sholat Mandiri / Rumah' }}</h2>
                     <div class="px-3 py-1 mt-2 bg-white badge text-success rounded-pill shadow-sm">
                         <i class="far fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::parse($today)->translatedFormat('l, d F Y') }}
                     </div>
                 </div>
             </div>
 
-            <!-- MAP CARD -->
+            <!-- MAP CARD (TAMPIL HANYA JIKA MODE MASJID AKTIF) -->
             @if($isMosqueMode)
                 <div class="mb-3 shadow-sm card border-0 rounded-4">
                     <div class="p-3 card-body">
@@ -76,7 +76,7 @@
                 <div class="p-3 mb-3 text-center border-0 alert alert-info rounded-4 shadow-sm">
                     <i class="mb-1 fas fa-home fa-2x text-info"></i>
                     <h6 class="mb-1 fw-bold text-dark">Mode Sholat Mandiri / Rumah Active</h6>
-                    <small class="text-muted d-block">Pengecekan radius lokasi masjid disiapkan off. Anda dapat mencatat absensi ibadah dari rumah.</small>
+                    <small class="text-muted d-block">Pengecekan radius lokasi masjid dinonaktifkan. Anda dapat mencatat absensi ibadah dari rumah dengan mengunggah foto bukti.</small>
                 </div>
             @endif
 
@@ -110,9 +110,10 @@
                     @foreach($fardhu as $key => $data)
                         @php
                             $time = $schedule[$key] ?? '00:00'; 
-                            $statusDone = $attendances[$key] ?? null; // 'hadir' atau 'berhalangan'
+                            $statusDone = $attendances[$key] ?? null;
                             $isDone = !is_null($statusDone);
                             $isActive = $currentTime >= $time;
+                            $mustMasjid = $mustAtMasjidRules[$key] ?? false;
                         @endphp
 
                         <div class="list-group-item p-3 {{ $isDone ? 'bg-light' : '' }}">
@@ -127,6 +128,11 @@
                                     <div>
                                         <h6 class="mb-0 fw-bold {{ $isDone ? 'text-decoration-line-through text-muted' : 'text-dark' }}">
                                             {{ $data['label'] }}
+                                            @if($mustMasjid)
+                                                <span class="badge bg-primary ms-1" style="font-size: 0.65rem;">Wajib Masjid</span>
+                                            @else
+                                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">Boleh Rumah</span>
+                                            @endif
                                         </h6>
                                         <span class="text-muted small font-monospace"><i class="far fa-clock me-1"></i>{{ $time }}</span>
                                     </div>
@@ -236,6 +242,7 @@
         masjidLng: Number("{{ $masjidLng }}"),
         maxRadius: Number("{{ $radius }}"),
         isMosqueMode: {{ $isMosqueMode ? 'true' : 'false' }},
+        mustAtMasjidRules: @json($mustAtMasjidRules),
         isFemale: {{ ($student && strtoupper($student->gender) === 'P') ? 'true' : 'false' }},
         storeUrl: "{{ route('student.prayer-attendances.store') }}",
         csrfToken: "{{ csrf_token() }}"
@@ -253,6 +260,22 @@
             fetchSilentLocation();
         }
     });
+
+    function getBasePrayerKey(prayerKey) {
+        prayerKey = prayerKey.toLowerCase();
+        if (prayerKey.includes('subuh')) return 'subuh';
+        if (prayerKey.includes('dzuhur') || prayerKey.includes('zuhur') || prayerKey.includes('jumat')) return 'dzuhur';
+        if (prayerKey.includes('ashar')) return 'ashar';
+        if (prayerKey.includes('maghrib')) return 'maghrib';
+        if (prayerKey.includes('isya')) return 'isya';
+        return null;
+    }
+
+    function checkIsMustAtMasjid(prayerKey) {
+        if (!window.prayerConfig.isMosqueMode) return false;
+        const baseKey = getBasePrayerKey(prayerKey);
+        return baseKey ? (window.prayerConfig.mustAtMasjidRules[baseKey] === true) : false;
+    }
 
     function initMainMap() {
         const lat = window.prayerConfig.masjidLat;
@@ -358,7 +381,7 @@
             return;
         }
 
-        // 1. POPUP DENGAN OPSI BERHALANGAN UNTUK SISWA PEREMPUAN
+        // POPUP SISWA PEREMPUAN
         if (window.prayerConfig.isFemale) {
             Swal.fire({
                 title: label,
@@ -366,7 +389,7 @@
                 icon: 'question',
                 showCancelButton: true,
                 showDenyButton: true,
-                confirmButtonText: '🟢 Hadir Sholat',
+                confirmButtonText: '🌸 Hadir Sholat',
                 denyButtonText: '🌸 Berhalangan',
                 cancelButtonText: 'Batal',
                 confirmButtonColor: '#198754',
@@ -386,19 +409,21 @@
     }
 
     function processHadirAbsensi(prayerKey, label) {
-        // MODE MASJID & DI LUAR RADIUS
-        if (window.prayerConfig.isMosqueMode && currentDistance > window.prayerConfig.maxRadius) {
+        const isMustMasjid = checkIsMustAtMasjid(prayerKey);
+
+        // JIKA SHOLAT TERSEBUT WAJIB DI MASJID KETIKA SISWA DI LUAR RADIUS
+        if (isMustMasjid && currentDistance > window.prayerConfig.maxRadius) {
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Absen',
-                text: 'Jarak Anda (' + currentDistance + 'm) melebihi radius maksimal masjid (' + window.prayerConfig.maxRadius + 'm).',
+                text: 'Sholat ' + label + ' WAJIB di Masjid Sekolah. Jarak Anda (' + currentDistance + 'm) melebihi radius maksimal masjid (' + window.prayerConfig.maxRadius + 'm).',
                 position: 'center'
             });
             return;
         }
 
-        // MODE RUMAH (WAJIB UPLOAD FOTO)
-        if (!window.prayerConfig.isMosqueMode) {
+        // JIKA BOLEH DARI RUMAH (WAJIB UPLOAD FOTO BUKTI)
+        if (!isMustMasjid) {
             Swal.fire({
                 title: label,
                 text: 'Upload Foto Bukti Ibadah dari Rumah / PJJ (Maksimal 2 MB)',
@@ -423,7 +448,7 @@
             return;
         }
 
-        // MODE MASJID (KONFIRMASI BIASA)
+        // JIKA WAJIB DI MASJID DAN SISWA DALAM RADIUS (SIMPAN LANGSUNG)
         submitPrayer(prayerKey, userCoords.lat, userCoords.lng);
     }
 

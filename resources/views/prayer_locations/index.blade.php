@@ -34,9 +34,9 @@
                     <form id="form-prayer-location" action="{{ route('prayer-location.store') }}" method="POST">
                         @csrf
 
-                        <!-- Pilihan Kebijakan Mode Absensi (is_active) -->
+                        <!-- Pilihan Kebijakan Mode Absensi Global (is_active) -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-secondary small">Mode Kebijakan Absensi Sholat</label>
+                            <label class="form-label fw-bold text-secondary small">Mode Kebijakan Absensi Sholat (Global)</label>
                             <div class="p-3 border rounded-3 bg-light">
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="radio" name="is_active" id="mode_masjid" value="1" {{ old('is_active', $location->is_active ?? true) ? 'checked' : '' }}>
@@ -54,6 +54,39 @@
                                         <i class="fas fa-home text-success me-1"></i> Diizinkan Sholat di Rumah / PJJ (is_active = FALSE)
                                     </label>
                                     <small class="text-muted d-block ms-4">Validasi radius GPS dinonaktifkan, siswa diperbolehkan absen dari luar sekolah.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FITUR BARU: PENGATURAN LOKASI PER WAKTU SHOLAT -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary small">Kebijakan Lokasi per Waktu Sholat</label>
+                            <div class="p-3 border rounded-3 bg-light">
+                                <p class="text-muted small mb-2">Centang waktu sholat yang <strong>WAJIB di Masjid Sekolah</strong>. Jika tidak dicentang, siswa diizinkan sholat di Rumah/PJJ.</p>
+                                
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_must_at_masjid_subuh" id="subuh" value="1" {{ old('is_must_at_masjid_subuh', $location->is_must_at_masjid_subuh ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold text-dark small" for="subuh">Subuh</label>
+                                </div>
+
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_must_at_masjid_zuhur" id="zuhur" value="1" {{ old('is_must_at_masjid_zuhur', $location->is_must_at_masjid_zuhur ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold text-primary small" for="zuhur">Zuhur (Masjid Sekolah)</label>
+                                </div>
+
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_must_at_masjid_ashar" id="ashar" value="1" {{ old('is_must_at_masjid_ashar', $location->is_must_at_masjid_ashar ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold text-dark small" for="ashar">Ashar</label>
+                                </div>
+
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_must_at_masjid_maghrib" id="maghrib" value="1" {{ old('is_must_at_masjid_maghrib', $location->is_must_at_masjid_maghrib ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold text-dark small" for="maghrib">Maghrib</label>
+                                </div>
+
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_must_at_masjid_isya" id="isya" value="1" {{ old('is_must_at_masjid_isya', $location->is_must_at_masjid_isya ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold text-dark small" for="isya">Isya</label>
                                 </div>
                             </div>
                         </div>

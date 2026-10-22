@@ -18,6 +18,13 @@ class PrayerLocation extends Model
         'longitude',
         'radius_meters',
         'is_active',
+        'is_must_at_masjid_subuh',
+        'is_must_at_masjid_zuhur',
+        'is_must_at_masjid_ashar',
+        'is_must_at_masjid_maghrib',
+        'is_must_at_masjid_isya',
+
+
     ];
 
     // CASTING TIPE DATA AGAR POSTGRESQL MEMBACA TRUE/FALSE SECARA PRESISI

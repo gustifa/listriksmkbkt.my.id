@@ -10,6 +10,41 @@ use Carbon\Carbon;
 
 class PrayerAttendanceController extends Controller
 {
+    /**
+     * Helper untuk memetakan nama sholat (fardhu/rawatib/sunnah) ke kunci waktu utama
+     */
+    private function getBasePrayerKey($prayerName)
+    {
+        $prayerName = strtolower($prayerName);
+
+        if (str_contains($prayerName, 'subuh')) return 'subuh';
+        if (str_contains($prayerName, 'dzuhur') || str_contains($prayerName, 'zuhur') || str_contains($prayerName, 'jumat')) return 'zuhur';
+        if (str_contains($prayerName, 'ashar')) return 'ashar';
+        if (str_contains($prayerName, 'maghrib')) return 'maghrib';
+        if (str_contains($prayerName, 'isya')) return 'isya';
+
+        // Untuk sunnah lainnya (tarawih, dhuha, dll) default-kan ke null
+        return null;
+    }
+
+    /**
+     * Helper untuk mengecek apakah sholat tertentu WAJIB di Masjid
+     */
+    private function isMustAtMasjid($schoolMosque, $prayerName)
+    {
+        if (!$schoolMosque || !$schoolMosque->is_active) {
+            return false;
+        }
+
+        $baseKey = $this->getBasePrayerKey($prayerName);
+        if (!$baseKey) {
+            return false;
+        }
+
+        $columnName = "is_must_at_masjid_{$baseKey}";
+        return (bool) ($schoolMosque->{$columnName} ?? false);
+    }
+
     public function index()
     {
         $today = Carbon::now()->toDateString();
@@ -21,8 +56,17 @@ class PrayerAttendanceController extends Controller
         $masjidLng = $schoolMosque ? (float) $schoolMosque->longitude : 100.383403;
         $radius    = $schoolMosque ? (int) $schoolMosque->radius_meters : 10;
 
-        // Mode Kebijakan: true = Wajib dari Masjid, false = Boleh dari Rumah / PJJ
+        // Mode Kebijakan Global
         $isMosqueMode = $schoolMosque ? (bool) $schoolMosque->is_active : true;
+
+        // Map status wajib masjid per waktu sholat untuk JS
+        $mustAtMasjidRules = [
+            'subuh'   => $this->isMustAtMasjid($schoolMosque, 'subuh'),
+            'dzuhur'  => $this->isMustAtMasjid($schoolMosque, 'dzuhur'),
+            'ashar'   => $this->isMustAtMasjid($schoolMosque, 'ashar'),
+            'maghrib' => $this->isMustAtMasjid($schoolMosque, 'maghrib'),
+            'isya'    => $this->isMustAtMasjid($schoolMosque, 'isya'),
+        ];
 
         // 2. Simulasi/Pengaturan Jadwal Sholat Hari Ini
         $schedule = [
@@ -41,7 +85,6 @@ class PrayerAttendanceController extends Controller
                 ->get();
 
             foreach ($records as $rec) {
-                // Menyimpan status absensi ('hadir' atau 'berhalangan')
                 $attendances[$rec->prayer_name] = $rec->status;
             }
         }
@@ -54,6 +97,7 @@ class PrayerAttendanceController extends Controller
             'masjidLng',
             'radius',
             'isMosqueMode',
+            'mustAtMasjidRules',
             'student'
         ));
     }
@@ -75,14 +119,12 @@ class PrayerAttendanceController extends Controller
         // LOGIKA KHUSUS SISWA PEREMPUAN BERHALANGAN (UDZUR SYAR'I)
         // ------------------------------------------------------------------
         if ($status === 'berhalangan') {
-            // Validasi: Hanya siswa perempuan (gender = 'P') yang diizinkan
             if (strtoupper($student->gender) !== 'P') {
                 return response()->json([
                     'message' => 'Status berhalangan hanya berlaku untuk siswa perempuan.'
                 ], 403);
             }
 
-            // Cek Duplikasi Absensi Hari Ini
             $alreadyDone = PrayerAttendance::where('student_id', $student->id)
                 ->where('date', $today)
                 ->where('prayer_name', $request->prayer_name)
@@ -94,7 +136,6 @@ class PrayerAttendanceController extends Controller
                 ], 422);
             }
 
-            // Simpan transaksi status berhalangan (tanpa wajib foto & radius GPS)
             PrayerAttendance::create([
                 'student_id'     => $student->id,
                 'date'           => $today,
@@ -130,7 +171,6 @@ class PrayerAttendanceController extends Controller
             'photo_evidence.max'   => 'Ukuran foto terlalu besar! Maksimal ukuran file foto adalah 2 MB.',
         ]);
 
-        // Cek Duplikasi Absensi
         $alreadyDone = PrayerAttendance::where('student_id', $student->id)
             ->where('date', $today)
             ->where('prayer_name', $validated['prayer_name'])
@@ -143,10 +183,10 @@ class PrayerAttendanceController extends Controller
         }
 
         $schoolMosque = PrayerLocation::first();
-        $locationNote = 'Masjid Sekolah';
+        $isMustAtMasjid = $this->isMustAtMasjid($schoolMosque, $validated['prayer_name']);
 
-        // Validasi Mode Kebijakan Admin
-        if ($schoolMosque && $schoolMosque->is_active) {
+        // Validasi Kebijakan per Waktu Sholat
+        if ($isMustAtMasjid) {
             $distance = $this->calculateDistance(
                 $validated['latitude'],
                 $validated['longitude'],
@@ -156,15 +196,17 @@ class PrayerAttendanceController extends Controller
 
             if ($distance > $schoolMosque->radius_meters) {
                 return response()->json([
-                    'message' => "Gagal! Mode Wajib dari Masjid Sekolah. Jarak Anda ({$distance}m) melebihi radius maksimal ({$schoolMosque->radius_meters}m)."
+                    'message' => "Gagal! Sholat {$validated['prayer_name']} WAJIB dilaksanakan di Masjid Sekolah. Jarak Anda ({$distance}m) melebihi radius maksimal ({$schoolMosque->radius_meters}m)."
                 ], 422);
             }
+
+            $locationNote = 'Masjid Sekolah';
         } else {
             $locationNote = 'Sholat di Rumah / PJJ';
 
             if (!$request->hasFile('photo_evidence')) {
                 return response()->json([
-                    'message' => 'Wajib mengunggah foto bukti sholat jika dilaksanakan dari rumah.'
+                    'message' => "Wajib mengunggah foto bukti sholat jika dilaksanakan dari rumah."
                 ], 422);
             }
         }
@@ -186,7 +228,7 @@ class PrayerAttendanceController extends Controller
             'notes'          => $locationNote,
             'latitude'       => $validated['latitude'],
             'longitude'      => $validated['longitude'],
-            'location_type'  => $schoolMosque && $schoolMosque->is_active ? 'masjid' : 'rumah',
+            'location_type'  => $isMustAtMasjid ? 'masjid' : 'rumah',
         ]);
 
         return response()->json([
