@@ -49,6 +49,28 @@ class ExamController extends Controller
         return view('exams.index', compact('exams'));
     }
 
+    // // Form Tambah Ujian
+    // public function create()
+    // {
+    //     /** @var \App\Models\User $user */
+    //     $user = Auth::user();
+    //     $academicYears = AcademicYear::where('is_active', true)->get();
+
+    //     if ($user->hasRole('admin')) {
+    //         $teachers = Teacher::all();
+    //         $subjects = Subject::all();
+    //         $classrooms = Classroom::all();
+    //     } else {
+    //         $teacher = $user->teacher;
+    //         // Ambil daftar guru lain untuk pilihan kolaborator
+    //         $teachers = Teacher::where('id', '!=', optional($teacher)->id)->get();
+    //         $subjects = optional($teacher)->subjects ?? Subject::all();
+    //         $classrooms = optional($teacher)->classrooms ?? Classroom::all();
+    //     }
+
+    //     return view('exams.create', compact('teachers', 'subjects', 'classrooms', 'academicYears'));
+    // }
+
     // Form Tambah Ujian
     public function create()
     {
@@ -59,13 +81,27 @@ class ExamController extends Controller
         if ($user->hasRole('admin')) {
             $teachers = Teacher::all();
             $subjects = Subject::all();
-            $classrooms = Classroom::all();
+            // Hanya ambil kelas yang AKTIF untuk Admin
+            $classrooms = Classroom::where('is_active', true)
+                ->orderBy('name', 'asc')
+                ->get();
         } else {
             $teacher = $user->teacher;
             // Ambil daftar guru lain untuk pilihan kolaborator
             $teachers = Teacher::where('id', '!=', optional($teacher)->id)->get();
             $subjects = optional($teacher)->subjects ?? Subject::all();
-            $classrooms = optional($teacher)->classrooms ?? Classroom::all();
+
+            // Hanya ambil kelas AKTIF yang diampu guru (atau fallback ke semua kelas AKTIF)
+            if ($teacher && $teacher->classrooms()->exists()) {
+                $classrooms = $teacher->classrooms()
+                    ->where('is_active', true)
+                    ->orderBy('name', 'asc')
+                    ->get();
+            } else {
+                $classrooms = Classroom::where('is_active', true)
+                    ->orderBy('name', 'asc')
+                    ->get();
+            }
         }
 
         return view('exams.create', compact('teachers', 'subjects', 'classrooms', 'academicYears'));

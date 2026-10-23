@@ -335,16 +335,32 @@
                                 <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
                                 <div class="border rounded-3 p-3 bg-light">
                                     <div class="row g-2">
-                                        @foreach($allClassrooms ?? \App\Models\Classroom::all() as $cls)
+                                        @php
+                                            // Ambil kelas aktif atau filter koleksi kelas yang dikirim dari controller
+                                            $activeClassrooms = isset($allClassrooms) 
+                                                ? $allClassrooms->where('is_active', true) 
+                                                : \App\Models\Classroom::where('is_active', true)->orderBy('name', 'asc')->get();
+                                        @endphp
+
+                                        @forelse($activeClassrooms as $cls)
                                             <div class="col-md-4 col-6">
                                                 <div class="form-check bg-white p-2 border rounded d-flex align-items-center">
-                                                    <input class="form-check-input ms-1 me-2" type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" id="cls_{{ $exam->id }}_{{ $cls->id }}" {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
+                                                    <input class="form-check-input ms-1 me-2" 
+                                                           type="checkbox" 
+                                                           name="classroom_ids[]" 
+                                                           value="{{ $cls->id }}" 
+                                                           id="cls_{{ $exam->id }}_{{ $cls->id }}" 
+                                                           {{ $exam->classrooms->contains($cls->id) ? 'checked' : '' }}>
                                                     <label class="form-check-label fw-medium text-dark cursor-pointer mb-0" for="cls_{{ $exam->id }}_{{ $cls->id }}">
                                                         {{ $cls->name }}
                                                     </label>
                                                 </div>
                                             </div>
-                                        @endforeach
+                                        @empty
+                                            <div class="col-12 text-muted small text-center py-2">
+                                                Tidak ada kelas aktif yang tersedia.
+                                            </div>
+                                        @endforelse
                                     </div>
                                 </div>
                             </div>

@@ -38,10 +38,24 @@ class CourseMaterialController extends Controller
         return view('materials.index', compact('materials', 'allSubjects', 'allClassrooms'));
     }
 
+    // public function create()
+    // {
+    //     $subjects = Subject::all();
+    //     $classrooms = Classroom::all();
+    //     $teachers = Teacher::all();
+
+    //     return view('materials.create', compact('subjects', 'classrooms', 'teachers'));
+    // }
+
     public function create()
     {
         $subjects = Subject::all();
-        $classrooms = Classroom::all();
+        
+        // Hanya ambil kelas yang AKTIF
+        $classrooms = Classroom::where('is_active', true)
+            ->orderBy('name', 'asc')
+            ->get();
+            
         $teachers = Teacher::all();
 
         return view('materials.create', compact('subjects', 'classrooms', 'teachers'));
