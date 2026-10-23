@@ -60,8 +60,9 @@
         </form>
     </div>
 
-    <!-- CDN SORTABLE JS -->
+    <!-- CDN SORTABLE JS & SWEETALERT2 -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- SCRIPT SECTION -->
     <script>
@@ -90,6 +91,40 @@
             }
         }
 
+        // AJAX Toggle Status Aktif/Nonaktif Rombel
+        function toggleRombelStatus(classroomId, isActive) {
+            fetch("{{ url('classrooms') }}/" + classroomId + "/toggle-status", {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ is_active: isActive })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message || 'Status rombel berhasil diperbarui.'
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Gagal!', 
+                    text: 'Terjadi kesalahan saat mengubah status rombel.' 
+                });
+            });
+        }
+
         // AJAX Fetch Data Kelas Utama
         function fetchClassroomData(url) {
             fetch(url, {
@@ -114,7 +149,7 @@
             }, 300);
         });
 
-        // 1. Paginasi Halaman Utama Kelas (Eksklusif di luar modal)
+        // Paginasi Halaman Utama Kelas
         document.addEventListener('click', function(e) {
             const mainPaginationLink = e.target.closest('#classroom-data-container > .ajax-pagination a');
             if (mainPaginationLink) {
@@ -123,9 +158,9 @@
             }
         });
 
-        // Fetch Data Siswa Tanpa Kelas di Modal (Paginasi & Search Server-Side)
+        // Fetch Data Siswa Tanpa Kelas di Modal
         function fetchUnassignedStudents(roomId, url = null) {
-            if (!roomId) return; // Mencegah pemanggilan jika roomId tidak valid
+            if (!roomId) return;
 
             const searchVal = document.getElementById('input-search-unassigned-' + roomId)?.value || '';
             const targetUrl = url || "{{ url('classrooms') }}/" + roomId + "/unassigned-students?q=" + encodeURIComponent(searchVal);
@@ -155,21 +190,20 @@
         }
 
         // Listener Paginasi Khusus Modal Siswa Tanpa Kelas
-document.addEventListener('click', function(e) {
-    const modalPaginationLink = e.target.closest('.unassigned-pagination a');
-    if (modalPaginationLink) {
-        e.preventDefault();
-        e.stopPropagation();
+        document.addEventListener('click', function(e) {
+            const modalPaginationLink = e.target.closest('.unassigned-pagination a');
+            if (modalPaginationLink) {
+                e.preventDefault();
+                e.stopPropagation();
 
-        const paginationContainer = e.target.closest('.unassigned-pagination');
-        const roomId = paginationContainer ? paginationContainer.getAttribute('data-room-id') : null;
-        
-        if (roomId) {
-            // Memanggil fetch AJAX menggunakan URL bawaan link paginasi modal
-            fetchUnassignedStudents(roomId, modalPaginationLink.href);
-        }
-    }
-});
+                const paginationContainer = e.target.closest('.unassigned-pagination');
+                const roomId = paginationContainer ? paginationContainer.getAttribute('data-room-id') : null;
+                
+                if (roomId) {
+                    fetchUnassignedStudents(roomId, modalPaginationLink.href);
+                }
+            }
+        });
 
         // Live Search Server-Side Siswa Tanpa Kelas
         document.addEventListener('input', function(e) {
@@ -251,7 +285,17 @@ document.addEventListener('click', function(e) {
             }
         }
 
-        // Event Modal Dibuka
+        // EVENT AUTOMATIS SAAT MODAL DIBUKA (Memanggil Fetch Data & SortableJS)
+        document.addEventListener('show.bs.modal', function (event) {
+            const modal = event.target;
+            if (!modal.id.startsWith('studentsModal')) return;
+
+            const roomId = modal.getAttribute('data-room-id') || modal.id.replace('studentsModal', '');
+            if (roomId) {
+                fetchUnassignedStudents(roomId);
+            }
+        });
+
         document.addEventListener('shown.bs.modal', function (event) {
             const modal = event.target;
             if (!modal.id.startsWith('studentsModal')) return;

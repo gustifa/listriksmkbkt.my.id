@@ -704,7 +704,12 @@ Route::middleware(['auth'])->group(function () {
         // Route::resource('teachers', TeacherController::class);
         // Route::resource('teachers', TeacherController::class)->except(['create', 'store', 'show']);
         Route::resource('classrooms', ClassroomController::class);
+        Route::patch('/classrooms/{classroom}/toggle-status', [ClassroomController::class, 'toggleStatus'])->name('classrooms.toggle-status');
+        Route::get('/classrooms/{id}/print-all-ids', [ClassroomController::class, 'printAllIdsPdf'])->name('classrooms.printAllIdsPdf');
         Route::get('/classrooms/{id}/unassigned-students', [ClassroomController::class, 'searchUnassignedStudents'])->name('classrooms.unassigned_students');
+        Route::post('/students/assign-class/{classroom}', [StudentController::class, 'assignClass'])->name('students.assign_class');
+        Route::patch('/students/remove-class/{student}', [StudentController::class, 'removeClass'])->name('students.remove_class');
+        
         // Route::prefix('maping/rombel')->name('classrooms.')->group(function() {
         //     Route::get('/', [ClassroomController::class, 'index'])->name('index');
         //     Route::get('/create', [ClassroomController::class, 'create'])->name('create');

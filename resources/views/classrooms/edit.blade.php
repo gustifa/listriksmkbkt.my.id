@@ -13,29 +13,57 @@
                     <div class="card-body">
 
                         <form action="{{ route('classrooms.update', $classroom->id) }}" method="POST">
-                            @csrf
-                            @method('PUT')
+    @csrf
+    @method('PUT')
 
-                            <div class="mb-4">
-                                <label class="form-label fw-bold">Nama Kelas <span class="text-danger">*</span></label>
-                                <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
-                                    value="{{ old('name', $classroom->name) }}" required>
+    <!-- Nama Kelas -->
+    <div class="mb-3">
+        <label class="form-label">Nama Kelas</label>
+        <input type="text" name="name" class="form-control" value="{{ old('name', $classroom->name) }}" required>
+    </div>
 
-                                @error('name')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+    <!-- Pilih Wali Kelas -->
+    <div class="mb-3">
+        <label class="form-label">Wali Kelas</label>
+        <select name="homeroom_teacher_id" class="form-select">
+            <option value="">-- Pilih Wali Kelas --</option>
+            @foreach($teachers as $teacher)
+                <option value="{{ $teacher->id }}" {{ $classroom->homeroom_teacher_id == $teacher->id ? 'selected' : '' }}>
+                    {{ $teacher->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 
-                            <div class="d-flex justify-content-between">
-                                <a href="{{ route('classrooms.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left me-1"></i> Batal
-                                </a>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-1"></i> Simpan Perubahan
-                                </button>
-                            </div>
+    <!-- Pilih Guru BK -->
+    <div class="mb-3">
+        <label class="form-label">Guru BK</label>
+        <select name="counseling_teacher_id" class="form-select">
+            <option value="">-- Pilih Guru BK --</option>
+            @foreach($teachers as $teacher)
+                <option value="{{ $teacher->id }}" {{ $classroom->counseling_teacher_id == $teacher->id ? 'selected' : '' }}>
+                    {{ $teacher->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 
-                        </form>
+    <!-- Pilih Ketua Kelas -->
+    <div class="mb-3">
+        <label class="form-label">Ketua Kelas</label>
+        <select name="class_leader_id" class="form-select">
+            <option value="">-- Pilih Ketua Kelas --</option>
+            @foreach($classroom->students as $student)
+                <option value="{{ $student->id }}" {{ $classroom->class_leader_id == $student->id ? 'selected' : '' }}>
+                    {{ $student->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+    <a href="{{ route('classrooms.index') }}" class="btn btn-secondary">Batal</a>
+</form>
                     </div>
                 </div>
             </div>
