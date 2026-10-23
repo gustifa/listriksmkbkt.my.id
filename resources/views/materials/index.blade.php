@@ -172,12 +172,12 @@
                             </select>
                         </div>
 
-                        <!-- Kelas -->
+                        <!-- Kelas Target (Dropdown Single Class) -->
                         <div class="col-md-6">
                             <label class="form-label fw-semibold text-secondary small">Kelas Target</label>
                             <select name="classroom_id" id="edit-classroom_id" class="form-select">
                                 <option value="">Semua Kelas</option>
-                                @foreach($allClassrooms as $cls)
+                                @foreach($allClassrooms->where('is_active', true) as $cls)
                                     <option value="{{ $cls->id }}">{{ $cls->name }}</option>
                                 @endforeach
                             </select>
