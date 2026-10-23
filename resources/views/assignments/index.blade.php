@@ -297,10 +297,11 @@
                                         </select>
                                     </div>
 
+                                    <!-- Target Kelas (Hanya Kelas Aktif) -->
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
                                         <select name="classroom_id" class="form-select" required>
-                                            @foreach($allClassrooms as $cls)
+                                            @foreach($allClassrooms->where('is_active', true) as $cls)
                                                 <option value="{{ $cls->id }}" {{ $assignment->classroom_id == $cls->id ? 'selected' : '' }}>
                                                     {{ $cls->name }}
                                                 </option>
