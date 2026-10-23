@@ -53,7 +53,10 @@ class AssignmentController extends Controller
     public function create()
     {
         $subjects = Subject::all();
-        $classrooms = Classroom::all();
+        // Hanya ambil kelas yang AKTIF
+        $classrooms = Classroom::where('is_active', true)
+            ->orderBy('name', 'asc')
+            ->get();
         $teachers = Teacher::all();
 
         return view('assignments.create', compact('subjects', 'classrooms', 'teachers'));
