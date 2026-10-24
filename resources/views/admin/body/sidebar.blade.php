@@ -45,9 +45,11 @@ $status = $guruId->status ?? '0';
         </li>
 
         @if ($status === '1')
+            {{-- ========================================== --}}
+            {{-- 1. MENU PEMBELAJARAN & LMS (GURU)           --}}
+            {{-- ========================================== --}}
             @role('guru')
-                <!-- Menu Guru -->
-                @if(Auth::user()->hasRole('guru') && Auth::user()->teacher)
+                @if(Auth::user()->teacher)
                     <li class="menu-label">Pembelajaran & LMS</li>
                     <li>
                         <a class="has-arrow" href="javascript:;">
@@ -71,7 +73,6 @@ $status = $guruId->status ?? '0';
                         </ul>
                     </li>
 
-                    <!-- Menu Bimbingan PKL -->
                     @if(Auth::user()->teacher->isAdvisor())
                     <li>
                         <a class="has-arrow" href="javascript:;">
@@ -84,7 +85,6 @@ $status = $guruId->status ?? '0';
                     </li>
                     @endif
 
-                    <!-- MENU UKK UNTUK GURU PENGUJI -->
                     <li class="menu-label">Uji Kompetensi Keahlian</li>
                     <li>
                         <a class="has-arrow" href="javascript:;">
@@ -98,7 +98,72 @@ $status = $guruId->status ?? '0';
                 @endif
             @endrole
 
-            <!-- MENU KHUSUS WALI KELAS & GURU BK -->
+            {{-- ========================================== --}}
+            {{-- 2. MENU KETUA PROGRAM KEAHLIAN & KEPALA BENGKEL --}}
+            {{-- ========================================== --}}
+            @hasanyrole('kaprog|kabeng')
+                <li class="menu-label">Manajemen Kejuruan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-sitemap'></i></div>
+                        <div class="menu-title">Data Kejuruan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Keahlian</a></li>
+                        <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel / Kelas</a></li>
+                    </ul>
+                </li>
+
+                @role('kabeng')
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-wrench'></i></div>
+                        <div class="menu-title">Bengkel & Inventaris</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('admin.inventory.index') }}"><i class='bx bx-radio-circle'></i>Ketersediaan Alat</a></li>
+                        <li><a href="{{ route('loans.index') }}"><i class='bx bx-radio-circle'></i>Peminjaman Alat</a></li>
+                    </ul>
+                </li>
+                @endrole
+
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bxs-report"></i></div>
+                        <div class="menu-title">Laporan Kejuruan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-border-all'></i>Presensi Gerbang</a></li>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
+                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 3. MENU MANAJEMEN SEKOLAH (KEPSEK & WAKA)  --}}
+            {{-- ========================================== --}}
+            @hasanyrole('kepsek|wakakur|wakasis|wakahumas')
+                <li class="menu-label">Manajemen Sekolah</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-bar-chart-alt-2"></i></div>
+                        <div class="menu-title">Monitoring & Laporan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-radio-circle'></i>Presensi Gerbang</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-radio-circle'></i>Pembelajaran</a></li>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-radio-circle'></i>Transkrip Absensi</a></li>
+                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-radio-circle'></i>Rekapitulasi Sekolah</a></li>
+                        <li><a href="{{ route('admin.prayer_reports.index') }}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
+                        <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 4. MENU WALI KELAS & GURU BK              --}}
+            {{-- ========================================== --}}
             @hasanyrole('wali_kelas|guru_bk')
                 <li class="menu-label">Wali Kelas & BK</li>
                 <li>
@@ -112,7 +177,9 @@ $status = $guruId->status ?? '0';
                 </li>
             @endhasanyrole
 
-            <!-- MENU SUPER ADMIN & ADMIN -->
+            {{-- ========================================== --}}
+            {{-- 5. MENU SUPER ADMIN & ADMIN UTAMA          --}}
+            {{-- ========================================== --}}
             @hasanyrole('super_admin|admin')
                 <li class="menu-label">Sistem & Pengaturan</li>
                 <li>
@@ -138,7 +205,6 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- MENU MAPING -->
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-group"></i></div>
@@ -154,7 +220,6 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- MENU SYSTEM (LENGKAP DENGAN SINKRONISASI, MANAGE, LOG, RESET, UPDATE, DATABASE, SERVER, WA, & LISENSI) -->
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-chip"></i></div>
@@ -173,7 +238,6 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- LMS / E-LEARNING -->
                 <li class="menu-label">LMS / E-Learning</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
@@ -199,7 +263,6 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <!-- MENU UKK (UJI KOMPETENSI KEAHLIAN) UNTUK ADMIN -->
                 <li class="menu-label">Uji Kompetensi Keahlian</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
@@ -261,7 +324,9 @@ $status = $guruId->status ?? '0';
                 </li>
             @endrole
 
-            <!-- MENU UNTUK PIKET / GURU / ADMIN -->
+            {{-- ========================================== --}}
+            {{-- 6. MENU OPERASIONAL (PIKET / GURU / ADMIN)  --}}
+            {{-- ========================================== --}}
             @hasanyrole('piket|guru|admin')
                 <li class="menu-label">CBT</li>
                 <li>
@@ -325,7 +390,9 @@ $status = $guruId->status ?? '0';
                 @endrole
             @endrole
 
-            <!-- MENU SISWA -->
+            {{-- ========================================== --}}
+            {{-- 7. MENU SISWA                              --}}
+            {{-- ========================================== --}}
             @role('siswa')
                 <li class="menu-label">Pembelajaran & LMS</li>
                 <li>
