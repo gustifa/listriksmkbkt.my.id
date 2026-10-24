@@ -260,7 +260,7 @@ Route::middleware(['auth', 'role:guru|admin|super_admin'])->group(function () {
 });
 
 // =========================================================================
-// GROUP 2: AREA OPERASIONAL, BOK, BK, WALI KELAS, KAPROG, KABENG, TU, PIKET, SECURITY
+// GROUP 2: AREA OPERASIONAL, BK, WALI KELAS, KAPROG, KABENG, TU, PIKET, SECURITY
 // =========================================================================
 Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahumas|kaprog|kabeng|wali_kelas|guru_bk|pokja_pkl|pembina_ekskul|ka_tu|pegawai|bendahara|security|guru|piket'])->group(function () {
 
@@ -417,7 +417,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
         'create', 'edit', 'show'
     ]);
 
-    // MANAJEMEN USER ROLES MULTI-ROLE & SCOPE (BARU DITAMBAHKAN)
+    // MANAJEMEN USER ROLES MULTI-ROLE & SCOPE
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/user-roles', [UserRoleManagementController::class, 'index'])->name('user-roles.index');
         Route::get('/user-roles/data', [UserRoleManagementController::class, 'data'])->name('user-roles.data');
@@ -544,15 +544,17 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
     Route::get('/classrooms/{id}/print-all-ids', [ClassroomController::class, 'printAllIdsPdf'])->name('classrooms.printAllIdsPdf');
     Route::get('/classrooms/{id}/unassigned-students', [ClassroomController::class, 'searchUnassignedStudents'])->name('classrooms.unassigned_students');
 
-    Route::prefix('setting/jurusan')->name('majors.')->group(function() {
-        Route::get('/', [MajorController::class, 'index'])->name('index');
-        Route::get('/create', [MajorController::class, 'create'])->name('create');
-        Route::post('/store', [MajorController::class, 'store'])->name('store');
-        Route::get('/edit/{id}', [MajorController::class, 'edit'])->name('edit');
-        Route::put('/update/{id}', [MajorController::class, 'update'])->name('update');
-        Route::delete('/destroy/{id}', [MajorController::class, 'destroy'])->name('destroy');
-    });
-
+    // Route::prefix('setting/jurusan')->name('majors.')->group(function() {
+    //     Route::get('/', [MajorController::class, 'index'])->name('index');
+    //     Route::get('/create', [MajorController::class, 'create'])->name('create');
+    //     Route::post('/store', [MajorController::class, 'store'])->name('store');
+    //     Route::get('/edit/{id}', [MajorController::class, 'edit'])->name('edit');
+    //     Route::put('/update/{id}', [MajorController::class, 'update'])->name('update');
+    //     Route::delete('/destroy/{id}', [MajorController::class, 'destroy'])->name('destroy');
+        
+    // });
+    Route::get('/majors/available-teachers', [MajorController::class, 'getAvailableTeachers'])->name('majors.available-teachers');
+    Route::resource('majors', MajorController::class);
     Route::patch('/students/{id}/remove-class', [StudentController::class, 'removeClassroom'])->name('students.remove_class');
     Route::get('/students/{id}/print-id', [StudentController::class, 'printIdCard'])->name('students.print_id');
     Route::get('/students/{id}/print-id-pdf', [StudentController::class, 'printIdCardPdf'])->name('students.print_id_pdf');
@@ -698,6 +700,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
     Route::post('/program/store', [ProgramController::class, 'store'])->name('programs.store');
     Route::put('/program/{id}', [ProgramController::class, 'update'])->name('programs.update');
     Route::delete('/program/{id}', [ProgramController::class, 'destroy'])->name('programs.destroy');
+    Route::get('/program/available-teachers', [ProgramController::class, 'getAvailableTeachers'])->name('programs.available-teachers');
 
     Route::get('/admin/izin', [AdminPermissionController::class, 'index'])->name('admin.izin');
 });

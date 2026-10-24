@@ -1,7 +1,8 @@
-@extends('layouts.app') {{-- sesuaikan dengan layout utama Anda --}}
+@extends('layouts.app')
 
 @section('content')
 <div class="page-content">
+    <!-- Breadcrumb -->
     <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div class="breadcrumb-title pe-3">Sistem & Pengaturan</div>
         <div class="ps-3">
@@ -14,6 +15,7 @@
         </div>
     </div>
 
+    <!-- Main Card -->
     <div class="card border-top border-0 border-4 border-primary">
         <div class="card-body">
             <div class="card-title d-flex align-items-center mb-3">
@@ -27,16 +29,16 @@
                     <thead class="table-light">
                         <tr>
                             <th width="5%">No</th>
-                            <th>Nama User</th>
+                            <th>Nama Pengguna</th>
                             <th>Email</th>
-                            <th>Identitas</th>
-                            <th>Roles (Multi-Role)</th>
+                            <th>Identitas Base</th>
+                            <th>Role Aktif (Multi-Role)</th>
                             <th>Direct Permissions</th>
-                            <th width="10%">Aksi</th>
+                            <th width="12%">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {{-- Loaded via AJAX --}}
+                        <!-- Data dimuat via AJAX DataTables -->
                     </tbody>
                 </table>
             </div>
@@ -45,36 +47,43 @@
 </div>
 
 <!-- MODAL EDIT MULTI-ROLE & PERMISSION -->
-<div class="modal fade" id="editUserRoleModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="editUserRoleModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title text-white" id="modalTitle">Atur Multi-Role & Hak Akses User</h5>
+                <h5 class="modal-title text-white" id="modalTitle">
+                    <i class="bx bx-shield-quarter me-1"></i> Atur Hak Akses & Role Pengguna
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="formUserRole">
                 @csrf
                 <input type="hidden" id="userId" name="user_id">
+                
                 <div class="modal-body">
-                    <div class="alert alert-info py-2 mb-3">
-                        <i class="bx bx-info-circle me-1"></i> <strong id="userNameText">User Name</strong>
+                    <!-- Info Pengguna -->
+                    <div class="alert alert-info py-2 mb-3 d-flex align-items-center">
+                        <i class="bx bx-info-circle font-20 me-2"></i>
+                        <div>
+                            <strong>Pengguna:</strong> <span id="userNameText">-</span>
+                        </div>
                     </div>
 
-                    <!-- SCOPE KEJURUAN / BENGKEL -->
+                    <!-- SCOPE DATA KEJURUAN / BENGKEL -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Program Keahlian (Kaprog Scope)</label>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Program Keahlian (Scope Kaprog)</label>
                             <select class="form-select" id="program_id" name="program_id">
-                                <option value="">-- Tanpa Scope (Global) --</option>
+                                <option value="">-- Akses Global / Tanpa Scope --</option>
                                 @foreach($programs as $prog)
                                     <option value="{{ $prog->id }}">{{ $prog->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Konsentrasi / Major (Kabeng Scope)</label>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Konsentrasi / Major (Scope Kabeng)</label>
                             <select class="form-select" id="major_id" name="major_id">
-                                <option value="">-- Tanpa Scope (Global) --</option>
+                                <option value="">-- Akses Global / Tanpa Scope --</option>
                                 @foreach($majors as $maj)
                                     <option value="{{ $maj->id }}">{{ $maj->name }}</option>
                                 @endforeach
@@ -84,15 +93,17 @@
 
                     <hr>
 
-                    <!-- PENGATURAN MULTI-ROLE (CHECKBOXES) -->
+                    <!-- PENGATURAN MULTI-ROLE (CHECKBOX) -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-primary">Pilih Role User (Bisa Lebih Dari Satu):</label>
-                        <div class="row g-2 p-2 border rounded bg-light">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="bx bx-key me-1"></i> Pilih Role (Bisa Lebih Dari Satu):
+                        </label>
+                        <div class="row g-2 p-3 border rounded bg-light" style="max-height: 200px; overflow-y: auto;">
                             @foreach($roles as $role)
                                 <div class="col-md-4 col-6">
                                     <div class="form-check">
                                         <input class="form-check-input role-checkbox" type="checkbox" name="roles[]" value="{{ $role->name }}" id="role_{{ $role->id }}">
-                                        <label class="form-check-label fw-semibold" for="role_{{ $role->id }}">
+                                        <label class="form-check-label fw-semibold text-dark" for="role_{{ $role->id }}">
                                             {{ $role->name }}
                                         </label>
                                     </div>
@@ -105,13 +116,15 @@
 
                     <!-- PENGATURAN DIRECT PERMISSION EXTRA -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-secondary">Permission Tambahan Khusus (Optional Direct Permission):</label>
-                        <div class="row g-2 p-2 border rounded" style="max-height: 180px; overflow-y: auto;">
+                        <label class="form-label fw-bold text-secondary">
+                            <i class="bx bx-lock-open me-1"></i> Permission Khusus Tambahan (Direct Permission):
+                        </label>
+                        <div class="row g-2 p-3 border rounded" style="max-height: 180px; overflow-y: auto;">
                             @foreach($permissions as $perm)
                                 <div class="col-md-4 col-6">
                                     <div class="form-check">
                                         <input class="form-check-input perm-checkbox" type="checkbox" name="permissions[]" value="{{ $perm->name }}" id="perm_{{ $perm->id }}">
-                                        <label class="form-check-label small" for="perm_{{ $perm->id }}">
+                                        <label class="form-check-label small text-muted" for="perm_{{ $perm->id }}">
                                             {{ $perm->name }}
                                         </label>
                                     </div>
@@ -120,8 +133,11 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bx bx-x me-1"></i> Batal
+                    </button>
                     <button type="submit" class="btn btn-primary" id="btnSave">
                         <i class="bx bx-save me-1"></i> Simpan Hak Akses
                     </button>
@@ -133,13 +149,21 @@
 @endsection
 
 @push('scripts')
-{{-- Library SweetAlert2 Terakhir & DataTables --}}
+<!-- SweetAlert2 CDN Terbaru -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 $(document).ready(function() {
-    // 1. Load Data Users via AJAX
+    // Setup Header CSRF Token AJAX
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+
+    // 1. Inisialisasi DataTable Data Users
     let table = $('#userRolesTable').DataTable({
+        processing: true,
         ajax: '{{ route("admin.user-roles.data") }}',
         columns: [
             { data: null, render: (data, type, row, meta) => meta.row + 1 },
@@ -149,15 +173,15 @@ $(document).ready(function() {
             { 
                 data: 'roles', 
                 render: function(roles) {
-                    if (!roles.length) return '<span class="text-muted small">No Role</span>';
-                    return roles.map(r => `<span class="badge bg-primary me-1">${r}</span>`).join('');
+                    if (!roles || !roles.length) return '<span class="text-muted small">Tanpa Role</span>';
+                    return roles.map(r => `<span class="badge bg-primary me-1 mb-1">${r}</span>`).join('');
                 }
             },
             { 
                 data: 'direct_permissions', 
                 render: function(perms) {
-                    if (!perms.length) return '<span class="text-muted small">-</span>';
-                    return perms.map(p => `<span class="badge bg-info text-dark me-1">${p}</span>`).join('');
+                    if (!perms || !perms.length) return '<span class="text-muted small">-</span>';
+                    return perms.map(p => `<span class="badge bg-info text-dark me-1 mb-1">${p}</span>`).join('');
                 }
             },
             {
@@ -171,12 +195,13 @@ $(document).ready(function() {
         ]
     });
 
-    // 2. Open Modal & Load Single User Data
+    // 2. Buka Modal & Ambil Data Detail User via AJAX
     $(document).on('click', '.btn-edit', function() {
         let userId = $(this).data('id');
         
         Swal.fire({
             title: 'Memuat Data...',
+            text: 'Mengambil konfigurasi role pengguna',
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
@@ -197,29 +222,33 @@ $(document).ready(function() {
                 $('.role-checkbox').prop('checked', false);
                 $('.perm-checkbox').prop('checked', false);
 
-                // Check Assigned Roles
-                u.roles.forEach(roleName => {
-                    $(`.role-checkbox[value="${roleName}"]`).prop('checked', true);
-                });
+                // Set Checkbox Role yang Dimiliki User
+                if (u.roles) {
+                    u.roles.forEach(roleName => {
+                        $(`.role-checkbox[value="${roleName}"]`).prop('checked', true);
+                    });
+                }
 
-                // Check Direct Permissions
-                u.direct_permissions.forEach(permName => {
-                    $(`.perm-checkbox[value="${permName}"]`).prop('checked', true);
-                });
+                // Set Checkbox Direct Permission Khusus
+                if (u.direct_permissions) {
+                    u.direct_permissions.forEach(permName => {
+                        $(`.perm-checkbox[value="${permName}"]`).prop('checked', true);
+                    });
+                }
 
                 $('#editUserRoleModal').modal('show');
             },
-            error: function() {
+            error: function(xhr) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal',
-                    text: 'Tidak dapat mengambil data user dari server.'
+                    text: 'Gagal mengambil data user dari server.'
                 });
             }
         });
     });
 
-    // 3. Submit Form Update via AJAX & SweetAlert2
+    // 3. Simpan Perubahan Multi-Role via AJAX & SweetAlert2
     $('#formUserRole').on('submit', function(e) {
         e.preventDefault();
         let userId = $('#userId').val();
@@ -235,13 +264,15 @@ $(document).ready(function() {
                 $('#btnSave').prop('disabled', false).html('<i class="bx bx-save me-1"></i> Simpan Hak Akses');
                 $('#editUserRoleModal').modal('hide');
 
-                // Toast Notification SweetAlert2 Terbaru
+                // Toast Notification SweetAlert2
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil!',
+                    title: 'Berhasil Disimpan!',
                     text: res.message,
                     timer: 2000,
-                    showConfirmButton: false
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
                 });
 
                 table.ajax.reload(null, false);
@@ -249,7 +280,7 @@ $(document).ready(function() {
             error: function(xhr) {
                 $('#btnSave').prop('disabled', false).html('<i class="bx bx-save me-1"></i> Simpan Hak Akses');
                 
-                let errMsg = xhr.responseJSON?.message || 'Terjadi kesalahan sistem.';
+                let errMsg = xhr.responseJSON?.message || 'Terjadi kesalahan pada sistem.';
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal Menyimpan!',

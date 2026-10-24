@@ -6,144 +6,198 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Teacher;
 use App\Models\Program;
+use App\Models\User;
 use Illuminate\Support\Str;
-
+use Illuminate\Support\Facades\DB;
 
 class ProgramController extends Controller
-// {
-//     public function index(){
-//         $programs = Program::latest()->get();
-//         return view('admin.programs.index', compact('programs'));
-//     }
-//     // Contoh untuk create()
-//     public function create() {
-//         $teachers = Teacher::orderBy('name', 'asc')->get();
-//         return view('admin.programs.create', compact('teachers'));
-//     }
-
-//     // Contoh untuk edit()
-//     public function edit(string $id) {
-//         $program = Program::findOrFail($id);
-//         $teachers = Teacher::orderBy('name', 'asc')->get();
-//         return view('programs.edit', compact('program', 'teachers'));
-//     }
-// }
-
 {
-    /**
-     * Menampilkan daftar program keahlian (Index)
-     */
-    public function index()
+    public function index(Request $request)
     {
-        // Mengambil semua program beserta data gurunya (Penilai)
-        $programs = Program::with('teacher')->orderBy('name', 'asc')->get();
-        return view('admin.programs.index', compact('programs'));
-    }
+        if ($request->ajax()) {
+            $programs = Program::with('teacher')->orderBy('name', 'asc')->get();
+            return response()->json(['data' => $programs]);
+        }
 
-    /**
-     * Menampilkan form untuk menambah program baru (Create)
-     */
-    public function create()
-    {
-        // Mengambil daftar guru untuk dropdown Ketua Program / Penilai
-        // $teachers = Teacher::orderBy('name', 'asc')->get();
-
-        // 1. Ambil array ID guru yang sudah terdaftar sebagai ketua program
         $assignedTeacherIds = Program::whereNotNull('program_teacher_id')
                                      ->pluck('program_teacher_id')
                                      ->toArray();
 
-        // dd($assignedTeacherIds);
-
-        // 2. Tampilkan HANYA guru yang ID-nya tidak ada di array $assignedTeacherIds
         $teachers = Teacher::whereNotIn('id', $assignedTeacherIds)
                            ->orderBy('name', 'asc')
                            ->get();
-        return view('admin.programs.create', compact('teachers'));
+
+        return view('admin.programs.index', compact('teachers'));
     }
 
-    /**
-     * Menyimpan data program keahlian baru ke database (Store)
-     */
     public function store(Request $request)
     {
-        // 1. Validasi input dari form
         $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50|unique:programs,code',
             'program_teacher_id' => 'nullable|exists:teachers,id',
         ], [
-            // Custom Error Messages (Bahasa Indonesia)
             'name.required' => 'Nama program keahlian wajib diisi.',
             'code.required' => 'Kode program wajib diisi.',
             'code.unique' => 'Kode program ini sudah digunakan oleh program lain.',
-            'program_teacher_id.exists' => 'Guru yang dipilih tidak ditemukan di database.'
+            'program_teacher_id.exists' => 'Guru tidak ditemukan di database.'
         ]);
 
-        // 2. Simpan ke tabel programs
-        Program::create([
-            'id' => (string) Str::uuid(), // Generate UUID manual (opsional jika Model belum pakai trait HasUuids)
-            'name' => $request->name,
-            'code' => strtoupper($request->code),
-            'program_teacher_id' => $request->program_teacher_id,
-        ]);
+        try {
+            // 1. Buat data program terlebih dahulu secara langsung
+            $program = new Program();
+            $program->id = (string) Str::uuid();
+            $program->name = $request->name;
+            $program->code = strtoupper($request->code);
+            $program->program_teacher_id = $request->program_teacher_id;
+            $program->save();
 
-        // 3. Redirect kembali ke index dengan pesan sukses
-        return redirect()->route('programs.index')
-                         ->with('success', 'Program Keahlian berhasil ditambahkan!');
+            // 2. Setelah data terisi di tabel programs, baru update tabel users
+            if ($request->filled('program_teacher_id')) {
+                $teacher = Teacher::find($request->program_teacher_id);
+                if ($teacher && $teacher->user_id) {
+                    $user = User::find($teacher->user_id);
+                    if ($user) {
+                        $user->program_id = $program->id;
+                        $user->save();
+
+                        if (!$user->hasRole('kaprog')) {
+                            $user->assignRole('kaprog');
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Program Keahlian berhasil ditambahkan!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menyimpan data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Menampilkan form edit untuk program yang sudah ada (Edit)
-     */
     public function edit(string $id)
     {
         $program = Program::findOrFail($id);
-        $teachers = Teacher::orderBy('name', 'asc')->get();
-        
-        return view('admin.programs.edit', compact('program', 'teachers'));
+
+        $assignedTeacherIds = Program::whereNotNull('program_teacher_id')
+                                     ->where('id', '!=', $id)
+                                     ->pluck('program_teacher_id')
+                                     ->toArray();
+
+        $teachers = Teacher::whereNotIn('id', $assignedTeacherIds)
+                           ->orderBy('name', 'asc')
+                           ->get();
+
+        return response()->json([
+            'program' => $program,
+            'teachers' => $teachers
+        ]);
     }
 
-    /**
-     * Memperbarui data program keahlian di database (Update)
-     */
     public function update(Request $request, string $id)
     {
-        // 1. Validasi input dari form
         $request->validate([
             'name' => 'required|string|max:255',
-            // Unique code dikecualikan untuk ID program ini sendiri
             'code' => 'required|string|max:50|unique:programs,code,' . $id,
             'program_teacher_id' => 'nullable|exists:teachers,id',
         ], [
             'name.required' => 'Nama program keahlian wajib diisi.',
             'code.required' => 'Kode program wajib diisi.',
             'code.unique' => 'Kode program ini sudah digunakan oleh program lain.',
-            'program_teacher_id.exists' => 'Guru yang dipilih tidak ditemukan di database.'
+            'program_teacher_id.exists' => 'Guru tidak ditemukan di database.'
         ]);
 
-        // 2. Cari data dan update
-        $program = Program::findOrFail($id);
-        $program->update([
-            'name' => $request->name,
-            'code' => strtoupper($request->code),
-            'program_teacher_id' => $request->program_teacher_id,
-        ]);
+        try {
+            $program = Program::findOrFail($id);
+            $oldTeacherId = $program->program_teacher_id;
+            $newTeacherId = $request->program_teacher_id;
 
-        // 3. Redirect kembali dengan pesan sukses
-        return redirect()->route('programs.index')
-                         ->with('success', 'Program Keahlian berhasil diperbarui!');
+            // Update data program
+            $program->name = $request->name;
+            $program->code = strtoupper($request->code);
+            $program->program_teacher_id = $newTeacherId;
+            $program->save();
+
+            // Lepas scope dari Kaprog lama jika ada pergantian
+            if ($oldTeacherId && $oldTeacherId !== $newTeacherId) {
+                $oldTeacher = Teacher::find($oldTeacherId);
+                if ($oldTeacher && $oldTeacher->user_id) {
+                    User::where('id', $oldTeacher->user_id)->update(['program_id' => null]);
+                }
+            }
+
+            // Pasang scope ke Kaprog baru
+            if ($newTeacherId) {
+                $newTeacher = Teacher::find($newTeacherId);
+                if ($newTeacher && $newTeacher->user_id) {
+                    $user = User::find($newTeacher->user_id);
+                    if ($user) {
+                        $user->program_id = $program->id;
+                        $user->save();
+
+                        if (!$user->hasRole('kaprog')) {
+                            $user->assignRole('kaprog');
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Program Keahlian berhasil diperbarui!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy(string $id)
+    {
+        try {
+            $program = Program::findOrFail($id);
+
+            if ($program->program_teacher_id) {
+                $teacher = Teacher::find($program->program_teacher_id);
+                if ($teacher && $teacher->user_id) {
+                    User::where('id', $teacher->user_id)->update(['program_id' => null]);
+                }
+            }
+
+            $program->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Program Keahlian berhasil dihapus!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghapus data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
-     * Menghapus program keahlian dari database (Destroy)
-     */
-    public function destroy(string $id)
-    {
-        $program = Program::findOrFail($id);
-        $program->delete();
+ * Get Available Teachers for Modal (Daftar Guru yang Belum Ditugaskan)
+ */
+public function getAvailableTeachers()
+{
+    $assignedTeacherIds = Program::whereNotNull('program_teacher_id')
+                                 ->pluck('program_teacher_id')
+                                 ->toArray();
 
-        return redirect()->route('programs.index')
-                         ->with('success', 'Program Keahlian berhasil dihapus!');
-    }
+    $teachers = Teacher::whereNotIn('id', $assignedTeacherIds)
+                       ->orderBy('name', 'asc')
+                       ->get();
+
+    return response()->json($teachers);
+}
 }

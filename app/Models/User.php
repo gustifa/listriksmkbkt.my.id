@@ -31,6 +31,8 @@ class User extends Authenticatable
         'phone',
         'photo',
         'address',
+        'major_id',
+        'program_id',
         'jenis_user',
     ];
 

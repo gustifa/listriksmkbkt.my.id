@@ -1,108 +1,260 @@
-@section('title', 'Program Keahlian')
+@extends('layouts.app')
 
-<x-app-layout>
-    <div class="page-content">       
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0 fw-bold text-dark">Data Program Keahlian</h4>
-            <a href="{{ route('programs.create') }}" class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus me-1"></i> Tambah Program
-            </a>
+@push('css')
+    <!-- Select2 CSS & Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+@endpush
+
+@section('content')
+<div class="page-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 fw-bold text-dark">Data Program Keahlian</h4>
+        <button type="button" class="btn btn-primary shadow-sm" id="btnAddProgram">
+            <i class="bx bx-plus me-1"></i> Tambah Program
+        </button>
+    </div>
+
+    <div class="card shadow border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary">List Program Keahlian</h6>
         </div>
-
-        <div class="card shadow border-0">
-            <div class="card-header bg-white py-3">
-                <h6 class="m-0 font-weight-bold text-primary">List Program Keahlian</h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="table-programs" class="table table-hover table-bordered align-middle">
-                        <thead class="table-dark text-center">
-                            <tr>
-                                <th width="5%">No</th>
-                                <th>Nama Program Keahlian</th>
-                                <th>Kode</th>
-                                <th>Ketua Program (Penilai)</th>
-                                <th width="15%">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($programs as $key => $program)
-                                <tr>
-                                    <td class="text-center">{{ $key + 1 }}</td>
-                                    <td class="fw-bold text-dark">{{ $program->name }}</td>
-                                    <td class="text-center fw-bold">{{ $program->code }}</td>
-                                    <td>
-                                        {{-- Asumsi Anda memiliki relasi 'teacher' di model Program --}}
-                                        {{ $program->teacher->name ?? 'Belum Diatur' }}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ route('programs.edit', $program->id) }}" class="btn btn-sm btn-warning text-white" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            
-                                            <!-- Form Hapus dengan SweetAlert -->
-                                            <form id="delete-form-{{ $program->id }}" action="{{ route('programs.destroy', $program->id) }}" method="POST" class="d-inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" class="btn btn-sm btn-danger" title="Hapus" onclick="confirmDelete('{{ $program->id }}', '{{ $program->name }}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">
-                                        <img src="https://img.icons8.com/ios/100/cccccc/books.png" width="60" class="mb-3 opacity-50">
-                                        <p class="mb-0">Belum ada data Program Keahlian.</p>
-                                        <small>Silakan klik tombol "Tambah Program" untuk memulai.</small>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="table-programs" class="table table-hover table-bordered align-middle w-100">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th width="5%">No</th>
+                            <th>Nama Program Keahlian</th>
+                            <th>Kode</th>
+                            <th>Ketua Program (Penilai)</th>
+                            <th width="15%">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        @if(session('success'))
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: "{{ session('success') }}",
-                showConfirmButton: false,
-                timer: 2000
-            });
-        @endif
+<!-- MODAL FORM PROGRAM (CREATE / EDIT) -->
+<div class="modal fade" id="modalProgram" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title text-white" id="modalProgramTitle">Tambah Program Keahlian</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formProgram">
+                @csrf
+                <input type="hidden" id="program_id" name="program_id">
+                
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nama Program Keahlian <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Contoh: Teknik Ketenagakerjaan" required>
+                    </div>
 
-        @if($errors->any())
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal!',
-                text: 'Mohon periksa kembali inputan Anda.',
-            });
-        @endif
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kode Program <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="code" name="code" placeholder="Contoh: TKT" required>
+                    </div>
 
-        function confirmDelete(id, name) {
-            Swal.fire({
-                title: 'Apakah Anda yakin?',
-                text: "Program Keahlian " + name + " akan dihapus. Data yang terhubung mungkin akan ikut terdampak.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya, Hapus!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('delete-form-' + id).submit();
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ketua Program (Penilai)</label>
+                        <select class="form-select select2" id="program_teacher_id" name="program_teacher_id" style="width: 100%;">
+                            <option value="">-- Pilih Ketua Program --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btnSave">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $.ajaxSetup({
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+    });
+
+    // Inisialisasi Select2
+    function initSelect2() {
+        $('#program_teacher_id').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#modalProgram'),
+            placeholder: '-- Pilih Ketua Program --',
+            allowClear: true
+        });
+    }
+
+    // 1. DataTables AJAX Load
+    let table = $('#table-programs').DataTable({
+        processing: true,
+        ajax: '{{ route("programs.index") }}',
+        columns: [
+            { data: null, render: (data, type, row, meta) => meta.row + 1, className: 'text-center' },
+            { data: 'name', render: data => `<strong>${data}</strong>` },
+            { data: 'code', render: data => `<span class="badge bg-secondary">${data}</span>`, className: 'text-center' },
+            { 
+                data: 'teacher', 
+                render: teacher => teacher ? `<span class="text-dark fw-semibold">${teacher.name}</span>` : '<span class="text-muted small">Belum Diatur</span>' 
+            },
+            {
+                data: 'id',
+                className: 'text-center',
+                render: function(id) {
+                    return `
+                        <button class="btn btn-sm btn-warning text-white btn-edit" data-id="${id}" title="Edit">
+                            <i class="bx bx-edit-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger btn-delete" data-id="${id}" title="Hapus">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    `;
                 }
-            })
-        }
-    </script>
-</x-app-layout>
+            }
+        ]
+    });
+
+    // 2. Open Modal Tambah (Fetch Data Guru Terbaru via AJAX)
+    $('#btnAddProgram').on('click', function() {
+        $('#formProgram')[0].reset();
+        $('#program_id').val('');
+
+        Swal.fire({ title: 'Memuat Data Guru...', didOpen: () => Swal.showLoading() });
+
+        $.get('{{ route("programs.available-teachers") }}', function(teachers) {
+            Swal.close();
+            
+            let selectGuru = $('#program_teacher_id');
+            selectGuru.empty().append('<option value="">-- Pilih Ketua Program --</option>');
+            
+            teachers.forEach(t => {
+                selectGuru.append(`<option value="${t.id}">${t.name}</option>`);
+            });
+
+            selectGuru.val('').trigger('change');
+            $('#modalProgramTitle').text('Tambah Program Keahlian');
+            $('#modalProgram').modal('show');
+            initSelect2();
+        }).fail(function() {
+            Swal.fire('Gagal!', 'Gagal mengambil data guru dari server.', 'error');
+        });
+    });
+
+    // 3. Open Modal Edit via AJAX
+    $(document).on('click', '.btn-edit', function() {
+        let id = $(this).data('id');
+
+        Swal.fire({ title: 'Memuat Data...', didOpen: () => Swal.showLoading() });
+
+        $.get(`{{ url('/program/edit') }}/${id}`, function(res) {
+            Swal.close();
+            $('#program_id').val(res.program.id);
+            $('#name').val(res.program.name);
+            $('#code').val(res.program.code);
+
+            // Populate Dropdown Guru
+            let selectGuru = $('#program_teacher_id');
+            selectGuru.empty().append('<option value="">-- Pilih Ketua Program --</option>');
+            res.teachers.forEach(t => {
+                let selected = (t.id === res.program.program_teacher_id) ? 'selected' : '';
+                selectGuru.append(`<option value="${t.id}" ${selected}>${t.name}</option>`);
+            });
+
+            selectGuru.val(res.program.program_teacher_id).trigger('change');
+
+            $('#modalProgramTitle').text('Edit Program Keahlian');
+            $('#modalProgram').modal('show');
+            initSelect2();
+        }).fail(function() {
+            Swal.fire('Gagal!', 'Gagal mengambil data dari server.', 'error');
+        });
+    });
+
+    // 4. Submit Form (Store / Update) via AJAX
+    $('#formProgram').on('submit', function(e) {
+        e.preventDefault();
+        let id = $('#program_id').val();
+        let url = id ? `{{ url('/program') }}/${id}` : '{{ route("programs.store") }}';
+        let method = id ? 'PUT' : 'POST';
+
+        $('#btnSave').prop('disabled', true).text('Menyimpan...');
+
+        $.ajax({
+            url: url,
+            type: method,
+            data: $(this).serialize(),
+            success: function(res) {
+                $('#btnSave').prop('disabled', false).text('Simpan');
+                $('#modalProgram').modal('hide');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: res.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                table.ajax.reload(null, false);
+            },
+            error: function(xhr) {
+                $('#btnSave').prop('disabled', false).text('Simpan');
+                let msg = xhr.responseJSON?.message || 'Terjadi kesalahan sistem.';
+                Swal.fire('Gagal!', msg, 'error');
+            }
+        });
+    });
+
+    // 5. Hapus Data via AJAX & SweetAlert2
+    $(document).on('click', '.btn-delete', function() {
+        let id = $(this).data('id');
+
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: "Program Keahlian ini akan dihapus dari sistem!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `{{ url('/program') }}/${id}`,
+                    type: 'DELETE',
+                    success: function(res) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Terhapus!',
+                            text: res.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        table.ajax.reload(null, false);
+                    },
+                    error: function() {
+                        Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus data.', 'error');
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+@endpush

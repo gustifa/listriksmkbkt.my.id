@@ -45,140 +45,9 @@ $status = $guruId->status ?? '0';
         </li>
 
         @if ($status === '1')
-            {{-- ========================================== --}}
-            {{-- 1. MENU PEMBELAJARAN & LMS (GURU)           --}}
-            {{-- ========================================== --}}
-            @role('guru')
-                @if(Auth::user()->teacher)
-                    <li class="menu-label">Pembelajaran & LMS</li>
-                    <li>
-                        <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class='bx bx-book-open'></i></div>
-                            <div class="menu-title">LMS / E-Learning</div>
-                        </a>
-                        <ul>
-                            <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
-                            <li><a href="{{ route('assignments.index') }}"><i class='bx bx-radio-circle'></i>Tugas Siswa</a></li>
-                        </ul>
-                    </li>
-
-                    <li>
-                        <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class='bx bx-bookmark-heart'></i></div>
-                            <div class="menu-title">Schedule</div>
-                        </a>
-                        <ul>
-                            <li><a href="{{route('schedule.index')}}"><i class='bx bx-radio-circle'></i>PBM</a></li>
-                            <li><a href="{{route('journal.index')}}"><i class='bx bx-radio-circle'></i>Jurnal</a></li>
-                        </ul>
-                    </li>
-
-                    @if(Auth::user()->teacher->isAdvisor())
-                    <li>
-                        <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class='bx bx-briefcase-alt-2'></i></div>
-                            <div class="menu-title">PKL</div>
-                        </a>
-                        <ul>
-                            <li><a href="{{ route('teacher.internships.index') }}"><i class='bx bx-radio-circle'></i>Bimbingan</a></li>
-                        </ul>
-                    </li>
-                    @endif
-
-                    <li class="menu-label">Uji Kompetensi Keahlian</li>
-                    <li>
-                        <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class='bx bx-award'></i></div>
-                            <div class="menu-title">UKK</div>
-                        </a>
-                        <ul>
-                            <li><a href="{{ route('ukk.index') }}"><i class='bx bx-radio-circle'></i>Penilaian & Plotting</a></li>
-                        </ul>
-                    </li>
-                @endif
-            @endrole
 
             {{-- ========================================== --}}
-            {{-- 2. MENU KETUA PROGRAM KEAHLIAN & KEPALA BENGKEL --}}
-            {{-- ========================================== --}}
-            @hasanyrole('kaprog|kabeng')
-                <li class="menu-label">Manajemen Kejuruan</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bx-sitemap'></i></div>
-                        <div class="menu-title">Data Kejuruan</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Keahlian</a></li>
-                        <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel / Kelas</a></li>
-                    </ul>
-                </li>
-
-                @role('kabeng')
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bx-wrench'></i></div>
-                        <div class="menu-title">Bengkel & Inventaris</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('admin.inventory.index') }}"><i class='bx bx-radio-circle'></i>Ketersediaan Alat</a></li>
-                        <li><a href="{{ route('loans.index') }}"><i class='bx bx-radio-circle'></i>Peminjaman Alat</a></li>
-                    </ul>
-                </li>
-                @endrole
-
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bxs-report"></i></div>
-                        <div class="menu-title">Laporan Kejuruan</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-border-all'></i>Presensi Gerbang</a></li>
-                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
-                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi</a></li>
-                    </ul>
-                </li>
-            @endhasanyrole
-
-            {{-- ========================================== --}}
-            {{-- 3. MENU MANAJEMEN SEKOLAH (KEPSEK & WAKA)  --}}
-            {{-- ========================================== --}}
-            @hasanyrole('kepsek|wakakur|wakasis|wakahumas')
-                <li class="menu-label">Manajemen Sekolah</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-bar-chart-alt-2"></i></div>
-                        <div class="menu-title">Monitoring & Laporan</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-radio-circle'></i>Presensi Gerbang</a></li>
-                        <li><a href="{{ route('report.index') }}"><i class='bx bx-radio-circle'></i>Pembelajaran</a></li>
-                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-radio-circle'></i>Transkrip Absensi</a></li>
-                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-radio-circle'></i>Rekapitulasi Sekolah</a></li>
-                        <li><a href="{{ route('admin.prayer_reports.index') }}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
-                        <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa</a></li>
-                    </ul>
-                </li>
-            @endhasanyrole
-
-            {{-- ========================================== --}}
-            {{-- 4. MENU WALI KELAS & GURU BK              --}}
-            {{-- ========================================== --}}
-            @hasanyrole('wali_kelas|guru_bk')
-                <li class="menu-label">Wali Kelas & BK</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-file-find"></i></div>
-                        <div class="menu-title">Cetak Transkrip</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
-                    </ul>
-                </li>
-            @endhasanyrole
-
-            {{-- ========================================== --}}
-            {{-- 5. MENU SUPER ADMIN & ADMIN UTAMA          --}}
+            {{-- 1. SYSTEM & MANAGEMENT UTAMA (SUPER ADMIN & ADMIN) --}}
             {{-- ========================================== --}}
             @hasanyrole('super_admin|admin')
                 <li class="menu-label">Sistem & Pengaturan</li>
@@ -198,51 +67,210 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('majors.index')}}"><i class='bx bx-minus-front'></i>Jurusan</a></li>
                         <li><a href="{{route('subjects.index')}}"><i class='bx bx-minus-front'></i>Mapel</a></li>
                         <li><a href="{{route('rooms.index')}}"><i class='bx bx-radio-circle'></i>Bengkel</a></li>
-                        <li><a href="{{route('permissions.index')}}"><i class='bx bx-radio-circle'></i>Permission</a></li>
-                        <li><a href="{{route('roles.index')}}"><i class='bx bx-radio-circle'></i>Role</a></li>
-                        <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-radio-circle'></i>Inventaris</a></li>
-                        <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
+                        <li><a href="{{route('admin.user-roles.index')}}"><i class='bx bx-shield-quarter'></i>Role & Permission</a></li>
+                        <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-box'></i>Inventaris</a></li>
+                        <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-map-pin'></i>Sholat</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-group"></i></div>
-                        <div class="menu-title">Maping</div>
+                        <div class="menu-title">Maping Data</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('teachers.index')}}"><i class='bx bx-radio-circle'></i>Guru</a></li>
+                        <li><a href="{{route('teachers.index')}}"><i class='bx bx-user-voice'></i>Guru</a></li>
                         <li><a href="{{route('classrooms.index')}}"><i class='bx bxs-group'></i>Rombel</a></li>
                         <li><a href="{{route('students.index')}}"><i class='bx bxs-user-check'></i>Murid</a></li>
                         <li><a href="{{url('/face/register')}}"><i class='bx bxs-file-find'></i>Scan Wajah</a></li>
-                        <li><a href="{{url('/teaching-assignments')}}"><i class='bx bx-home-smile'></i>PBM</a></li>
-                        <li><a href="{{url('/schedule/all')}}"><i class='bx bx-home-smile'></i>Jadwal</a></li>
+                        <li><a href="{{url('/teaching-assignments')}}"><i class='bx bx-book-bookmark'></i>PBM</a></li>
+                        <li><a href="{{url('/schedule/all')}}"><i class='bx bx-calendar'></i>Jadwal</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-chip"></i></div>
-                        <div class="menu-title">System</div>
+                        <div class="menu-title">System Administrator</div>
                     </a>
                     <ul>
                         <li><a href="{{route('admin.sync.index')}}"><i class='bx bx-sync'></i>Sinkronisasi Data</a></li>
-                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-id-card'></i>Manage</a></li>
-                        <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-id-card'></i>Log</a></li>
-                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-id-card'></i>Reset</a></li>
-                        <li><a href="{{route('system.update.index')}}"><i class='bx bx-id-card'></i>Update</a></li>
-                        <li><a href="{{route('database.index')}}"><i class='bx bx-id-card'></i>Database</a></li>
-                        <li><a href="{{route('pm2.index')}}"><i class='bx bx-id-card'></i>Server</a></li>
-                        <li><a href="{{route('whatsapp.index')}}"><i class='bx bx-id-card'></i>WA</a></li>
+                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-slider-alt'></i>Manage Presensi</a></li>
+                        <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-history'></i>Log Aktivitas</a></li>
+                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-mobile-vibration'></i>Reset HP Siswa</a></li>
+                        <li><a href="{{route('system.update.index')}}"><i class='bx bx-cloud-download'></i>Update Sistem</a></li>
+                        <li><a href="{{route('database.index')}}"><i class='bx bx-data'></i>Database</a></li>
+                        <li><a href="{{route('pm2.index')}}"><i class='bx bx-server'></i>Server PM2</a></li>
+                        <li><a href="{{route('whatsapp.index')}}"><i class='bx bxl-whatsapp'></i>WA Gateway</a></li>
                         <li><a href="{{route('license.index')}}"><i class='bx bx-key'></i>Lisensi</a></li>
                     </ul>
                 </li>
+            @endhasanyrole
 
-                <li class="menu-label">LMS / E-Learning</li>
+            {{-- ========================================== --}}
+            {{-- 2. TATA USAHA & PEGAWAI (KA TU, PEGAWAI, BENDAHARA) --}}
+            {{-- ========================================== --}}
+            @hasanyrole('ka_tu|pegawai|bendahara')
+                <li class="menu-label">Tata Usaha & Keuangan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-file"></i></div>
+                        <div class="menu-title">Administrasi Sekolah</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Data Siswa</a></li>
+                        <li><a href="{{ route('teachers.index') }}"><i class='bx bx-radio-circle'></i>Data Guru & Pegawai</a></li>
+                        <li><a href="{{ route('documents.index') }}"><i class='bx bx-radio-circle'></i>Dokumen Sekolah</a></li>
+                        <li><a href="{{ route('print.index') }}"><i class='bx bx-id-card'></i>Cetak Kartu Siswa</a></li>
+                        <li><a href="{{ route('report.surat_tugas_all') }}" target="_blank"><i class='bx bx-file'></i>Surat Tugas Guru</a></li>
+                    </ul>
+                </li>
+                @role('bendahara')
+                <li>
+                    <a href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-money"></i></div>
+                        <div class="menu-title">Keuangan Sekolah</div>
+                    </a>
+                </li>
+                @endrole
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 3. MANAJEMEN SEKOLAH (KEPSEK & PARA WAKA) --}}
+            {{-- ========================================== --}}
+            @hasanyrole('kepsek|wakakur|wakasis|wakahumas')
+                <li class="menu-label">Pimpinan & Manajemen</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-bar-chart-alt-2"></i></div>
+                        <div class="menu-title">Monitoring & Laporan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-radio-circle'></i>Presensi Gerbang</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-radio-circle'></i>Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-radio-circle'></i>Transkrip Absensi</a></li>
+                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-radio-circle'></i>Rekapitulasi Sekolah</a></li>
+                        <li><a href="{{ route('admin.prayer_reports.index') }}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
+                        <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa/Abolisi</a></li>
+                        <li><a href="{{ route('laporan.daya_tampung') }}"><i class='bx bx-radio-circle'></i>Usulan Daya Tampung</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 4. KETUA PROGRAM & KEPALA BENGKEL (KAPROG & KABENG) --}}
+            {{-- ========================================== --}}
+            @hasanyrole('kaprog|kabeng')
+                <li class="menu-label">Manajemen Kejuruan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-sitemap'></i></div>
+                        <div class="menu-title">Program Keahlian</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Kejuruan</a></li>
+                        <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel Kejuruan</a></li>
+                    </ul>
+                </li>
+
+                @role('kabeng')
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-wrench'></i></div>
+                        <div class="menu-title">Bengkel & Workshop</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('admin.inventory.index') }}"><i class='bx bx-radio-circle'></i>Stok Alat & Bahan</a></li>
+                        <li><a href="{{ route('loans.index') }}"><i class='bx bx-radio-circle'></i>Peminjaman Alat</a></li>
+                    </ul>
+                </li>
+                @endrole
+
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bxs-report"></i></div>
+                        <div class="menu-title">Laporan Kejuruan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-border-all'></i>Presensi Gerbang</a></li>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
+                        <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi Scope</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 5. HUMAS & POKJA PKL (WAKAHUMAS & POKJA PKL) --}}
+            {{-- ========================================== --}}
+            @hasanyrole('super_admin|admin|wakahumas|pokja_pkl')
+                <li class="menu-label">Humas & Praktik Kerja Lapangan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-building-house"></i></div>
+                        <div class="menu-title">Manajemen PKL</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('admin.timeline.index')}}"><i class='bx bx-radio-circle'></i>00. Timeline PKL</a></li>
+                        <li><a href="{{route('admin.pkl.mapping')}}"><i class='bx bx-radio-circle'></i>01. Mapping Siswa</a></li>
+                        <li><a href="{{route('industries.index')}}"><i class='bx bx-radio-circle'></i>02. Perusahaan DUDI</a></li>
+                        <li><a href="{{route('admin.internships.index')}}"><i class='bx bx-radio-circle'></i>03. Penempatan PKL</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 6. WALI KELAS & GURU BK                    --}}
+            {{-- ========================================== --}}
+            @hasanyrole('wali_kelas|guru_bk')
+                <li class="menu-label">Wali Kelas & Bimbingan Konseling</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-user-voice"></i></div>
+                        <div class="menu-title">Pembinaan & Konseling</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('admin.guidance.index')}}"><i class='bx bx-radio-circle'></i>Daftar Bimbingan</a></li>
+                        <li><a href="{{route('admin.guidance.create')}}"><i class='bx bx-radio-circle'></i>Tambah Pembinaan</a></li>
+                        <li><a href="{{route('admin.violation-types.index')}}"><i class='bx bx-radio-circle'></i>Master Pelanggaran</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-file-find"></i></div>
+                        <div class="menu-title">Laporan Binaan</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Kelas</a></li>
+                        <li><a href="{{ route('admin.permit.recap') }}"><i class='bx bx-border-all'></i>Rekap Izin Siswa</a></li>
+                    </ul>
+                </li>
+            @endhasanyrole
+
+            {{-- ========================================== --}}
+            {{-- 7. PEMBINA EKSTRAKURIKULER                 --}}
+            {{-- ========================================== --}}
+            @role('pembina_ekskul')
+                <li class="menu-label">Ekstrakurikuler</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-football'></i></div>
+                        <div class="menu-title">Kegiatan Ekskul</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('kegiatan.index') }}"><i class='bx bx-radio-circle'></i>Presensi Kegiatan</a></li>
+                    </ul>
+                </li>
+            @endrole
+
+            {{-- ========================================== --}}
+            {{-- 8. PEMBELAJARAN, LMS & CBT (GURU)          --}}
+            {{-- ========================================== --}}
+            @role('guru')
+                <li class="menu-label">Pembelajaran & LMS</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bx-book-open'></i></div>
-                        <div class="menu-title">Kelola LMS</div>
+                        <div class="menu-title">LMS / E-Learning</div>
                     </a>
                     <ul>
                         <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
@@ -252,153 +280,77 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-building-house"></i></div>
-                        <div class="menu-title">PKL</div>
+                        <div class="parent-icon"><i class='bx bx-calendar-event'></i></div>
+                        <div class="menu-title">PBM & Schedule</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('admin.timeline.index')}}"><i class='bx bx-radio-circle'></i>00.Timeline</a></li>
-                        <li><a href="{{route('admin.pkl.mapping')}}"><i class='bx bx-radio-circle'></i>01.Maping</a></li>
-                        <li><a href="{{route('industries.index')}}"><i class='bx bx-radio-circle'></i>02.DUDI</a></li>
-                        <li><a href="{{route('admin.internships.index')}}"><i class='bx bx-radio-circle'></i>03.Penempatan</a></li>
-                    </ul>
-                </li>
-
-                <li class="menu-label">Uji Kompetensi Keahlian</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-award"></i></div>
-                        <div class="menu-title">UKK</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{ route('ukk.index') }}"><i class='bx bx-radio-circle'></i>Penilaian & Plotting</a></li>
-                    </ul>
-                </li>
-
-                <li class="menu-label">Absensi</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bx-printer'></i></div>
-                        <div class="menu-title">Print</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{route('print.index')}}"><i class='bx bx-id-card'></i>Kartu</a></li>
-                        <li><a href="{{route('report.surat_tugas_all')}}" target="_blank"><i class='bx bx-id-card'></i>Surat Tugas</a></li>
+                        <li><a href="{{route('schedule.index')}}"><i class='bx bx-radio-circle'></i>Jadwal Mengajar</a></li>
+                        <li><a href="{{route('journal.index')}}"><i class='bx bx-radio-circle'></i>Jurnal Mengajar</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bxs-report"></i></div>
-                        <div class="menu-title">Laporan</div>
+                        <div class="parent-icon"><i class='bx bxs-edit'></i></div>
+                        <div class="menu-title">Ujian CBT</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('report.index')}}"><i class='bx bx-border-all'></i>Pembelajaran</a></li>
-                        <li><a href="{{route('daily_attendance.report')}}"><i class='bx bx-border-all'></i>Gerbang</a></li>
-                        <li><a href="{{route('transkrip.index')}}"><i class='bx bx-border-all'></i>Transkrip</a></li>
-                        <li><a href="{{route('recap.index')}}"><i class='bx bx-id-card'></i>Rekap</a></li>
-                        <li><a href="{{route('admin.permit.recap')}}"><i class='bx bx-id-card'></i>Izin</a></li>
-                        <li><a href="{{route('admin.prayer_reports.index')}}"><i class='bx bx-id-card'></i>Sholat</a></li>
-                        <li><a href="{{route('admin.reports.student-calendar.index')}}"><i class='bx bx-id-card'></i>Kalender</a></li>
-                        <li><a href="{{route('reports.missing_attendance')}}"><i class='bx bx-id-card'></i>Alfa</a></li>
+                        <li><a href="{{url('/exams')}}"><i class='bx bx-radio-circle'></i>Kelola Bank Soal & Ujian</a></li>
                     </ul>
                 </li>
 
+                @if(Auth::user()->teacher && Auth::user()->teacher->isAdvisor())
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-award"></i></div>
-                        <div class="menu-title">Sertifikat</div>
+                        <div class="parent-icon"><i class='bx bx-briefcase-alt-2'></i></div>
+                        <div class="menu-title">Pembimbing PKL</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('certificates.index')}}"><i class='bx bx-border-all'></i>Print</a></li>
+                        <li><a href="{{ route('teacher.internships.index') }}"><i class='bx bx-radio-circle'></i>Bimbingan & Penilaian</a></li>
                     </ul>
                 </li>
-
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-message-alt"></i></div>
-                        <div class="menu-title">WhatsApp</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{route('whatsapp.broadcast')}}"><i class='bx bx-broadcast'></i>Broadcast</a></li>
-                    </ul>
-                </li>
+                @endif
             @endrole
 
             {{-- ========================================== --}}
-            {{-- 6. MENU OPERASIONAL (PIKET / GURU / ADMIN)  --}}
+            {{-- 9. OPERASIONAL PRESENSI, PIKET & SECURITY --}}
             {{-- ========================================== --}}
-            @hasanyrole('piket|guru|admin')
-                <li class="menu-label">CBT</li>
+            @hasanyrole('super_admin|admin|piket|security|guru')
+                <li class="menu-label">Operasional & Keamanan</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-barcode'></i></div>
-                        <div class="menu-title">CBT</div>
+                        <div class="parent-icon"><i class='bx bx-qr-scan'></i></div>
+                        <div class="menu-title">Presensi Gerbang & Kelas</div>
                     </a>
                     <ul>
-                        <li><a href="{{url('/exams')}}"><i class='bx bx-barcode'></i>Manage CBT</a></li>
-                    </ul>
-                </li>
-
-                <li class="menu-label">Presensi & Laporan</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-barcode'></i></div>
-                        <div class="menu-title">Presensi</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{url('/daily-attendance/monitor-kelas')}}"><i class='bx bx-barcode'></i>Realtime</a></li>
-                        <li><a href="{{url('/daily-attendance/manual')}}"><i class='bx bx-border-all'></i>Manual</a></li>
-                        <li><a href="{{url('/daily-attendance')}}"><i class='bx bx-barcode'></i>QR</a></li>
-                        <li><a href="{{route('gate.monitor')}}"><i class='bx bx-face'></i>Face</a></li>
-                        <li><a href="{{route('face.index')}}"><i class='bx bx-face'></i>Multi-Descriptor</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class="bx bx-user-voice"></i></div>
-                        <div class="menu-title">Pembinaan</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{route('admin.guidance.index')}}"><i class='bx bx-radio-circle'></i>Pembinaan</a></li>
-                        <li><a href="{{route('admin.guidance.create')}}"><i class='bx bx-radio-circle'></i>Tambah Pembinaan</a></li>
-                        <li><a href="{{route('admin.violation-types.index')}}"><i class='bx bx-radio-circle'></i>Pelanggaran</a></li>
-                        <li><a href="{{route('admin.violation-types.create')}}"><i class='bx bx-radio-circle'></i>Tambah Pelanggaran</a></li>
+                        <li><a href="{{url('/daily-attendance/monitor-kelas')}}"><i class='bx bx-tv'></i>Realtime Kelas</a></li>
+                        <li><a href="{{route('gate.monitor')}}"><i class='bx bx-face'></i>Monitor Wajah Gerbang</a></li>
+                        <li><a href="{{url('/daily-attendance/manual')}}"><i class='bx bx-edit'></i>Presensi Manual</a></li>
+                        <li><a href="{{url('/daily-attendance')}}"><i class='bx bx-qr'></i>Scanner QR Code</a></li>
+                        <li><a href="{{route('face.index')}}"><i class='bx bx-user-voice'></i>Multi-Descriptor Wajah</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-door-open"></i></div>
-                        <div class="menu-title">Izin Toilet</div>
+                        <div class="menu-title">Izin Dispensasi / Toilet</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Izin</a></li>
+                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Scan Izin Keluar Kelas</a></li>
                     </ul>
                 </li>
-
-                @role('guru')
-                    <li>
-                        <a class="has-arrow" href="javascript:;">
-                            <div class="parent-icon"><i class="bx bxs-report"></i></div>
-                            <div class="menu-title">Laporan</div>
-                        </a>
-                        <ul>
-                            <li><a href="{{route('daily_attendance.report')}}"><i class='bx bx-border-all'></i>Gerbang</a></li>
-                        </ul>
-                    </li>
-                @endrole
-            @endrole
+            @endhasanyrole
 
             {{-- ========================================== --}}
-            {{-- 7. MENU SISWA                              --}}
+            {{-- 10. SISWA                                  --}}
             {{-- ========================================== --}}
             @role('siswa')
-                <li class="menu-label">Pembelajaran & LMS</li>
+                <li class="menu-label">Area Siswa</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bx-book-reader'></i></div>
-                        <div class="menu-title">Pembelajaran</div>
+                        <div class="menu-title">Pembelajaran LMS</div>
                     </a>
                     <ul>
                         <li><a href="{{ route('materials.index') }}"><i class='bx bx-radio-circle'></i>Materi Pembelajaran</a></li>
@@ -406,62 +358,53 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
-                <li class="menu-label">My Profile</li>
-                <li>
-                    <a class="has-arrow" href="javascript:;">
-                        <div class="parent-icon"><i class='bx bxs-user-detail'></i></div>
-                        <div class="menu-title">My Profile</div>
-                    </a>
-                    <ul>
-                        <li><a href="{{route('student.profile')}}"><i class='bx bx-radio-circle'></i>Profile</a></li>
-                        <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Subject</a></li>
-                        <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Daily</a></li>
-                    </ul>
-                </li>
-
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bxs-edit'></i></div>
-                        <div class="menu-title">CBT</div>
+                        <div class="menu-title">Ujian Online (CBT)</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('student.exam.index')}}"><i class='bx bx-radio-circle'></i>CBT</a></li>
+                        <li><a href="{{route('student.exam.index')}}"><i class='bx bx-radio-circle'></i>Daftar Ujian</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bxs-time'></i></div>
-                        <div class="menu-title">Absensi</div>
+                        <div class="menu-title">Presensi Mandiri</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('student.prayer-attendances.index')}}"><i class='bx bx-radio-circle'></i>Sholat</a></li>
-                        <li><a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Face</a></li>
+                        <li><a href="{{route('student.scan')}}"><i class='bx bx-face'></i>Scan Masuk Wajah</a></li>
+                        <li><a href="{{route('student.prayer-attendances.index')}}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
                     </ul>
                 </li>
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bxs-briefcase'></i></div>
-                        <div class="menu-title">PKL</div>
+                        <div class="menu-title">Praktik Kerja Lapangan</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('student.internships.index')}}"><i class='bx bx-radio-circle'></i>Tentukan</a></li>
-                        <li><a href="{{route('student.internships.attendance.index')}}"><i class='bx bx-radio-circle'></i>Presensi</a></li>
+                        <li><a href="{{route('student.internships.index')}}"><i class='bx bx-radio-circle'></i>Pengajuan DUDI</a></li>
+                        <li><a href="{{route('student.internships.attendance.index')}}"><i class='bx bx-radio-circle'></i>Jurnal & Presensi PKL</a></li>
                     </ul>
                 </li>
 
-                <li class="menu-label">Laporan</li>
+                <li class="menu-label">Profil & Rekap</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bxs-user-detail'></i></div>
-                        <div class="menu-title">Rekap</div>
+                        <div class="menu-title">Akun Saya</div>
                     </a>
                     <ul>
-                        <li><a href="{{ route('student.attendance-calendar.index') }}" class="nav-link {{ request()->routeIs('student.attendance-calendar.*') ? 'active' : '' }}"><i class='bx bx-radio-circle'></i>Kehadiran</a></li>
+                        <li><a href="{{route('student.profile')}}"><i class='bx bx-radio-circle'></i>Profil Siswa</a></li>
+                        <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Riwayat PBM</a></li>
+                        <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Riwayat Gerbang</a></li>
+                        <li><a href="{{ route('student.attendance-calendar.index') }}"><i class='bx bx-radio-circle'></i>Kalender Kehadiran</a></li>
                     </ul>
                 </li>
             @endrole
+
         @endif
     </ul>
     <!--end navigation-->

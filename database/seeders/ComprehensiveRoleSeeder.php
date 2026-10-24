@@ -25,6 +25,12 @@ class ComprehensiveRoleSeeder extends Seeder
 
         // 2. DAFTAR PERMISSION LENGKAP
         $permissions = [
+            // Permission Tingkat Sistem & Server (Khusus Super Admin)
+            'manage_system_update',
+            'manage_database',
+            'manage_license',
+
+            // Permission Operasional Sekolah
             'master_data',              // Master Data Utama
             'scan_attendance',          // Scanner Absensi (QR / Wajah)
             'view_report',              // Melihat Laporan Standar
@@ -53,10 +59,20 @@ class ComprehensiveRoleSeeder extends Seeder
 
         // 3. DAFTAR ROLE DAN SINKRONISASI PERMISSION
 
-        // Pimpinan & Manajemen Sekolah
-        $roleAdmin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $roleAdmin->givePermissionTo(Permission::all());
+        // Super Admin (Pengembang / Tim IT Utama - Access 100%)
+        $roleSuperAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $roleSuperAdmin->givePermissionTo(Permission::all());
 
+        // Admin Operasional Sekolah (Seluruh Permission KECUALI Akses Sistem/Server)
+        $roleAdmin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $adminPermissions = Permission::whereNotIn('name', [
+            'manage_system_update',
+            'manage_database',
+            'manage_license'
+        ])->get();
+        $roleAdmin->syncPermissions($adminPermissions);
+
+        // Kepala Sekolah & Manajemen
         $roleKepsek = Role::firstOrCreate(['name' => 'kepsek', 'guard_name' => 'web']);
         $roleKepsek->givePermissionTo(['view_report', 'view_all_reports']);
 
@@ -112,6 +128,6 @@ class ComprehensiveRoleSeeder extends Seeder
 
         $roleSiswa = Role::firstOrCreate(['name' => 'siswa', 'guard_name' => 'web']);
 
-        $this->command->info('ComprehensiveRoleSeeder Berhasil! Seluruh Role baru telah ditambahkan tanpa mengganggu seeder lama.');
+        $this->command->info('ComprehensiveRoleSeeder Berhasil! Pemisahan hak akses super_admin dan admin telah diperbarui.');
     }
 }
