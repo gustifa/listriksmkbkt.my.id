@@ -13,6 +13,7 @@
                                 </small>
                             </div>
                             <div class="d-flex align-items-center gap-1">
+                                @hasanyrole('admin|super-admin')
                                 <!-- SWITCH TOGGLE STATUS AKTIF/NONAKTIF -->
                                 <div class="form-check form-switch m-0" title="Aktifkan/Nonaktifkan Rombel">
                                     <input class="form-check-input" type="checkbox" role="switch" 
@@ -20,6 +21,7 @@
                                            onchange="toggleRombelStatus('{{ $classroom->id }}', this.checked)"
                                            {{ $classroom->is_active ? 'checked' : '' }}>
                                 </div>
+                                @endhasanyrole
                                 <span id="card-badge-count-{{ $classroom->id }}" class="badge bg-light text-dark border rounded-pill px-2 py-1">
                                     <i class="bx bx-user me-1"></i>{{ $classroom->students_count ?? 0 }}
                                 </span>
@@ -64,12 +66,14 @@
                             <a href="{{ route('classrooms.printAllIdsPdf', $classroom->id) }}" target="_blank" class="btn btn-outline-secondary btn-sm rounded-3" title="Cetak ID Card">
                                 <i class="bx bx-id-card"></i>
                             </a>
+                            @hasanyrole('admin|super-admin')
                             <a href="{{ route('classrooms.edit', $classroom->id) }}" class="btn btn-outline-warning btn-sm rounded-3" title="Edit Kelas">
                                 <i class="bx bx-edit"></i>
                             </a>
                             <button type="button" onclick="confirmDelete('{{ $classroom->id }}', '{{ $classroom->name }}')" class="btn btn-outline-danger btn-sm rounded-3" title="Hapus Kelas">
                                 <i class="bx bx-trash"></i>
                             </button>
+                            @endhasanyrole
                         </div>
                     </div>
                 </div>

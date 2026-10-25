@@ -43,14 +43,18 @@
                             <i class="fas fa-camera"></i>
                         </a>
 
-                        <a href="{{ route('students.edit', $student->id) }}" class="btn btn-sm btn-warning text-white" title="Edit Data">
-                            <i class="bx bx-edit"></i>
-                        </a>
+                        
 
                         <a href="{{ route('students.print_id', $student->id) }}" class="btn btn-sm btn-info text-white" title="Cetak Kartu">
                             <i class="bx bx-id-card"></i>
                         </a>
 
+                        
+                        @hasanyrole('admin|super-admin')
+
+                        <a href="{{ route('students.edit', $student->id) }}" class="btn btn-sm btn-warning text-white" title="Edit Data">
+                            <i class="bx bx-edit"></i>
+                        </a>
                         <form action="{{ route('students.destroy', $student->id) }}" method="POST" class="d-inline form-delete">
                             @csrf
                             @method('DELETE')
@@ -58,6 +62,7 @@
                                 <i class="fas fa-trash"></i>
                             </button>
                         </form>
+                        @endhasanyrole
                     </div>
                 </td>
             </tr>
