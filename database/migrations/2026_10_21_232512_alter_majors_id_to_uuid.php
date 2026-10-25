@@ -34,7 +34,7 @@ return new class extends Migration
         // 2. Buat kolom temp_id (UUID) di tabel majors
         DB::statement('ALTER TABLE majors ADD COLUMN temp_id uuid DEFAULT gen_random_uuid();');
 
-        // 3. Buat kolom temp_major_id (UUID) di tabel terikat & salin data relasinya
+        // 3. Buat kolom temp_major_id (UUID) & salin data relasi HANYA JIKA major_id ada
         foreach ($relatedTables as $table) {
             DB::statement("
                 DO $$ 
@@ -44,16 +44,11 @@ return new class extends Migration
                         WHERE table_name = '{$table}' AND column_name = 'major_id'
                     ) THEN 
                         ALTER TABLE {$table} ADD COLUMN temp_major_id uuid;
+                        
+                        -- UPDATE hanya dieksekusi jika major_id benar-benar ada
+                        EXECUTE 'UPDATE {$table} SET temp_major_id = majors.temp_id FROM majors WHERE {$table}.major_id = majors.id';
                     END IF;
                 END $$;
-            ");
-
-            // Salin relasi ID lama ke UUID baru
-            DB::statement("
-                UPDATE {$table} 
-                SET temp_major_id = majors.temp_id 
-                FROM majors 
-                WHERE {$table}.major_id = majors.id;
             ");
         }
 
@@ -82,6 +77,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Rollback tidak disarankan untuk migrasi structural UUID ini demi integritas data.
+        // Rollback tidak disarankan untuk migrasi ini.
     }
 };
