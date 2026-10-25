@@ -19,48 +19,75 @@ class TranskripAbsensiController extends Controller
     /**
      * Halaman Utama Filter Cetak Transkrip
      */
+    // public function index(Request $request)
+    // {
+    //     $user = auth()->user();
+        
+    //     $isWaliKelas = $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
+    //     $isBK        = $user->hasRole('bk') || $user->role === 'bk';
+
+    //     $classrooms = collect();
+    //     $students   = collect();
+
+    //     if ($isWaliKelas) {
+    //         $teacher = Teacher::where('user_id', $user->id)->first();
+    //         $teacherId = $teacher ? $teacher->id : $user->id;
+
+    //         $classrooms = Classroom::where('homeroom_teacher_id', $teacherId)
+    //             ->orWhere('homeroom_teacher_id', $user->id)
+    //             ->get();
+    //         $classroomIds = $classrooms->pluck('id');
+
+    //         $students = Student::whereIn('classroom_id', $classroomIds)
+    //             ->where('status', 'active')
+    //             ->orderBy('name')
+    //             ->get();
+
+    //     } elseif ($isBK) {
+    //         $teacher = Teacher::where('user_id', $user->id)->first();
+    //         $teacherId = $teacher ? $teacher->id : $user->id;
+
+    //         $classrooms = Classroom::where('counseling_teacher_id', $teacherId)
+    //             ->orWhere('counseling_teacher_id', $user->id)
+    //             ->get();
+
+    //         if ($classrooms->isEmpty()) {
+    //             $classrooms = Classroom::orderBy('name')->get();
+    //         }
+
+    //         $students = Student::where('status', 'active')->orderBy('name')->get();
+
+    //     } else {
+    //         $classrooms = Classroom::orderBy('name')->get();
+    //         $students   = Student::where('status', 'active')->orderBy('name')->get();
+    //     }
+
+    //     return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK'));
+    // }
+
+    /**
+     * Halaman Utama Filter Cetak Transkrip
+     */
     public function index(Request $request)
     {
         $user = auth()->user();
         
-        $isWaliKelas = $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
+        // Pengecekan role menggunakan Spatie Permission & attribute role
+        $isWaliKelas = $user->hasRole('walas') || $user->hasRole('wali_kelas') || $user->role === 'wali_kelas';
         $isBK        = $user->hasRole('bk') || $user->role === 'bk';
 
-        $classrooms = collect();
-        $students   = collect();
+        // 1. Ambil Kelas Sesuai Hak Akses (Kaprog, Kabeng, Walas, BK, Admin)
+        $classrooms = Classroom::accessibleBy($user)
+            ->orderBy('name', 'asc')
+            ->get();
 
-        if ($isWaliKelas) {
-            $teacher = Teacher::where('user_id', $user->id)->first();
-            $teacherId = $teacher ? $teacher->id : $user->id;
+        $classroomIds = $classrooms->pluck('id');
 
-            $classrooms = Classroom::where('homeroom_teacher_id', $teacherId)
-                ->orWhere('homeroom_teacher_id', $user->id)
-                ->get();
-            $classroomIds = $classrooms->pluck('id');
-
-            $students = Student::whereIn('classroom_id', $classroomIds)
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->get();
-
-        } elseif ($isBK) {
-            $teacher = Teacher::where('user_id', $user->id)->first();
-            $teacherId = $teacher ? $teacher->id : $user->id;
-
-            $classrooms = Classroom::where('counseling_teacher_id', $teacherId)
-                ->orWhere('counseling_teacher_id', $user->id)
-                ->get();
-
-            if ($classrooms->isEmpty()) {
-                $classrooms = Classroom::orderBy('name')->get();
-            }
-
-            $students = Student::where('status', 'active')->orderBy('name')->get();
-
-        } else {
-            $classrooms = Classroom::orderBy('name')->get();
-            $students   = Student::where('status', 'active')->orderBy('name')->get();
-        }
+        // 2. Ambil Siswa yang hanya berada di dalam Rombel Hak Akses tersebut
+        $students = Student::whereIn('classroom_id', $classroomIds)
+            ->where('status', 'active')
+            ->orderBy('name', 'asc')
+            ->get();
 
         return view('report.transkrip_index', compact('students', 'classrooms', 'isWaliKelas', 'isBK'));
     }

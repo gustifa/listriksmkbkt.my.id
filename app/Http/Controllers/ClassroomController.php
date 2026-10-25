@@ -458,23 +458,82 @@ public function searchUnassignedStudents(Request $request, $classroomId)
     /**
      * Menyimpan data kelas baru.
      */
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'name' => 'required|string|max:255|unique:classrooms,name',
+    //         'major_id' => 'nullable|exists:majors,id',
+    //         // Validasi: Wali Kelas harus unik di tabel classrooms
+    //         'homeroom_teacher_id' => [
+    //             'nullable',
+    //             'exists:teachers,id',
+    //             'unique:classrooms,homeroom_teacher_id' // Guru tidak boleh dipakai di kelas lain
+    //         ],
+    //         'counseling_teacher_id' => 'nullable|exists:teachers,id',
+    //     ], [
+    //         'homeroom_teacher_id.unique' => 'Guru tersebut sudah menjadi Wali Kelas di kelas lain.',
+    //     ]);
+
+    //     Classroom::create($request->all());
+
+    //     return redirect()->route('classrooms.index')->with('success', 'Kelas berhasil ditambahkan.');
+    // }
+
+    /**
+     * Menyimpan data kelas baru & Otomatis Sync Role Walas
+     */
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'name' => 'required|string|max:255|unique:classrooms,name',
+    //         'major_id' => 'nullable|exists:majors,id',
+    //         'homeroom_teacher_id' => [
+    //             'nullable',
+    //             'exists:teachers,id',
+    //             'unique:classrooms,homeroom_teacher_id'
+    //         ],
+    //         'counseling_teacher_id' => 'nullable|exists:teachers,id',
+    //     ], [
+    //         'homeroom_teacher_id.unique' => 'Guru tersebut sudah menjadi Wali Kelas di kelas lain.',
+    //     ]);
+
+    //     $classroom = Classroom::create($request->all());
+
+    //     // Sinkronisasi Role Walas untuk Guru yang ditunjuk
+    //     if ($classroom->homeroom_teacher_id) {
+    //         $this->syncHomeroomRole($classroom->homeroom_teacher_id);
+    //     }
+
+    //     return redirect()->route('classrooms.index')->with('success', 'Kelas berhasil ditambahkan.');
+    // }
+
+    /**
+     * Menyimpan data kelas baru & Otomatis Sync Role Walas & BK
+     */
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:classrooms,name',
             'major_id' => 'nullable|exists:majors,id',
-            // Validasi: Wali Kelas harus unik di tabel classrooms
             'homeroom_teacher_id' => [
                 'nullable',
                 'exists:teachers,id',
-                'unique:classrooms,homeroom_teacher_id' // Guru tidak boleh dipakai di kelas lain
+                'unique:classrooms,homeroom_teacher_id'
             ],
             'counseling_teacher_id' => 'nullable|exists:teachers,id',
         ], [
             'homeroom_teacher_id.unique' => 'Guru tersebut sudah menjadi Wali Kelas di kelas lain.',
         ]);
 
-        Classroom::create($request->all());
+        $classroom = Classroom::create($request->all());
+
+        // Sinkronisasi Role Walas & BK untuk Guru yang ditunjuk
+        if ($classroom->homeroom_teacher_id) {
+            $this->syncHomeroomRole($classroom->homeroom_teacher_id);
+        }
+        if ($classroom->counseling_teacher_id) {
+            $this->syncCounselingRole($classroom->counseling_teacher_id);
+        }
 
         return redirect()->route('classrooms.index')->with('success', 'Kelas berhasil ditambahkan.');
     }
@@ -494,6 +553,79 @@ public function searchUnassignedStudents(Request $request, $classroomId)
     /**
      * Memperbarui data kelas.
      */
+    // public function update(Request $request, Classroom $classroom)
+    // {
+    //     $request->validate([
+    //         'name' => [
+    //             'required',
+    //             'string',
+    //             'max:255',
+    //             Rule::unique('classrooms', 'name')->ignore($classroom->id)
+    //         ],
+    //         'major_id' => 'nullable|exists:majors,id',
+
+    //         // Validasi Unik Wali Kelas (Kecuali untuk kelas ini sendiri)
+    //         'homeroom_teacher_id' => [
+    //             'nullable',
+    //             'exists:teachers,id',
+    //             Rule::unique('classrooms', 'homeroom_teacher_id')->ignore($classroom->id),
+    //         ],
+
+    //         'counseling_teacher_id' => 'nullable|exists:teachers,id',
+    //         'class_leader_id' => 'nullable|exists:students,id',
+    //     ], [
+    //         'homeroom_teacher_id.unique' => 'Guru tersebut sudah menjadi Wali Kelas di kelas lain.',
+    //     ]);
+
+    //     $classroom->update($request->all());
+
+    //     return redirect()->route('classrooms.index')->with('success', 'Data kelas berhasil diperbarui.');
+    // }
+
+    /**
+     * Memperbarui data kelas & Otomatis Sync Role Walas
+     */
+    // public function update(Request $request, Classroom $classroom)
+    // {
+    //     $request->validate([
+    //         'name' => [
+    //             'required',
+    //             'string',
+    //             'max:255',
+    //             Rule::unique('classrooms', 'name')->ignore($classroom->id)
+    //         ],
+    //         'major_id' => 'nullable|exists:majors,id',
+    //         'homeroom_teacher_id' => [
+    //             'nullable',
+    //             'exists:teachers,id',
+    //             Rule::unique('classrooms', 'homeroom_teacher_id')->ignore($classroom->id),
+    //         ],
+    //         'counseling_teacher_id' => 'nullable|exists:teachers,id',
+    //         'class_leader_id' => 'nullable|exists:students,id',
+    //     ], [
+    //         'homeroom_teacher_id.unique' => 'Guru tersebut meurupakan Wali Kelas di kelas lain.',
+    //     ]);
+
+    //     $oldHomeroomTeacherId = $classroom->homeroom_teacher_id;
+
+    //     $classroom->update($request->all());
+
+    //     // Sync role untuk wali kelas lama (jika diganti/dikosongkan)
+    //     if ($oldHomeroomTeacherId && $oldHomeroomTeacherId != $classroom->homeroom_teacher_id) {
+    //         $this->syncHomeroomRole($oldHomeroomTeacherId);
+    //     }
+
+    //     // Sync role untuk wali kelas baru
+    //     if ($classroom->homeroom_teacher_id) {
+    //         $this->syncHomeroomRole($classroom->homeroom_teacher_id);
+    //     }
+
+    //     return redirect()->route('classrooms.index')->with('success', 'Data kelas berhasil diperbarui.');
+    // }
+
+    /**
+     * Memperbarui data kelas & Otomatis Sync Role Walas & BK
+     */
     public function update(Request $request, Classroom $classroom)
     {
         $request->validate([
@@ -504,21 +636,37 @@ public function searchUnassignedStudents(Request $request, $classroomId)
                 Rule::unique('classrooms', 'name')->ignore($classroom->id)
             ],
             'major_id' => 'nullable|exists:majors,id',
-
-            // Validasi Unik Wali Kelas (Kecuali untuk kelas ini sendiri)
             'homeroom_teacher_id' => [
                 'nullable',
                 'exists:teachers,id',
                 Rule::unique('classrooms', 'homeroom_teacher_id')->ignore($classroom->id),
             ],
-
             'counseling_teacher_id' => 'nullable|exists:teachers,id',
             'class_leader_id' => 'nullable|exists:students,id',
         ], [
-            'homeroom_teacher_id.unique' => 'Guru tersebut sudah menjadi Wali Kelas di kelas lain.',
+            'homeroom_teacher_id.unique' => 'Guru tersebut merupakan Wali Kelas di kelas lain.',
         ]);
 
+        $oldHomeroomTeacherId = $classroom->homeroom_teacher_id;
+        $oldCounselingTeacherId = $classroom->counseling_teacher_id;
+
         $classroom->update($request->all());
+
+        // Sync role untuk Wali Kelas lama & baru
+        if ($oldHomeroomTeacherId && $oldHomeroomTeacherId != $classroom->homeroom_teacher_id) {
+            $this->syncHomeroomRole($oldHomeroomTeacherId);
+        }
+        if ($classroom->homeroom_teacher_id) {
+            $this->syncHomeroomRole($classroom->homeroom_teacher_id);
+        }
+
+        // Sync role untuk Guru BK lama & baru
+        if ($oldCounselingTeacherId && $oldCounselingTeacherId != $classroom->counseling_teacher_id) {
+            $this->syncCounselingRole($oldCounselingTeacherId);
+        }
+        if ($classroom->counseling_teacher_id) {
+            $this->syncCounselingRole($classroom->counseling_teacher_id);
+        }
 
         return redirect()->route('classrooms.index')->with('success', 'Data kelas berhasil diperbarui.');
     }
@@ -636,4 +784,56 @@ public function updateMajor(Request $request, $id)
         'message' => "Jurusan untuk rombel {$classroom->name} berhasil diperbarui!"
     ]);
 }
+
+    /**
+     * Helper privat untuk sinkronisasi role 'wali_kelas' ke akun User guru
+     */
+    private function syncHomeroomRole($teacherId)
+    {
+        $teacher = Teacher::find($teacherId);
+        if (!$teacher || !$teacher->user) {
+            return;
+        }
+
+        // Sesuaikan dengan nama role di tabel database: 'wali_kelas'
+        Role::firstOrCreate(['name' => 'wali_kelas', 'guard_name' => 'web']);
+
+        $isHomeroom = Classroom::where('homeroom_teacher_id', $teacherId)->exists();
+
+        if ($isHomeroom) {
+            if (!$teacher->user->hasRole('wali_kelas')) {
+                $teacher->user->assignRole('wali_kelas');
+            }
+        } else {
+            if ($teacher->user->hasRole('wali_kelas')) {
+                $teacher->user->removeRole('wali_kelas');
+            }
+        }
+    }
+
+    /**
+     * Helper privat untuk sinkronisasi role 'guru_bk' ke akun User guru
+     */
+    private function syncCounselingRole($teacherId)
+    {
+        $teacher = Teacher::find($teacherId);
+        if (!$teacher || !$teacher->user) {
+            return;
+        }
+
+        // Sesuaikan dengan nama role di tabel database: 'guru_bk'
+        Role::firstOrCreate(['name' => 'guru_bk', 'guard_name' => 'web']);
+
+        $isCounseling = Classroom::where('counseling_teacher_id', $teacherId)->exists();
+
+        if ($isCounseling) {
+            if (!$teacher->user->hasRole('guru_bk')) {
+                $teacher->user->assignRole('guru_bk');
+            }
+        } else {
+            if ($teacher->user->hasRole('guru_bk')) {
+                $teacher->user->removeRole('guru_bk');
+            }
+        }
+    }
 }
