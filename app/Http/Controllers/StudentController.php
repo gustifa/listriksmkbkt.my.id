@@ -10,6 +10,8 @@ use App\Exports\StudentExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+// use Illuminate\Foundation\Auth\Access\AuthorizesRequests; // 1. Import Trait
 
 class StudentController extends Controller
 {
@@ -44,14 +46,46 @@ class StudentController extends Controller
     //     return view('students.index', compact('students', 'classrooms'));
     // }
 
-    public function index(Request $request)
+//     public function index(Request $request)
+// {
+//     // $query = Student::with('classroom');
+//     // 1. Terapkan scope accessibleBy agar query disaring dari awal
+//     $query = Student::accessibleBy($request->user())->with('classroom');
+
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->where(function($q) use ($search) {
+//             // Gunakan ILIKE khusus PostgreSQL agar case-insensitive
+//             $q->where('name', 'ilike', "%{$search}%")
+//               ->orWhere('nis', 'ilike', "%{$search}%");
+//         });
+//     }
+
+//     if ($request->filled('classroom_id')) {
+//         $query->where('classroom_id', $request->classroom_id);
+//     }
+
+//     $students = $query->orderBy('name')->paginate(10);
+//     $classrooms = Classroom::orderBy('name')->get();
+
+//     // Jika request dikirim via AJAX, kembalikan hanya partial view tabel
+//     if ($request->ajax()) {
+//         return view('students.partials.student_table', compact('students'))->render();
+//     }
+
+//     return view('students.index', compact('students', 'classrooms'));
+// }
+
+public function index(Request $request)
 {
-    $query = Student::with('classroom');
+    $user = $request->user();
+
+    // 1. Query siswa terfilter sesuai role & jurusan user
+    $query = Student::accessibleBy($user)->with('classroom');
 
     if ($request->filled('search')) {
         $search = $request->search;
         $query->where(function($q) use ($search) {
-            // Gunakan ILIKE khusus PostgreSQL agar case-insensitive
             $q->where('name', 'ilike', "%{$search}%")
               ->orWhere('nis', 'ilike', "%{$search}%");
         });
@@ -62,15 +96,49 @@ class StudentController extends Controller
     }
 
     $students = $query->orderBy('name')->paginate(10);
-    $classrooms = Classroom::orderBy('name')->get();
 
-    // Jika request dikirim via AJAX, kembalikan hanya partial view tabel
+    // 2. FILTER DROPDOWN KELAS SESUAI WEWENANG USER
+    $classroomsQuery = Classroom::query();
+
+    if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
+        $teacher = $user->teacher;
+
+        if ($teacher && $teacher->major_id) {
+            // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan TPTUP
+            $classroomsQuery->where('major_id', $teacher->major_id);
+        } elseif ($teacher && $user->hasRole('walas')) {
+            // Jika Walas, hanya ambil kelas yang diwalikan
+            $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
+        } else {
+            $classroomsQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $classrooms = $classroomsQuery->orderBy('name')->get();
+
     if ($request->ajax()) {
         return view('students.partials.student_table', compact('students'))->render();
     }
 
     return view('students.index', compact('students', 'classrooms'));
 }
+
+
+    /**
+     * Tampilkan Detail Siswa
+     */
+    public function show($id)
+    {
+        $student = Student::with('classroom')->findOrFail($id);
+
+        // Otorisasi melalui StudentPolicy (melempar 403 Forbidden jika di luar akses)
+        // $this->authorize('view', $student);
+
+        // Gunakan Gate::authorize sebagai pengganti $this->authorize
+        Gate::authorize('view', $student);
+
+        return view('students.show', compact('student'));
+    }
 
     /**
      * Form Edit Siswa

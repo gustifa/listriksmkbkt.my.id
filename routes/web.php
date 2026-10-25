@@ -411,7 +411,7 @@ Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahu
 // =========================================================================
 // GROUP 3: KHUSUS ADMIN UTAMA & SUPER ADMIN (Master Data & Settings)
 // =========================================================================
-Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
+Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->group(function () {
 
     Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
         'create', 'edit', 'show'
@@ -544,6 +544,8 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
     Route::get('/classrooms/{id}/print-all-ids', [ClassroomController::class, 'printAllIdsPdf'])->name('classrooms.printAllIdsPdf');
     Route::get('/classrooms/{id}/unassigned-students', [ClassroomController::class, 'searchUnassignedStudents'])->name('classrooms.unassigned_students');
     Route::get('/classrooms/available-teachers', [ClassroomController::class, 'getAvailableTeachers'])->name('classrooms.available-teachers');
+    Route::get('/classrooms/{id}/edit-ajax', [ClassroomController::class, 'editAjax'])->name('classrooms.edit_ajax');
+    Route::post('/classrooms/{id}/update-major', [ClassroomController::class, 'updateMajor'])->name('classrooms.update_major');
     Route::resource('classrooms', ClassroomController::class);
     // Route::prefix('setting/jurusan')->name('majors.')->group(function() {
     //     Route::get('/', [MajorController::class, 'index'])->name('index');
@@ -573,6 +575,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
     Route::get('teachers/{teacher}/edit', [TeacherController::class, 'edit'])->name('teachers.edit');
 
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
     Route::get('/students/edit/{id}', [StudentController::class, 'edit'])->name('students.edit');
     Route::put('/students/update/{id}', [StudentController::class, 'update'])->name('students.update');
     Route::delete('/students/destroy/{id}', [StudentController::class, 'destroy'])->name('students.destroy');

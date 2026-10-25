@@ -168,16 +168,68 @@ class ClassroomController extends Controller
 //     ));
 // }
 
+// public function index(Request $request)
+// {
+//     $user = Auth::user();
+//     $userMajorId = $user->teacher->major_id ?? null;
+
+//     $query = Classroom::with(['major', 'homeroomTeacher', 'counselingTeacher', 'classLeader'])
+//         ->withCount('students')
+//         ->when($userMajorId, function ($q) use ($userMajorId) {
+//             return $q->where('major_id', $userMajorId);
+//         });
+
+//     if ($request->filled('search')) {
+//         $query->where('name', 'like', '%' . trim($request->search) . '%');
+//     }
+
+//     $classrooms = $query->orderBy('is_active', 'desc')
+//                         ->orderBy('name', 'asc')
+//                         ->paginate(12)
+//                         ->withQueryString();
+
+//     $allTeachers = Teacher::orderBy('name')->select('id', 'name')->get();
+
+//     $takenHomeroomIds = Classroom::whereNotNull('homeroom_teacher_id')
+//         ->pluck('homeroom_teacher_id')
+//         ->toArray();
+
+//     // AMBIL SISWA TANPA KELAS (classroom_id IS NULL)
+//     // Fleksibel: Tampilkan jika major_id sesuai jurusan admin ATAU jika major_id bernilai NULL
+//     $unassignedStudents = Student::whereNull('classroom_id')
+//         ->when($userMajorId, function ($q) use ($userMajorId) {
+//             return $q->where(function ($sub) use ($userMajorId) {
+//                 $sub->where('major_id', $userMajorId)
+//                     ->orWhereNull('major_id');
+//             });
+//         })
+//         ->select('id', 'name', 'nis', 'nisn')
+//         ->orderBy('name', 'asc')
+//         ->take(15)
+//         ->get();
+
+//     if ($request->ajax()) {
+//         return response()->json([
+//             'html' => view('classrooms.partials.classroom_data', compact('classrooms', 'allTeachers', 'takenHomeroomIds', 'unassignedStudents'))->render()
+//         ]);
+//     }
+
+//     return view('classrooms.index', compact(
+//         'classrooms',
+//         'allTeachers',
+//         'takenHomeroomIds',
+//         'unassignedStudents'
+//     ));
+// }
+
 public function index(Request $request)
 {
     $user = Auth::user();
-    $userMajorId = $user->teacher->major_id ?? null;
 
-    $query = Classroom::with(['major', 'homeroomTeacher', 'counselingTeacher', 'classLeader'])
-        ->withCount('students')
-        ->when($userMajorId, function ($q) use ($userMajorId) {
-            return $q->where('major_id', $userMajorId);
-        });
+    // 1. Gunakan Scope accessibleBy agar rombel terfilter otomatis sesuai Role & Jurusan/Wali Kelas
+    $query = Classroom::accessibleBy($user)
+        ->with(['major', 'homeroomTeacher', 'counselingTeacher', 'classLeader'])
+        ->withCount('students');
 
     if ($request->filled('search')) {
         $query->where('name', 'like', '%' . trim($request->search) . '%');
@@ -194,10 +246,12 @@ public function index(Request $request)
         ->pluck('homeroom_teacher_id')
         ->toArray();
 
-    // AMBIL SISWA TANPA KELAS (classroom_id IS NULL)
-    // Fleksibel: Tampilkan jika major_id sesuai jurusan admin ATAU jika major_id bernilai NULL
+    // 2. Filter Siswa Tanpa Kelas (Sesuai akses jurusan guru)
+    $teacher = $user->teacher;
+    $userMajorId = $teacher->major_id ?? null;
+
     $unassignedStudents = Student::whereNull('classroom_id')
-        ->when($userMajorId, function ($q) use ($userMajorId) {
+        ->when(!$user->hasRole(['admin', 'super-admin']) && $userMajorId, function ($q) use ($userMajorId) {
             return $q->where(function ($sub) use ($userMajorId) {
                 $sub->where('major_id', $userMajorId)
                     ->orWhereNull('major_id');
@@ -548,4 +602,38 @@ public function searchUnassignedStudents(Request $request, $classroomId)
             'message' => 'Siswa berhasil dikeluarkan dari kelas.'
         ]);
     }
+
+    // Ambil data classroom untuk modal via AJAX
+public function editAjax($id)
+{
+    $classroom = Classroom::findOrFail($id);
+    $majors = Major::orderBy('name', 'asc')->get(['id', 'name', 'code']);
+
+    return response()->json([
+        'status'    => 'success',
+        'classroom' => $classroom,
+        'majors'    => $majors
+    ]);
+}
+
+// Update major_id rombel via AJAX
+public function updateMajor(Request $request, $id)
+{
+    $request->validate([
+        'major_id' => 'required|exists:majors,id',
+    ], [
+        'major_id.required' => 'Silakan pilih jurusan terlebih dahulu.',
+        'major_id.exists'   => 'Jurusan yang dipilih tidak valid.'
+    ]);
+
+    $classroom = Classroom::findOrFail($id);
+    $classroom->update([
+        'major_id' => $request->major_id
+    ]);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => "Jurusan untuk rombel {$classroom->name} berhasil diperbarui!"
+    ]);
+}
 }

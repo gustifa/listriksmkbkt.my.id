@@ -53,6 +53,43 @@
             @include('classrooms.partials.classroom_data')
         </div>
 
+        <!-- Modal Mapping Jurusan Rombel -->
+        <div class="modal fade" id="modalEditMajor" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title text-white">Set Jurusan Rombongan Belajar</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="formUpdateMajor">
+                        @csrf
+                        <div class="modal-body">
+                            <input type="hidden" id="edit_classroom_id">
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nama Kelas</label>
+                                <input type="text" id="edit_classroom_name" class="form-control" readonly disabled>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="edit_major_id" class="form-label fw-bold">Pilih Jurusan / Konsentrasi</label>
+                                <select id="edit_major_id" name="major_id" class="form-select" required>
+                                    <option value="">-- Pilih Jurusan --</option>
+                                </select>
+                                <div class="invalid-feedback" id="error_major_id"></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary" id="btnSaveMajor">
+                                <i class="bx bx-save me-1"></i> Simpan Jurusan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- Form Tersembunyi untuk Hapus Kelas -->
         <form id="global-delete-form" action="" method="POST" class="d-none">
             @csrf
@@ -285,7 +322,7 @@
             }
         }
 
-        // EVENT AUTOMATIS SAAT MODAL DIBUKA (Memanggil Fetch Data & SortableJS)
+        // EVENT AUTOMATIS SAAT MODAL DIBUKA
         document.addEventListener('show.bs.modal', function (event) {
             const modal = event.target;
             if (!modal.id.startsWith('studentsModal')) return;
@@ -338,6 +375,109 @@
                 }
             });
         }
+
+        // ==========================================
+        // FITUR EDIT MAJOR VIA MODAL AJAX & SWEETALERT2
+        // ==========================================
+        function openEditMajorModal(classroomId) {
+            Swal.fire({
+                title: 'Memuat Data...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch("{{ url('classrooms') }}/" + classroomId + "/edit-ajax", {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.close();
+                if (data.status === 'success') {
+                    document.getElementById('edit_classroom_id').value = data.classroom.id;
+                    document.getElementById('edit_classroom_name').value = data.classroom.name;
+
+                    const selectMajor = document.getElementById('edit_major_id');
+                    selectMajor.innerHTML = '<option value="">-- Pilih Jurusan --</option>';
+
+                    data.majors.forEach(major => {
+                        const isSelected = data.classroom.major_id === major.id ? 'selected' : '';
+                        selectMajor.innerHTML += `<option value="${major.id}" ${isSelected}>${major.name} (${major.code})</option>`;
+                    });
+
+                    const modal = new bootstrap.Modal(document.getElementById('modalEditMajor'));
+                    modal.show();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'Gagal mengambil data rombel.', 'error');
+            });
+        }
+
+        document.getElementById('formUpdateMajor').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const classroomId = document.getElementById('edit_classroom_id').value;
+            const majorId = document.getElementById('edit_major_id').value;
+
+            Swal.fire({
+                title: 'Simpan Jurusan?',
+                text: "Data jurusan rombel ini akan diperbarui.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Simpan!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Menyimpan...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch("{{ url('classrooms') }}/" + classroomId + "/update-major", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ major_id: majorId })
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                    .then(res => {
+                        if (res.status === 200 && res.body.status === 'success') {
+                            const modalElement = document.getElementById('modalEditMajor');
+                            const modal = bootstrap.Modal.getInstance(modalElement);
+                            if (modal) modal.hide();
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: res.body.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else if (res.status === 422) {
+                            Swal.close();
+                            const selectMajor = document.getElementById('edit_major_id');
+                            selectMajor.classList.add('is-invalid');
+                            document.getElementById('error_major_id').textContent = res.body.errors.major_id[0];
+                        } else {
+                            throw new Error('Terjadi kesalahan');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan data.', 'error');
+                    });
+                }
+            });
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             switchClassroomView('card');

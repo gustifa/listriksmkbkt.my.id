@@ -6,7 +6,12 @@
                 <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden {{ !$classroom->is_active ? 'bg-light opacity-75' : '' }}">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="fw-bold text-dark mb-0 me-2">{{ $classroom->name }}</h5>
+                            <div>
+                                <h5 class="fw-bold text-dark mb-0 me-2">{{ $classroom->name }}</h5>
+                                <small class="text-primary fw-bold">
+                                    <i class="bx bx-purchase-tag-alt me-1"></i>{{ $classroom->major->code ?? 'Belum ada jurusan' }}
+                                </small>
+                            </div>
                             <div class="d-flex align-items-center gap-1">
                                 <!-- SWITCH TOGGLE STATUS AKTIF/NONAKTIF -->
                                 <div class="form-check form-switch m-0" title="Aktifkan/Nonaktifkan Rombel">
@@ -36,15 +41,25 @@
                             </div>
                         </div>
 
-                        <div class="d-flex gap-1">
-                            <!-- TOMBOL SETTING MODAL -->
+                        <div class="d-flex gap-1 flex-wrap">
+                            <!-- TOMBOL SETTING SISWA MODAL (Semua User) -->
                             <button type="button" 
                                     class="btn btn-info btn-sm text-white fw-bold flex-grow-1 rounded-3" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#studentsModal{{ $classroom->id }}"
                                     onclick="fetchUnassignedStudents('{{ $classroom->id }}')">
-                                <i class="bx bx-cog me-1"></i> Setting
+                                <i class="bx bx-group me-1"></i> Siswa
                             </button>
+
+                            <!-- TOMBOL SET JURUSAN (Hanya untuk Admin / Super Admin) -->
+                            @hasanyrole('admin|super-admin')
+                            <button type="button" 
+                                    class="btn btn-outline-primary btn-sm rounded-3" 
+                                    onclick="openEditMajorModal('{{ $classroom->id }}')" 
+                                    title="Set Jurusan Kelas">
+                                <i class="bx bx-cog"></i>
+                            </button>
+                            @endhasanyrole
                             
                             <a href="{{ route('classrooms.printAllIdsPdf', $classroom->id) }}" target="_blank" class="btn btn-outline-secondary btn-sm rounded-3" title="Cetak ID Card">
                                 <i class="bx bx-id-card"></i>
@@ -161,6 +176,7 @@
                 <tr>
                     <th>Status</th>
                     <th>Nama Kelas</th>
+                    <th>Jurusan</th>
                     <th>Wali Kelas</th>
                     <th>Guru BK</th>
                     <th>Ketua Kelas</th>
@@ -180,6 +196,11 @@
                             </div>
                         </td>
                         <td class="fw-bold text-dark">{{ $classroom->name }}</td>
+                        <td>
+                            <span class="badge bg-light-primary text-primary border">
+                                {{ $classroom->major->code ?? '-' }}
+                            </span>
+                        </td>
                         <td>{{ $classroom->homeroomTeacher->name ?? '-' }}</td>
                         <td>{{ $classroom->counselingTeacher->name ?? '-' }}</td>
                         <td>{{ $classroom->classLeader->name ?? '-' }}</td>
@@ -194,16 +215,28 @@
                                         class="btn btn-info text-white" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#studentsModal{{ $classroom->id }}"
-                                        onclick="fetchUnassignedStudents('{{ $classroom->id }}')">
+                                        onclick="fetchUnassignedStudents('{{ $classroom->id }}')"
+                                        title="Pengaturan Siswa">
+                                    <i class="bx bx-group"></i>
+                                </button>
+                                
+                                <!-- TOMBOL SET JURUSAN DI TABEL (Hanya untuk Admin / Super Admin) -->
+                                @hasanyrole('admin|super-admin')
+                                <button type="button" 
+                                        class="btn btn-outline-primary" 
+                                        onclick="openEditMajorModal('{{ $classroom->id }}')" 
+                                        title="Set Jurusan Kelas">
                                     <i class="bx bx-cog"></i>
                                 </button>
-                                <a href="{{ route('classrooms.printAllIdsPdf', $classroom->id) }}" target="_blank" class="btn btn-outline-secondary">
+                                @endhasanyrole
+
+                                <a href="{{ route('classrooms.printAllIdsPdf', $classroom->id) }}" target="_blank" class="btn btn-outline-secondary" title="Cetak ID Card">
                                     <i class="bx bx-id-card"></i>
                                 </a>
-                                <a href="{{ route('classrooms.edit', $classroom->id) }}" class="btn btn-outline-warning">
+                                <a href="{{ route('classrooms.edit', $classroom->id) }}" class="btn btn-outline-warning" title="Edit Kelas">
                                     <i class="bx bx-edit"></i>
                                 </a>
-                                <button type="button" onclick="confirmDelete('{{ $classroom->id }}', '{{ $classroom->name }}')" class="btn btn-outline-danger">
+                                <button type="button" onclick="confirmDelete('{{ $classroom->id }}', '{{ $classroom->name }}')" class="btn btn-outline-danger" title="Hapus Kelas">
                                     <i class="bx bx-trash"></i>
                                 </button>
                             </div>

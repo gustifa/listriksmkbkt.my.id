@@ -33,6 +33,12 @@
 
                 <td class="text-center">
                     <div class="btn-group" role="group">
+                        {{-- Tombol Detail --}}
+                        @can('view', $student)
+                            <a href="{{ route('students.show', $student->id) }}" class="btn btn-sm btn-info text-white me-1" title="Detail Siswa">
+                                <i class="bx bx-show"></i> Detail
+                            </a>
+                        @endcan
                         <a href="{{ route('face.register', $student->id) }}" class="btn btn-sm btn-primary" title="Scan Biometrik Wajah">
                             <i class="fas fa-camera"></i>
                         </a>

@@ -102,4 +102,10 @@ class Teacher extends Model
     {
         return $this->belongsTo(AdditionalTask::class, 'additional_task_id');
     }
+
+    // Relasi ke kelas yang diwalikan (untuk Walas)
+    public function classrooms()
+    {
+        return $this->hasMany(Classroom::class, 'homeroom_teacher_id'); 
+    }
 }

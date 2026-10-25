@@ -55,6 +55,55 @@ class Classroom extends Model
         return $this->belongsTo(Student::class, 'class_leader_id');
     }
 
+    public function scopeAccessibleBy($query, User $user)
+{
+    // Admin & Super Admin melihat semua
+    if ($user->hasRole(['admin', 'super-admin']) || ($user->can('classrooms.view-all') && !$user->hasRole(['kabeng', 'kaproka', 'walas', 'bk']))) {
+        return $query;
+    }
+
+    $teacher = $user->teacher;
+    if (!$teacher) {
+        return $query->whereRaw('1 = 0');
+    }
+
+    return $query->where(function ($q) use ($user, $teacher) {
+
+        // WALAS
+        if ($user->hasRole('walas')) {
+            $q->orWhere('homeroom_teacher_id', $teacher->id);
+        }
+
+        // BK
+        if ($user->hasRole('bk')) {
+            $q->orWhere('counseling_teacher_id', $teacher->id);
+        }
+
+        // KABENG: Cek via workshop_teacher_id di majors ATAU major_id langsung milik guru
+        if ($user->hasRole('kabeng')) {
+            $q->orWhereHas('major', function ($m) use ($teacher) {
+                $m->where('workshop_teacher_id', $teacher->id);
+            });
+
+            if ($teacher->major_id) {
+                $q->orWhere('major_id', $teacher->major_id);
+            }
+        }
+
+        // KAPROKA: Cek via program_teacher_id di programs ATAU major_id milik guru
+        if ($user->hasRole('kaprog')) {
+            $q->orWhereHas('major.program', function ($p) use ($teacher) {
+                $p->where('program_teacher_id', $teacher->id);
+            });
+
+            if ($teacher->major_id) {
+                $q->orWhere('major_id', $teacher->major_id);
+            }
+        }
+
+    });
+}
+
 
 
 }
