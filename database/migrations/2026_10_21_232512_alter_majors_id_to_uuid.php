@@ -7,20 +7,34 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Pastikan ekstensi UUID aktif di PostgreSQL
-        DB::statement('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
-
-        // 2. Lepas Foreign Key Constraints yang terikat ke majors_pkey
-        DB::statement('ALTER TABLE majors DROP CONSTRAINT IF EXISTS majors_pkey CASCADE;');
-
-        // 3. Ubah tipe kolom id pada majors menjadi UUID (Generate UUID baru untuk data yang ada)
-        DB::statement('ALTER TABLE majors ALTER COLUMN id DROP DEFAULT;');
-        DB::statement('ALTER TABLE majors ALTER COLUMN id TYPE uuid USING uuid_generate_v4();');
-        DB::statement('ALTER TABLE majors ADD CONSTRAINT majors_pkey PRIMARY KEY (id);');
-
-        // 4. Ubah tipe kolom major_id di tabel terkait menjadi UUID tanpa menghapus kolom
         $relatedTables = ['classrooms', 'teachers', 'subjects', 'users'];
 
+        // 1. Lepas semua Foreign Key constraint lama di tabel terikat yang mengarah ke majors
+        foreach ($relatedTables as $table) {
+            DB::statement("
+                DO $$ 
+                DECLARE r RECORD;
+                BEGIN 
+                    FOR r IN (
+                        SELECT tc.constraint_name 
+                        FROM information_schema.table_constraints tc
+                        JOIN information_schema.key_column_usage kcu 
+                          ON tc.constraint_name = kcu.constraint_name
+                         AND tc.table_schema = kcu.table_schema
+                        WHERE tc.constraint_type = 'FOREIGN KEY'
+                          AND tc.table_name = '{$table}' 
+                          AND kcu.column_name = 'major_id'
+                    ) LOOP
+                        EXECUTE 'ALTER TABLE {$table} DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+                    END LOOP;
+                END $$;
+            ");
+        }
+
+        // 2. Buat kolom temp_id (UUID) di tabel majors
+        DB::statement('ALTER TABLE majors ADD COLUMN temp_id uuid DEFAULT gen_random_uuid();');
+
+        // 3. Buat kolom temp_major_id (UUID) di tabel terikat & salin data relasinya
         foreach ($relatedTables as $table) {
             DB::statement("
                 DO $$ 
@@ -29,7 +43,37 @@ return new class extends Migration
                         SELECT 1 FROM information_schema.columns 
                         WHERE table_name = '{$table}' AND column_name = 'major_id'
                     ) THEN 
-                        ALTER TABLE {$table} ALTER COLUMN major_id TYPE uuid USING NULL;
+                        ALTER TABLE {$table} ADD COLUMN temp_major_id uuid;
+                    END IF;
+                END $$;
+            ");
+
+            // Salin relasi ID lama ke UUID baru
+            DB::statement("
+                UPDATE {$table} 
+                SET temp_major_id = majors.temp_id 
+                FROM majors 
+                WHERE {$table}.major_id = majors.id;
+            ");
+        }
+
+        // 4. Ganti kolom id lama di tabel majors dengan UUID baru
+        DB::statement('ALTER TABLE majors DROP CONSTRAINT IF EXISTS majors_pkey CASCADE;');
+        DB::statement('ALTER TABLE majors DROP COLUMN id;');
+        DB::statement('ALTER TABLE majors RENAME COLUMN temp_id TO id;');
+        DB::statement('ALTER TABLE majors ADD CONSTRAINT majors_pkey PRIMARY KEY (id);');
+
+        // 5. Ganti kolom major_id lama di tabel terikat dengan UUID baru
+        foreach ($relatedTables as $table) {
+            DB::statement("
+                DO $$ 
+                BEGIN 
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = '{$table}' AND column_name = 'major_id'
+                    ) THEN 
+                        ALTER TABLE {$table} DROP COLUMN major_id;
+                        ALTER TABLE {$table} RENAME COLUMN temp_major_id TO major_id;
                     END IF;
                 END $$;
             ");
@@ -38,8 +82,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE majors DROP CONSTRAINT IF EXISTS majors_pkey CASCADE;');
-        DB::statement('ALTER TABLE majors ALTER COLUMN id TYPE int8 USING NULL;');
-        DB::statement('ALTER TABLE majors ADD CONSTRAINT majors_pkey PRIMARY KEY (id);');
+        // Rollback tidak disarankan untuk migrasi structural UUID ini demi integritas data.
     }
 };

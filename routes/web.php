@@ -539,11 +539,12 @@ Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
     Route::get('/import-teachers', [TeacherImportController::class, 'index'])->name('teachers.import');
     Route::post('/import-teachers', [TeacherImportController::class, 'store'])->name('teachers.import.store');
 
-    Route::resource('classrooms', ClassroomController::class);
+    
     Route::patch('/classrooms/{classroom}/toggle-status', [ClassroomController::class, 'toggleStatus'])->name('classrooms.toggle-status');
     Route::get('/classrooms/{id}/print-all-ids', [ClassroomController::class, 'printAllIdsPdf'])->name('classrooms.printAllIdsPdf');
     Route::get('/classrooms/{id}/unassigned-students', [ClassroomController::class, 'searchUnassignedStudents'])->name('classrooms.unassigned_students');
-
+    Route::get('/classrooms/available-teachers', [ClassroomController::class, 'getAvailableTeachers'])->name('classrooms.available-teachers');
+    Route::resource('classrooms', ClassroomController::class);
     // Route::prefix('setting/jurusan')->name('majors.')->group(function() {
     //     Route::get('/', [MajorController::class, 'index'])->name('index');
     //     Route::get('/create', [MajorController::class, 'create'])->name('create');

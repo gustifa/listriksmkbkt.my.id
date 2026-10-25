@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 // use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Traits\HasUuid; // <--- 1. Import Trait
+use Illuminate\Database\Eloquent\SoftDeletes; // 1. Import Trait SoftDeletes
 
 class Student extends Model
 {
-    use HasUuid; // <--- 2. Pasang Trait
+    use HasUuid, SoftDeletes; // <--- 2. Pasang Trait
     // protected $guarded = [];
 //     protected $fillable = [
 //     'nis',
