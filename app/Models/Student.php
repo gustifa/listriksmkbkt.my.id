@@ -222,5 +222,34 @@ class Student extends Model
     });
 }
 
+// Accessor Link WA Siswa
+    public function getWaPhoneAttribute()
+    {
+        if (!$this->phone) return null;
+        $phone = preg_replace('/[^0-9]/', '', $this->phone);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+        return $phone;
+    }
+
+    // Accessor Link WA Orang Tua (Mencoba No HP Ayah / Ibu / Wali)
+    public function getWaParentPhoneAttribute()
+    {
+        $phone = $this->father_phone ?? $this->mother_phone ?? $this->guardian_phone ?? $this->parent_phone ?? null;
+        if (!$phone) return null;
+        $formatted = preg_replace('/[^0-9]/', '', $phone);
+        if (str_starts_with($formatted, '0')) {
+            $formatted = '62' . substr($formatted, 1);
+        }
+        return $formatted;
+    }
+
+    // Accessor No HP Orang Tua Mentah untuk Tampilan
+    public function getParentPhoneDisplayAttribute()
+    {
+        return $this->father_phone ?? $this->mother_phone ?? $this->guardian_phone ?? $this->parent_phone ?? null;
+    }
+
 
 }
