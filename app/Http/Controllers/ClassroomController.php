@@ -796,7 +796,7 @@ public function updateMajor(Request $request, $id)
         }
 
         // Sesuaikan dengan nama role di tabel database: 'wali_kelas'
-        Role::firstOrCreate(['name' => 'wali_kelas', 'guard_name' => 'web']);
+        // Role::firstOrCreate(['name' => 'wali_kelas', 'guard_name' => 'web']);
 
         $isHomeroom = Classroom::where('homeroom_teacher_id', $teacherId)->exists();
 
@@ -822,7 +822,7 @@ public function updateMajor(Request $request, $id)
         }
 
         // Sesuaikan dengan nama role di tabel database: 'guru_bk'
-        Role::firstOrCreate(['name' => 'guru_bk', 'guard_name' => 'web']);
+        // Role::firstOrCreate(['name' => 'guru_bk', 'guard_name' => 'web']);
 
         $isCounseling = Classroom::where('counseling_teacher_id', $teacherId)->exists();
 
