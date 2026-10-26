@@ -34,7 +34,7 @@ class LateStudentNotification extends Notification
         return [
             'title'   => 'Siswa Terlambat Presensi Gerbang',
             'message' => "{$student->name} ({$classroomName}) scan masuk terlambat jam {$time} WIB.",
-            'url'     => route('daily_attendance.report') . '?student_id=' . $student->id,
+            'url'     => route('daily_attendance.report', ['student_id' => $student->id]),
             'icon'    => 'bx-time-five'
         ];
     }

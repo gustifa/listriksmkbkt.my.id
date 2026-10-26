@@ -11,6 +11,7 @@ use App\Http\Controllers\TimeSlotController;
 use App\Models\Student;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LicenseGeneratorController;
+use App\Http\Controllers\NotificationController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -155,6 +156,14 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    // Route Tandai Semua Dibaca (Memanggil Controller Method)
+    Route::get('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/ajax', [NotificationController::class, 'getNotificationsAjax'])->name('notifications.ajax');
+    
+    // Route Tandai Semua Dibaca via AJAX
+    Route::post('/notifications/read-all-ajax', [NotificationController::class, 'markAllAsReadAjax'])->name('notifications.readAllAjax');
     // Face Registration Management
     Route::prefix('face-registration')->group(function () {
         Route::get('/', [FaceRegistrationController::class, 'index'])->name('face.index');
