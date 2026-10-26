@@ -122,11 +122,77 @@ class StudentController extends Controller
 
 //     return view('students.index', compact('students', 'classrooms'));
 // }
+// public function index(Request $request)
+// {
+//     $user = $request->user();
+
+//     // 1. Query siswa terfilter sesuai role & jurusan user (Dihapus relasi faceDescriptor yang bermasalah)
+//     $query = Student::accessibleBy($user)->with('classroom');
+
+//     // 2. Handling Filter Live Search
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->where(function($q) use ($search) {
+//             $q->where('name', 'ilike', "%{$search}%")
+//               ->orWhere('nis', 'ilike', "%{$search}%");
+//         });
+//     }
+
+//     // 3. Handling Filter Kelas
+//     if ($request->filled('classroom_id')) {
+//         $query->where('classroom_id', $request->classroom_id);
+//     }
+
+//     // 4. Handling Dynamic Sorting (ASC / DESC)
+//     $sortBy = $request->input('sort_by', 'name');
+//     $sortOrder = strtolower($request->input('sort_order', 'asc'));
+
+//     // Whitelist kolom yang diperbolehkan di-sort
+//     $allowedSorts = ['nis', 'name', 'classroom_id'];
+//     if (!in_array($sortBy, $allowedSorts)) {
+//         $sortBy = 'name';
+//     }
+//     if (!in_array($sortOrder, ['asc', 'desc'])) {
+//         $sortOrder = 'asc';
+//     }
+
+//     // Eksekusi pengurutan dan paginasi dengan mempertahankan query string pada pagination link
+//     $students = $query->orderBy($sortBy, $sortOrder)
+//                       ->paginate(10)
+//                       ->appends($request->all());
+
+//     // 5. Filter Dropdown Kelas Sesuai Wewenang User
+//     $classroomsQuery = Classroom::query();
+
+//     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
+//         $teacher = $user->teacher;
+
+//         if ($teacher && $teacher->major_id) {
+//             // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan sama
+//             $classroomsQuery->where('major_id', $teacher->major_id);
+//         } elseif ($teacher && $user->hasRole('walas')) {
+//             // Jika Walas, hanya ambil kelas yang diwalikan
+//             $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
+//         } else {
+//             $classroomsQuery->whereRaw('1 = 0');
+//         }
+//     }
+
+//     $classrooms = $classroomsQuery->orderBy('name')->get();
+
+//     // 6. Response AJAX / View Utama
+//     if ($request->ajax()) {
+//         return view('students.partials.student_table', compact('students'))->render();
+//     }
+
+//     return view('students.index', compact('students', 'classrooms'));
+// }
+
 public function index(Request $request)
 {
     $user = $request->user();
 
-    // 1. Query siswa terfilter sesuai role & jurusan user (Dihapus relasi faceDescriptor yang bermasalah)
+    // 1. Query siswa terfilter sesuai role & jurusan user
     $query = Student::accessibleBy($user)->with('classroom');
 
     // 2. Handling Filter Live Search
@@ -147,7 +213,6 @@ public function index(Request $request)
     $sortBy = $request->input('sort_by', 'name');
     $sortOrder = strtolower($request->input('sort_order', 'asc'));
 
-    // Whitelist kolom yang diperbolehkan di-sort
     $allowedSorts = ['nis', 'name', 'classroom_id'];
     if (!in_array($sortBy, $allowedSorts)) {
         $sortBy = 'name';
@@ -156,22 +221,27 @@ public function index(Request $request)
         $sortOrder = 'asc';
     }
 
-    // Eksekusi pengurutan dan paginasi dengan mempertahankan query string pada pagination link
+    // 5. Handling Filter Per Page (Jumlah Data Dinamis)
+    $perPage = (int) $request->input('per_page', 10); // Default 10 jika tidak diisi
+    $allowedPerPage = [5, 10, 25, 50, 100];
+    if (!in_array($perPage, $allowedPerPage)) {
+        $perPage = 10; // Mencegah nilai per_page yang tidak valid / manipulasi URL
+    }
+
+    // Eksekusi Paginasi Dinamis dengan $perPage
     $students = $query->orderBy($sortBy, $sortOrder)
-                      ->paginate(10)
+                      ->paginate($perPage)
                       ->appends($request->all());
 
-    // 5. Filter Dropdown Kelas Sesuai Wewenang User
+    // 6. Filter Dropdown Kelas Sesuai Wewenang User
     $classroomsQuery = Classroom::query();
 
     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
         $teacher = $user->teacher;
 
         if ($teacher && $teacher->major_id) {
-            // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan sama
             $classroomsQuery->where('major_id', $teacher->major_id);
         } elseif ($teacher && $user->hasRole('walas')) {
-            // Jika Walas, hanya ambil kelas yang diwalikan
             $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
         } else {
             $classroomsQuery->whereRaw('1 = 0');
@@ -180,7 +250,7 @@ public function index(Request $request)
 
     $classrooms = $classroomsQuery->orderBy('name')->get();
 
-    // 6. Response AJAX / View Utama
+    // 7. Response AJAX / Normal View
     if ($request->ajax()) {
         return view('students.partials.student_table', compact('students'))->render();
     }
