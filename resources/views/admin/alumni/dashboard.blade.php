@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid py-4">
+<div class="container-fluid px-3 px-md-4 py-3">
     <!-- Banner Selamat Datang -->
     <div class="card border-0 shadow-sm rounded-4 bg-primary text-white mb-4 overflow-hidden" style="background: linear-gradient(135deg, #0d6efd, #0a58ca);">
         <div class="card-body p-4 p-md-5">

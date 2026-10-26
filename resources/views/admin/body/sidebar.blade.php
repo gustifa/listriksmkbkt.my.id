@@ -37,14 +37,12 @@ $status = $guruId->status ?? '0';
 
     <!--navigation-->
     <ul class="metismenu" id="menu">
-        @unlessrole('alumni')
         <li>
             <a href="{{route('dashboard')}}">
                 <div class="parent-icon"><i class='bx bx-home-alt'></i></div>
                 <div class="menu-title">Dashboard</div>
             </a>
         </li>
-        @endunlessrole
 
         @if ($status === '1')
 
