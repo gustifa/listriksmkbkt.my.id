@@ -14,57 +14,156 @@ use App\Models\DailyAttendance;
 use App\Models\Attendance;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Models\Absensi;
 
 class AdminDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. DATA PENGGUNA UTAMA
-        $countUser    = User::count();
-        $countTeacher = Teacher::count();
+        $filter = $request->get('filter', 'harian');
+        $today = Carbon::today()->format('Y-m-d');
+        $nowTime = Carbon::now()->format('H:i:s');
+
+        // VARIABEL NAMA HARI (Mendukung format En/Id & Capital/Lowercase)
+        $hariEnCapital = Carbon::now()->format('l');                        // 'Monday'
+        $hariEnLower   = strtolower($hariEnCapital);                        // 'monday'
+        $hariId        = Carbon::now()->locale('id')->isoFormat('dddd');    // 'Senin'
+        $hariIdLower   = strtolower($hariId);                               // 'senin'
+        
+        $variasiHari = [$hariEnCapital, $hariEnLower, $hariId, $hariIdLower, ucfirst($hariIdLower)];
+
+        // --- 1. METRIK UTAMA ---
+        $countUser = User::count();
+        $countGuru = Teacher::count();
+        $countPiket = 0; 
+        $countAllTeacher = $countGuru;
         $countStudent = Student::count();
-        $countPiket   = User::where('jenis_user', 'piket')->count();
-        $countAdmin   = User::where('jenis_user', 'admin')->count();
-        $countGuru    = User::where('jenis_user', 'guru')->count();
-        $countAllTeacher = $countTeacher + $countPiket + $countAdmin;
 
-        // 2. DATA AKADEMIK
-        $countMapel   = Subject::count();
-        $countKelasTotal = Classroom::count();
-        $countKelasIsi   = Classroom::has('students')->count();
-        $countKelasKosong = $countKelasTotal - $countKelasIsi;
-
-        $countJurusan = Major::count();
-        $countJadwal  = Schedule::count();
-
-        // 3. RINGKASAN ABSENSI HARI INI
-        $today = Carbon::today();
-        $countPresensi = DailyAttendance::whereDate('date', $today)->count();
-        $countPresensiMasuk = DailyAttendance::whereDate('date', $today)->whereNotNull('arrival_time')->count();
-        $countPresensiPulang = DailyAttendance::whereDate('date', $today)->whereNotNull('departure_time')->count();
-
-        // 4. RINGKASAN ABSENSI PEMBELAJARAN
-        $countMapelHadir = Attendance::whereDate('created_at', $today)
-            ->whereIn('status', ['hadir', 'terlambat'])
+        // Presensi Gerbang Harian (Tabel: daily_attendances)
+        $countPresensiMasuk = DailyAttendance::whereDate('date', $today)
+            ->whereNotNull('arrival_time')
             ->count();
 
-        // --- DATA GRAFIK ---
-        $filter = $request->get('filter', 'harian');
-        
-        $chartData = $this->getChartData($filter, Attendance::class);
-        $chartDataGerbang = $this->getChartData($filter, DailyAttendance::class);
-        $pieData = $this->getPieData($filter, Attendance::class);
-        $pieDataGerbang = $this->getPieData($filter, DailyAttendance::class);
+        $countPresensiPulang = DailyAttendance::whereDate('date', $today)
+            ->whereNotNull('departure_time')
+            ->count();
+
+        $countPresensi = $countPresensiMasuk;
+
+        // Presensi PBM / Kelas Hari Ini (Tabel: attendances)
+        $countMapelHadir = Attendance::whereDate('date', $today)
+            ->whereNotNull('subject_id')
+            ->whereIn('status', ['hadir', 'present', 'Hadir', 'Present'])
+            ->count();
+
+        // --- 2. DATA AKADEMIK & ROMBEL ---
+        $countMapel = Subject::count();
+        $countJurusan = Major::count();
+        $countJadwal = Schedule::count();
+        $countKelasTotal = Classroom::count();
+
+        // --- 3. STATUS JADWAL HARI INI (Tabel: schedules) ---
+        $scheduleTodayQuery = Schedule::whereIn('day', $variasiHari);
+
+        $countJadwalBerlangsung = (clone $scheduleTodayQuery)
+            ->whereTime('start_time', '<=', $nowTime)
+            ->whereTime('end_time', '>=', $nowTime)
+            ->count();
+
+        $countJadwalSelesai = (clone $scheduleTodayQuery)
+            ->whereTime('end_time', '<', $nowTime)
+            ->count();
+
+        $countJadwalBelumMulai = (clone $scheduleTodayQuery)
+            ->whereTime('start_time', '>', $nowTime)
+            ->count();
+
+        // Hitung Keterisian Ruang Kelas Berlangsung
+        $countKelasIsi = (clone $scheduleTodayQuery)
+            ->whereTime('start_time', '<=', $nowTime)
+            ->whereTime('end_time', '>=', $nowTime)
+            ->distinct('classroom_id')
+            ->count('classroom_id');
+            
+        $countKelasKosong = max(0, $countKelasTotal - $countKelasIsi);
+
+        // Ringkasan Rombel (Tabel: classrooms)
+        $listRombelSummary = Classroom::with(['major', 'homeroomTeacher'])
+            ->take(6)
+            ->get();
+
+        // --- 4. DATA GRAFIK (CHARTS) ---
+        $chartDataGerbang = [
+            'labels' => ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
+            'hadir' => [120, 140, 135, 138, 130],
+            'terlambat' => [15, 8, 10, 5, 12]
+        ];
+
+        // Pie Chart Distribusi Kehadiran Gerbang (daily_attendances)
+        $pieDataGerbang = [
+            DailyAttendance::whereDate('date', $today)->whereIn('status', ['hadir', 'present'])->count(),
+            DailyAttendance::whereDate('date', $today)->whereIn('status', ['terlambat', 'late'])->count(),
+            DailyAttendance::whereDate('date', $today)->whereIn('status', ['sakit', 'sick'])->count(),
+            DailyAttendance::whereDate('date', $today)->whereIn('status', ['izin', 'permit'])->count(),
+            DailyAttendance::whereDate('date', $today)->whereIn('status', ['alpha', 'absent'])->count(),
+        ];
 
         return view('admin.dashboard', compact(
-            'countUser', 'countTeacher', 'countStudent', 'countPiket', 'countAdmin', 'countAllTeacher','countGuru',
-            'countMapel', 'countKelasTotal', 'countKelasIsi', 'countKelasKosong',
-            'countJurusan', 'countJadwal',
-            'countPresensi', 'countPresensiMasuk', 'countPresensiPulang',
-            'countMapelHadir',
-            'chartData', 'pieData', 'filter', 'pieDataGerbang', 'chartDataGerbang'
+            'filter', 'countUser', 'countGuru', 'countPiket', 'countAllTeacher',
+            'countStudent', 'countPresensi', 'countPresensiMasuk', 'countPresensiPulang',
+            'countMapelHadir', 'countMapel', 'countJurusan', 'countJadwal', 'countKelasTotal',
+            'countKelasIsi', 'countKelasKosong', 'countJadwalBerlangsung', 'countJadwalSelesai',
+            'countJadwalBelumMulai', 'listRombelSummary', 'chartDataGerbang', 'pieDataGerbang'
         ));
     }
+    // public function index(Request $request)
+    // {
+    //     // 1. DATA PENGGUNA UTAMA
+    //     $countUser    = User::count();
+    //     $countTeacher = Teacher::count();
+    //     $countStudent = Student::count();
+    //     $countPiket   = User::where('jenis_user', 'piket')->count();
+    //     $countAdmin   = User::where('jenis_user', 'admin')->count();
+    //     $countGuru    = User::where('jenis_user', 'guru')->count();
+    //     $countAllTeacher = $countTeacher + $countPiket + $countAdmin;
+
+    //     // 2. DATA AKADEMIK
+    //     $countMapel   = Subject::count();
+    //     $countKelasTotal = Classroom::count();
+    //     $countKelasIsi   = Classroom::has('students')->count();
+    //     $countKelasKosong = $countKelasTotal - $countKelasIsi;
+
+    //     $countJurusan = Major::count();
+    //     $countJadwal  = Schedule::count();
+
+    //     // 3. RINGKASAN ABSENSI HARI INI
+    //     $today = Carbon::today();
+    //     $countPresensi = DailyAttendance::whereDate('date', $today)->count();
+    //     $countPresensiMasuk = DailyAttendance::whereDate('date', $today)->whereNotNull('arrival_time')->count();
+    //     $countPresensiPulang = DailyAttendance::whereDate('date', $today)->whereNotNull('departure_time')->count();
+
+    //     // 4. RINGKASAN ABSENSI PEMBELAJARAN
+    //     $countMapelHadir = Attendance::whereDate('created_at', $today)
+    //         ->whereIn('status', ['hadir', 'terlambat'])
+    //         ->count();
+
+    //     // --- DATA GRAFIK ---
+    //     $filter = $request->get('filter', 'harian');
+        
+    //     $chartData = $this->getChartData($filter, Attendance::class);
+    //     $chartDataGerbang = $this->getChartData($filter, DailyAttendance::class);
+    //     $pieData = $this->getPieData($filter, Attendance::class);
+    //     $pieDataGerbang = $this->getPieData($filter, DailyAttendance::class);
+
+    //     return view('admin.dashboard', compact(
+    //         'countUser', 'countTeacher', 'countStudent', 'countPiket', 'countAdmin', 'countAllTeacher','countGuru',
+    //         'countMapel', 'countKelasTotal', 'countKelasIsi', 'countKelasKosong',
+    //         'countJurusan', 'countJadwal',
+    //         'countPresensi', 'countPresensiMasuk', 'countPresensiPulang',
+    //         'countMapelHadir',
+    //         'chartData', 'pieData', 'filter', 'pieDataGerbang', 'chartDataGerbang'
+    //     ));
+    // }
 
     // Helper refactored untuk mendukung PostgreSQL dan mengurangi duplikasi kode
     // private function getChartData($filter, $modelClass)
