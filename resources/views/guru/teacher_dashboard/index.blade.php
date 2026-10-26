@@ -18,85 +18,102 @@
             </div>
         </div>
 
-        <!-- 1. STATISTIK RINGKAS (RESPONSIF GRID 5 KARTU) -->
-        <div class="row g-3 mb-4">
-            <!-- Total Kelas -->
-            <div class="col-6 col-md-4 col-lg">
-                <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-primary">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-xs font-weight-bold text-primary text-uppercase d-block">Total Kelas</small>
-                                <span class="h4 mb-0 font-weight-bold text-dark">{{ $totalClasses }}</span>
-                            </div>
-                            <div class="text-primary opacity-50"><i class="fas fa-door-open fa-2x"></i></div>
-                        </div>
+        <!-- 1. STATISTIK RINGKAS (5 KARTU SEJAJAR RAPI) -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4">
+    
+    <!-- 1. Total Kelas -->
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-primary">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-primary small mb-1" style="font-size: 11px;">Total Kelas</div>
+                        <h3 class="mb-0 fw-bold text-dark">{{ $totalClasses }}</h3>
                     </div>
-                </div>
-            </div>
-
-            <!-- Mapel Diampu -->
-            <div class="col-6 col-md-4 col-lg">
-                <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-success">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-xs font-weight-bold text-success text-uppercase d-block">Mapel Diampu</small>
-                                <span class="h4 mb-0 font-weight-bold text-dark">{{ $totalSubjects }}</span>
-                            </div>
-                            <div class="text-success opacity-50"><i class="fas fa-book fa-2x"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Siswa -->
-            <div class="col-6 col-md-4 col-lg">
-                <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-warning">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-xs font-weight-bold text-warning text-uppercase d-block">Total Siswa</small>
-                                <span class="h4 mb-0 font-weight-bold text-dark">{{ $totalStudents }}</span>
-                            </div>
-                            <div class="text-warning opacity-50"><i class="fas fa-users fa-2x"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Wali Kelas -->
-            <div class="col-6 col-md-6 col-lg">
-                <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-info">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-xs font-weight-bold text-info text-uppercase d-block">Wali Kelas</small>
-                                <span class="h6 mb-0 font-weight-bold text-dark">
-                                    {{ $homeroomClass ? $homeroomClass->name : 'Bukan Wali' }}
-                                </span>
-                            </div>
-                            <div class="text-info opacity-50"><i class="fas fa-user-shield fa-2x"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bimbingan PKL -->
-            <div class="col-12 col-md-6 col-lg">
-                <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-danger">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-xs font-weight-bold text-danger text-uppercase d-block">Bimbingan PKL</small>
-                                <span class="h4 mb-0 font-weight-bold text-dark">{{ $internshipStudentsCount }} Siswa</span>
-                            </div>
-                            <div class="text-danger opacity-50"><i class="fas fa-briefcase fa-2x"></i></div>
-                        </div>
+                    <div class="p-2 rounded-3 text-primary d-flex align-items-center justify-content-center" style="background-color: rgba(13, 110, 253, 0.12);">
+                        <i class='bx bx-door-open fs-3'></i>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 2. Mapel Diampu -->
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-success">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-success small mb-1" style="font-size: 11px;">Mapel Diampu</div>
+                        <h3 class="mb-0 fw-bold text-dark">{{ $totalSubjects }}</h3>
+                    </div>
+                    <div class="p-2 rounded-3 text-success d-flex align-items-center justify-content-center" style="background-color: rgba(25, 135, 84, 0.12);">
+                        <i class='bx bx-book-open fs-3'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Total Siswa -->
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-warning">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-warning small mb-1" style="font-size: 11px;">Total Siswa</div>
+                        <h3 class="mb-0 fw-bold text-dark">{{ $totalStudents }}</h3>
+                    </div>
+                    <div class="p-2 rounded-3 text-warning d-flex align-items-center justify-content-center" style="background-color: rgba(255, 193, 7, 0.15);">
+                        <i class='bx bx-group fs-3'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Tugas Tambahan / Wali Kelas -->
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-info">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="overflow-hidden pe-1">
+                        <div class="text-uppercase fw-bold text-info small mb-1 text-truncate" style="font-size: 11px;">
+                            {{ $additionalRole['title'] ?? 'Wali Kelas' }}
+                        </div>
+                        <div class="fw-bold text-dark text-truncate" style="font-size: 13px;" title="{{ $additionalRole['value'] ?? 'Bukan Wali' }}">
+                            {{ $additionalRole['value'] ?? 'Bukan Wali' }}
+                        </div>
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill mt-1" style="font-size: 10px;">
+                            {{ $additionalRole['badge'] ?? 'Guru Pengampu' }}
+                        </span>
+                    </div>
+                    <div class="p-2 rounded-3 text-info flex-shrink-0 d-flex align-items-center justify-content-center" style="background-color: rgba(13, 202, 240, 0.15);">
+                        <i class='{{ $additionalRole["icon"] ?? "bx bx-user-pin" }} fs-3'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Bimbingan PKL -->
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-danger">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-danger small mb-1" style="font-size: 11px;">Bimbingan PKL</div>
+                        <h3 class="mb-0 fw-bold text-dark">{{ $internshipStudentsCount }} <span class="fs-6 fw-normal text-muted">Siswa</span></h3>
+                    </div>
+                    <div class="p-2 rounded-3 text-danger d-flex align-items-center justify-content-center" style="background-color: rgba(220, 53, 69, 0.12);">
+                        <i class='bx bx-briefcase-alt-2 fs-3'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 
         <!-- 2. JADWAL HARI INI & STATISTIK CHART -->
         <div class="row g-3 mb-4">

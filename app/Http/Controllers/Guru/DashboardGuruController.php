@@ -18,6 +18,115 @@ use Carbon\Carbon;
 
 class DashboardGuruController extends Controller
 {
+    // public function index()
+    // {
+    //     $user = Auth::user();
+    //     $userAktif = $user->status ?? 1;
+
+    //     // 1. Ambil Data Guru
+    //     $teacher = Teacher::where('user_id', $user->id)->first();
+
+    //     if (!$teacher || $userAktif != 1) {
+    //         return view('guru.teacher_dashboard.empty', compact('teacher'));
+    //     }
+
+    //     // 2. Ambil Mapping Pengampuan (Teaching Assignments)
+    //     $assignments = TeachingAssignment::with(['classroom.students', 'subject'])
+    //                     ->where('teacher_id', $teacher->id)
+    //                     ->orderBy('academic_year', 'desc')
+    //                     ->get();
+
+    //     // 3. Ambil Jadwal Mengajar Hari Ini
+    //     $dayOfWeek = Carbon::now()->locale('id')->dayName;
+    //     $todaySchedules = Schedule::with(['classroom', 'subject'])
+    //                         ->where('teacher_id', $teacher->id)
+    //                         ->where('day', $dayOfWeek)
+    //                         ->orderBy('start_time', 'asc')
+    //                         ->get();
+
+    //     // 4. Data Wali Kelas (Pengecekan Aman Struktur Kolom Database)
+    //     $homeroomClass = null;
+    //     if (Schema::hasColumn('classrooms', 'teacher_id')) {
+    //         $homeroomClass = Classroom::where('teacher_id', $teacher->id)->withCount('students')->first();
+    //     } elseif (Schema::hasColumn('classrooms', 'homeroom_teacher_id')) {
+    //         $homeroomClass = Classroom::where('homeroom_teacher_id', $teacher->id)->withCount('students')->first();
+    //     }
+
+    //     // 5. Data Siswa Bimbingan PKL
+    //     $internshipStudentsCount = 0;
+    //     if (Schema::hasTable('internships') && Schema::hasColumn('internships', 'advisor_id')) {
+    //         $internshipStudentsCount = Internship::where('advisor_id', $teacher->id)->count();
+    //     }
+
+    //     // 6. Jurnal Mengajar Terbaru Guru
+    //     $recentJournals = collect();
+    //     if (Schema::hasTable('teaching_journals')) {
+    //         $recentJournals = TeachingJournal::with(['schedule.classroom', 'schedule.subject'])
+    //                             ->whereHas('schedule', function ($q) use ($teacher) {
+    //                                 $q->where('teacher_id', $teacher->id);
+    //                             })
+    //                             ->latest()
+    //                             ->take(5)
+    //                             ->get();
+    //     }
+
+    //     // --- STATISTIK RINGKAS ---
+    //     $totalClasses = $assignments->pluck('classroom_id')->unique()->count();
+    //     $totalSubjects = $assignments->pluck('subject_id')->unique()->count();
+        
+    //     // Hitung Total Siswa Unik yang Diajar
+    //     $totalStudents = 0;
+    //     $processedClasses = [];
+    //     foreach ($assignments as $assign) {
+    //         if ($assign->classroom && !in_array($assign->classroom_id, $processedClasses)) {
+    //             $totalStudents += $assign->classroom->students->count();
+    //             $processedClasses[] = $assign->classroom_id;
+    //         }
+    //     }
+
+    //     // --- DATA GRAFIK KEHADIRAN SISWA ---
+    //     $scheduleIds = Schedule::where('teacher_id', $teacher->id)->pluck('id');
+    //     $now = Carbon::now();
+
+    //     // Kehadiran Hari Ini
+    //     $todayPresence = Attendance::whereIn('schedule_id', $scheduleIds)
+    //                         ->whereDate('created_at', $now->toDateString())
+    //                         ->whereIn('status', ['present', 'hadir'])
+    //                         ->count();
+
+    //     // Helper query statistik
+    //     $getAttendanceStats = function ($startDate, $endDate) use ($scheduleIds) {
+    //         return Attendance::select('status', DB::raw('count(*) as total'))
+    //             ->whereIn('schedule_id', $scheduleIds)
+    //             ->whereBetween('created_at', [$startDate, $endDate])
+    //             ->groupBy('status')
+    //             ->pluck('total', 'status')
+    //             ->toArray();
+    //     };
+
+    //     $chartData = [
+    //         'harian'   => $this->formatChartData($getAttendanceStats($now->copy()->startOfDay(), $now->copy()->endOfDay())),
+    //         'mingguan' => $this->formatChartData($getAttendanceStats($now->copy()->startOfWeek(), $now->copy()->endOfWeek())),
+    //         'bulanan'  => $this->formatChartData($getAttendanceStats($now->copy()->startOfMonth(), $now->copy()->endOfMonth())),
+    //         'semester' => $this->formatChartData($this->getSemesterRange($now->year, $now->month, $getAttendanceStats)), 
+    //         'tahunan'  => $this->formatChartData($getAttendanceStats($now->copy()->startOfYear(), $now->copy()->endOfYear())),
+    //     ];
+
+    //     return view('guru.teacher_dashboard.index', compact(
+    //         'teacher', 
+    //         'assignments', 
+    //         'todaySchedules',
+    //         'homeroomClass',
+    //         'internshipStudentsCount',
+    //         'recentJournals',
+    //         'totalClasses', 
+    //         'totalSubjects', 
+    //         'totalStudents',
+    //         'todayPresence', 
+    //         'chartData'
+    //     ));
+    // }
+
     public function index()
     {
         $user = Auth::user();
@@ -44,12 +153,66 @@ class DashboardGuruController extends Controller
                             ->orderBy('start_time', 'asc')
                             ->get();
 
-        // 4. Data Wali Kelas (Pengecekan Aman Struktur Kolom Database)
+        // 4. Deteksi Tugas Tambahan Guru (Wali Kelas / Kaprog / Kabeng / Guru BK / Pokja PKL / dll.)
         $homeroomClass = null;
         if (Schema::hasColumn('classrooms', 'teacher_id')) {
             $homeroomClass = Classroom::where('teacher_id', $teacher->id)->withCount('students')->first();
         } elseif (Schema::hasColumn('classrooms', 'homeroom_teacher_id')) {
             $homeroomClass = Classroom::where('homeroom_teacher_id', $teacher->id)->withCount('students')->first();
+        }
+
+        $additionalRole = null;
+        if ($homeroomClass) {
+            $additionalRole = [
+                'title' => 'Wali Kelas',
+                'value' => $homeroomClass->name,
+                'badge' => $homeroomClass->students_count . ' Siswa',
+                'icon'  => 'fas fa-user-shield'
+            ];
+        } else {
+            if ($user->hasRole(['kaprog'])) {
+                $additionalRole = [
+                    'title' => 'Tugas Tambahan',
+                    'value' => 'Kepala Program (Kaprog)',
+                    'badge' => $teacher->major->code ?? 'Jurusan',
+                    'icon'  => 'fas fa-user-tie'
+                ];
+            } elseif ($user->hasRole(['kabeng'])) {
+                $additionalRole = [
+                    'title' => 'Tugas Tambahan',
+                    'value' => 'Kepala Bengkel (Kabeng)',
+                    'badge' => $teacher->major->code ?? 'Bengkel',
+                    'icon'  => 'fas fa-tools'
+                ];
+            } elseif ($user->hasRole(['guru_bk', 'guru-bk'])) {
+                $additionalRole = [
+                    'title' => 'Tugas Tambahan',
+                    'value' => 'Guru Bimbingan Konseling',
+                    'badge' => 'Konseling',
+                    'icon'  => 'fas fa-user-friends'
+                ];
+            } elseif ($user->hasRole(['pokja_pkl'])) {
+                $additionalRole = [
+                    'title' => 'Tugas Tambahan',
+                    'value' => 'Tim Pokja PKL',
+                    'badge' => 'Humas / PKL',
+                    'icon'  => 'fas fa-briefcase'
+                ];
+            } elseif ($user->hasRole(['pembina_ekskul'])) {
+                $additionalRole = [
+                    'title' => 'Tugas Tambahan',
+                    'value' => 'Pembina Ekstrakurikuler',
+                    'badge' => 'Ekskul',
+                    'icon'  => 'fas fa-running'
+                ];
+            } else {
+                $additionalRole = [
+                    'title' => 'Wali Kelas',
+                    'value' => 'Bukan Wali',
+                    'badge' => 'Guru Pengampu',
+                    'icon'  => 'fas fa-user-tag'
+                ];
+            }
         }
 
         // 5. Data Siswa Bimbingan PKL
@@ -117,6 +280,7 @@ class DashboardGuruController extends Controller
             'assignments', 
             'todaySchedules',
             'homeroomClass',
+            'additionalRole',
             'internshipStudentsCount',
             'recentJournals',
             'totalClasses', 

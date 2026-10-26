@@ -9,7 +9,7 @@
                 <p class="text-muted mb-0">Daftar siswa yang memerlukan perhatian khusus berdasarkan poin pelanggaran.</p>
             </div>
             
-            <!-- Statistik Ringkas (Opsional) -->
+            <!-- Statistik Ringkas -->
             <div class="d-none d-md-flex gap-3">
                 <div class="px-3 py-2 bg-white rounded shadow-sm border-start border-4 border-danger">
                     <small class="text-muted d-block">Kasus Berat</small>
@@ -23,19 +23,40 @@
         </div>
 
         @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         @endif
 
         <div class="card border-0 shadow-lg">
             <div class="card-header bg-white py-3">
                 <div class="row g-2 align-items-center">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-list-ol me-2"></i>Ranking Poin Pelanggaran</h6>
                     </div>
-                    <div class="col-md-6">
-                        <form action="{{ route('admin.guidance.index') }}" method="GET" class="d-flex gap-2 justify-content-md-end">
+                    <div class="col-md-8">
+                        <form action="{{ route('admin.guidance.index') }}" method="GET" class="d-flex gap-2 justify-content-md-end flex-wrap">
+                            
+                            <!-- Filter Dropdown Kelas -->
+                            <select name="classroom_id" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                                <option value="">-- Semua Kelas --</option>
+                                @foreach($classrooms as $class)
+                                    <option value="{{ $class->id }}" {{ request('classroom_id') == $class->id ? 'selected' : '' }}>
+                                        {{ $class->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <!-- Input Pencarian Nama / NIS -->
                             <input type="text" name="search" class="form-control form-control-sm w-auto" placeholder="Cari Nama / NIS..." value="{{ request('search') }}">
                             <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+                            
+                            @if(request('classroom_id') || request('search'))
+                                <a href="{{ route('admin.guidance.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset Filter">
+                                    <i class="fas fa-undo"></i>
+                                </a>
+                            @endif
                         </form>
                     </div>
                 </div>

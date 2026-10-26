@@ -12,6 +12,7 @@ use App\Models\StudentGuidance;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
+use App\Models\Classroom; // <--- Tambahkan import ini
 
 class GuidanceController extends Controller
 {
@@ -20,44 +21,28 @@ class GuidanceController extends Controller
      */
     // public function index(Request $request)
     // {
-    //     // Ambil siswa yang memiliki pelanggaran, urutkan dari poin tertinggi
-    //     $students = Student::withSum('violations as total_points', 'violation_types.points')
-    //         ->with(['classroom'])
-    //         ->having('total_points', '>', 0)
-    //         ->orderByDesc('total_points');
+    //     $user = Auth::user();
 
-    //     return view('admin.guidance.index', compact('students'));
-    // }
+    //     // 1. Query Siswa terfilter otomatis berdasarkan scope accessibleBy
+    //     $query = Student::accessibleBy($user)
+    //         ->leftJoin('student_violations', 'students.id', '=', 'student_violations.student_id')
+    //         ->leftJoin('violation_types', 'student_violations.violation_type_id', '=', 'violation_types.id')
+    //         ->select(
+    //             'students.*',
+    //             DB::raw('COALESCE(SUM(violation_types.points), 0) as total_points')
+    //         )
+    //         ->groupBy('students.id');
 
-    /**
-     * Dashboard Pembinaan: List Siswa Bermasalah (Poin Tertinggi)
-     */
-    public function index(Request $request)
-    // {
-    //     // Query Siswa dengan Total Poin Pelanggaran
-    //     $query = Student::query();
-
-    //     // Join ke tabel student_violations dan violation_types untuk menghitung total poin
-    //     // Menggunakan subquery agar bisa diurutkan dan difilter
-    //     $query->select('students.*')
-    //           ->selectSub(function ($q) {
-    //               $q->from('student_violations')
-    //                 ->join('violation_types', 'student_violations.violation_type_id', '=', 'violation_types.id')
-    //                 ->whereColumn('student_violations.student_id', 'students.id')
-    //                 ->selectRaw('COALESCE(SUM(violation_types.points), 0)');
-    //           }, 'total_points');
-
-    //     // Filter Pencarian
+    //     // Filter Pencarian Nama / NIS
     //     if ($request->filled('search')) {
     //         $query->where(function($q) use ($request) {
-    //             $q->where('name', 'like', '%' . $request->search . '%')
-    //               ->orWhere('nis', 'like', '%' . $request->search . '%');
+    //             $q->where('students.name', 'like', '%' . $request->search . '%')
+    //               ->orWhere('students.nis', 'like', '%' . $request->search . '%');
     //         });
     //     }
 
     //     // Hanya ambil siswa yang punya poin > 0
-    //     // Karena 'total_points' adalah alias hasil subquery, kita gunakan having
-    //     $query->having('total_points', '>', 0);
+    //     $query->having(DB::raw('COALESCE(SUM(violation_types.points), 0)'), '>', 0);
 
     //     // Urutkan dari poin tertinggi
     //     $query->orderByDesc('total_points');
@@ -66,42 +51,53 @@ class GuidanceController extends Controller
 
     //     return view('admin.guidance.index', compact('students'));
     // }
+    public function index(Request $request)
+{
+    $user = Auth::user();
 
-        {
-        // Query Siswa dengan Total Poin Pelanggaran
-        // Menggunakan JOIN dan GROUP BY agar kompatibel dengan PostgreSQL dan HAVING
-        $query = Student::query()
-            ->leftJoin('student_violations', 'students.id', '=', 'student_violations.student_id')
-            ->leftJoin('violation_types', 'student_violations.violation_type_id', '=', 'violation_types.id')
-            ->select(
-                'students.*',
-                DB::raw('COALESCE(SUM(violation_types.points), 0) as total_points')
-            )
-            ->groupBy('students.id');
+    // 1. Ambil daftar kelas yang diizinkan untuk dropdown filter
+    $classrooms = Classroom::accessibleBy($user)->orderBy('name')->get();
 
-        // Filter Pencarian
-        if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('students.name', 'like', '%' . $request->search . '%')
-                  ->orWhere('students.nis', 'like', '%' . $request->search . '%');
-            });
-        }
+    // 2. Query Siswa terfilter otomatis berdasarkan scope accessibleBy
+    $query = Student::accessibleBy($user)
+        ->leftJoin('student_violations', 'students.id', '=', 'student_violations.student_id')
+        ->leftJoin('violation_types', 'student_violations.violation_type_id', '=', 'violation_types.id')
+        ->select(
+            'students.*',
+            DB::raw('COALESCE(SUM(violation_types.points), 0) as total_points')
+        )
+        ->groupBy('students.id');
 
-        // Hanya ambil siswa yang punya poin > 0
-        $query->having(DB::raw('COALESCE(SUM(violation_types.points), 0)'), '>', 0);
-
-        // Urutkan dari poin tertinggi
-        $query->orderByDesc('total_points');
-
-        $students = $query->with('classroom')->paginate(15)->withQueryString();
-
-        return view('admin.guidance.index', compact('students'));
+    // Filter Kelas
+    if ($request->filled('classroom_id')) {
+        $query->where('students.classroom_id', $request->classroom_id);
     }
 
+    // Filter Pencarian Nama / NIS
+    if ($request->filled('search')) {
+        $query->where(function($q) use ($request) {
+            $q->where('students.name', 'like', '%' . $request->search . '%')
+              ->orWhere('students.nis', 'like', '%' . $request->search . '%');
+        });
+    }
 
-    public function create(){
-        $students = Student::with('classroom')->orderBy('name')->get();
-        // Ambil jenis pelanggaran
+    // Hanya ambil siswa yang punya poin > 0
+    $query->having(DB::raw('COALESCE(SUM(violation_types.points), 0)'), '>', 0);
+
+    // Urutkan dari poin tertinggi
+    $query->orderByDesc('total_points');
+
+    $students = $query->with('classroom')->paginate(15)->withQueryString();
+
+    return view('admin.guidance.index', compact('students', 'classrooms'));
+}
+
+    public function create()
+    {
+        $user = Auth::user();
+
+        // Filter siswa untuk dropdown pembuatan kasus hanya yang diizinkan oleh scope accessibleBy
+        $students = Student::accessibleBy($user)->with('classroom')->orderBy('name')->get();
         $violationTypes = ViolationType::orderBy('name')->get();
 
         return view('admin.guidance.create', compact('students', 'violationTypes'));
@@ -112,19 +108,29 @@ class GuidanceController extends Controller
      */
     public function show($id)
     {
-        $student = Student::with(['classroom', 'violations.type', 'guidances.teacher'])->findOrFail($id);
+        $user = Auth::user();
+
+        // Pastikan hanya bisa melihat siswa yang berada dalam wewenang scope accessibleBy
+        $student = Student::accessibleBy($user)
+            ->with(['classroom', 'violations.type', 'guidances.teacher'])
+            ->findOrFail($id);
+
         $violationTypes = ViolationType::orderBy('name')->get();
 
         // Cek Role Guru yang sedang login
-        $user = Auth::user();
         $teacher = Teacher::where('user_id', $user->id)->first();
 
         $role = 'guru_biasa';
-        if($teacher) {
-            // Logika sederhana penentuan role (bisa disesuaikan dengan logic role Anda)
-            if ($student->classroom->homeroom_teacher_id == $teacher->id) $role = 'wali_kelas';
-            // elseif (cek_apakah_guru_bk) $role = 'bk';
-            // elseif (cek_apakah_kaprog) $role = 'kaprog';
+        if ($teacher && $student->classroom) {
+            if ($student->classroom->homeroom_teacher_id == $teacher->id || $student->classroom->teacher_id == $teacher->id) {
+                $role = 'wali_kelas';
+            } elseif ($user->hasRole(['guru_bk', 'guru-bk'])) {
+                $role = 'bk';
+            } elseif ($user->hasRole(['kaprog'])) {
+                $role = 'kaprog';
+            } elseif ($user->hasRole(['kabeng'])) {
+                $role = 'kabeng';
+            }
         }
 
         return view('admin.guidance.show', compact('student', 'violationTypes', 'role'));
@@ -135,6 +141,11 @@ class GuidanceController extends Controller
      */
     public function storeViolation(Request $request, $student_id)
     {
+        $user = Auth::user();
+
+        // Validasi bahwa siswa yang ditambahkan pelanggaran berada dalam hak akses user
+        $student = Student::accessibleBy($user)->findOrFail($student_id);
+
         $request->validate([
             'violation_type_id' => 'required|exists:violation_types,id',
             'date' => 'required|date',
@@ -142,7 +153,7 @@ class GuidanceController extends Controller
         ]);
 
         StudentViolation::create([
-            'student_id' => $student_id,
+            'student_id' => $student->id,
             'violation_type_id' => $request->violation_type_id,
             'date' => $request->date,
             'note' => $request->note,
@@ -157,6 +168,11 @@ class GuidanceController extends Controller
      */
     public function storeGuidance(Request $request, $student_id)
     {
+        $user = Auth::user();
+
+        // Validasi bahwa siswa yang dibina berada dalam hak akses user
+        $student = Student::accessibleBy($user)->findOrFail($student_id);
+
         $request->validate([
             'date' => 'required|date',
             'problem_summary' => 'required|string',
@@ -168,14 +184,14 @@ class GuidanceController extends Controller
         $teacher = Teacher::where('user_id', Auth::id())->firstOrFail();
 
         StudentGuidance::create([
-            'student_id' => $student_id,
+            'student_id' => $student->id,
             'teacher_id' => $teacher->id,
             'date' => $request->date,
             'problem_summary' => $request->problem_summary,
             'advice' => $request->advice,
             'student_commitment' => $request->student_commitment,
             'status' => $request->status,
-            'role_context' => $request->role_context ?? 'guru', // Dikirim dari hidden input view
+            'role_context' => $request->role_context ?? 'guru',
         ]);
 
         return back()->with('success', 'Laporan pembinaan berhasil disimpan.');
@@ -186,11 +202,16 @@ class GuidanceController extends Controller
      */
     public function printAgreement($guidanceId)
     {
-        // Cari data pembinaan beserta relasinya
-        $guidance = StudentGuidance::with(['student.classroom', 'teacher.user'])->findOrFail($guidanceId);
+        $user = Auth::user();
+
+        $guidance = StudentGuidance::with(['student.classroom', 'teacher.user'])
+            ->whereHas('student', function($q) use ($user) {
+                $q->accessibleBy($user);
+            })
+            ->findOrFail($guidanceId);
+
         $student = $guidance->student;
 
-        // Ambil data sekolah dari pengaturan (atau gunakan default)
         $school = [
             'name' => Setting::value('school_name', 'SMK NEGERI 1 BUKITTINGGI'),
             'address' => Setting::value('school_address', 'Jalan Iskandar Teja Sukmana'),
@@ -204,7 +225,6 @@ class GuidanceController extends Controller
             'headmaster_nip' => Setting::value('sign_nip', '19640817 198903 1 030'),
         ];
 
-        // Tampilkan view print (HTML biasa tanpa butuh library PDF agar format A4 pas)
         return view('admin.guidance.print_agreement', compact('guidance', 'student', 'school'));
     }
 
@@ -213,27 +233,24 @@ class GuidanceController extends Controller
      */
     public function sendSummon(Request $request, $guidanceId)
     {
-        // $request->validate([
-        //     'summon_date' => 'required|date',
-        //     'summon_time' => 'required',
-        // ]);
+        $user = Auth::user();
 
-        $guidance = StudentGuidance::with(['student.classroom'])->findOrFail($guidanceId);
+        $guidance = StudentGuidance::with(['student.classroom'])
+            ->whereHas('student', function($q) use ($user) {
+                $q->accessibleBy($user);
+            })
+            ->findOrFail($guidanceId);
+
         $student = $guidance->student;
 
-        // 1. Ambil Data Sekolah
         $school = \App\Models\Setting::pluck('value', 'key')->toArray();
 
-        // 2. Generate PDF Surat Panggilan
-        // Menggunakan view summon_pdf yang sudah Anda buat sebelumnya
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.guidance.summon_pdf', compact('guidance', 'student', 'school', 'request'));
 
-        // Simpan PDF ke Storage public
         $fileName = 'surat_panggilan_' . $student->nis . '_' . time() . '.pdf';
         $filePath = 'guidance_summons/' . $fileName;
         \Illuminate\Support\Facades\Storage::disk('public')->put($filePath, $pdf->output());
 
-        // 3. Update Database Status Panggilan
         $guidance->update([
             'is_summoned' => true,
             'summon_date' => $request->summon_date,
@@ -241,8 +258,6 @@ class GuidanceController extends Controller
             'summon_file' => $filePath
         ]);
 
-        // 4. Kirim WhatsApp ke Orang Tua
-        // Asumsi model Student memiliki kolom 'parent_phone', jika tidak fallback ke nomor HP siswa
         $parentPhone = $student->parent_phone ?? $student->phone;
 
         if ($parentPhone) {
@@ -259,7 +274,6 @@ class GuidanceController extends Controller
                      . "Atas perhatian dan kerjasamanya, kami ucapkan terima kasih.\n\n"
                      . "_Hormat Kami,_\n_Pihak Sekolah_";
 
-            // Memasukkan pengiriman WA ke dalam antrean (Queue) agar tidak memblokir respon halaman
             try {
                 \App\Jobs\SendWhatsappJob::dispatch($parentPhone, $message);
             } catch (\Exception $e) {
@@ -271,7 +285,7 @@ class GuidanceController extends Controller
     }
 
     /**
-     * Menghapus data pembinaan (Guidance)
+     * Menghapus data pelanggaran (Violation)
      */
     public function destroy($id)
     {
@@ -284,9 +298,6 @@ class GuidanceController extends Controller
     public function update(Request $request, $id)
     {
         $violationType = StudentViolation::findOrFail($id);
-
-
-
         $violationType->update($request->all());
 
         return redirect()->back()->with('success', 'Data pelanggaran berhasil diperbarui.');
