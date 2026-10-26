@@ -12,6 +12,8 @@ use App\Models\Student;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LicenseGeneratorController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\AlumniController;
+use App\Http\Controllers\AlumniPortalController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -156,6 +158,18 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
+    Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');
+    
+    // CRUD Profil Alumni via AJAX
+    Route::get('/alumni/detail/{student_id}', [AlumniController::class, 'show'])->name('alumni.show');
+    Route::post('/alumni/store-profile', [AlumniController::class, 'storeProfile'])->name('alumni.storeProfile');
+    
+    // Tambah & Hapus Skill / Sertifikat Alumni via AJAX
+    Route::post('/alumni/store-skill', [AlumniController::class, 'storeSkill'])->name('alumni.storeSkill');
+    Route::delete('/alumni/delete-skill/{id}', [AlumniController::class, 'deleteSkill'])->name('alumni.deleteSkill');
+
 
     // Route Tandai Semua Dibaca (Memanggil Controller Method)
     Route::get('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
@@ -785,6 +799,13 @@ Route::middleware(['auth', 'role:siswa'])->group(function () {
         Route::get('/attendance-calendar', [AttendanceCalendarController::class, 'index'])->name('attendance-calendar.index');
         Route::get('/attendance-calendar/events', [AttendanceCalendarController::class, 'getEvents'])->name('attendance-calendar.events');
     });
+});
+
+Route::middleware(['auth', 'role:alumni'])->prefix('alumni-portal')->group(function () {
+    Route::get('/dashboard', [AlumniPortalController::class, 'dashboard'])->name('alumni.portal.dashboard');
+    Route::get('/profile', [AlumniPortalController::class, 'myProfile'])->name('alumni.my-profile');
+    Route::post('/profile/update', [AlumniPortalController::class, 'updateProfile'])->name('alumni.profile.update');
+    Route::get('/jobs', [AlumniPortalController::class, 'jobs'])->name('alumni.portal.jobs');
 });
 
 // =========================================================================

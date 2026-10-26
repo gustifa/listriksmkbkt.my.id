@@ -40,7 +40,7 @@ class ComprehensiveRoleSeeder extends Seeder
             'view_all_reports',         // Rekap Seluruh Laporan Sekolah
             'manage_students',          // Akses Kesiswaan (Wakasis)
             'manage_curriculum',        // Akses Kurikulum (Wakakur)
-            'manage_public_relations', // Akses Humas (Wakahumas)
+            'manage_public_relations',  // Akses Humas (Wakahumas)
             'manage_counseling',        // Akses Bimbingan Konseling (Guru BK)
             'view_class_transcript',    // Cetak Transkrip Absensi (Wali Kelas & BK)
             'manage_internship',        // Akses Pokja PKL
@@ -48,6 +48,7 @@ class ComprehensiveRoleSeeder extends Seeder
             'manage_finance',           // Akses Keuangan (Bendahara)
             'manage_administration',    // Akses Tata Usaha (Ka TU & Pegawai)
             'gate_security',            // Akses Monitor Gerbang (Security/Satpam)
+            'manage_alumni',            // Akses Modul BKK & Alumni (Humas & Admin)
         ];
 
         foreach ($permissions as $permissionName) {
@@ -83,7 +84,7 @@ class ComprehensiveRoleSeeder extends Seeder
         $roleWakasis->givePermissionTo(['manage_students', 'daily_attendance', 'scan_attendance', 'view_report', 'view_all_reports', 'manage_extracurricular']);
 
         $roleWakahumas = Role::firstOrCreate(['name' => 'wakahumas', 'guard_name' => 'web']);
-        $roleWakahumas->givePermissionTo(['manage_public_relations', 'manage_internship', 'view_report', 'view_all_reports']);
+        $roleWakahumas->givePermissionTo(['manage_public_relations', 'manage_internship', 'manage_alumni', 'view_report', 'view_all_reports']);
 
         // Kejuruan & Bengkel
         $roleKaprog = Role::firstOrCreate(['name' => 'kaprog', 'guard_name' => 'web']);
@@ -126,8 +127,10 @@ class ComprehensiveRoleSeeder extends Seeder
         $rolePiket = Role::firstOrCreate(['name' => 'piket', 'guard_name' => 'web']);
         $rolePiket->givePermissionTo(['daily_attendance', 'scan_attendance']);
 
+        // Siswa & Alumni
         $roleSiswa = Role::firstOrCreate(['name' => 'siswa', 'guard_name' => 'web']);
+        $roleAlumni = Role::firstOrCreate(['name' => 'alumni', 'guard_name' => 'web']);
 
-        $this->command->info('ComprehensiveRoleSeeder Berhasil! Pemisahan hak akses super_admin dan admin telah diperbarui.');
+        $this->command->info('ComprehensiveRoleSeeder Berhasil! Role Alumni dan permission manage_alumni telah ditambahkan.');
     }
 }

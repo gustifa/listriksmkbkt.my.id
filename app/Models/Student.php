@@ -251,5 +251,16 @@ class Student extends Model
         return $this->father_phone ?? $this->mother_phone ?? $this->guardian_phone ?? $this->parent_phone ?? null;
     }
 
+    // Model Student.php
+    public function alumniProfile()
+    {
+        return $this->hasOne(AlumniProfile::class, 'student_id');
+    }
+
+    public function alumniSkills()
+    {
+        return $this->hasMany(AlumniSkill::class, 'student_id');
+    }
+
 
 }
