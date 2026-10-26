@@ -1,4 +1,5 @@
 <style>
+    /* Styling Tabel */
     .custom-table thead th {
         background: #f1f5f9;
         color: #475569;
@@ -9,8 +10,6 @@
         padding: 14px 16px;
         border-bottom: 1px solid #e2e8f0;
     }
-
-    /* Style Interaktif Header Sort */
     .sortable-header {
         cursor: pointer;
         user-select: none;
@@ -19,14 +18,12 @@
     .sortable-header:hover {
         background: #e2e8f0 !important;
     }
-
     .custom-table tbody td {
         padding: 14px 16px;
         vertical-align: middle;
         font-size: 13px;
         border-bottom: 1px solid #f1f5f9;
     }
-
     .nis-badge {
         background: #e2e8f0;
         color: #334155;
@@ -35,16 +32,104 @@
         border-radius: 6px;
         font-size: 12px;
     }
-
     .btn-action-dropdown {
         border-radius: 8px;
         padding: 5px 12px;
         font-size: 12px;
         font-weight: 600;
     }
+
+    /* Styling Mode Card (Mobile/Responsive) */
+    .student-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        transition: all 0.2s ease-in-out;
+    }
+    .student-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: #cbd5e1;
+    }
+    .avatar-circle {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 
-<div class="table-responsive" style="min-height: 320px; overflow-y: visible;">
+<!-- 1. MODE CARD -->
+<div id="view-card-container" class="p-3">
+    <div class="row g-3">
+        @forelse($students as $student)
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="student-card p-3 d-flex flex-column justify-content-between h-100">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="nis-badge">{{ $student->nis }}</span>
+                        @if($student->has_face || (isset($student->faceDescriptor) && $student->faceDescriptor))
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" style="font-size: 10px;">
+                                <i class='bx bx-check-circle me-1'></i> Terdaftar
+                            </span>
+                        @else
+                            <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-1" style="font-size: 10px;">
+                                <i class='bx bx-x-circle me-1'></i> Belum Ada
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3 my-2">
+                        <div class="avatar-circle flex-shrink-0">
+                            {{ strtoupper(substr($student->name ?? $student->nama, 0, 1)) }}
+                        </div>
+                        <div class="overflow-hidden">
+                            <h6 class="fw-bold text-dark mb-1 text-truncate" style="font-size: 14px;">{{ $student->name ?? $student->nama }}</h6>
+                            <span class="badge bg-light text-dark border">
+                                {{ $student->classroom->name ?? $student->classroom->nama_kelas ?? '-' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="text-muted small mt-2">
+                        <i class='bx bx-phone text-secondary me-1'></i> HP Ortu: {{ $student->parent_phone ?? $student->phone ?? '-' }}
+                    </div>
+                </div>
+
+                <div class="pt-3 mt-2 border-top d-flex justify-content-end gap-1">
+                    <a href="{{ route('students.show', $student->id) }}" class="btn btn-sm btn-light border text-info" title="Detail Siswa">
+                        <i class='bx bx-show fs-6'></i>
+                    </a>
+                    <a href="{{ url('/admin/scan-wajah/' . $student->id) }}" class="btn btn-sm btn-light border text-primary" title="Scan Wajah">
+                        <i class='bx bx-camera fs-6'></i>
+                    </a>
+                    @hasanyrole('admin|super-admin')
+                    <a href="{{ route('students.edit', $student->id) }}" class="btn btn-sm btn-light border text-warning" title="Edit Data">
+                        <i class='bx bx-edit fs-6'></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-light border text-danger btn-delete-swal" data-id="{{ $student->id }}" data-name="{{ $student->name ?? $student->nama }}" title="Hapus Data">
+                        <i class='bx bx-trash fs-6'></i>
+                    </button>
+                    @endhasanyrole
+                </div>
+            </div>
+        </div>
+        @empty
+        <div class="col-12 text-center text-muted py-5">
+            <i class='bx bx-search-alt fs-1 d-block mb-2 text-secondary'></i>
+            Data siswa tidak ditemukan.
+        </div>
+        @endforelse
+    </div>
+</div>
+
+<!-- 2. MODE TABEL -->
+<div id="view-table-container" class="table-responsive d-none" style="min-height: 320px; overflow-y: visible;">
     <table class="table custom-table table-hover align-middle mb-0 w-100">
         <thead>
             <tr>
@@ -62,27 +147,21 @@
                     }
                 @endphp
 
-                <!-- Kolom NIS -->
                 <th width="12%" class="sortable-header btn-sort" data-column="nis">
                     <div class="d-flex align-items-center">
                         NIS {!! getSortIcon('nis', $currentSort, $currentOrder) !!}
                     </div>
                 </th>
-
-                <!-- Kolom Nama Siswa -->
                 <th width="30%" class="sortable-header btn-sort" data-column="name">
                     <div class="d-flex align-items-center">
                         NAMA SISWA {!! getSortIcon('name', $currentSort, $currentOrder) !!}
                     </div>
                 </th>
-
-                <!-- Kolom Kelas -->
                 <th width="15%" class="sortable-header btn-sort" data-column="classroom_id">
                     <div class="d-flex align-items-center">
                         KELAS {!! getSortIcon('classroom_id', $currentSort, $currentOrder) !!}
                     </div>
                 </th>
-
                 <th width="15%">NO. HP ORTU</th>
                 <th width="15%" class="text-center">STATUS WAJAH</th>
                 <th width="13%" class="text-center">AKSI</th>
@@ -126,7 +205,6 @@
                                     <i class='bx bx-camera text-primary me-2'></i> Scan / Register Wajah
                                 </a>
                             </li>
-
                             @hasanyrole('admin|super-admin')
                             <li><hr class="dropdown-divider"></li>
                             <li>
@@ -156,7 +234,7 @@
     </table>
 </div>
 
-<!-- Footer Pagination -->
+<!-- FOOTER PAGINASI TUNGGAL -->
 <div class="px-3 py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
     <small class="text-muted">
         Menampilkan <b>{{ $students->firstItem() ?? 0 }}</b> - <b>{{ $students->lastItem() ?? 0 }}</b> dari <b>{{ $students->total() }}</b> data
