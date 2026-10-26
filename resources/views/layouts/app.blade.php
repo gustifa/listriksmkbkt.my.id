@@ -126,7 +126,7 @@
     <!-- end search modal -->
 
 	<!--start switcher-->
-	<div class="switcher-wrapper">
+	<!-- <div class="switcher-wrapper">
 		<div class="switcher-btn"> <i class='bx bx-cog bx-spin'></i>
 		</div>
 		<div class="switcher-body">
@@ -219,7 +219,7 @@
 				</div>
 			</div>
 		</div>
-	</div>
+	</div> -->
 	<!--end switcher-->
 
 	<!--plugins-->
@@ -386,6 +386,68 @@
     </script>
 
     @stack('scripts')
+	<!-- <script>
+		$(document).ready(function () {
+			// Mencegah double listener dan memastikan penanganan toggle sidebar berjalan presisi
+			$(document).off('click', '.mobile-toggle-menu').on('click', '.mobile-toggle-menu', function (e) {
+				e.stopPropagation();
+				$('.wrapper').toggleClass('toggled');
+			});
+
+			$(document).off('click', '.toggle-icon').on('click', '.toggle-icon', function (e) {
+				e.stopPropagation();
+				if ($('.wrapper').hasClass('toggled')) {
+					$('.wrapper').removeClass('toggled');
+					$('.sidebar-wrapper').unbind('hover');
+				} else {
+					$('.wrapper').addClass('toggled');
+					$('.sidebar-wrapper').hover(
+						function () {
+							$('.wrapper').addClass('sidebar-hovered');
+						},
+						function () {
+							$('.wrapper').removeClass('sidebar-hovered');
+						}
+					);
+				}
+			});
+		});
+	</script> -->
+	<script>
+    $(document).ready(function() {
+        // 1. Inisialisasi Ulang MetisMenu (Menangani Dropdown Sidebar)
+        if ($('#menu').length) {
+            $('#menu').metisMenu();
+        }
+
+        // 2. Handler Toggle Sidebar (Navigasi Tombol Burger Header)
+        $(document).off('click', '.mobile-toggle-menu').on('click', '.mobile-toggle-menu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $('.wrapper').toggleClass('toggled');
+        });
+
+        // 3. Handler Tombol Panah Sidebar (Sembunyikan/Kunci Sidebar)
+        $(document).off('click', '.toggle-icon').on('click', '.toggle-icon', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if ($('.wrapper').hasClass('toggled')) {
+                $('.wrapper').removeClass('toggled');
+                $('.sidebar-wrapper').unbind('hover');
+            } else {
+                $('.wrapper').addClass('toggled');
+                $('.sidebar-wrapper').hover(
+                    function() {
+                        $('.wrapper').addClass('sidebar-hovered');
+                    },
+                    function() {
+                        $('.wrapper').removeClass('sidebar-hovered');
+                    }
+                );
+            }
+        });
+    });
+</script>
 
 </body>
 
