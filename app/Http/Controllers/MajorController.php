@@ -15,16 +15,57 @@ class MajorController extends Controller
     /**
      * Display listing / JSON for DataTables
      */
-    public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            $majors = Major::with(['program.teacher', 'workshopTeacher'])->latest()->get();
-            return response()->json(['data' => $majors]);
-        }
+    // public function index(Request $request)
+    // {
+    //     if ($request->ajax()) {
+    //         $majors = Major::with(['program.teacher', 'workshopTeacher'])->latest()->get();
+    //         return response()->json(['data' => $majors]);
+    //     }
 
-        $programs = Program::orderBy('name', 'asc')->get();
-        return view('majors.index', compact('programs'));
+    //     $programs = Program::orderBy('name', 'asc')->get();
+    //     return view('majors.index', compact('programs'));
+    // }
+
+    public function index(Request $request)
+{
+    if ($request->ajax()) {
+        // Tambahkan orderBy program_id agar data terurut secara rapi sebelum digabung
+        $majors = Major::with(['program.teacher', 'workshopTeacher'])
+                       ->orderBy('program_id', 'asc')
+                       ->orderBy('name', 'asc')
+                       ->get();
+                       
+        return response()->json(['data' => $majors]);
     }
+
+    $programs = Program::orderBy('name', 'asc')->get();
+    return view('majors.index', compact('programs'));
+}
+
+//     public function index(Request $request)
+// {
+//     $query = Major::with(['program.teacher', 'workshopTeacher']);
+
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->where(function($q) use ($search) {
+//             $q->where('name', 'ilike', "%{$search}%")
+//               ->orWhere('code', 'ilike', "%{$search}%");
+//         });
+//     }
+
+//     $majors = $query->orderBy('name', 'asc')->paginate(9);
+//     $programs = Program::orderBy('name', 'asc')->get();
+
+//     // Jika dipanggil lewat Fetch/AJAX, kembalikan JSON berisi HTML partial
+//     if ($request->ajax()) {
+//         return response()->json([
+//             'html' => view('majors.partials.major_data', compact('majors'))->render()
+//         ]);
+//     }
+
+//     return view('majors.index', compact('majors', 'programs'));
+// }
 
     /**
      * Get available teachers (Guru yang belum ditugaskan sebagai Kabeng)

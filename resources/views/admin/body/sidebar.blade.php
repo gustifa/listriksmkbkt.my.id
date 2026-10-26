@@ -91,7 +91,7 @@ $status = $guruId->status ?? '0';
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-chip"></i></div>
-                        <div class="menu-title">System Administrator</div>
+                        <div class="menu-title">Administrator</div>
                     </a>
                     <ul>
                         <li><a href="{{route('admin.sync.index')}}"><i class='bx bx-sync'></i>Sinkronisasi Data</a></li>
@@ -320,7 +320,7 @@ $status = $guruId->status ?? '0';
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bx-qr-scan'></i></div>
-                        <div class="menu-title">Presensi Gerbang & Kelas</div>
+                        <div class="menu-title">Presensi</div>
                     </a>
                     <ul>
                         <li><a href="{{url('/daily-attendance/monitor-kelas')}}"><i class='bx bx-tv'></i>Realtime Kelas</a></li>
@@ -334,10 +334,10 @@ $status = $guruId->status ?? '0';
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-door-open"></i></div>
-                        <div class="menu-title">Izin Dispensasi / Toilet</div>
+                        <div class="menu-title">Izin Dispensasi</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Scan Izin Keluar Kelas</a></li>
+                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Scan Izin</a></li>
                     </ul>
                 </li>
             @endhasanyrole

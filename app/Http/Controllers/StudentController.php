@@ -76,13 +76,60 @@ class StudentController extends Controller
 //     return view('students.index', compact('students', 'classrooms'));
 // }
 
+// public function index(Request $request)
+// {
+//     $user = $request->user();
+
+//     // 1. Query siswa terfilter sesuai role & jurusan user
+//     $query = Student::accessibleBy($user)->with('classroom');
+
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->where(function($q) use ($search) {
+//             $q->where('name', 'ilike', "%{$search}%")
+//               ->orWhere('nis', 'ilike', "%{$search}%");
+//         });
+//     }
+
+//     if ($request->filled('classroom_id')) {
+//         $query->where('classroom_id', $request->classroom_id);
+//     }
+
+//     $students = $query->orderBy('name')->paginate(10);
+
+//     // 2. FILTER DROPDOWN KELAS SESUAI WEWENANG USER
+//     $classroomsQuery = Classroom::query();
+
+//     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
+//         $teacher = $user->teacher;
+
+//         if ($teacher && $teacher->major_id) {
+//             // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan TPTUP
+//             $classroomsQuery->where('major_id', $teacher->major_id);
+//         } elseif ($teacher && $user->hasRole('walas')) {
+//             // Jika Walas, hanya ambil kelas yang diwalikan
+//             $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
+//         } else {
+//             $classroomsQuery->whereRaw('1 = 0');
+//         }
+//     }
+
+//     $classrooms = $classroomsQuery->orderBy('name')->get();
+
+//     if ($request->ajax()) {
+//         return view('students.partials.student_table', compact('students'))->render();
+//     }
+
+//     return view('students.index', compact('students', 'classrooms'));
+// }
 public function index(Request $request)
 {
     $user = $request->user();
 
-    // 1. Query siswa terfilter sesuai role & jurusan user
+    // 1. Query siswa terfilter sesuai role & jurusan user (Dihapus relasi faceDescriptor yang bermasalah)
     $query = Student::accessibleBy($user)->with('classroom');
 
+    // 2. Handling Filter Live Search
     if ($request->filled('search')) {
         $search = $request->search;
         $query->where(function($q) use ($search) {
@@ -91,20 +138,37 @@ public function index(Request $request)
         });
     }
 
+    // 3. Handling Filter Kelas
     if ($request->filled('classroom_id')) {
         $query->where('classroom_id', $request->classroom_id);
     }
 
-    $students = $query->orderBy('name')->paginate(10);
+    // 4. Handling Dynamic Sorting (ASC / DESC)
+    $sortBy = $request->input('sort_by', 'name');
+    $sortOrder = strtolower($request->input('sort_order', 'asc'));
 
-    // 2. FILTER DROPDOWN KELAS SESUAI WEWENANG USER
+    // Whitelist kolom yang diperbolehkan di-sort
+    $allowedSorts = ['nis', 'name', 'classroom_id'];
+    if (!in_array($sortBy, $allowedSorts)) {
+        $sortBy = 'name';
+    }
+    if (!in_array($sortOrder, ['asc', 'desc'])) {
+        $sortOrder = 'asc';
+    }
+
+    // Eksekusi pengurutan dan paginasi dengan mempertahankan query string pada pagination link
+    $students = $query->orderBy($sortBy, $sortOrder)
+                      ->paginate(10)
+                      ->appends($request->all());
+
+    // 5. Filter Dropdown Kelas Sesuai Wewenang User
     $classroomsQuery = Classroom::query();
 
     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
         $teacher = $user->teacher;
 
         if ($teacher && $teacher->major_id) {
-            // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan TPTUP
+            // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan sama
             $classroomsQuery->where('major_id', $teacher->major_id);
         } elseif ($teacher && $user->hasRole('walas')) {
             // Jika Walas, hanya ambil kelas yang diwalikan
@@ -116,6 +180,7 @@ public function index(Request $request)
 
     $classrooms = $classroomsQuery->orderBy('name')->get();
 
+    // 6. Response AJAX / View Utama
     if ($request->ajax()) {
         return view('students.partials.student_table', compact('students'))->render();
     }
