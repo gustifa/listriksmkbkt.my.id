@@ -15,69 +15,147 @@ use Illuminate\Support\Facades\Auth;
 class DailyReportController extends Controller
 {
     // ... method reportDaily ...
+    // public function reportDaily(Request $request)
+    // {
+    //     // 1. Ambil data siswa untuk dropdown filter
+    //     $classrooms = Classroom::orderBy('name')->get();
+    //     $students = Student::orderBy('name', 'asc')->get();
+
+    //     // 2. Query Builder Dasar
+    //     $query = DailyAttendance::with(['student', 'student.classroom']);
+
+    //     // --- FILTER 1: SPESIFIK SISWA ---
+    //     if ($request->filled('student_id')) {
+    //         $query->where('student_id', $request->student_id);
+    //     }
+
+    //     // --- FILTER 2: PERIODE WAKTU ---
+    //     $filterType = $request->filter_type ?? 'harian';
+
+    //     switch ($filterType) {
+    //         case 'harian':
+    //             $date = $request->date ?? now()->format('Y-m-d');
+    //             $query->whereDate('created_at', $date);
+    //             break;
+
+    //         case 'mingguan':
+    //             $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfWeek();
+    //             $endDate   = $request->end_date ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfWeek();
+    //             $query->whereBetween('created_at', [$startDate, $endDate]);
+    //             break;
+
+    //         case 'bulanan':
+    //             $month = $request->month ?? now()->month;
+    //             $year  = $request->year ?? now()->year;
+    //             $query->whereMonth('created_at', $month)->whereYear('created_at', $year);
+    //             break;
+
+    //         case 'semester':
+    //             $year = $request->year ?? now()->year;
+    //             $semester = $request->semester;
+    //             if ($semester == 'ganjil') {
+    //                 $start = Carbon::create($year, 7, 1)->startOfDay();
+    //                 $end   = Carbon::create($year, 12, 31)->endOfDay();
+    //             } else {
+    //                 $start = Carbon::create($year, 1, 1)->startOfDay();
+    //                 $end   = Carbon::create($year, 6, 30)->endOfDay();
+    //             }
+    //             $query->whereBetween('created_at', [$start, $end]);
+    //             break;
+    //     }
+
+    //     // 3. Urutkan data
+    //     $attendances = $query->latest()->get();
+
+    //     // 4. Hitung Ringkasan
+    //     $summary = [
+    //         'hadir' => $attendances->where('status', 'hadir')->count(),
+    //         'terlambat' => $attendances->where('status', 'terlambat')->count(),
+    //         'izin'  => $attendances->where('status', 'izin')->count(),
+    //         'sakit' => $attendances->where('status', 'sakit')->count(),
+    //         'alpa' => $attendances->where('status', 'alpa')->count(),
+    //     ];
+
+    //     return view('daily_attendance.reports.report', compact('attendances', 'students', 'summary', 'classrooms'));
+    // }
+
     public function reportDaily(Request $request)
-    {
-        // 1. Ambil data siswa untuk dropdown filter
-        $classrooms = Classroom::orderBy('name')->get();
-        $students = Student::orderBy('name', 'asc')->get();
+{
+    $user = Auth::user();
 
-        // 2. Query Builder Dasar
-        $query = DailyAttendance::with(['student', 'student.classroom']);
+    // 1. FILTER DROPDOWN KELAS SESUAI WEWENANG USER (Menggunakan scopeAccessibleBy)
+    $classrooms = Classroom::accessibleBy($user)
+                           ->orderBy('name')
+                           ->get();
 
-        // --- FILTER 1: SPESIFIK SISWA ---
-        if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
+    $allowedClassroomIds = $classrooms->pluck('id');
 
-        // --- FILTER 2: PERIODE WAKTU ---
-        $filterType = $request->filter_type ?? 'harian';
+    // 2. FILTER DROPDOWN SISWA (Hanya siswa dari rombel/kelas yang berhak diakses)
+    $students = Student::accessibleBy($user)
+                       ->whereIn('classroom_id', $allowedClassroomIds)
+                       ->orderBy('name', 'asc')
+                       ->get();
 
-        switch ($filterType) {
-            case 'harian':
-                $date = $request->date ?? now()->format('Y-m-d');
-                $query->whereDate('created_at', $date);
-                break;
+    // 3. QUERY UTAMA DATA ABSENSI
+    $query = DailyAttendance::with(['student', 'student.classroom'])
+                ->whereHas('student', function($q) use ($user, $allowedClassroomIds) {
+                    $q->accessibleBy($user)
+                      ->whereIn('classroom_id', $allowedClassroomIds);
+                });
 
-            case 'mingguan':
-                $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfWeek();
-                $endDate   = $request->end_date ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfWeek();
-                $query->whereBetween('created_at', [$startDate, $endDate]);
-                break;
-
-            case 'bulanan':
-                $month = $request->month ?? now()->month;
-                $year  = $request->year ?? now()->year;
-                $query->whereMonth('created_at', $month)->whereYear('created_at', $year);
-                break;
-
-            case 'semester':
-                $year = $request->year ?? now()->year;
-                $semester = $request->semester;
-                if ($semester == 'ganjil') {
-                    $start = Carbon::create($year, 7, 1)->startOfDay();
-                    $end   = Carbon::create($year, 12, 31)->endOfDay();
-                } else {
-                    $start = Carbon::create($year, 1, 1)->startOfDay();
-                    $end   = Carbon::create($year, 6, 30)->endOfDay();
-                }
-                $query->whereBetween('created_at', [$start, $end]);
-                break;
-        }
-
-        // 3. Urutkan data
-        $attendances = $query->latest()->get();
-
-        // 4. Hitung Ringkasan
-        $summary = [
-            'hadir' => $attendances->where('status', 'hadir')->count(),
-            'terlambat' => $attendances->where('status', 'terlambat')->count(),
-            'izin'  => $attendances->where('status', 'izin')->count(),
-            'sakit' => $attendances->where('status', 'sakit')->count(),
-            'alpa' => $attendances->where('status', 'alpa')->count(),
-        ];
-
-        return view('daily_attendance.reports.report', compact('attendances', 'students', 'summary', 'classrooms'));
+    // --- FILTER SPESIFIK SISWA ---
+    if ($request->filled('student_id')) {
+        $query->where('student_id', $request->student_id);
     }
+
+    // --- FILTER PERIODE WAKTU ---
+    $filterType = $request->filter_type ?? 'harian';
+
+    switch ($filterType) {
+        case 'harian':
+            $date = $request->date ?? now()->format('Y-m-d');
+            $query->whereDate('created_at', $date);
+            break;
+
+        case 'mingguan':
+            $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfWeek();
+            $endDate   = $request->end_date ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfWeek();
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+            break;
+
+        case 'bulanan':
+            $month = $request->month ?? now()->month;
+            $year  = $request->year ?? now()->year;
+            $query->whereMonth('created_at', $month)->whereYear('created_at', $year);
+            break;
+
+        case 'semester':
+            $year = $request->year ?? now()->year;
+            $semester = $request->semester;
+            if ($semester == 'ganjil') {
+                $start = Carbon::create($year, 7, 1)->startOfDay();
+                $end   = Carbon::create($year, 12, 31)->endOfDay();
+            } else {
+                $start = Carbon::create($year, 1, 1)->startOfDay();
+                $end   = Carbon::create($year, 6, 30)->endOfDay();
+            }
+            $query->whereBetween('created_at', [$start, $end]);
+            break;
+    }
+
+    // 4. EKSEKUSI DATA & RINGKASAN
+    $attendances = $query->latest()->get();
+
+    $summary = [
+        'hadir'     => $attendances->where('status', 'hadir')->count(),
+        'terlambat' => $attendances->where('status', 'terlambat')->count(),
+        'izin'      => $attendances->where('status', 'izin')->count(),
+        'sakit'     => $attendances->where('status', 'sakit')->count(),
+        'alpa'      => $attendances->where('status', 'alpa')->count(),
+    ];
+
+    return view('daily_attendance.reports.report', compact('attendances', 'students', 'summary', 'classrooms'));
+}
 
     // public function printAbsensi(Request $request)
     // {
