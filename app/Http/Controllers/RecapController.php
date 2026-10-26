@@ -9,6 +9,7 @@ use App\Models\Classroom;
 use App\Models\Subject;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class RecapController extends Controller
 {
@@ -18,15 +19,27 @@ class RecapController extends Controller
     public function index()
     {
         $today = Carbon::today();
+        $user = Auth::user();
 
-        // 1. Statistik Ringkas Hari Ini
-        $totalStudents = Student::count();
+        // 1. Statistik Ringkas Hari Ini (Dibatasi scope accessibleBy)
+        $totalStudents = Student::accessibleBy($user)->count();
         
         $dailyStats = [
-            'hadir' => DailyAttendance::whereDate('date', $today)->where('status', 'hadir')->count(),
-            'terlambat' => DailyAttendance::whereDate('date', $today)->where('status', 'terlambat')->count(),
-            'alpa' => DailyAttendance::whereDate('date', $today)->where('status', 'alpa')->count(),
-            'pulang' => DailyAttendance::whereDate('date', $today)->whereNotNull('departure_time')->count(),
+            'hadir' => DailyAttendance::whereHas('student', function($q) use ($user) {
+                            $q->accessibleBy($user);
+                        })->whereDate('date', $today)->where('status', 'hadir')->count(),
+
+            'terlambat' => DailyAttendance::whereHas('student', function($q) use ($user) {
+                            $q->accessibleBy($user);
+                        })->whereDate('date', $today)->where('status', 'terlambat')->count(),
+
+            'alpa' => DailyAttendance::whereHas('student', function($q) use ($user) {
+                            $q->accessibleBy($user);
+                        })->whereDate('date', $today)->where('status', 'alpa')->count(),
+
+            'pulang' => DailyAttendance::whereHas('student', function($q) use ($user) {
+                            $q->accessibleBy($user);
+                        })->whereDate('date', $today)->whereNotNull('departure_time')->count(),
         ];
 
         $attendanceRate = $totalStudents > 0 ? round(($dailyStats['hadir'] + $dailyStats['terlambat']) / $totalStudents * 100, 1) : 0;
@@ -41,13 +54,19 @@ class RecapController extends Controller
             $date = Carbon::today()->subDays($i);
             $formattedDate = $date->format('Y-m-d');
             
-            // Label Hari (Senin, 12 Des)
             $chartLabels[] = $date->translatedFormat('D, d M');
 
-            // Hitung data per tanggal tersebut
-            $dataHadir[] = DailyAttendance::whereDate('date', $formattedDate)->where('status', 'hadir')->count();
-            $dataTerlambat[] = DailyAttendance::whereDate('date', $formattedDate)->where('status', 'terlambat')->count();
-            $dataAlpa[] = DailyAttendance::whereDate('date', $formattedDate)->where('status', 'alpa')->count();
+            $dataHadir[] = DailyAttendance::whereHas('student', function($q) use ($user) {
+                                $q->accessibleBy($user);
+                            })->whereDate('date', $formattedDate)->where('status', 'hadir')->count();
+
+            $dataTerlambat[] = DailyAttendance::whereHas('student', function($q) use ($user) {
+                                $q->accessibleBy($user);
+                            })->whereDate('date', $formattedDate)->where('status', 'terlambat')->count();
+
+            $dataAlpa[] = DailyAttendance::whereHas('student', function($q) use ($user) {
+                                $q->accessibleBy($user);
+                            })->whereDate('date', $formattedDate)->where('status', 'alpa')->count();
         }
 
         return view('recap.index', compact(
@@ -66,9 +85,15 @@ class RecapController extends Controller
      */
     public function dailyLog(Request $request)
     {
-        $classrooms = Classroom::orderBy('name')->get();
+        $user = Auth::user();
 
-        $query = DailyAttendance::with(['student.classroom']);
+        // Ambil kelas yang hanya berhak diakses user
+        $classrooms = Classroom::accessibleBy($user)->orderBy('name')->get();
+
+        $query = DailyAttendance::with(['student.classroom'])
+            ->whereHas('student', function($q) use ($user) {
+                $q->accessibleBy($user);
+            });
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('date', [$request->start_date, $request->end_date]);
@@ -96,10 +121,15 @@ class RecapController extends Controller
      */
     public function learningLog(Request $request)
     {
-        $classrooms = Classroom::orderBy('name')->get();
+        $user = Auth::user();
+
+        $classrooms = Classroom::accessibleBy($user)->orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
 
-        $query = Attendance::with(['student.classroom', 'subject']);
+        $query = Attendance::with(['student.classroom', 'subject'])
+            ->whereHas('student', function($q) use ($user) {
+                $q->accessibleBy($user);
+            });
 
         if ($request->filled('date')) {
             $query->whereDate('created_at', $request->date);
@@ -127,9 +157,11 @@ class RecapController extends Controller
      */
     public function studentsList(Request $request)
     {
-        $classrooms = Classroom::orderBy('name')->get();
+        $user = Auth::user();
+
+        $classrooms = Classroom::accessibleBy($user)->orderBy('name')->get();
         
-        $query = Student::with(['classroom']);
+        $query = Student::accessibleBy($user)->with(['classroom']);
 
         // Filter Kelas
         if ($request->filled('classroom_id')) {
@@ -154,7 +186,10 @@ class RecapController extends Controller
      */
     public function studentDetail($id)
     {
-        $student = Student::with('classroom')->findOrFail($id);
+        $user = Auth::user();
+
+        // Pastikan hanya bisa mengakses siswa yang diizinkan oleh scope accessibleBy
+        $student = Student::accessibleBy($user)->with('classroom')->findOrFail($id);
 
         // 1. Data Absensi Harian (Gerbang)
         $dailyLogs = DailyAttendance::where('student_id', $id)
