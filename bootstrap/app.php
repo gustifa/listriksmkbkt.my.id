@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\EnsureFaceRegistered; // <--- Impor class ini!
+use App\Http\Middleware\UserActivity; // <--- Import ini di atas
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->append(\App\Http\Middleware\EnsureAppIsUpdated::class);
         // --- TAMBAHKAN BAGIAN INI ---
+        // Masukkan ke grup 'web' agar Auth::check() berjalan dengan benar
+        $middleware->web(append: [
+            \App\Http\Middleware\UserActivity::class,
+        ]);
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

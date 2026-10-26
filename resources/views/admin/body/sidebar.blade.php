@@ -115,7 +115,7 @@ $status = $guruId->status ?? '0';
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-file"></i></div>
-                        <div class="menu-title">Administrasi Sekolah</div>
+                        <div class="menu-title">Administrasi</div>
                     </a>
                     <ul>
                         <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Data Siswa</a></li>

@@ -525,6 +525,8 @@ Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->gr
 
     Route::get('/user/all', [UserController::class, 'allUser'])->name('all.user');
     Route::get('/user/add', [UserController::class, 'addUser'])->name('add.user');
+    Route::post('/user/generate-password/{id}', [UserController::class, 'generatePassword'])->name('user.generate.password');
+    Route::get('/user/print-account/{id}', [UserController::class, 'printAccount'])->name('user.print.account');
     Route::post('/user/store', [UserController::class, 'storeUser'])->name('store.user');
     Route::post('/update-user/status',[UserController::class, 'UpdateStatusUser'])->name('update.status.user');
 
