@@ -297,56 +297,194 @@ class DashboardStudentController extends Controller
     /**
      * Simpan Pengajuan Sakit / Izin dari Siswa
      */
+    // public function storeLeavePermit(Request $request)
+    // {
+    //     $request->validate([
+    //         'status'              => 'required|in:sakit,izin',
+    //         'reason'              => 'required|string|max:500',
+    //         'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    //     ], [
+    //         'status.required'                 => 'Jenis pengajuan wajib dipilih.',
+    //         'reason.required'                 => 'Alasan/keterangan wajib diisi.',
+    //         'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
+    //         'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
+    //         'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
+    //     ]);
+
+    //     $student = Student::where('user_id', Auth::id())->firstOrFail();
+    //     $today = Carbon::today()->toDateString();
+
+    //     // --- VALIDASI HARI LIBUR ---
+    //     $holidayCheck = $this->isHoliday($today);
+    //     if ($holidayCheck['is_holiday']) {
+    //         return redirect()->back()->with('error', 'Gagal Pengajuan! ' . $holidayCheck['reason']);
+    //     }
+
+    //     // Cek jika siswa sudah ada entri absensi harian
+    //     $existing = DailyAttendance::where('student_id', $student->id)
+    //         ->whereDate('date', $today)
+    //         ->first();
+
+    //     if ($existing) {
+    //         return redirect()->back()->with('error', 'Kamu sudah mencatatkan absensi/pengajuan untuk hari ini!');
+    //     }
+
+    //     // Handle upload surat sakit jika memilih 'sakit'
+    //     $filePath = null;
+    //     if ($request->hasFile('medical_certificate')) {
+    //         $file = $request->file('medical_certificate');
+    //         $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+    //         $filePath = $file->storeAs('surat_sakit', $filename, 'public');
+    //     }
+
+    //     // Catat pengajuan izin/sakit ke tabel DailyAttendance
+    //     DailyAttendance::create([
+    //         'student_id'  => $student->id,
+    //         'date'        => $today,
+    //         'status'      => $request->status,
+    //         'notes'       => $request->reason,
+    //         'attachment'  => $filePath,
+    //         'recorded_by' => Auth::user()->name . ' (Siswa)',
+    //     ]);
+
+    //     return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim!');
+    // }
+
+    /**
+     * Simpan Pengajuan Sakit / Izin dari Siswa (Mendukung Rentang Tanggal)
+     */
+    // public function storeLeavePermit(Request $request)
+    // {
+    //     $request->validate([
+    //         'status'              => 'required|in:sakit,izin',
+    //         'start_date'          => 'required|date',
+    //         'end_date'            => 'required|date|after_or_equal:start_date',
+    //         'reason'              => 'required|string|max:500',
+    //         'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    //     ], [
+    //         'status.required'                 => 'Jenis pengajuan wajib dipilih.',
+    //         'start_date.required'             => 'Tanggal mulai wajib diisi.',
+    //         'end_date.required'               => 'Tanggal selesai wajib diisi.',
+    //         'end_date.after_or_equal'         => 'Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.',
+    //         'reason.required'                 => 'Alasan/keterangan wajib diisi.',
+    //         'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
+    //         'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
+    //         'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
+    //     ]);
+
+    //     $student = Student::where('user_id', Auth::id())->firstOrFail();
+
+    //     // Upload berkas jika status 'sakit'
+    //     $filePath = null;
+    //     if ($request->hasFile('medical_certificate')) {
+    //         $file = $request->file('medical_certificate');
+    //         $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+    //         $filePath = $file->storeAs('surat_sakit', $filename, 'public');
+    //     }
+
+    //     // Loop setiap tanggal dari start_date hingga end_date
+    //     $startDate = Carbon::parse($request->start_date);
+    //     $endDate   = Carbon::parse($request->end_date);
+
+    //     $insertedCount = 0;
+    //     for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
+    //         $currentDateStr = $date->toDateString();
+
+    //         // Lewati jika tanggal jatuh di Hari Minggu
+    //         if ($date->isSunday()) {
+    //             continue;
+    //         }
+
+    //         // Cek jika siswa sudah ada entri absensi harian di tanggal tersebut
+    //         $existing = DailyAttendance::where('student_id', $student->id)
+    //             ->whereDate('date', $currentDateStr)
+    //             ->exists();
+
+    //         if (!$existing) {
+    //             DailyAttendance::create([
+    //                 'student_id'  => $student->id,
+    //                 'date'        => $currentDateStr,
+    //                 'status'      => $request->status,
+    //                 'notes'       => $request->reason,
+    //                 'attachment'  => $filePath,
+    //                 'recorded_by' => Auth::user()->name . ' (Siswa)',
+    //             ]);
+    //             $insertedCount++;
+    //         }
+    //     }
+
+    //     if ($insertedCount === 0) {
+    //         return redirect()->back()->with('error', 'Pengajuan gagal. Tanggal yang dipilih sudah memiliki catatan presensi/izin!');
+    //     }
+
+    //     return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
+    // }
+
     public function storeLeavePermit(Request $request)
-    {
-        $request->validate([
-            'status'              => 'required|in:sakit,izin',
-            'reason'              => 'required|string|max:500',
-            'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
-        ], [
-            'status.required'                 => 'Jenis pengajuan wajib dipilih.',
-            'reason.required'                 => 'Alasan/keterangan wajib diisi.',
-            'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
-            'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
-            'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
-        ]);
+{
+    $request->validate([
+        'status'              => 'required|in:sakit,izin',
+        'start_date'          => 'required|date|after_or_equal:today', // Minimal hari ini, tidak bisa tanggal lampau
+        'end_date'            => 'required|date|after_or_equal:start_date',
+        'reason'              => 'required|string|max:500',
+        'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    ], [
+        'status.required'                 => 'Jenis pengajuan wajib dipilih.',
+        'start_date.required'             => 'Tanggal mulai wajib diisi.',
+        'start_date.after_or_equal'       => 'Pengajuan tidak bisa dibuat untuk tanggal sebelum hari ini.',
+        'end_date.required'               => 'Tanggal selesai wajib diisi.',
+        'end_date.after_or_equal'         => 'Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.',
+        'reason.required'                 => 'Alasan/keterangan wajib diisi.',
+        'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
+        'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
+        'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
+    ]);
 
-        $student = Student::where('user_id', Auth::id())->firstOrFail();
-        $today = Carbon::today()->toDateString();
+    $student = Student::where('user_id', Auth::id())->firstOrFail();
 
-        // --- VALIDASI HARI LIBUR ---
-        $holidayCheck = $this->isHoliday($today);
-        if ($holidayCheck['is_holiday']) {
-            return redirect()->back()->with('error', 'Gagal Pengajuan! ' . $holidayCheck['reason']);
-        }
-
-        // Cek jika siswa sudah ada entri absensi harian
-        $existing = DailyAttendance::where('student_id', $student->id)
-            ->whereDate('date', $today)
-            ->first();
-
-        if ($existing) {
-            return redirect()->back()->with('error', 'Kamu sudah mencatatkan absensi/pengajuan untuk hari ini!');
-        }
-
-        // Handle upload surat sakit jika memilih 'sakit'
-        $filePath = null;
-        if ($request->hasFile('medical_certificate')) {
-            $file = $request->file('medical_certificate');
-            $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('surat_sakit', $filename, 'public');
-        }
-
-        // Catat pengajuan izin/sakit ke tabel DailyAttendance
-        DailyAttendance::create([
-            'student_id'  => $student->id,
-            'date'        => $today,
-            'status'      => $request->status,
-            'notes'       => $request->reason,
-            'attachment'  => $filePath,
-            'recorded_by' => Auth::user()->name . ' (Siswa)',
-        ]);
-
-        return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim!');
+    // Upload berkas jika status 'sakit'
+    $filePath = null;
+    if ($request->hasFile('medical_certificate')) {
+        $file = $request->file('medical_certificate');
+        $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $filePath = $file->storeAs('surat_sakit', $filename, 'public');
     }
+
+    // Loop tanggal dari start_date hingga end_date
+    $startDate = Carbon::parse($request->start_date);
+    $endDate   = Carbon::parse($request->end_date);
+
+    $insertedCount = 0;
+    for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
+        $currentDateStr = $date->toDateString();
+
+        // Lewati jika tanggal jatuh di Hari Minggu
+        if ($date->isSunday()) {
+            continue;
+        }
+
+        // Cek jika siswa sudah memiliki catatan absensi/pengajuan di tanggal tersebut
+        $existing = DailyAttendance::where('student_id', $student->id)
+            ->whereDate('date', $currentDateStr)
+            ->exists();
+
+        if (!$existing) {
+            DailyAttendance::create([
+                'student_id'  => $student->id,
+                'date'        => $currentDateStr,
+                'status'      => $request->status,
+                'notes'       => $request->reason,
+                'attachment'  => $filePath,
+                'recorded_by' => Auth::user()->name . ' (Siswa)',
+            ]);
+            $insertedCount++;
+        }
+    }
+
+    if ($insertedCount === 0) {
+        return redirect()->back()->with('error', 'Pengajuan gagal. Tanggal yang dipilih sudah memiliki catatan presensi/izin!');
+    }
+
+    return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
+}
 }
