@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule; // Import Rule
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth; // <-- TAMBAHKAN LINE INI
+use Illuminate\Support\Facades\Artisan;
+use App\Models\AttendanceSetting;
+use Carbon\Carbon;
 
 class ClassroomController extends Controller
 {
@@ -836,4 +839,189 @@ public function updateMajor(Request $request, $id)
             }
         }
     }
+
+    // public function settingClass()
+    // {
+    //     $user = auth()->user();
+        
+    //     // Eager load relasi major
+    //     $query = Classroom::with('major');
+
+    //     // 1. Admin: Bisa kelola seluruh kelas
+    //     if ($user->hasRole('admin')) {
+    //         $classrooms = $query->orderBy('name', 'asc')->get();
+    //     } 
+    //     // 2. Ka. Bengkel / Proka: Hanya kelas di bawah Jurusan (Major) miliknya
+    //     elseif ($user->hasRole(['kabeng', 'proka'])) {
+    //         $majorId = $user->teacher->major_id ?? null;
+    //         $classrooms = $query->where('major_id', $majorId)->orderBy('name', 'asc')->get();
+    //     } 
+    //     else {
+    //         abort(403, 'Anda tidak memiliki hak akses.');
+    //     }
+
+    //     return view('classrooms.auto_absent_settings', compact('classrooms'));
+    // }
+
+    // // Method untuk meng-update status toggle otomatisasi
+    // public function updateAutoAbsentStatus(Request $request, Classroom $classroom)
+    // {
+    //     $user = auth()->user();
+
+    //     // Validasi Otorisasi
+    //     if (!$user->hasRole('admin')) {
+    //         $userMajorId = $user->teacher->major_id ?? null;
+    //         if ($classroom->major_id !== $userMajorId) {
+    //             return response()->json([
+    //                 'status'  => 'error', 
+    //                 'message' => 'Anda tidak berhak mengatur kelas ini.'
+    //             ], 403);
+    //         }
+    //     }
+
+    //     // Simpan nilai boolean ke database
+    //     $status = $request->input('status') ? true : false;
+        
+    //     $classroom->is_auto_absent_enabled = $status;
+    //     $classroom->save();
+
+    //     return response()->json([
+    //         'status'  => 'success',
+    //         'message' => "Status otomatisasi alpa kelas {$classroom->name} berhasil diperbarui."
+    //     ]);
+    // }
+
+//     public function settingClass()
+// {
+//     $user = auth()->user();
+
+//     // Menggunakan scope accessibleBy untuk menyaring kelas sesuai role
+//     $classrooms = Classroom::with('major')
+//         ->accessibleBy($user)
+//         ->orderBy('name', 'asc')
+//         ->get();
+
+//     if ($classrooms->isEmpty() && !$user->hasRole('admin')) {
+//         abort(403, 'Anda tidak memiliki hak akses.');
+//     }
+
+//     return view('classrooms.auto_absent_settings', compact('classrooms'));
+// }
+
+public function settingClass()
+{
+    $user = auth()->user();
+
+    // Urutkan status 'true' (aktif) ke paling atas, lalu urutkan nama kelas A-Z
+    $classrooms = Classroom::with('major')
+        ->accessibleBy($user)
+        ->orderBy('is_auto_absent_enabled', 'desc')
+        ->orderBy('name', 'asc')
+        ->get();
+
+    if ($classrooms->isEmpty() && !$user->hasRole('admin')) {
+        abort(403, 'Anda tidak memiliki hak akses.');
+    }
+
+    return view('classrooms.auto_absent_settings', compact('classrooms'));
+}
+
+public function updateAutoAbsentStatus(Request $request, Classroom $classroom)
+{
+    $user = auth()->user();
+
+    // Validasi Otorisasi: Cek apakah ID kelas ada di dalam scope kelas yang boleh diakses user
+    $isAllowed = Classroom::where('id', $classroom->id)
+        ->accessibleBy($user)
+        ->exists();
+
+    if (!$isAllowed) {
+        return response()->json([
+            'status'  => 'error', 
+            'message' => 'Anda tidak berhak mengatur kelas ini.'
+        ], 403);
+    }
+
+    // Simpan perubahan status
+    $classroom->is_auto_absent_enabled = $request->boolean('status');
+    $classroom->save();
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => "Status otomatisasi alpa kelas {$classroom->name} berhasil diperbarui."
+    ]);
+}
+
+// public function runNow()
+// {
+//     $user = auth()->user();
+
+//     // Hanya Admin/Super Admin yang boleh menjalankan manual secara global
+//     if (!$user->hasRole(['admin', 'super_admin'])) {
+//         return response()->json([
+//             'status'  => 'error',
+//             'message' => 'Anda tidak memiliki hak akses untuk menjalankan fungsi ini.'
+//         ], 403);
+//     }
+
+//     try {
+//         // Panggil command artisan secara terprogram
+//         Artisan::call('attendance:record-absent-violations');
+//         $output = Artisan::output();
+
+//         return response()->json([
+//             'status'  => 'success',
+//             'message' => 'Proses otomatisasi alpa berhasil dijalankan.',
+//             'output'  => trim($output)
+//         ]);
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'status'  => 'error',
+//             'message' => 'Gagal menjalankan proses: ' . $e->getMessage()
+//         ], 500);
+//     }
+// }
+
+    public function runNow()
+{
+    $user = auth()->user();
+
+    if (!$user->hasRole(['admin', 'super_admin'])) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Anda tidak memiliki hak akses.'
+        ], 403);
+    }
+
+    // 1. Ambil batas jam otomatisasi alpa dari setting
+    $setting = AttendanceSetting::find(1);
+    $autoAbsentTime = $setting->auto_absent_time ?? '13:00';
+
+    $now = Carbon::now();
+    $targetTime = Carbon::createFromFormat('H:i:s', strlen($autoAbsentTime) === 5 ? $autoAbsentTime . ':00' : $autoAbsentTime);
+
+    // 2. Cegah eksekusi jika jam sekarang belum mencapai target
+    if ($now->lessThan($targetTime)) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => "Proses belum bisa dijalankan. Batas jam otomatisasi alpa adalah pukul {$autoAbsentTime} WIB."
+        ], 400);
+    }
+
+    try {
+        Artisan::call('attendance:record-absent-violations');
+        $output = Artisan::output();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Proses otomatisasi alpa berhasil dijalankan.',
+            'output'  => trim($output)
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Gagal menjalankan proses: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

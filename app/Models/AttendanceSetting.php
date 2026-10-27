@@ -19,5 +19,6 @@ class AttendanceSetting extends Model
         'longitude',
         'radius_meters',
         'is_geofence_active', // <--- Tambahkan ini
+        'auto_absent_time', // <--- Tambahkan ini
     ];
 }

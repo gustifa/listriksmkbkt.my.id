@@ -96,6 +96,7 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{route('admin.sync.index')}}"><i class='bx bx-sync'></i>Sinkronisasi Data</a></li>
                         <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-slider-alt'></i>Manage Presensi</a></li>
+                        <li><a href="{{route('auto-absent.index')}}"><i class='bx bx-time-five'></i>Otomatisasi Alpa</a></li> {{-- <--- Ditambahkan di sini --}}
                         <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-history'></i>Log Aktivitas</a></li>
                         <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-mobile-vibration'></i>Reset HP Siswa</a></li>
                         <li><a href="{{route('system.update.index')}}"><i class='bx bx-cloud-download'></i>Update Sistem</a></li>
@@ -180,6 +181,7 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Bengkel & Workshop</div>
                     </a>
                     <ul>
+                        <li><a href="{{ route('auto-absent.index') }}"><i class='bx bx-cog'></i>Setting</a></li> {{-- <--- Ditambahkan di sini --}}
                         <li><a href="{{ route('admin.inventory.index') }}"><i class='bx bx-radio-circle'></i>Stok Alat & Bahan</a></li>
                         <li><a href="{{ route('loans.index') }}"><i class='bx bx-radio-circle'></i>Peminjaman Alat</a></li>
                     </ul>

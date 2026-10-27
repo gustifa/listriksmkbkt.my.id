@@ -135,13 +135,45 @@ class SettingController extends Controller
     //     return back()->with('success', 'Jam operasional absensi berhasil diperbarui!');
     // }
 
-    public function updateAttendance(Request $request)
+//     public function updateAttendance(Request $request)
+// {
+//     // 1. Validasi Input Jam & Geofencing
+//     $request->validate([
+//         'start_check_in_time'  => 'required',
+//         'late_limit_time'       => 'required|after:start_check_in_time',
+//         'early_departure_time' => 'required',
+//         'latitude'             => 'required|numeric',
+//         'longitude'            => 'required|numeric',
+//         'radius_meters'        => 'required|integer|min:10',
+//     ]);
+
+//     // 2. Ambil data yang akan disimpan
+//     $data = $request->only([
+//         'start_check_in_time',
+//         'late_limit_time',
+//         'early_departure_time',
+//         'latitude',
+//         'longitude',
+//         'radius_meters',
+//     ]);
+
+//     // Set 1 jika checkbox dicentang (PTM), atau 0 jika tidak dicentang (PJJ)
+//     $data['is_geofence_active'] = $request->has('is_geofence_active') ? 1 : 0;
+
+//     // 3. Simpan atau Update ke ID 1
+//     AttendanceSetting::updateOrCreate(['id' => 1], $data);
+
+//     return back()->with('success', 'Jam operasional & lokasi geofencing absensi berhasil diperbarui!');
+// }
+
+public function updateAttendance(Request $request)
 {
-    // 1. Validasi Input Jam & Geofencing
+    // 1. Validasi Input Jam, Otomatisasi Alpa & Geofencing
     $request->validate([
         'start_check_in_time'  => 'required',
         'late_limit_time'       => 'required|after:start_check_in_time',
         'early_departure_time' => 'required',
+        'auto_absent_time'     => 'required', // <--- Field jam eksekusi alpa
         'latitude'             => 'required|numeric',
         'longitude'            => 'required|numeric',
         'radius_meters'        => 'required|integer|min:10',
@@ -152,6 +184,7 @@ class SettingController extends Controller
         'start_check_in_time',
         'late_limit_time',
         'early_departure_time',
+        'auto_absent_time', // <--- Dimasukkan ke array $data
         'latitude',
         'longitude',
         'radius_meters',
@@ -163,6 +196,6 @@ class SettingController extends Controller
     // 3. Simpan atau Update ke ID 1
     AttendanceSetting::updateOrCreate(['id' => 1], $data);
 
-    return back()->with('success', 'Jam operasional & lokasi geofencing absensi berhasil diperbarui!');
+    return back()->with('success', 'Jam operasional, otomatisasi alpa & lokasi geofencing absensi berhasil diperbarui!');
 }
 }

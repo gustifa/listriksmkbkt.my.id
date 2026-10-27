@@ -577,6 +577,10 @@ Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->gr
     Route::get('/classrooms/available-teachers', [ClassroomController::class, 'getAvailableTeachers'])->name('classrooms.available-teachers');
     Route::get('/classrooms/{id}/edit-ajax', [ClassroomController::class, 'editAjax'])->name('classrooms.edit_ajax');
     Route::post('/classrooms/{id}/update-major', [ClassroomController::class, 'updateMajor'])->name('classrooms.update_major');
+    Route::get('/settings/auto-absent-classrooms', [ClassroomController::class, 'settingClass'])->name('auto-absent.index');
+    Route::post('/settings/auto-absent-classrooms/run-now', [ClassroomController::class, 'runNow'])->name('auto-absent.run-now');
+    // Action toggle update status (via AJAX/Fetch)
+    Route::patch('/settings/auto-absent-classrooms/{classroom}', [ClassroomController::class, 'updateAutoAbsentStatus'])->name('auto-absent.toggle');
     Route::resource('classrooms', ClassroomController::class);
     // Route::prefix('setting/jurusan')->name('majors.')->group(function() {
     //     Route::get('/', [MajorController::class, 'index'])->name('index');

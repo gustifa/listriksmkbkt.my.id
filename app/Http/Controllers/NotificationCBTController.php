@@ -54,4 +54,17 @@ class NotificationCBTController extends Controller
             ], 500);
         }
     }
+
+    public function readAndRedirect($id)
+    {
+        $notification = Auth::user()->notifications()->where('id', $id)->first();
+
+        if ($notification) {
+            $notification->markAsRead();
+            $targetUrl = $notification->data['url'] ?? route('student.dashboard');
+            return redirect($targetUrl);
+        }
+
+        return redirect()->route('student.dashboard');
+    }
 }

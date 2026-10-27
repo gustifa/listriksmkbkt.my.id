@@ -34,25 +34,31 @@
 
                                 <h6 class="text-primary fw-bold mb-3"><i class="fas fa-clock me-2"></i> Jam Operasional Scan</h6>
                                 <div class="row">
-                                    <div class="mb-3 col-md-4 form-group">
+                                    <div class="mb-3 col-md-3 form-group">
                                         <label class="form-label fw-bold">Jam Buka Scan Masuk</label>
                                         <input type="time" name="start_check_in_time" class="form-control"
                                             value="{{ $setting->start_check_in_time ?? '06:00' }}" required>
                                         <div class="form-text">Cegah siswa absen terlalu pagi.</div>
                                     </div>
 
-                                    <div class="mb-3 col-md-4 form-group">
+                                    <div class="mb-3 col-md-3 form-group">
                                         <label class="form-label fw-bold">Batas Jam Masuk (Batas Terlambat)</label>
                                         <input type="time" name="late_limit_time" class="form-control"
                                             value="{{ $setting->late_limit_time ?? '07:00' }}" required>
                                         <div class="form-text">Lewat dari jam ini dianggap Terlambat.</div>
                                     </div>
 
-                                    <div class="mb-3 col-md-4 form-group">
+                                    <div class="mb-3 col-md-3 form-group">
                                         <label class="form-label fw-bold">Batas Awal Jam Pulang</label>
                                         <input type="time" name="early_departure_time" class="form-control"
                                             value="{{ $setting->early_departure_time ?? '10:00' }}" required>
                                         <div class="form-text">Sebelum jam ini siswa tidak bisa scan pulang.</div>
+                                    </div>
+                                    <div class="mb-3 col-md-3 form-group">
+                                        <label class="form-label fw-bold text-danger">Jam Eksekusi Otomatis Alpa</label>
+                                        <input type="time" name="auto_absent_time" class="form-control border-danger"
+                                            value="{{ $setting->auto_absent_time ?? '13:00' }}" required>
+                                        <div class="form-text text-danger">Mencatat alpa otomatis bagi siswa yang tidak absen.</div>
                                     </div>
                                 </div>
 
