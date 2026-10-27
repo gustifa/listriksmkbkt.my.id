@@ -488,11 +488,11 @@
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Dari Tanggal <span class="text-danger">*</span></label>
-                            <input type="date" name="start_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" required>
+                            <input type="date" name="start_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Sampai Tanggal <span class="text-danger">*</span></label>
-                            <input type="date" name="end_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" required>
+                            <input type="date" name="end_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}" required>
                         </div>
                     </div>
 
