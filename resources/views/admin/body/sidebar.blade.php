@@ -85,6 +85,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{url('/face/register')}}"><i class='bx bxs-file-find'></i>Scan Wajah</a></li>
                         <li><a href="{{url('/teaching-assignments')}}"><i class='bx bx-book-bookmark'></i>PBM</a></li>
                         <li><a href="{{url('/schedule/all')}}"><i class='bx bx-calendar'></i>Jadwal</a></li>
+                        <li><a href="{{route('admin.guidance.index')}}"><i class='bx bxs-user-check'></i>Pelanggaran</a></li>
                     </ul>
                 </li>
 
