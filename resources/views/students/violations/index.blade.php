@@ -71,7 +71,7 @@
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-danger px-2 py-1 fs-7">
-                                    +{{ $violation->violationType->points ?? 0 }}
+                                    +{{ $violation->type->points ?? 0 }}
                                 </span>
                             </td>
                             <td class="text-muted small">

@@ -19,14 +19,14 @@ class StudentProfileController extends Controller
         }
 
         // Ambil riwayat pelanggaran milik siswa
-        $violations = StudentViolation::with('violationType')
+        $violations = StudentViolation::with('type')
             ->where('student_id', $student->id)
             ->orderBy('date', 'desc')
             ->get();
 
         // Hitung total poin pelanggaran yang didapat
         $totalPoints = $violations->sum(function ($violation) {
-            return $violation->violationType->points ?? 0;
+            return $violation->type->points ?? 0;
         });
 
         return view('students.violations.index', compact('violations', 'totalPoints'));
