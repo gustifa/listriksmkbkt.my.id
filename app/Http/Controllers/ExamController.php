@@ -16,6 +16,10 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use App\Exports\ExamResultsExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
+use App\Models\User;
+use App\Models\Student;
+use App\Notifications\CbtExamScheduledNotification;
+use Illuminate\Support\Facades\Notification;
 
 class ExamController extends Controller
 {
@@ -108,32 +112,118 @@ class ExamController extends Controller
     }
 
     // Simpan Data Ujian Baru
+    // public function store(Request $request)
+    // {
+    //     $rules = [
+    //         'title'              => 'required|string|max:255',
+    //         'type'               => 'required|in:pilihan_ganda,multiple_choice,essay,campuran',
+    //         'subject_id'         => 'required|exists:subjects,id',
+    //         'classroom_ids'      => 'required|array',
+    //         'classroom_ids.*'    => 'exists:classrooms,id',
+    //         'duration_minutes'   => 'required|integer|min:1',
+    //         'start_time'         => 'required|date',
+    //         'end_time'           => 'required|date|after:start_time',
+    //         'academic_year_id'   => 'nullable|exists:academic_years,id',
+    //         'collaborator_ids'   => 'nullable|array',
+    //         'collaborator_ids.*' => 'exists:teachers,id',
+    //     ];
+
+    //     if (Auth::user()->hasRole('admin')) {
+    //         $rules['teacher_id'] = 'required|exists:teachers,id';
+    //     }
+
+    //     $validated = $request->validate($rules);
+
+    //     $teacherId = Auth::user()->hasRole('admin')
+    //         ? $request->teacher_id
+    //         : Auth::user()->teacher->id;
+
+    //     $exam = Exam::create([
+    //         'title'               => $validated['title'],
+    //         'type'                => $validated['type'],
+    //         'subject_id'          => $validated['subject_id'],
+    //         'teacher_id'          => $teacherId,
+    //         'academic_year_id'    => $validated['academic_year_id'] ?? null,
+    //         'duration_minutes'    => $validated['duration_minutes'],
+    //         'start_time'          => $validated['start_time'],
+    //         'end_time'            => $validated['end_time'],
+    //         'is_active'           => $request->has('is_active'),
+    //         'is_team_teaching'    => $request->has('is_team_teaching'),
+    //         'allow_review'        => $request->has('allow_review'),
+    //         'show_correct_answer' => $request->has('show_correct_answer'),
+    //         'randomize_questions' => $request->has('randomize_questions'),
+    //         'randomize_options'   => $request->has('randomize_options'),
+    //         'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
+    //         'show_score'   => $request->has('show_score'),
+    //     ]);
+
+    //     $exam->classrooms()->attach($request->classroom_ids);
+
+    //     // Simpan relasi Team Teaching jika diaktifkan
+    //     if ($request->has('is_team_teaching') && $request->has('collaborator_ids')) {
+    //         $exam->collaborators()->sync($request->input('collaborator_ids', []));
+    //     }
+
+    //     // =========================================================================
+    //     // PROSES NOTIFIKASI OTOMATIS KE SISWA (PENYEMPURNAAN)
+    //     // =========================================================================
+    //     try {
+    //         // 1. Ambil ID siswa di kelas target tanpa batasan penulisan string status
+    //         $targetStudentUserIds = Student::whereIn('classroom_id', $request->classroom_ids)
+    //             ->whereNotNull('user_id')
+    //             ->where(function($q) {
+    //                 $q->whereIn('status', ['active', 'aktif', '1', 'ACTIVE'])
+    //                 ->orWhereNull('status'); // Mengantisipasi jika status bernilai NULL
+    //             })
+    //             ->pluck('user_id')
+    //             ->toArray();
+
+    //         // 2. Ambil User bertipe siswa
+    //         $targetUsers = User::whereIn('id', $targetStudentUserIds)->get();
+
+    //         // 3. Kirim Notifikasi Massal
+    //         if ($targetUsers->isNotEmpty()) {
+    //             Notification::send($targetUsers, new CbtExamScheduledNotification($exam));
+    //         } else {
+    //             // Log peringatan jika tidak ada user siswa yang ditemukan
+    //             \Illuminate\Support\Facades\Log::warning('CBT Notif: Tidak ditemukan siswa aktif pada kelas ID: ' . implode(',', $request->classroom_ids));
+    //         }
+    //     } catch (\Exception $e) {
+    //         \Illuminate\Support\Facades\Log::error('Gagal mengirim notifikasi CBT: ' . $e->getMessage());
+    //     }
+
+    //     return redirect()->route('guru.exams.show', $exam->id)
+    //                      ->with('success', 'Ujian berhasil dibuat. Silakan tambahkan soal.');
+    // }
+
     public function store(Request $request)
-    {
-        $rules = [
-            'title'              => 'required|string|max:255',
-            'type'               => 'required|in:pilihan_ganda,multiple_choice,essay,campuran',
-            'subject_id'         => 'required|exists:subjects,id',
-            'classroom_ids'      => 'required|array',
-            'classroom_ids.*'    => 'exists:classrooms,id',
-            'duration_minutes'   => 'required|integer|min:1',
-            'start_time'         => 'required|date',
-            'end_time'           => 'required|date|after:start_time',
-            'academic_year_id'   => 'nullable|exists:academic_years,id',
-            'collaborator_ids'   => 'nullable|array',
-            'collaborator_ids.*' => 'exists:teachers,id',
-        ];
+{
+    $rules = [
+        'title'              => 'required|string|max:255',
+        'type'               => 'required|in:pilihan_ganda,multiple_choice,essay,campuran',
+        'subject_id'         => 'required|exists:subjects,id',
+        'classroom_ids'      => 'required|array',
+        'classroom_ids.*'    => 'exists:classrooms,id',
+        'duration_minutes'   => 'required|integer|min:1',
+        'start_time'         => 'required|date',
+        'end_time'           => 'required|date|after:start_time',
+        'academic_year_id'   => 'nullable|exists:academic_years,id',
+        'collaborator_ids'   => 'nullable|array',
+        'collaborator_ids.*' => 'exists:teachers,id',
+    ];
 
-        if (Auth::user()->hasRole('admin')) {
-            $rules['teacher_id'] = 'required|exists:teachers,id';
-        }
+    if (Auth::user()->hasRole('admin')) {
+        $rules['teacher_id'] = 'required|exists:teachers,id';
+    }
 
-        $validated = $request->validate($rules);
+    $validated = $request->validate($rules);
 
-        $teacherId = Auth::user()->hasRole('admin')
-            ? $request->teacher_id
-            : Auth::user()->teacher->id;
+    $teacherId = Auth::user()->hasRole('admin')
+        ? $request->teacher_id
+        : Auth::user()->teacher->id;
 
+    // Gunakan Transaction untuk Menjamin Keutuhan Data
+    $exam = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $request, $teacherId) {
         $exam = Exam::create([
             'title'               => $validated['title'],
             'type'                => $validated['type'],
@@ -150,19 +240,51 @@ class ExamController extends Controller
             'randomize_questions' => $request->has('randomize_questions'),
             'randomize_options'   => $request->has('randomize_options'),
             'enable_anti_cheat'   => $request->has('enable_anti_cheat'),
-            'show_score'   => $request->has('show_score'),
+            'show_score'          => $request->has('show_score'),
         ]);
 
         $exam->classrooms()->attach($request->classroom_ids);
 
-        // Simpan relasi Team Teaching jika diaktifkan
         if ($request->has('is_team_teaching') && $request->has('collaborator_ids')) {
             $exam->collaborators()->sync($request->input('collaborator_ids', []));
         }
 
-        return redirect()->route('guru.exams.show', $exam->id)
-                         ->with('success', 'Ujian berhasil dibuat. Silakan tambahkan soal.');
+        return $exam;
+    });
+
+    // =========================================================================
+    // PROSES NOTIFIKASI OTOMATIS KE SISWA (DEBUG & SAFE DISPATCH)
+    // =========================================================================
+    try {
+        // 1. Ambil array user_id langsung dari tabel students berdasarkan kelas target
+        $studentUserIds = \App\Models\Student::whereIn('classroom_id', $request->classroom_ids)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->toArray();
+
+        if (!empty($studentUserIds)) {
+            // 2. Ambil objek User bertipe UUID
+            $targetUsers = \App\Models\User::whereIn('id', $studentUserIds)->get();
+
+            if ($targetUsers->isNotEmpty()) {
+                // 3. Kirim notifikasi secara individual untuk menghindari isu tipe data koleksi UUID
+                foreach ($targetUsers as $user) {
+                    $user->notify(new \App\Notifications\CbtExamScheduledNotification($exam));
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::warning('CBT Notif: User tidak ditemukan di tabel users walau user_id ada di students.');
+            }
+        } else {
+            \Illuminate\Support\Facades\Log::warning('CBT Notif: user_id di tabel students untuk classroom_ids (' . implode(',', $request->classroom_ids) . ') bernilai NULL.');
+        }
+    } catch (\Throwable $e) {
+        // Catat detail error persis ke file log
+        \Illuminate\Support\Facades\Log::error('Gagal mengirim notifikasi CBT: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ' Line: ' . $e->getLine());
     }
+
+    return redirect()->route('guru.exams.show', $exam->id)
+                     ->with('success', 'Ujian berhasil dibuat dan notifikasi telah dikirim ke siswa.');
+}
 
     // Upload Soal oleh Guru (Excel Template)
     public function importQuestions(Request $request, $examId)
@@ -318,29 +440,60 @@ class ExamController extends Controller
         return view('exams.show', compact('exam', 'totalQuestions', 'totalScoreWeight', 'availableTeachers'));
     }
 
+    // public function destroy(Exam $exam)
+    // {
+    //     $user = Auth::user();
+
+    //     if (!$user->hasRole('admin') && $exam->teacher_id !== optional($user->teacher)->id) {
+    //         return redirect()->route('exams.index')
+    //                          ->with('error', 'Anda tidak memiliki hak akses untuk menghapus ujian ini.');
+    //     }
+
+    //     try {
+    //         $exam->classrooms()->detach();
+    //         $exam->collaborators()->detach();
+    //         $exam->questions()->delete();
+    //         $exam->delete();
+
+    //         return redirect()->route('exams.index')
+    //                          ->with('success', 'Ujian beserta data terkait berhasil dihapus.');
+
+    //     } catch (\Exception $e) {
+    //         return redirect()->route('exams.index')
+    //                          ->with('error', 'Gagal menghapus ujian: ' . $e->getMessage());
+    //     }
+    // }
     public function destroy(Exam $exam)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user->hasRole('admin') && $exam->teacher_id !== optional($user->teacher)->id) {
-            return redirect()->route('exams.index')
-                             ->with('error', 'Anda tidak memiliki hak akses untuk menghapus ujian ini.');
-        }
-
-        try {
-            $exam->classrooms()->detach();
-            $exam->collaborators()->detach();
-            $exam->questions()->delete();
-            $exam->delete();
-
-            return redirect()->route('exams.index')
-                             ->with('success', 'Ujian beserta data terkait berhasil dihapus.');
-
-        } catch (\Exception $e) {
-            return redirect()->route('exams.index')
-                             ->with('error', 'Gagal menghapus ujian: ' . $e->getMessage());
-        }
+    if (!$user->hasRole('admin') && $exam->teacher_id !== optional($user->teacher)->id) {
+        return redirect()->route('exams.index')
+                         ->with('error', 'Anda tidak memiliki hak akses untuk menghapus ujian ini.');
     }
+
+    try {
+        // 1. Hapus notifikasi terkait ujian menggunakan pencarian string pada kolom text data
+        \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('data', 'LIKE', '%"exam_id":"' . $exam->id . '"%')
+            ->delete();
+
+        // 2. Hapus relasi Pivot dan Soal
+        $exam->classrooms()->detach();
+        $exam->collaborators()->detach();
+        $exam->questions()->delete();
+        
+        // 3. Hapus data Ujian
+        $exam->delete();
+
+        return redirect()->route('exams.index')
+                         ->with('success', 'Ujian beserta notifikasi terkait berhasil dihapus.');
+
+    } catch (\Exception $e) {
+        return redirect()->route('exams.index')
+                         ->with('error', 'Gagal menghapus ujian: ' . $e->getMessage());
+    }
+}
 
     public function toggleStatus(Exam $exam)
     {

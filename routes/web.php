@@ -12,6 +12,8 @@ use App\Models\Student;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LicenseGeneratorController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationCBTController;
+
 use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\AlumniPortalController;
 
@@ -178,6 +180,10 @@ Route::middleware(['auth'])->group(function () {
     
     // Route Tandai Semua Dibaca via AJAX
     Route::post('/notifications/read-all-ajax', [NotificationController::class, 'markAllAsReadAjax'])->name('notifications.readAllAjax');
+    Route::post('/notifications/mark-as-read', [NotificationCBTController::class, 'markAllAsRead'])->name('notifications.markAllRead');
+    // Tandai satu notifikasi dibaca berdasarkan ID
+    Route::post('/notifications/{id}/mark-as-read', [NotificationCBTController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::get('/notifications/{id}/read-and-redirect', [NotificationCBTController::class, 'readAndRedirect'])->name('notifications.readAndRedirect');
     // Face Registration Management
     Route::prefix('face-registration')->group(function () {
         Route::get('/', [FaceRegistrationController::class, 'index'])->name('face.index');

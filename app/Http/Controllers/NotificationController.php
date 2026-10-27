@@ -46,9 +46,9 @@ class NotificationController extends Controller
     ]);
 }
 
-public function markAllAsReadAjax()
-{
-    Auth::user()->unreadNotifications->markAsRead();
-    return response()->json(['status' => 'success']);
-}
+    public function markAllAsReadAjax()
+    {
+        Auth::user()->unreadNotifications->markAsRead();
+        return response()->json(['status' => 'success']);
+    }
 }
