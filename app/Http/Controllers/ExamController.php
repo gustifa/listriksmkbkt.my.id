@@ -588,16 +588,35 @@ class ExamController extends Controller
         return redirect()->back()->with('success', 'Jadwal dan informasi ujian berhasil diperbarui!');
     }
 
-    public function generateToken(Request $request, Exam $exam)
-    {
-        $newToken = strtoupper(Str::random(6));
+    // public function generateToken(Request $request, Exam $exam)
+    // {
+    //     $newToken = strtoupper(Str::random(6));
 
-        $exam->update([
-            'token' => $newToken
-        ]);
+    //     $exam->update([
+    //         'token' => $newToken
+    //     ]);
 
-        return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
+    //     return redirect()->back()->with('success', "Token Ujian Berhasil Diperbarui: {$newToken}");
+    // }
+
+    public function generateToken(Exam $exam)
+{
+    // 1. Generate token acak (misal 6 karakter)
+    $token = strtoupper(Str::random(6));
+    $exam->update(['token' => $token]);
+
+    // 2. Ambil siswa target di kelas ujian ini
+    $targetUsers = User::whereHas('student', function ($query) use ($exam) {
+        $query->whereIn('classroom_id', $exam->classrooms->pluck('id'));
+    })->get();
+
+    // 3. Kirim notifikasi pemberitahuan token baru
+    if ($targetUsers->isNotEmpty()) {
+        Notification::send($targetUsers, new CbtExamScheduledNotification($exam));
     }
+
+    return redirect()->back()->with('success', 'Token berhasil dibuat: ' . $token);
+}
 
     public function unsubmittedStudents(Exam $exam)
     {
