@@ -10,11 +10,16 @@ class InternshipGrade extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = [
-        'internship_id', 'student_id', 'teacher_id',
-        'discipline', 'teamwork', 'initiative', 'responsibility',
-        'technical_mastery', 'work_quality',
-        'final_score', 'notes'
+    // protected $fillable = [
+    //     'internship_id', 'student_id', 'teacher_id',
+    //     'discipline', 'teamwork', 'initiative', 'responsibility',
+    //     'technical_mastery', 'work_quality',
+    //     'final_score', 'notes'
+    // ];
+    protected $guarded = ['id'];
+
+    protected $casts = [
+        'grade_details' => 'array',
     ];
 
     public function internship()

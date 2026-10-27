@@ -6,12 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Internship;
 use App\Models\InternshipGrade;
-use App\Models\InternshipAttendance; // Import Model Absensi
+use App\Models\InternshipAttendance;
 use App\Models\Teacher;
 use Illuminate\Support\Facades\Auth;
-use Barryvdh\DomPDF\Facade\Pdf; // Pastikan DomPDF terinstall
-use App\Models\Setting; // Import Setting untuk data sekolah
-
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Setting;
 
 class InternshipAssessmentController extends Controller
 {
@@ -30,48 +29,27 @@ class InternshipAssessmentController extends Controller
     {
         $teacher = $this->getTeacher();
 
-        // --- GATEKEEPING: Cek apakah Guru ini Pembimbing? ---
-        // Menggunakan method isAdvisor() yang sudah ditambahkan di Model Teacher
         if (!$teacher->isAdvisor()) {
-            // Jika bukan pembimbing, kembalikan ke dashboard dengan pesan error
             return redirect()->route('dashboard')->with('error', 'Menu PKL hanya dapat diakses oleh Guru Pembimbing yang telah ditentukan Admin.');
         }
 
-        // Ambil data PKL dimana guru ini adalah PEMBIMBINGNYA (advisor_id)
         $internships = Internship::with(['student.classroom', 'industry', 'grade'])
             ->where('advisor_id', $teacher->id)
-            ->whereIn('status', ['active', 'completed']) // Hanya tampilkan yang aktif/selesai
+            ->whereIn('status', ['active', 'completed'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         return view('guru.internships.index', compact('internships'));
     }
 
-    // /**
-    //  * Form Penilaian Siswa
-    //  */
-    // public function create($id)
-    // {
-    //     $teacher = $this->getTeacher();
-
-    //     // Pastikan akses valid (hanya pembimbing sendiri)
-    //     $internship = Internship::with(['student', 'industry', 'grade'])
-    //         ->where('id', $id)
-    //         ->where('advisor_id', $teacher->id)
-    //         ->firstOrFail();
-
-    //     return view('guru.internships.assess', compact('internship'));
-    // }
-
     /**
-     * Form Penilaian Siswa (UPDATE: Tambah Data Jurnal & Absensi)
+     * Form Penilaian Siswa
      */
     public function create($id)
     {
         $teacher = $this->getTeacher();
 
-        // Pastikan akses valid (hanya pembimbing sendiri)
-        $internship = Internship::with(['student.classroom', 'industry', 'grade'])
+        $internship = Internship::with(['student.classroom.major', 'industry', 'grade'])
             ->where('id', $id)
             ->where('advisor_id', $teacher->id)
             ->firstOrFail();
@@ -90,50 +68,63 @@ class InternshipAssessmentController extends Controller
             'alpha'   => $attendances->where('status', 'alpha')->count(),
         ];
 
+        // 3. Decode Rincian Nilai jika Sudah Ada
+        if ($internship->grade && $internship->grade->grade_details) {
+            $internship->grade_details = is_array($internship->grade->grade_details) 
+                ? $internship->grade->grade_details 
+                : json_decode($internship->grade->grade_details, true);
+        }
+
         return view('guru.internships.assess', compact('internship', 'attendances', 'summary'));
     }
 
     /**
-     * Simpan Nilai
+     * Simpan Nilai PKL (UPDATE: Menyimpan Array Grade Details ke JSON)
      */
     public function store(Request $request, $id)
     {
         $teacher = $this->getTeacher();
         $internship = Internship::where('id', $id)->where('advisor_id', $teacher->id)->firstOrFail();
 
+        // 1. Validasi Input Dinamis Array Scores
         $request->validate([
-            'discipline' => 'required|integer|min:0|max:100',
-            'teamwork' => 'required|integer|min:0|max:100',
-            'initiative' => 'required|integer|min:0|max:100',
-            'responsibility' => 'required|integer|min:0|max:100',
-            'technical_mastery' => 'required|integer|min:0|max:100',
-            'work_quality' => 'required|integer|min:0|max:100',
-            'notes' => 'nullable|string'
+            'scores'           => 'required|array',
+            'scores.*'         => 'nullable|numeric|min:0|max:100',
+            'hardskill_labels' => 'nullable|array',
+            'notes'            => 'nullable|string'
         ]);
 
-        // Hitung Nilai Akhir (Contoh: Rata-rata sederhana)
-        $totalScore = (
-            $request->discipline +
-            $request->teamwork +
-            $request->initiative +
-            $request->responsibility +
-            $request->technical_mastery +
-            $request->work_quality
-        ) / 6;
+        $scores = $request->input('scores', []);
+        $hardskillLabels = $request->input('hardskill_labels', []);
 
+        // 2. Gabungkan Label Custom Hard Skill ke Array Details
+        $gradeDetails = $scores;
+        foreach ($hardskillLabels as $key => $label) {
+            if (!empty($label)) {
+                $gradeDetails['hardskill_title_' . $key] = $label;
+            }
+        }
+
+        // 3. Hitung Rata-Rata Nilai Akhir (Final Score) dari Seluruh Komponen yang Terisi (> 0)
+        $validScores = array_filter($scores, function ($val) {
+            return is_numeric($val) && $val > 0;
+        });
+
+        $totalScore = array_sum($validScores);
+        $count = count($validScores);
+        $finalScore = $count > 0 ? round($totalScore / $count, 2) : 0;
+
+        // 4. Simpan / Update ke Database
+        // Catatan: Jika Model InternshipGrade sudah pasang $casts ['grade_details' => 'array'], 
+        // passing array $gradeDetails langsung tanpa json_encode.
         InternshipGrade::updateOrCreate(
             ['internship_id' => $internship->id],
             [
-                'student_id' => $internship->student_id,
-                'teacher_id' => $teacher->id,
-                'discipline' => $request->discipline,
-                'teamwork' => $request->teamwork,
-                'initiative' => $request->initiative,
-                'responsibility' => $request->responsibility,
-                'technical_mastery' => $request->technical_mastery,
-                'work_quality' => $request->work_quality,
-                'final_score' => round($totalScore, 2),
-                'notes' => $request->notes
+                'student_id'    => $internship->student_id,
+                'teacher_id'    => $teacher->id,
+                'final_score'   => $finalScore,
+                'grade_details' => $gradeDetails,
+                'notes'         => $request->notes
             ]
         );
 
@@ -141,25 +132,22 @@ class InternshipAssessmentController extends Controller
             ->with('success', 'Nilai PKL untuk siswa ' . $internship->student->name . ' berhasil disimpan.');
     }
 
-     /**
-     * CETAK SERTIFIKAT PKL (PDF)
+    /**
+     * CETAK SERTIFIKAT PKL (PDF PORTRAIT)
      */
     public function printCertificate($id)
     {
         $teacher = $this->getTeacher();
 
-        // Ambil data internship + nilai
-        $internship = Internship::with(['student.classroom', 'industry', 'grade'])
+        $internship = Internship::with(['student.classroom.major', 'industry', 'grade'])
             ->where('id', $id)
             ->where('advisor_id', $teacher->id)
             ->firstOrFail();
 
-        // Cek apakah nilai sudah ada
         if (!$internship->grade) {
             return redirect()->back()->with('error', 'Sertifikat tidak dapat dicetak karena penilaian belum selesai.');
         }
 
-        // Tentukan Predikat
         $score = $internship->grade->final_score;
         $predikat = 'Cukup';
         if ($score >= 90) $predikat = 'Sangat Baik';
@@ -167,21 +155,18 @@ class InternshipAssessmentController extends Controller
         elseif ($score >= 70) $predikat = 'Cukup';
         else $predikat = 'Kurang';
 
-        // Data Sekolah & Tanda Tangan
         $school = [
-            'name' => Setting::value('school_name', 'SMK NEGERI 1 BUKITTINGGI'),
-            'logo_left' => Setting::value('logo_left'),
-            'sign_city' => Setting::value('sign_city', 'Bukittinggi'),
-
-            // Tanda Tangan Kepala Sekolah
+            'name'            => Setting::value('school_name', 'SMK NEGERI 1 BUKITTINGGI'),
+            'logo_left'       => Setting::value('logo_left'),
+            'sign_city'       => Setting::value('sign_city', 'Bukittinggi'),
             'headmaster_name' => Setting::value('sign_name', '.........................'),
-            'headmaster_nip' => Setting::value('sign_nip', '.........................'),
+            'headmaster_nip'  => Setting::value('sign_nip', '.........................'),
         ];
 
         $pdf = Pdf::loadView('guru.internships.certificate_pdf', compact('internship', 'school', 'teacher', 'predikat'));
-
-        // Setup Kertas Landscape (Sertifikat)
-        $pdf->setPaper('a4', 'landscape');
+        
+        // PENTING: Set Kertas A4 Portrait agar pas 2 Halaman
+        $pdf->setPaper('a4', 'portrait');
 
         return $pdf->stream('Sertifikat_PKL_' . str_replace(' ', '_', $internship->student->name) . '.pdf');
     }

@@ -14,4 +14,10 @@ class StudentViolation extends Model {
     public function student() {
         return $this->belongsTo(Student::class);
     }
+
+    // Relasi ke Model ViolationType
+    // public function violationType()
+    // {
+    //     return $this->belongsTo(ViolationType::class, 'violation_type_id');
+    // }
 }

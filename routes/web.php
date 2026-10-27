@@ -16,6 +16,7 @@ use App\Http\Controllers\NotificationCBTController;
 
 use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\AlumniPortalController;
+use App\Http\Controllers\StudentProfileController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -808,6 +809,8 @@ Route::middleware(['auth', 'role:siswa'])->group(function () {
 
         Route::get('/attendance-calendar', [AttendanceCalendarController::class, 'index'])->name('attendance-calendar.index');
         Route::get('/attendance-calendar/events', [AttendanceCalendarController::class, 'getEvents'])->name('attendance-calendar.events');
+
+        Route::get('/violations', [StudentProfileController::class, 'violations'])->name('violations.index');
     });
 });
 

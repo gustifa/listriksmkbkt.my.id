@@ -400,6 +400,7 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{route('student.profile')}}"><i class='bx bx-radio-circle'></i>Profil Siswa</a></li>
+                        <li><a href="{{ route('student.violations.index') }}"><i class='bx bx-radio-circle'></i>Poin Pelanggaran</a></li> {{-- <--- Tambahkan ini --}}
                         <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Riwayat PBM</a></li>
                         <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Riwayat Gerbang</a></li>
                         <li><a href="{{ route('student.attendance-calendar.index') }}"><i class='bx bx-radio-circle'></i>Kalender Kehadiran</a></li>
