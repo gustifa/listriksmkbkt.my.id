@@ -135,23 +135,58 @@
                                         </tr>
                                         @php
                                             $softSkills = [
-                                                'disiplin' => 'Disiplin Kerja',
-                                                'komunikasi' => 'Komunikasi dalam bekerja',
-                                                'etos_kerja' => 'Etos Kerja',
-                                                'kemandirian' => 'Kemandirian',
-                                                'kerjasama' => 'Kerjasama',
-                                                'etika' => 'Etika & Kepedulian Sosial',
-                                                'tanggung_jawab' => 'Tanggung Jawab',
-                                                'komitmen' => 'Komitmen',
-                                                'k3lh' => 'K3LH',
-                                                'sop' => 'Standar Operasional Prosedur (SOP) DUDI',
+                                                'disiplin' => [
+                                                    'title' => 'Disiplin Kerja',
+                                                    'desc'  => 'Kemampuan siswa hadir tepat waktu, menaati aturan kerja DUDI, serta konsistensi dalam menyelesaikan tugas sesuai waktu yang ditentukan.'
+                                                ],
+                                                'komunikasi' => [
+                                                    'title' => 'Komunikasi dalam bekerja',
+                                                    'desc'  => 'Kemampuan berinteraksi secara efektif, sopan, dan profesional dengan atasan, rekan kerja, maupun klien DUDI.'
+                                                ],
+                                                'etos_kerja' => [
+                                                    'title' => 'Etos Kerja',
+                                                    'desc'  => 'Semangat, ketekunan, dedikasi, serta kesungguhan dalam menjalankan setiap pekerjaan yang ditugaskan.'
+                                                ],
+                                                'kemandirian' => [
+                                                    'title' => 'Kemandirian',
+                                                    'desc'  => 'Inisiatif dalam bekerja tanpa harus selalu diawasi, serta murni mampu menyelesaikan masalah dasar pekerjaan sendiri.'
+                                                ],
+                                                'kerjasama' => [
+                                                    'title' => 'Kerjasama',
+                                                    'desc'  => 'Kemampuan berkolaborasi dalam tim kerja, saling bantu antar sesama teknisi/karyawan, serta beradaptasi dengan lingkungan kerja.'
+                                                ],
+                                                'etika' => [
+                                                    'title' => 'Etika & Kepedulian Sosial',
+                                                    'desc'  => 'Menjaga tata krama, kesopanan, menghormati budaya tempat kerja, serta memiliki kepedulian terhadap lingkungan sekitar.'
+                                                ],
+                                                'tanggung_jawab' => [
+                                                    'title' => 'Tanggung Jawab',
+                                                    'desc'  => 'Sikap komitmen menyelesaikan tugas hingga tuntas dan berani menanggung risiko atas pekerjaan yang dilakukan.'
+                                                ],
+                                                'komitmen' => [
+                                                    'title' => 'Komitmen',
+                                                    'desc'  => 'Loyalitas dan kesetiaan menjaga nama baik tempat PKL serta integritas terhadap janji dan aturan kerja.'
+                                                ],
+                                                'k3lh' => [
+                                                    'title' => 'K3LH',
+                                                    'desc'  => 'Penerapan prinsip Keselamatan, Kesehatan Kerja, dan Lingkungan Hidup (penggunaan APD, kerapian alat & kebersihan area kerja).'
+                                                ],
+                                                'sop' => [
+                                                    'title' => 'Standar Operasional Prosedur (SOP) DUDI',
+                                                    'desc'  => 'Kepatuhan melaksanakan langkah-langkah kerja teknis sesuai dengan petunjuk resmi standar DUDI/Perusahaan.'
+                                                ],
                                             ];
                                             $no = 1;
                                         @endphp
-                                        @foreach($softSkills as $key => $label)
+                                        @foreach($softSkills as $key => $info)
                                         <tr>
                                             <td class="text-center">{{ $no++ }}</td>
-                                            <td>{{ $label }}</td>
+                                            <td>
+                                                <span>{{ $info['title'] }}</span>
+                                                <button type="button" class="btn btn-link p-0 ms-1 text-info" data-bs-toggle="modal" data-bs-target="#infoModal" data-title="{{ $info['title'] }}" data-desc="{{ $info['desc'] }}">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            </td>
                                             <td>
                                                 <input type="number" name="scores[{{ $key }}]" class="form-control form-control-sm text-center score-input" min="0" max="100" value="{{ $g[$key] ?? 0 }}" required>
                                             </td>
@@ -168,7 +203,12 @@
                                         <tr>
                                             <td class="text-center">{{ $i }}</td>
                                             <td>
-                                                <input type="text" name="hardskill_labels[{{ $i }}]" class="form-control form-control-sm" placeholder="Komponen Keterampilan {{ $i }}" value="{{ $g['hardskill_title_'.$i] ?? '' }}">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" name="hardskill_labels[{{ $i }}]" class="form-control" placeholder="Komponen Keterampilan {{ $i }}" value="{{ $g['hardskill_title_'.$i] ?? '' }}">
+                                                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#infoModal" data-title="Hard Skill / Keterampilan Teknis {{ $i }}" data-desc="Penguasaan keahlian teknis praktis sesuai bidang keahlian yang dipelajari dan diterapkan langsung di lokasi PKL.">
+                                                        <i class="fas fa-info-circle"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td>
                                                 <input type="number" name="scores[hardskill_{{ $i }}]" class="form-control form-control-sm text-center score-input" min="0" max="100" value="{{ $g['hardskill_'.$i] ?? 0 }}">
@@ -184,17 +224,34 @@
                                         </tr>
                                         @php
                                             $entrepreneurship = [
-                                                'pre_service' => 'Penerimaan & Diagnosis (Pre-Service)',
-                                                'service_execution' => 'Eksekusi & Kontrol (Service Execution)',
-                                                'post_service' => 'Penyerahan & Penyelesaian (Post-Service)',
-                                                'feedback' => 'Evaluasi (Feedback)',
+                                                'pre_service' => [
+                                                    'title' => 'Penerimaan & Diagnosis (Pre-Service)',
+                                                    'desc'  => 'Kemampuan menerima keluhan/permintaan pelanggan, menganalisis masalah, serta mendiagnosis kebutuhan kerja/servis.'
+                                                ],
+                                                'service_execution' => [
+                                                    'title' => 'Eksekusi & Kontrol (Service Execution)',
+                                                    'desc'  => 'Kemampuan melakukan proses pengerjaan unit/servis sesuai rencana kerja dengan pengawasan kualitas yang akurat.'
+                                                ],
+                                                'post_service' => [
+                                                    'title' => 'Penyerahan & Penyelesaian (Post-Service)',
+                                                    'desc'  => 'Kemampuan merapikan hasil kerja, melakukan serah terima pekerjaan ke konsumen/atasan dengan penjelasan teknis yang jelas.'
+                                                ],
+                                                'feedback' => [
+                                                    'title' => 'Evaluasi (Feedback)',
+                                                    'desc'  => 'Menerima masukan dari konsumen atau atasan untuk perbaikan kualitas layanan dan pengerjaan berikutnya.'
+                                                ],
                                             ];
                                             $noC = 1;
                                         @endphp
-                                        @foreach($entrepreneurship as $key => $label)
+                                        @foreach($entrepreneurship as $key => $info)
                                         <tr>
                                             <td class="text-center">{{ $noC++ }}</td>
-                                            <td>{{ $label }}</td>
+                                            <td>
+                                                <span>{{ $info['title'] }}</span>
+                                                <button type="button" class="btn btn-link p-0 ms-1 text-info" data-bs-toggle="modal" data-bs-target="#infoModal" data-title="{{ $info['title'] }}" data-desc="{{ $info['desc'] }}">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            </td>
                                             <td>
                                                 <input type="number" name="scores[{{ $key }}]" class="form-control form-control-sm text-center score-input" min="0" max="100" value="{{ $g[$key] ?? 0 }}" required>
                                             </td>
@@ -209,7 +266,12 @@
                                         </tr>
                                         <tr>
                                             <td class="text-center">1</td>
-                                            <td>Laporan</td>
+                                            <td>
+                                                <span>Laporan</span>
+                                                <button type="button" class="btn btn-link p-0 ms-1 text-info" data-bs-toggle="modal" data-bs-target="#infoModal" data-title="Penilaian Laporan PKL" data-desc="Kerapian susunan laporan, tata bahasa, keabsahan data pelaksanaan PKL, serta kerapian penulisan sesuai sistematika yang berlaku.">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            </td>
                                             <td>
                                                 <input type="number" name="scores[laporan]" class="form-control form-control-sm text-center score-input" min="0" max="100" value="{{ $g['laporan'] ?? 0 }}" required>
                                             </td>
@@ -217,7 +279,12 @@
                                         </tr>
                                         <tr>
                                             <td class="text-center">2</td>
-                                            <td>Uji Jurnal</td>
+                                            <td>
+                                                <span>Uji Jurnal</span>
+                                                <button type="button" class="btn btn-link p-0 ms-1 text-info" data-bs-toggle="modal" data-bs-target="#infoModal" data-title="Penilaian Uji Jurnal" data-desc="Kedisiplinan dan kelengkapan pengisian jurnal harian PKL serta kesesuaian antara aktivitas yang dicatat dengan penguasaan saat dilakukan tanya jawab/pengujian.">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            </td>
                                             <td>
                                                 <input type="number" name="scores[uji_jurnal]" class="form-control form-control-sm text-center score-input" min="0" max="100" value="{{ $g['uji_jurnal'] ?? 0 }}" required>
                                             </td>
@@ -257,9 +324,30 @@
         </div>
     </div>
 
-    <!-- SCRIPT HITUNG OTOMATIS & KATEGORI -->
+    <!-- MODAL PENJELASAN INDIKATOR PENILAIAN -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="border-0 shadow modal-content">
+                <div class="text-white modal-header bg-primary py-3">
+                    <h5 class="mb-0 modal-title fw-bold" id="infoModalLabel">
+                        <i class="fas fa-info-circle me-2"></i><span id="modalTitle">Penjelasan Penilaian</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p id="modalDesc" class="text-secondary leading-relaxed mb-0 fs-6"></p>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm fw-bold px-3" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT HITUNG OTOMATIS & MODAL EVENT -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // 1. SCRIPT HITUNG NIKAI OTOMATIS
             function getCategory(score) {
                 if (score >= 90) return { label: 'Sangat Baik', class: 'text-success' };
                 if (score >= 80) return { label: 'Baik', class: 'text-info' };
@@ -307,6 +395,19 @@
 
             // Initial Calculate
             calculateScores();
+
+            // 2. SCRIPT MODAL PENJELASAN
+            let infoModal = document.getElementById('infoModal');
+            if (infoModal) {
+                infoModal.addEventListener('show.bs.modal', function (event) {
+                    let button = event.relatedTarget;
+                    let title = button.getAttribute('data-title');
+                    let desc = button.getAttribute('data-desc');
+
+                    document.getElementById('modalTitle').textContent = title;
+                    document.getElementById('modalDesc').textContent = desc;
+                });
+            }
         });
     </script>
 </x-app-layout>
