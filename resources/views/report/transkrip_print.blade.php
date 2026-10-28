@@ -20,13 +20,18 @@
             color: #000;
         }
 
-        /* PERBAIKAN: Gunakan alur dokumen alami tanpa min-height kaku */
+        /* PERBAIKAN 1: Mengunci Ukuran Halaman A4 Secara Presisi */
         .student-document {
+            position: relative !important;
             box-sizing: border-box;
             counter-reset: student-page;
             page-break-after: always;
-            padding-bottom: 20px;
+            page-break-inside: avoid;
+            height: 277mm !important; /* Kunci tinggi tepat 1 halaman A4 */
+            max-height: 277mm !important;
+            padding-bottom: 25px; /* Ruang agar konten tidak menimpa footer */
             background: #fff;
+            overflow: hidden; /* Mencegah elemen meluap menimpa halaman lain */
         }
 
         .student-document:last-child {
@@ -48,23 +53,24 @@
         .img-ttd { position: absolute; z-index: 2; height: 35px; top: 0; left: 50%; transform: translateX(-50%); }
         .img-stempel { position: absolute; z-index: 1; height: 42px; top: -5px; left: 35%; opacity: 0.85; }
 
-        /* PERBAIKAN: Kunci blok tanda tangan agar TIDAK PERNAH terpotong atau menimpa halaman lain */
         .signature-section {
-            margin-top: 15px;
+            margin-top: 10px;
             page-break-inside: avoid !important;
-            break-inside: avoid !important;
         }
 
-        /* PERBAIKAN: Footer halaman mengikuti alur dokumen secara relatif */
+        /* PERBAIKAN 2: Mengunci Footer di Paling Bawah Dokumen */
         .document-footer {
-            margin-top: 15px;
-            padding-top: 3px;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            height: 22px !important; /* Ukuran tinggi footer terkunci seragam */
+            padding-top: 2px;
             border-top: 1px solid #000;
             font-size: 7pt;
             color: #333;
             background: #fff;
-            width: 100%;
-            page-break-inside: avoid !important;
         }
 
         @media print {
@@ -74,6 +80,11 @@
                 margin: 0.8cm 1cm 0.8cm 1cm;
             }
             body { padding: 0; background: #fff; }
+
+            .student-document {
+                height: 277mm !important;
+                max-height: 277mm !important;
+            }
 
             .page-number::before {
                 counter-increment: student-page;
@@ -300,7 +311,7 @@
                 </table>
             @endif
 
-            <!-- TANDA TANGAN 3 PIHAK (AMAN DARI MENIMPA) -->
+            <!-- TANDA TANGAN 3 PIHAK -->
             <div class="signature-section mt-2">
                 <table style="width: 100%; text-align: center; border: none !important; table-layout: fixed;">
                     <tr>
@@ -348,7 +359,7 @@
                 </table>
             </div>
 
-            <!-- FOOTER RESMI DI BAWAH TANDA TANGAN -->
+            <!-- FOOTER RESMI DIKUNCI DI BAWAH -->
             <div class="document-footer">
                 <div class="row align-items-center">
                     <div class="col-8">
