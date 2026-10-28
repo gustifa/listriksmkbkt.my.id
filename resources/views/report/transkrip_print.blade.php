@@ -20,18 +20,14 @@
             color: #000;
         }
 
-        /* PERBAIKAN 1: Mengunci Ukuran Halaman A4 Secara Presisi */
+        /* PERBAIKAN: Hapus height kaku & overflow hidden agar data panjang tidak terpotong */
         .student-document {
-            position: relative !important;
             box-sizing: border-box;
             counter-reset: student-page;
             page-break-after: always;
-            page-break-inside: avoid;
-            height: 277mm !important; /* Kunci tinggi tepat 1 halaman A4 */
-            max-height: 277mm !important;
-            padding-bottom: 25px; /* Ruang agar konten tidak menimpa footer */
+            padding-bottom: 10px;
             background: #fff;
-            overflow: hidden; /* Mencegah elemen meluap menimpa halaman lain */
+            position: relative;
         }
 
         .student-document:last-child {
@@ -53,24 +49,21 @@
         .img-ttd { position: absolute; z-index: 2; height: 35px; top: 0; left: 50%; transform: translateX(-50%); }
         .img-stempel { position: absolute; z-index: 1; height: 42px; top: -5px; left: 35%; opacity: 0.85; }
 
-        .signature-section {
-            margin-top: 10px;
+        /* PERBAIKAN: Kunci blok Tanda Tangan & Footer agar selalu tampil utuh sebagai 1 kesatuan */
+        .signature-footer-block {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin-top: 15px;
         }
 
-        /* PERBAIKAN 2: Mengunci Footer di Paling Bawah Dokumen */
         .document-footer {
-            position: absolute !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            height: 22px !important; /* Ukuran tinggi footer terkunci seragam */
-            padding-top: 2px;
+            padding-top: 3px;
+            margin-top: 8px;
             border-top: 1px solid #000;
             font-size: 7pt;
             color: #333;
             background: #fff;
+            width: 100%;
         }
 
         @media print {
@@ -80,11 +73,6 @@
                 margin: 0.8cm 1cm 0.8cm 1cm;
             }
             body { padding: 0; background: #fff; }
-
-            .student-document {
-                height: 277mm !important;
-                max-height: 277mm !important;
-            }
 
             .page-number::before {
                 counter-increment: student-page;
@@ -311,64 +299,67 @@
                 </table>
             @endif
 
-            <!-- TANDA TANGAN 3 PIHAK -->
-            <div class="signature-section mt-2">
-                <table style="width: 100%; text-align: center; border: none !important; table-layout: fixed;">
-                    <tr>
-                        <td style="vertical-align: top; width: 33%; border: none !important;">
-                            <p class="mb-0">Mengetahui,</p>
-                            <p class="fw-bold mb-0">{{ $settings['sign_title'] ?? 'Kepala Sekolah' }}</p>
-                        </td>
-                        <td style="vertical-align: top; width: 33%; border: none !important;">
-                            <p class="mb-0">&nbsp;</p>
-                            <p class="fw-bold mb-0">Guru Bimbingan Konseling (BK)</p>
-                        </td>
-                        <td style="vertical-align: top; width: 34%; border: none !important;">
-                            <p class="mb-0">{{ $settings['sign_city'] ?? 'Bukittinggi' }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
-                            <p class="fw-bold mb-0">Wali Kelas</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="height: 35px; vertical-align: middle; position: relative; border: none !important;">
-                            <div class="signature-wrapper">
-                                @if(!empty($settings['sign_image']))
-                                    <img src="{{ $settings['sign_image'] }}" class="img-ttd" alt="TTD Kepsek">
-                                @endif
-                                @if(!empty($settings['stempel']))
-                                    <img src="{{ $settings['stempel'] }}" class="img-stempel" alt="Stempel">
-                                @endif
-                            </div>
-                        </td>
-                        <td style="height: 35px; border: none !important;"></td>
-                        <td style="height: 35px; border: none !important;"></td>
-                    </tr>
-                    <tr>
-                        <td style="vertical-align: bottom; border: none !important;">
-                            <p class="fw-bold text-decoration-underline mb-0">{{ $settings['sign_name'] ?? 'Gustian Budiarto, M.Pd' }}</p>
-                            <small style="font-size: 7pt;">NIP. {{ $settings['sign_nip'] ?? '-' }}</small>
-                        </td>
-                        <td style="vertical-align: bottom; border: none !important;">
-                            <p class="fw-bold text-decoration-underline mb-0">{{ $counselingTeacher->name ?? '..................................' }}</p>
-                            <small style="font-size: 7pt;">NIP. {{ $counselingTeacher->nip ?? '..................................' }}</small>
-                        </td>
-                        <td style="vertical-align: bottom; border: none !important;">
-                            <p class="fw-bold text-decoration-underline mb-0">{{ $homeroomTeacher->name ?? '..................................' }}</p>
-                            <small style="font-size: 7pt;">NIP. {{ $homeroomTeacher->nip ?? '..................................' }}</small>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+            <!-- TANDA TANGAN & FOOTER DIBUNGKUS SAMA AGAR TIDAK PERNAH TERPISAH/TERPOTONG -->
+            <div class="signature-footer-block">
+                <!-- TANDA TANGAN 3 PIHAK -->
+                <div class="signature-section">
+                    <table style="width: 100%; text-align: center; border: none !important; table-layout: fixed;">
+                        <tr>
+                            <td style="vertical-align: top; width: 33%; border: none !important;">
+                                <p class="mb-0">Mengetahui,</p>
+                                <p class="fw-bold mb-0">{{ $settings['sign_title'] ?? 'Kepala Sekolah' }}</p>
+                            </td>
+                            <td style="vertical-align: top; width: 33%; border: none !important;">
+                                <p class="mb-0">&nbsp;</p>
+                                <p class="fw-bold mb-0">Guru Bimbingan Konseling (BK)</p>
+                            </td>
+                            <td style="vertical-align: top; width: 34%; border: none !important;">
+                                <p class="mb-0">{{ $settings['sign_city'] ?? 'Bukittinggi' }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
+                                <p class="fw-bold mb-0">Wali Kelas</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="height: 35px; vertical-align: middle; position: relative; border: none !important;">
+                                <div class="signature-wrapper">
+                                    @if(!empty($settings['sign_image']))
+                                        <img src="{{ $settings['sign_image'] }}" class="img-ttd" alt="TTD Kepsek">
+                                    @endif
+                                    @if(!empty($settings['stempel']))
+                                        <img src="{{ $settings['stempel'] }}" class="img-stempel" alt="Stempel">
+                                    @endif
+                                </div>
+                            </td>
+                            <td style="height: 35px; border: none !important;"></td>
+                            <td style="height: 35px; border: none !important;"></td>
+                        </tr>
+                        <tr>
+                            <td style="vertical-align: bottom; border: none !important;">
+                                <p class="fw-bold text-decoration-underline mb-0">{{ $settings['sign_name'] ?? 'Gustian Budiarto, M.Pd' }}</p>
+                                <small style="font-size: 7pt;">NIP. {{ $settings['sign_nip'] ?? '-' }}</small>
+                            </td>
+                            <td style="vertical-align: bottom; border: none !important;">
+                                <p class="fw-bold text-decoration-underline mb-0">{{ $counselingTeacher->name ?? '..................................' }}</p>
+                                <small style="font-size: 7pt;">NIP. {{ $counselingTeacher->nip ?? '..................................' }}</small>
+                            </td>
+                            <td style="vertical-align: bottom; border: none !important;">
+                                <p class="fw-bold text-decoration-underline mb-0">{{ $homeroomTeacher->name ?? '..................................' }}</p>
+                                <small style="font-size: 7pt;">NIP. {{ $homeroomTeacher->nip ?? '..................................' }}</small>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
 
-            <!-- FOOTER RESMI DIKUNCI DI BAWAH -->
-            <div class="document-footer">
-                <div class="row align-items-center">
-                    <div class="col-8">
-                        <span class="fw-bold">{{ $settings['school_name'] ?? 'SMK NEGERI 1 BUKITTINGGI' }}</span> | Transkrip Absensi Siswa
-                        <br>
-                        <small class="text-muted" style="font-size: 6.5pt;">Dicetak otomatis pada: {{ \Carbon\Carbon::now()->translatedFormat('d F Y H:i') }} WIB</small>
-                    </div>
-                    <div class="col-4 text-end">
-                        <span class="fw-bold page-number"></span>
+                <!-- FOOTER RESMI -->
+                <div class="document-footer">
+                    <div class="row align-items-center">
+                        <div class="col-8">
+                            <span class="fw-bold">{{ $settings['school_name'] ?? 'SMK NEGERI 1 BUKITTINGGI' }}</span> | Transkrip Absensi Siswa
+                            <br>
+                            <small class="text-muted" style="font-size: 6.5pt;">Dicetak otomatis pada: {{ \Carbon\Carbon::now()->translatedFormat('d F Y H:i') }} WIB</small>
+                        </div>
+                        <div class="col-4 text-end">
+                            <span class="fw-bold page-number"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -392,14 +383,13 @@
             const fileName = "{{ $downloadTitle ?? 'Transkrip_Absensi' }}" + ".pdf";
 
             const opt = {
-                margin:       [8, 10, 8, 10], // Margin (Atas, Kiri, Bawah, Kanan) dalam mm
+                margin:       [8, 10, 8, 10],
                 filename:     fileName,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Proses generate & auto-download file PDF
             html2pdf().set(opt).from(element).save().then(function () {
                 setTimeout(function() {
                     window.close();
