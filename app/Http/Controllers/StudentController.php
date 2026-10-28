@@ -11,253 +11,82 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-// use Illuminate\Foundation\Auth\Access\AuthorizesRequests; // 1. Import Trait
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
     /**
      * Tampilkan Daftar Siswa (dengan Pencarian & Pagination)
      */
-    // public function index(Request $request)
-    // {
-    //     $query = Student::with('classroom');
+    public function index(Request $request)
+    {
+        $user = $request->user();
 
-    //     // Logika Pencarian
-    //     if ($request->has('search')) {
-    //         $search = $request->search;
-    //         $query->where(function($q) use ($search) {
-    //             $q->where('name', 'LIKE', "%{$search}%")
-    //               ->orWhere('nis', 'LIKE', "%{$search}%");
-    //         });
-    //     }
+        // 1. Query siswa terfilter sesuai role & jurusan user
+        $query = Student::accessibleBy($user)->with('classroom');
 
-    //     // Filter Kelas (Opsional)
-    //     if ($request->has('classroom_id') && $request->classroom_id != '') {
-    //         $query->where('classroom_id', $request->classroom_id);
-    //     }
-
-    //     // Ambil data dengan pagination (10 per halaman)
-    //     //$students = $query->orderBy('classroom_id')->orderBy('name')->paginate(10);
-    //     $students = $query->orderBy('classroom_id')->orderBy('name')->where('status', 'active')->get()->all();
-
-    //     // Ambil daftar kelas untuk filter
-    //     $classrooms = Classroom::orderBy('name')->get();
-
-    //     return view('students.index', compact('students', 'classrooms'));
-    // }
-
-//     public function index(Request $request)
-// {
-//     // $query = Student::with('classroom');
-//     // 1. Terapkan scope accessibleBy agar query disaring dari awal
-//     $query = Student::accessibleBy($request->user())->with('classroom');
-
-//     if ($request->filled('search')) {
-//         $search = $request->search;
-//         $query->where(function($q) use ($search) {
-//             // Gunakan ILIKE khusus PostgreSQL agar case-insensitive
-//             $q->where('name', 'ilike', "%{$search}%")
-//               ->orWhere('nis', 'ilike', "%{$search}%");
-//         });
-//     }
-
-//     if ($request->filled('classroom_id')) {
-//         $query->where('classroom_id', $request->classroom_id);
-//     }
-
-//     $students = $query->orderBy('name')->paginate(10);
-//     $classrooms = Classroom::orderBy('name')->get();
-
-//     // Jika request dikirim via AJAX, kembalikan hanya partial view tabel
-//     if ($request->ajax()) {
-//         return view('students.partials.student_table', compact('students'))->render();
-//     }
-
-//     return view('students.index', compact('students', 'classrooms'));
-// }
-
-// public function index(Request $request)
-// {
-//     $user = $request->user();
-
-//     // 1. Query siswa terfilter sesuai role & jurusan user
-//     $query = Student::accessibleBy($user)->with('classroom');
-
-//     if ($request->filled('search')) {
-//         $search = $request->search;
-//         $query->where(function($q) use ($search) {
-//             $q->where('name', 'ilike', "%{$search}%")
-//               ->orWhere('nis', 'ilike', "%{$search}%");
-//         });
-//     }
-
-//     if ($request->filled('classroom_id')) {
-//         $query->where('classroom_id', $request->classroom_id);
-//     }
-
-//     $students = $query->orderBy('name')->paginate(10);
-
-//     // 2. FILTER DROPDOWN KELAS SESUAI WEWENANG USER
-//     $classroomsQuery = Classroom::query();
-
-//     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
-//         $teacher = $user->teacher;
-
-//         if ($teacher && $teacher->major_id) {
-//             // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan TPTUP
-//             $classroomsQuery->where('major_id', $teacher->major_id);
-//         } elseif ($teacher && $user->hasRole('walas')) {
-//             // Jika Walas, hanya ambil kelas yang diwalikan
-//             $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
-//         } else {
-//             $classroomsQuery->whereRaw('1 = 0');
-//         }
-//     }
-
-//     $classrooms = $classroomsQuery->orderBy('name')->get();
-
-//     if ($request->ajax()) {
-//         return view('students.partials.student_table', compact('students'))->render();
-//     }
-
-//     return view('students.index', compact('students', 'classrooms'));
-// }
-// public function index(Request $request)
-// {
-//     $user = $request->user();
-
-//     // 1. Query siswa terfilter sesuai role & jurusan user (Dihapus relasi faceDescriptor yang bermasalah)
-//     $query = Student::accessibleBy($user)->with('classroom');
-
-//     // 2. Handling Filter Live Search
-//     if ($request->filled('search')) {
-//         $search = $request->search;
-//         $query->where(function($q) use ($search) {
-//             $q->where('name', 'ilike', "%{$search}%")
-//               ->orWhere('nis', 'ilike', "%{$search}%");
-//         });
-//     }
-
-//     // 3. Handling Filter Kelas
-//     if ($request->filled('classroom_id')) {
-//         $query->where('classroom_id', $request->classroom_id);
-//     }
-
-//     // 4. Handling Dynamic Sorting (ASC / DESC)
-//     $sortBy = $request->input('sort_by', 'name');
-//     $sortOrder = strtolower($request->input('sort_order', 'asc'));
-
-//     // Whitelist kolom yang diperbolehkan di-sort
-//     $allowedSorts = ['nis', 'name', 'classroom_id'];
-//     if (!in_array($sortBy, $allowedSorts)) {
-//         $sortBy = 'name';
-//     }
-//     if (!in_array($sortOrder, ['asc', 'desc'])) {
-//         $sortOrder = 'asc';
-//     }
-
-//     // Eksekusi pengurutan dan paginasi dengan mempertahankan query string pada pagination link
-//     $students = $query->orderBy($sortBy, $sortOrder)
-//                       ->paginate(10)
-//                       ->appends($request->all());
-
-//     // 5. Filter Dropdown Kelas Sesuai Wewenang User
-//     $classroomsQuery = Classroom::query();
-
-//     if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
-//         $teacher = $user->teacher;
-
-//         if ($teacher && $teacher->major_id) {
-//             // Jika Kabeng/Kaproka/BK, hanya ambil kelas yang berjurusan sama
-//             $classroomsQuery->where('major_id', $teacher->major_id);
-//         } elseif ($teacher && $user->hasRole('walas')) {
-//             // Jika Walas, hanya ambil kelas yang diwalikan
-//             $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
-//         } else {
-//             $classroomsQuery->whereRaw('1 = 0');
-//         }
-//     }
-
-//     $classrooms = $classroomsQuery->orderBy('name')->get();
-
-//     // 6. Response AJAX / View Utama
-//     if ($request->ajax()) {
-//         return view('students.partials.student_table', compact('students'))->render();
-//     }
-
-//     return view('students.index', compact('students', 'classrooms'));
-// }
-
-public function index(Request $request)
-{
-    $user = $request->user();
-
-    // 1. Query siswa terfilter sesuai role & jurusan user
-    $query = Student::accessibleBy($user)->with('classroom');
-
-    // 2. Handling Filter Live Search
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function($q) use ($search) {
-            $q->where('name', 'ilike', "%{$search}%")
-              ->orWhere('nis', 'ilike', "%{$search}%");
-        });
-    }
-
-    // 3. Handling Filter Kelas
-    if ($request->filled('classroom_id')) {
-        $query->where('classroom_id', $request->classroom_id);
-    }
-
-    // 4. Handling Dynamic Sorting (ASC / DESC)
-    $sortBy = $request->input('sort_by', 'name');
-    $sortOrder = strtolower($request->input('sort_order', 'asc'));
-
-    $allowedSorts = ['nis', 'name', 'classroom_id'];
-    if (!in_array($sortBy, $allowedSorts)) {
-        $sortBy = 'name';
-    }
-    if (!in_array($sortOrder, ['asc', 'desc'])) {
-        $sortOrder = 'asc';
-    }
-
-    // 5. Handling Filter Per Page (Jumlah Data Dinamis)
-    $perPage = (int) $request->input('per_page', 10); // Default 10 jika tidak diisi
-    $allowedPerPage = [5, 10, 25, 50, 100];
-    if (!in_array($perPage, $allowedPerPage)) {
-        $perPage = 10; // Mencegah nilai per_page yang tidak valid / manipulasi URL
-    }
-
-    // Eksekusi Paginasi Dinamis dengan $perPage
-    $students = $query->orderBy($sortBy, $sortOrder)
-                      ->paginate($perPage)
-                      ->appends($request->all());
-
-    // 6. Filter Dropdown Kelas Sesuai Wewenang User
-    $classroomsQuery = Classroom::query();
-
-    if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
-        $teacher = $user->teacher;
-
-        if ($teacher && $teacher->major_id) {
-            $classroomsQuery->where('major_id', $teacher->major_id);
-        } elseif ($teacher && $user->hasRole('walas')) {
-            $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
-        } else {
-            $classroomsQuery->whereRaw('1 = 0');
+        // 2. Handling Filter Live Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                  ->orWhere('nis', 'ilike', "%{$search}%");
+            });
         }
+
+        // 3. Handling Filter Kelas
+        if ($request->filled('classroom_id')) {
+            $query->where('classroom_id', $request->classroom_id);
+        }
+
+        // 4. Handling Dynamic Sorting (ASC / DESC)
+        $sortBy = $request->input('sort_by', 'name');
+        $sortOrder = strtolower($request->input('sort_order', 'asc'));
+
+        $allowedSorts = ['nis', 'name', 'classroom_id'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'name';
+        }
+        if (!in_array($sortOrder, ['asc', 'desc'])) {
+            $sortOrder = 'asc';
+        }
+
+        // 5. Handling Filter Per Page (Jumlah Data Dinamis)
+        $perPage = (int) $request->input('per_page', 10);
+        $allowedPerPage = [5, 10, 25, 50, 100];
+        if (!in_array($perPage, $allowedPerPage)) {
+            $perPage = 10;
+        }
+
+        // Eksekusi Paginasi Dinamis dengan $perPage
+        $students = $query->orderBy($sortBy, $sortOrder)
+                          ->paginate($perPage)
+                          ->appends($request->all());
+
+        // 6. Filter Dropdown Kelas Sesuai Wewenang User
+        $classroomsQuery = Classroom::query();
+
+        if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('students.view-all')) {
+            $teacher = $user->teacher;
+
+            if ($teacher && $teacher->major_id) {
+                $classroomsQuery->where('major_id', $teacher->major_id);
+            } elseif ($teacher && $user->hasRole('walas')) {
+                $classroomsQuery->whereIn('id', $teacher->classrooms()->pluck('id'));
+            } else {
+                $classroomsQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $classrooms = $classroomsQuery->orderBy('name')->get();
+
+        // 7. Response AJAX / Normal View
+        if ($request->ajax()) {
+            return view('students.partials.student_table', compact('students'))->render();
+        }
+
+        return view('students.index', compact('students', 'classrooms'));
     }
-
-    $classrooms = $classroomsQuery->orderBy('name')->get();
-
-    // 7. Response AJAX / Normal View
-    if ($request->ajax()) {
-        return view('students.partials.student_table', compact('students'))->render();
-    }
-
-    return view('students.index', compact('students', 'classrooms'));
-}
-
 
     /**
      * Tampilkan Detail Siswa
@@ -266,17 +95,13 @@ public function index(Request $request)
     {
         $student = Student::with('classroom')->findOrFail($id);
 
-        // Otorisasi melalui StudentPolicy (melempar 403 Forbidden jika di luar akses)
-        // $this->authorize('view', $student);
-
-        // Gunakan Gate::authorize sebagai pengganti $this->authorize
         Gate::authorize('view', $student);
 
         return view('students.show', compact('student'));
     }
 
     /**
-     * Form Edit Siswa
+     * Form Edit Siswa (Mendukung Semua Field Fillable)
      */
     public function edit($id)
     {
@@ -287,43 +112,87 @@ public function index(Request $request)
     }
 
     /**
-     * Update Data Siswa
+     * Update Seluruh Data Siswa
      */
     public function update(Request $request, $id)
     {
         $student = Student::findOrFail($id);
 
-        $request->validate([
-            'nis' => 'required|unique:students,nis,' . $id, // Unique kecuali punya sendiri
-            'name' => 'required|string|max:255',
-            'gender'       => 'required|in:L,P', // Validasi Jenis Kelamin L / P
-            'classroom_id' => 'required|exists:classrooms,id',
-            'phone' => 'nullable|numeric',
+        // Validasi Seluruh Bidang (Data Pribadi, Alamat, Kontak, & Ortu)
+        $validatedData = $request->validate([
+            // Identitas Utama & Akademik
+            'nis'               => ['required', 'string', 'max:50', Rule::unique('students', 'nis')->ignore($id)],
+            'nisn'              => ['nullable', 'string', 'max:50', Rule::unique('students', 'nisn')->ignore($id)],
+            'nik'               => ['nullable', 'string', 'max:16', Rule::unique('students', 'nik')->ignore($id)],
+            'name'              => ['required', 'string', 'max:255'],
+            'gender'            => ['required', 'in:L,P'],
+            'pob'               => ['nullable', 'string', 'max:100'],
+            'dob'               => ['nullable', 'date'],
+            'religion'          => ['nullable', 'string', 'max:50'],
+            'classroom_id'      => ['required', 'exists:classrooms,id'],
+            'status'            => ['required', 'string'],
+            'is_promoted'       => ['nullable', 'boolean'],
+            'previous_school'   => ['nullable', 'string', 'max:255'],
+
+            // Kontak & Alamat Siswa
+            'phone'             => ['nullable', 'string', 'max:20'], // No. HP Orang Tua / Wali
+            'student_phone'     => ['nullable', 'string', 'max:20'], // No. HP Pribadi Siswa
+            'email'             => ['nullable', 'email', 'max:255'],
+            'address'           => ['nullable', 'string'],
+            'rt'                => ['nullable', 'string', 'max:10'],
+            'rw'                => ['nullable', 'string', 'max:10'],
+            'dusun'             => ['nullable', 'string', 'max:100'],
+            'subdistrict'       => ['nullable', 'string', 'max:100'],
+            'district'          => ['nullable', 'string', 'max:100'],
+            'postal_code'       => ['nullable', 'string', 'max:10'],
+
+            // Data Ayah
+            'father_name'       => ['nullable', 'string', 'max:255'],
+            'father_nik'        => ['nullable', 'string', 'max:16'],
+            'father_education'  => ['nullable', 'string', 'max:50'],
+            'father_job'        => ['nullable', 'string', 'max:100'],
+            'father_income'     => ['nullable', 'string', 'max:100'],
+
+            // Data Ibu
+            'mother_name'       => ['nullable', 'string', 'max:255'],
+            'mother_nik'        => ['nullable', 'string', 'max:16'],
+            'mother_education'  => ['nullable', 'string', 'max:50'],
+            'mother_job'        => ['nullable', 'string', 'max:100'],
+            'mother_income'     => ['nullable', 'string', 'max:100'],
+
+            // Data Wali
+            'guardian_name'     => ['nullable', 'string', 'max:255'],
+            'guardian_nik'      => ['nullable', 'string', 'max:16'],
+            'guardian_education'=> ['nullable', 'string', 'max:50'],
+            'guardian_job'      => ['nullable', 'string', 'max:100'],
+            'guardian_income'   => ['nullable', 'string', 'max:100'],
         ]);
 
-        $student->update([
-            'nis' => $request->nis,
-            'name' => $request->name,
-            'gender'       => $request->gender,
-            'classroom_id' => $request->classroom_id,
-            'phone' => $request->phone,
-            'address'      => $request->address,
-        ]);
+        DB::beginTransaction();
+        try {
+            // 1. Update Data Siswa Massal Sesuai Field yang Divalidasi
+            $student->update($validatedData);
 
-        return redirect()->route('students.index')->with('success', 'Data siswa berhasil diperbarui!');
+            // 2. Jika Siswa Terhubung ke Tabel User, Sinkronkan Nama & Email
+            if ($student->user_id && $student->user) {
+                $student->user->update([
+                    'name'  => $request->name,
+                    'email' => $request->email ?? $student->user->email,
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('students.index')->with('success', "Data siswa {$student->name} berhasil diperbarui!");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->with('error', 'Gagal memperbarui data: ' . $e->getMessage());
+        }
     }
 
     /**
      * Hapus Siswa
      */
-    // public function destroy($id)
-    // {
-    //     $student = Student::findOrFail($id);
-    //     $student->delete();
-
-    //     return redirect()->route('students.index')->with('success', 'Data siswa berhasil dihapus!');
-    // }
-
     public function destroy($id)
     {
         DB::beginTransaction();
@@ -366,7 +235,7 @@ public function index(Request $request)
     public function removeClassroom($id)
     {
         $student = Student::findOrFail($id);
-        $student->update(['classroom_id' => null]); // Set kelas jadi null
+        $student->update(['classroom_id' => null]);
         return back()->with('success', "Siswa {$student->name} berhasil dikeluarkan dari kelas.");
     }
 
@@ -376,7 +245,6 @@ public function index(Request $request)
             $student = Student::findOrFail($id);
             $namaKelas = $student->classroom->name ?? '-';
 
-            // Set classroom_id menjadi null (tanpa menghapus siswa dari database)
             $student->update(['classroom_id' => null]);
 
             return redirect()->back()->with('success', "Siswa {$student->name} berhasil dikeluarkan dari kelas {$namaKelas}.");
@@ -395,28 +263,23 @@ public function index(Request $request)
      */
     public function printIdCard($id)
     {
-        // Ambil data siswa beserta kelasnya
         $student = Student::with('classroom')->findOrFail($id);
-
         return view('students.print_id_card', compact('student'));
     }
 
-
     public function printIdCardPdf($id)
-{
-    $student = \App\Models\Student::with('classroom')->findOrFail($id);
+    {
+        $student = \App\Models\Student::with('classroom')->findOrFail($id);
 
-    // Set ukuran kertas kustom sesuai ID Card (9cm x 5.5cm atau 9cm x 4cm)
-    // array(0, 0, width_in_points, height_in_points) -> 1cm ≈ 28.35 points
-    $customPaper = array(0, 0, 255.1, 113.4); // ~9cm x 4cm
+        $customPaper = array(0, 0, 255.1, 113.4); // ~9cm x 4cm
 
-    $pdf = Pdf::loadView('students.pdf_id_card', compact('student'))
-                ->setPaper($customPaper, 'landscape');
+        $pdf = Pdf::loadView('students.pdf_id_card', compact('student'))
+                    ->setPaper($customPaper, 'landscape');
 
-    return $pdf->stream('ID-CARD-' . $student->nis . '.pdf');
-}
+        return $pdf->stream('ID-CARD-' . $student->nis . '.pdf');
+    }
 
-/**
+    /**
      * Memasukkan siswa ke dalam kelas
      */
     public function assignClass(Request $request, $classroomId)
@@ -447,7 +310,4 @@ public function index(Request $request)
 
         return back()->with('success', 'Siswa ' . $studentName . ' berhasil dikeluarkan dari kelas.');
     }
-
-
-
 }
