@@ -8,7 +8,6 @@ use App\Models\Student;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use App\Models\Classroom;
-use App\Models\Student;
 use Illuminate\Support\Facades\Auth;
 
 class TelegramMonitoringController extends Controller
