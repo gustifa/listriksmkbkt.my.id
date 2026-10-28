@@ -1,12 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
+<!-- CSS Select2 (Tambahkan jika di layout utama belum ada) -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0">Monitoring Bot & Notifikasi Telegram</h4>
     </div>
 
-    {{-- Alert Success / Error bawaan session Laravel --}}
+    {{-- Alert Success / Error --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
             <i class="bi bi-check-circle me-2"></i> {{ session('success') }}
@@ -259,14 +263,15 @@
                                                         </div>
                                                         <div class="modal-body">
                                                             <p class="small text-muted mb-3">
-                                                                Nomor HP Telegram ini (<code>{{ $sub->phone_number }}</code>) belum terdaftar di database. Silakan pilih siswa terkait untuk menyetujui pendaftaran.
+                                                                Nomor HP Telegram ini (<code>{{ $sub->phone_number }}</code>) belum terdaftar di database. Silakan cari nama siswa terkait untuk menyetujui pendaftaran.
                                                             </p>
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Pilih Siswa:</label>
-                                                                <select name="student_id" class="form-select" required>
-                                                                    <option value="">-- Cari & Pilih Nama Siswa --</option>
+                                                                <!-- Class select2-student ditambahkan di sini -->
+                                                                <select name="student_id" class="form-select select2-student" style="width: 100%;" required>
+                                                                    <option value="">-- Ketik Nama Siswa / Kelas --</option>
                                                                     @foreach(\App\Models\Student::with('classroom')->orderBy('name')->get() as $std)
-                                                                        <option value="{{ $std->id }}">{{ $std->name }} ({{ $std->classroom->name ?? '-' }})</option>
+                                                                        <option value="{{ $std->id }}">{{ $std->name }} - {{ $std->classroom->name ?? '-' }} (NIS: {{ $std->nis }})</option>
                                                                     @endforeach
                                                                 </select>
                                                             </div>
@@ -301,11 +306,24 @@
     </div>
 </div>
 
-{{-- SweetAlert2 JS --}}
+{{-- JS Dependencies: jQuery, Select2, & SweetAlert2 --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 1. Hapus Single Log
+        // Inisialisasi Select2 di dalam Modal Bootstrap
+        $('.modal').on('shown.bs.modal', function () {
+            $(this).find('.select2-student').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $(this), // MENCEGAH SELECT2 TERBLOCK OLEH MODAL
+                placeholder: '-- Ketik Nama Siswa / Kelas --',
+                allowClear: true
+            });
+        });
+
+        // Hapus Single Log
         document.querySelectorAll('.btn-delete-log').forEach(button => {
             button.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -329,7 +347,7 @@
             });
         });
 
-        // 2. Bersihkan Semua Log
+        // Bersihkan Semua Log
         const btnClearAll = document.getElementById('btn-clear-all-logs');
         if (btnClearAll) {
             btnClearAll.addEventListener('click', function (e) {
