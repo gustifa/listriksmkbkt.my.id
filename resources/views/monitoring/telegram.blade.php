@@ -269,7 +269,7 @@
                                                                 <label class="form-label fw-bold">Pilih Siswa:</label>
                                                                 <select name="student_id" class="form-select select2-student" style="width: 100%;" required>
                                                                     <option value="">-- Ketik Nama Siswa / Kelas --</option>
-                                                                    @foreach(\App\Models\Student::with('classroom')->orderBy('name')->get() as $std)
+                                                                    @foreach($accessibleStudents as $std)
                                                                         <option value="{{ $std->id }}">{{ $std->name }} - {{ $std->classroom->name ?? '-' }} (NIS: {{ $std->nis }})</option>
                                                                     @endforeach
                                                                 </select>
@@ -285,7 +285,7 @@
                                         </div>
 
                                     @elseif($sub->approval_status == 'approved' || $sub->is_active)
-                                        <!-- TOMBOL MEMBATALKAN/MENONAK TIFKAN TELEGRAM YANG SUDAH TERDAFTAR -->
+                                        <!-- TOMBOL MEMBATALKAN/MENONAKTIFKAN TELEGRAM YANG SUDAH TERDAFTAR -->
                                         <form action="{{ route('monitoring.telegram.cancelSubscriber', $sub->id) }}" method="POST" class="d-inline btn-cancel-action" data-title="Batalkan Akses Telegram?" data-text="Akses notifikasi untuk orang tua ini akan dinonaktifkan!">
                                             @csrf
                                             <button type="button" class="btn btn-outline-danger btn-sm">
