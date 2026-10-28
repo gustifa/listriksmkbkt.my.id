@@ -156,6 +156,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('admin.prayer_reports.index') }}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
                         <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa/Abolisi</a></li>
                         <li><a href="{{ route('laporan.daya_tampung') }}"><i class='bx bx-radio-circle'></i>Usulan Daya Tampung</a></li>
+                        <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
                     </ul>
                 </li>
             @endhasanyrole
@@ -164,6 +165,17 @@ $status = $guruId->status ?? '0';
             {{-- 4. KETUA PROGRAM & KEPALA BENGKEL (KAPROG & KABENG) --}}
             {{-- ========================================== --}}
             @hasanyrole('kaprog|kabeng')
+                <li class="menu-label">Sistem & Pengaturan</li>
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                        <div class="menu-title">Setting</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-mobile-vibration'></i>Reset HP Siswa</a></li>
+                        <li><a href="{{ route('monitoring.telegram') }}"><i class='bx bx-radio-circle'></i>Telegram</a></li>
+                    </ul>
+                </li>
                 <li class="menu-label">Manajemen Kejuruan</li>
                 <li>
                     <a class="has-arrow" href="javascript:;">
@@ -173,7 +185,6 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Kejuruan</a></li>
                         <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel Kejuruan</a></li>
-                        <li><a href="{{ route('monitoring.telegram') }}"><i class='bx bx-radio-circle'></i>Telegram</a></li>
                     </ul>
                 </li>
 
@@ -200,6 +211,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-border-all'></i>Presensi Gerbang</a></li>
                         <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
                         <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi Scope</a></li>
+                        <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
                     </ul>
                 </li>
             @endhasanyrole
