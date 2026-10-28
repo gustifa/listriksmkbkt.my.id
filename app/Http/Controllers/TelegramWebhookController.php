@@ -63,7 +63,7 @@ class TelegramWebhookController extends Controller
                         "Akun Telegram Anda telah terhubung dengan siswa:\n" .
                         "👤 Nama: *{$student->name}*\n" .
                         "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
-                        "Notifikasi presensi harian akan dikirimkan ke akun ini.";
+                        "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
             } else {
                 // SKENARIO B: NOMOR TIDAK TERDAFTAR (MASUK STATUS PENDING APPROVAL)
                 TelegramSubscriber::updateOrCreate(
@@ -90,14 +90,36 @@ class TelegramWebhookController extends Controller
         }
 
         // 2. Tentukan perintah teks dari pengguna
-        $text = trim($message['text'] ?? '');
+        $text = strtolower(trim($message['text'] ?? ''));
 
         // Pendaftaran (/start atau /daftar)
         if ($text === '/start' || $text === '/daftar') {
-            $prompt = "Selamat datang di Bot Absensi SISFO.\n\n" .
-                    "Untuk menerima notifikasi presensi putra/putri Anda, silakan tekan tombol *'Bagikan Kontak'* di bawah ini:";
+            $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
+                      "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali.\n\n" .
+                      "📌 *Panduan Perintah Bot:*\n" .
+                      "🔹 `/start` atau `/daftar` : Menampilkan tombol pendaftaran\n" .
+                      "🔹 `/batal` atau `/stop` : Membatalkan notifikasi Telegram\n" .
+                      "🔹 `/help` : Informasi bantuan pendaftaran\n\n" .
+                      "--------------------------------------\n" .
+                      "Langkah Pendaftaran:\n" .
+                      "Silakan tekan tombol *'📱 Bagikan Nomor Kontak Saya'* di bawah ini untuk menghubungkan akun Telegram Anda dengan data siswa.";
             
             $telegramService->sendContactButton($chatId, $prompt);
+            return response()->json(['status' => 'ok']);
+        }
+
+        // Bantuan (/help)
+        if ($text === '/help') {
+            $reply = "ℹ️ *BANTUAN BOT NOTIFIKASI SISFO*\n\n" .
+                     "1️⃣ *Bagaimana cara mendaftar?*\n" .
+                     "Ketik `/start` lalu tekan tombol *'📱 Bagikan Nomor Kontak Saya'*.\n\n" .
+                     "2️⃣ *Nomor HP beda dengan database?*\n" .
+                     "Jika nomor HP Anda berbeda, pengajuan akan masuk ke status *Pending* untuk diverifikasi oleh Admin SISFO.\n\n" .
+                     "3️⃣ *Bagaimana berhenti berlangganan?*\n" .
+                     "Ketik `/batal` atau `/stop` kapan saja.\n\n" .
+                     "Jika mengalami kendala, silakan hubungi *Admin SISFO SMKN 1 Bukittinggi*.";
+
+            $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
             return response()->json(['status' => 'ok']);
         }
 
@@ -120,7 +142,7 @@ class TelegramWebhookController extends Controller
 
                 $reply = "❌ *Pendaftaran Dibatalkan!*\n\n" .
                          "Akun Telegram Anda telah dinonaktifkan dari sistem notifikasi sekolah.\n\n" .
-                         "Ketik /start atau /daftar jika ingin mendaftar kembali.";
+                         "Ketik `/start` atau `/daftar` jika ingin mendaftar kembali.";
             } else {
                 $reply = "ℹ️ Akun Telegram Anda tidak terdaftar atau sudah nonaktif di sistem kami.";
             }
