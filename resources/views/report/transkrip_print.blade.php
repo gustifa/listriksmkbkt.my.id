@@ -2,96 +2,41 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $downloadTitle ?? 'Transkrip Absensi' }}</title>
+    <title>Transkrip Absensi - {{ $student->name }}</title>
     <style>
-        /* Base Setup A4 */
+        /* Pengaturan ukuran halaman A4 */
         @page {
             size: A4 portrait;
-            margin: 12mm 15mm 15mm 15mm;
+            margin: 1cm;
         }
 
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 9.5pt;
-            line-height: 1.3;
-            color: #000;
-            background: #fff;
-            margin: 0;
-            padding: 0;
-        }
+        body { font-family: sans-serif; font-size: 12pt; margin: 0; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .header h2 { margin: 0; text-transform: uppercase; }
+        .header p { margin: 2px 0; font-size: 10pt; }
 
-        /* Container Siswa (Tiap Siswa 1 Halaman Rapi) */
-        .student-page {
-            page-break-after: always;
-            box-sizing: border-box;
-        }
-        .student-page:last-child {
-            page-break-after: avoid;
-        }
+        .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .info-table td { padding: 4px; vertical-align: top; }
+        .info-label { font-weight: bold; width: 120px; }
 
-        /* Header / Kop */
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 12px;
-        }
-        .header h3 { margin: 0; text-transform: uppercase; font-size: 11pt; }
-        .header h2 { margin: 2px 0; text-transform: uppercase; font-size: 13pt; }
-        .header p { margin: 2px 0; font-size: 8.5pt; }
+        .section-title { font-weight: bold; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
 
-        /* Data Siswa Table */
-        .info-table { width: 100%; margin-bottom: 12px; border-collapse: collapse; }
-        .info-table td { padding: 2px 4px; vertical-align: top; font-size: 9pt; }
-        .info-label { font-weight: bold; width: 100px; }
-
-        /* Judul Seksi */
-        .section-title {
-            font-weight: bold;
-            font-size: 9.5pt;
-            margin-top: 10px;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 2px;
-            text-transform: uppercase;
-        }
-
-        /* Data Tables */
-        table.data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-            font-size: 8.5pt;
-            page-break-inside: auto;
-        }
-        table.data-table tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
-        table.data-table th, table.data-table td {
-            border: 1px solid #000;
-            padding: 4px 5px;
-            text-align: center;
-        }
-        table.data-table th { background-color: #f2f2f2; font-weight: bold; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }
+        table.data-table th, table.data-table td { border: 1px solid #000; padding: 6px; text-align: center; }
+        table.data-table th { background-color: #f0f0f0; }
         table.data-table td.text-left { text-align: left; }
 
-        /* Footer Tanda Tangan Locked Block */
+        /* Mengganti display: flex menjadi table agar posisi angka summary aman saat print PDF */
+        .summary-box { display: table; width: 100%; margin-bottom: 20px; border-spacing: 8px 0; }
+        .summary-item { display: table-cell; border: 1px solid #000; padding: 8px; text-align: center; }
+        .summary-val { font-size: 14pt; font-weight: bold; display: block; }
+        .summary-lbl { font-size: 9pt; text-transform: uppercase; }
+
+        /* Mengunci posisi footer tanda tangan agar tidak terpotong */
         .footer-signature {
-            margin-top: 15px;
-            page-break-inside: avoid !important; /* Mencegah tanda tangan terpotong halaman */
+            margin-top: 30px;
+            page-break-inside: avoid !important;
             break-inside: avoid !important;
-            width: 100%;
-        }
-        .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: center;
-            font-size: 9pt;
-        }
-        .signature-table td {
-            vertical-align: top;
-            padding: 2px;
         }
 
         @media print {
@@ -100,172 +45,157 @@
         }
     </style>
 </head>
-<body>
+<body onload="window.print()">
 
-    <!-- Tombol Cetak / Kembali -->
-    <div class="no-print" style="margin: 15px;">
-        <button onclick="window.history.back()" style="padding: 8px 16px; cursor: pointer;">&larr; Kembali</button>
-        <button onclick="window.print()" style="padding: 8px 16px; cursor: pointer; font-weight: bold;">Cetak Document</button>
+    <!-- Tombol Kembali -->
+    <div class="no-print" style="margin-bottom: 20px;">
+        <button onclick="window.history.back()" style="padding: 10px 20px; cursor: pointer;">&larr; Kembali</button>
     </div>
 
-    @foreach($reports as $report)
-    @php
-        $st = $report['student'];
-        $gate = $report['gate'];
-        $learning = $report['learning'];
-        $prayer = $report['prayer'];
-        $homeroomTeacher = $report['homeroomTeacher'];
-        $counselingTeacher = $report['counselingTeacher'];
-    @endphp
-
-    <div class="student-page">
-        <!-- KOP SURAT SEKOLAH -->
-        <div class="header">
-            <p><strong>{{ $settings['provinsi_name'] }}</strong></p>
-            <h2>{{ $settings['school_name'] }}</h2>
-            <p>{{ $settings['school_address'] }}</p>
-            <p>Email: {{ $settings['school_email'] }} | Web: {{ $settings['school_web'] }}</p>
-            <h3 style="margin-top: 8px;">TRANSKRIP REKAPITULASI KEHADIRAN SISWA</h3>
-            <p>Periode: {{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMMM YYYY') }} s/d {{ \Carbon\Carbon::parse($endDate)->isoFormat('D MMMM YYYY') }}</p>
-        </div>
-
-        <!-- INFORMASI SISWA -->
-        <table class="info-table">
-            <tr>
-                <td class="info-label">Nama Siswa</td>
-                <td>: <strong>{{ $st->name }}</strong></td>
-                <td class="info-label">Kelas</td>
-                <td>: {{ $st->classroom->name ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">NIS / NISN</td>
-                <td>: {{ $st->nis ?? '-' }} / {{ $st->nisn ?? '-' }}</td>
-                <td class="info-label">Jenis Kelamin</td>
-                <td>: {{ $st->gender == 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-            </tr>
-        </table>
-
-        <!-- BAGIAN 1: ABSENSI GERBANG -->
-        @if($includeGate)
-        <div class="section-title">I. REKAPITULASI ABSENSI GERBANG (DAILY ATTENDANCE)</div>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th width="5%">No</th>
-                    <th width="20%">Tanggal</th>
-                    <th width="25%">Jam Datang</th>
-                    <th width="25%">Jam Pulang</th>
-                    <th width="25%">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($gate as $idx => $g)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ \Carbon\Carbon::parse($g->date)->format('d/m/Y') }}</td>
-                    <td>{{ $g->arrival_time ?? '-' }}</td>
-                    <td>{{ $g->departure_time ?? '-' }}</td>
-                    <td>{{ $g->status }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="5">Tidak ada data.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-        @endif
-
-        <!-- BAGIAN 2: ABSENSI PEMBELAJARAN (KBM) -->
-        @if($includeLearning)
-        <div class="section-title">II. REKAPITULASI ABSENSI PEMBELAJARAN (KBM)</div>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th width="5%">No</th>
-                    <th width="15%">Tanggal</th>
-                    <th class="text-left">Mata Pelajaran & Guru</th>
-                    <th width="20%">Jam Absen</th>
-                    <th width="20%">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($learning as $idx => $l)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ \Carbon\Carbon::parse($l->date)->format('d/m/Y') }}</td>
-                    <td class="text-left">
-                        <strong>{{ $l->subject_name ?? ($l->schedule->subject->name ?? '-') }}</strong><br>
-                        <small>Guru: {{ $l->teacher->name ?? ($l->schedule->teacher->name ?? '-') }}</small>
-                    </td>
-                    <td>{{ isset($l->check_in_time) && $l->check_in_time != '-' ? \Carbon\Carbon::parse($l->check_in_time)->format('H:i:s') : '-' }}</td>
-                    <td>{{ $l->status }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="5">Tidak ada data KBM.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-        @endif
-
-        <!-- BAGIAN 3: ABSENSI SHOLAT -->
-        @if($includePrayer)
-        <div class="section-title">III. REKAPITULASI ABSENSI SHOLAT & IBADAH</div>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th width="5%">No</th>
-                    <th width="20%">Tanggal</th>
-                    <th class="text-left">Nama Sholat / Ibadah</th>
-                    <th width="25%">Jam Absen</th>
-                    <th width="25%">Status Ibadah</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($prayer as $idx => $p)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ \Carbon\Carbon::parse($p->date)->format('d/m/Y') }}</td>
-                    <td class="text-left">{{ $p->prayer_name ?? 'Sholat Ibadah Harian' }}</td>
-                    <td>{{ isset($p->check_in_time) && $p->check_in_time != '-' ? \Carbon\Carbon::parse($p->check_in_time)->format('H:i:s') : '-' }}</td>
-                    <td>{{ $p->status ?? 'Tanpa Keterangan' }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="5">Tidak ada data ibadah.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-        @endif
-
-        <!-- FOOTER TANDA TANGAN (DIKUNCI AGAR TIDAK TERPOTONG) -->
-        <div class="footer-signature">
-            <table class="signature-table">
-                <tr>
-                    <td width="33%">
-                        Mengetahui,<br>
-                        <strong>Kepala Sekolah</strong>
-                        <br><br><br><br>
-                        <u><strong>{{ $settings['sign_name'] }}</strong></u><br>
-                        NIP. {{ $settings['sign_nip'] }}
-                    </td>
-                    <td width="34%">
-                        <br>
-                        <strong>Guru Bimbingan Konseling (BK)</strong>
-                        <br><br><br><br>
-                        <u><strong>{{ $counselingTeacher->name ?? '........................' }}</strong></u><br>
-                        NIP. {{ $counselingTeacher->nip ?? '........................' }}
-                    </td>
-                    <td width="33%">
-                        {{ $settings['sign_city'] }}, {{ \Carbon\Carbon::now()->isoFormat('D MMMM YYYY') }}<br>
-                        <strong>Wali Kelas</strong>
-                        <br><br><br><br>
-                        <u><strong>{{ $homeroomTeacher->name ?? '........................' }}</strong></u><br>
-                        NIP. {{ $homeroomTeacher->nip ?? '........................' }}
-                    </td>
-                </tr>
-            </table>
-        </div>
-
+    <!-- KOP SURAT -->
+    <div class="header">
+        <h2>Laporan Transkrip Kehadiran Siswa</h2>
+        <p>{{ $school['name'] ?? 'NAMA SEKOLAH BELUM DISET' }}</p>
+        <p>Periode: {{ $dateObj->translatedFormat('F Y') }}</p>
     </div>
-    @endforeach
+
+    <!-- INFORMASI SISWA -->
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Nama Siswa</td>
+            <td>: {{ $student->name }}</td>
+            <td class="info-label">Kelas</td>
+            <td>: {{ $student->classroom->name ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">NIS / NISN</td>
+            <td>: {{ $student->nis ?? '-' }} / {{ $student->nisn ?? '-' }}</td>
+            <td class="info-label">Tahun Ajaran</td>
+            <td>: {{ $dateObj->year }}</td>
+        </tr>
+    </table>
+
+    <!-- BAGIAN 1: RINGKASAN KEHADIRAN HARIAN (DailyAttendance) -->
+    <div class="section-title">A. RINGKASAN KEHADIRAN HARIAN (DATANG & PULANG)</div>
+
+    <div class="summary-box">
+        <div class="summary-item">
+            <span class="summary-val">{{ $dailySummary['hadir'] }}</span>
+            <span class="summary-lbl">Hadir</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-val">{{ $dailySummary['terlambat'] }}</span>
+            <span class="summary-lbl">Terlambat</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-val">{{ $dailySummary['sakit'] }}</span>
+            <span class="summary-lbl">Sakit</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-val">{{ $dailySummary['izin'] }}</span>
+            <span class="summary-lbl">Izin</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-val">{{ $dailySummary['alpa'] }}</span>
+            <span class="summary-lbl">Alpha</span>
+        </div>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="5%">No</th>
+                <th width="20%">Tanggal</th>
+                <th width="20%">Jam Datang</th>
+                <th width="20%">Jam Pulang</th>
+                <th width="15%">Status</th>
+                <th>Keterangan</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($dailyLogs as $key => $log)
+            <tr>
+                <td>{{ $key + 1 }}</td>
+                <td>{{ \Carbon\Carbon::parse($log->created_at)->translatedFormat('d/m/Y') }}</td>
+                <td>{{ $log->arrival_time ? \Carbon\Carbon::parse($log->arrival_time)->format('H:i') : '-' }}</td>
+                <td>{{ $log->departure_time ? \Carbon\Carbon::parse($log->departure_time)->format('H:i') : '-' }}</td>
+                <td>
+                    {{ ucfirst($log->status) }}
+                    @if($log->status == 'late') <br><small>(Terlambat)</small> @endif
+                </td>
+                <td class="text-left">{{ $log->note ?? '-' }}</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="6">Tidak ada data kehadiran harian bulan ini.</td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- BAGIAN 2: KEHADIRAN PEMBELAJARAN (Attendance / Per Mapel) -->
+    <div class="section-title">B. REKAPITULASI KEHADIRAN PER MATA PELAJARAN</div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th rowspan="2" width="5%">No</th>
+                <th rowspan="2" class="text-left">Mata Pelajaran</th>
+                <th rowspan="2" width="10%">Total Pertemuan</th>
+                <th colspan="5">Rincian Kehadiran</th>
+                <th rowspan="2" width="10%">% Kehadiran</th>
+            </tr>
+            <tr>
+                <th width="8%">Hadir</th>
+                <th width="8%">Telat</th>
+                <th width="8%">Sakit</th>
+                <th width="8%">Izin</th>
+                <th width="8%">Alpha</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($lessonSummary as $key => $lesson)
+            @php
+                // Hitung Persentase Kehadiran (Hadir + Telat dianggap masuk)
+                $masuk = $lesson->total_present + $lesson->total_late;
+                $percent = $lesson->total_meetings > 0 ? round(($masuk / $lesson->total_meetings) * 100) : 0;
+            @endphp
+            <tr>
+                <td>{{ $key + 1 }}</td>
+                <td class="text-left fw-bold">{{ $lesson->subject_name }}</td>
+                <td>{{ $lesson->total_meetings }}</td>
+                <td>{{ $lesson->total_present }}</td>
+                <td>{{ $lesson->total_late }}</td>
+                <td>{{ $lesson->total_sick }}</td>
+                <td>{{ $lesson->total_permission }}</td>
+                <td style="{{ $lesson->total_alpha > 0 ? 'background-color: #ffe6e6; font-weight:bold;' : '' }}">
+                    {{ $lesson->total_alpha }}
+                </td>
+                <td>{{ $percent }}%</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="9">Belum ada data absensi pembelajaran bulan ini.</td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- FOOTER TANDA TANGAN (KODE DIPERBAIKI) -->
+    <div class="footer-signature">
+        <table width="100%" style="border-collapse: collapse;">
+            <tr>
+                <td width="60%"></td>
+                <td width="40%" align="center" style="vertical-align: top;">
+                    <p>................., {{ date('d F Y') }}</p>
+                    <p>Wali Kelas</p>
+                    <br><br><br>
+                    <p>_______________________</p>
+                    <p>NIP. .......................</p>
+                </td>
+            </tr>
+        </table>
+    </div>
 
 </body>
 </html>
