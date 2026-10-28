@@ -62,6 +62,19 @@
         <div class="tab-pane fade {{ !request()->has('sub_page') ? 'show active' : '' }}" id="logs" role="tabpanel">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Riwayat Pengiriman Pesan</h6>
+                        @if($logs->count() > 0)
+                        <form action="{{ route('monitoring.telegram.clearLogs') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus SELURUH riwayat pesan?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash me-1"></i> Bersihkan Semua Log
+                            </button>
+                        </form>
+                        @endif
+                    </div>
+
                     <form method="GET" action="{{ route('monitoring.telegram') }}" class="row g-2">
                         <div class="col-md-4">
                             <input type="text" name="search" class="form-control" placeholder="Cari nama, judul, atau Chat ID..." value="{{ request('search') }}">
@@ -99,6 +112,7 @@
                                 <th>Judul & Pesan</th>
                                 <th>Status</th>
                                 <th>Detail Error</th>
+                                <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -132,10 +146,19 @@
                                     @endif
                                 </td>
                                 <td class="small text-danger">{{ $log->error_log ?? '-' }}</td>
+                                <td class="text-center">
+                                    <form action="{{ route('monitoring.telegram.destroyLog', $log->id) }}" method="POST" onsubmit="return confirm('Hapus log pesan ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm border-0" title="Hapus Log">
+                                            <i class="bi bi-trash"></i> Hapus
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">Belum ada riwayat notifikasi.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">Belum ada riwayat notifikasi.</td>
                             </tr>
                             @endforelse
                         </tbody>

@@ -167,6 +167,9 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
     Route::patch('/monitoring/telegram/subscriber/{id}/toggle', [TelegramMonitoringController::class, 'toggleStatus'])->name('monitoring.telegram.toggle');
+    // Route Hapus Log Telegram
+    Route::delete('/monitoring/telegram/logs/{id}', [TelegramMonitoringController::class, 'destroyLog'])->name('monitoring.telegram.destroyLog');
+    Route::delete('/monitoring/telegram/logs-clear', [TelegramMonitoringController::class, 'clearLogs'])->name('monitoring.telegram.clearLogs');
 
     Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
     Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');

@@ -61,4 +61,21 @@ class TelegramMonitoringController extends Controller
             'subscribers'
         ));
     }
+
+    // Hapus 1 item log berdasarkan ID (UUID)
+public function destroyLog($id)
+{
+    $log = TelegramNotification::findOrFail($id);
+    $log->delete();
+
+    return redirect()->back()->with('success', 'Log riwayat pesan berhasil dihapus.');
+}
+
+// Hapus seluruh log pesan (Kosongkan riwayat)
+public function clearLogs()
+{
+    TelegramNotification::truncate();
+
+    return redirect()->back()->with('success', 'Semua log riwayat pesan berhasil dibersihkan.');
+}
 }
