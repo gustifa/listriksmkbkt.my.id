@@ -24,6 +24,7 @@ use App\Models\Holiday;
 use App\Notifications\LateStudentNotification;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
+use App\Jobs\SendTelegramJob; // Tambahkan import Job Telegram
 
 class DailyAttendanceController extends Controller
 {
@@ -650,6 +651,11 @@ class DailyAttendanceController extends Controller
         // Hanya dispatch job jika pesan berhasil dibuat
         if (!empty($msg)) {
             SendWhatsappJob::dispatch($student->phone, $msg);
+        }
+
+        // 2. Dispatch Notifikasi Telegram Bot (Baru)
+        if (!empty($student->telegram_chat_id)) {
+            SendTelegramJob::dispatch($student->telegram_chat_id, $msg);
         }
     }
 

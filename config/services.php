@@ -40,4 +40,8 @@ return [
         'token' => env('ONLINE_SERVER_API_TOKEN', ''),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+    ],
+
 ];

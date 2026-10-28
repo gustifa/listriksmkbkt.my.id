@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Api\PrayerServerSyncController;
 use App\Http\Controllers\Api\PrayerApiController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Controllers\TelegramWebhookController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -45,4 +46,7 @@ Route::middleware('auth:sanctum')->prefix('v1/sync')->group(function () {
     // Tambahkan baris route ini
     Route::get('/pull-photos', [SyncController::class, 'pullAttendancePhotos']);
 });
+
+// Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 

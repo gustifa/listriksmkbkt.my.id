@@ -79,6 +79,7 @@ use App\Http\Controllers\SiswaDashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\Pm2Controller;
 use App\Http\Controllers\WhatsappGatewayController;
+
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryLoanController;
 use App\Http\Controllers\LoanController;
@@ -161,6 +162,8 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    
 
     Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
     Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');
