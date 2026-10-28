@@ -173,76 +173,151 @@
                     </div>
                 </div>
 
-                <!-- CARD HISTORI PELAKSANAAN SHOLAT -->
+                <!-- CARD HISTORI PELAKSANAAN SHOLAT DENGAN VIEW SWITCHER CARD & TABEL -->
                 <div class="card border-0 shadow-sm rounded-3 mb-4">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-primary">
-                            <i class="fas fa-mosque me-2"></i>Histori Pelaksanaan Sholat
-                        </h6>
-                        <span class="badge bg-primary rounded-pill">5 Terakhir</span>
+                    <div class="card-header bg-white py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="m-0 fw-bold text-primary">
+                                <i class="fas fa-mosque me-2"></i>Histori Pelaksanaan Sholat
+                            </h6>
+                            <span class="badge bg-primary rounded-pill">5 Terakhir</span>
+                        </div>
+
+                        <!-- View Switcher Toggle Sholat (Card vs Tabel) -->
+                        <div class="btn-group bg-light p-1 rounded-3 border" role="group" aria-label="Prayer View Switcher">
+                            <button type="button" class="btn btn-xs btn-white text-dark fw-bold border-0 py-1 px-2 active" id="btn-prayer-table" onclick="switchPrayerView('table')">
+                                <i class="fas fa-list me-1"></i> Tabel
+                            </button>
+                            <button type="button" class="btn btn-xs btn-white text-dark fw-bold border-0 py-1 px-2" id="btn-prayer-card" onclick="switchPrayerView('card')">
+                                <i class="fas fa-th-large me-1"></i> Card
+                            </button>
+                        </div>
                     </div>
+
                     <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-3">Tanggal & Jam</th>
-                                        <th>Nama Sholat</th>
-                                        <th>Lokasi / Masjid</th>
-                                        <th class="text-center">Status</th>
-                                        <th class="text-center pe-3">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($prayerHistory as $prayer)
+                        <!-- 1. TAMPILAN TABEL SHOLAT -->
+                        <div id="prayer-view-table">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
                                         <tr>
-                                            <td class="ps-3 fw-semibold text-nowrap">
-                                                <i class="far fa-calendar-alt text-muted me-1"></i>
-                                                {{ \Carbon\Carbon::parse($prayer->date)->format('d/m/Y') }}
-                                                <small class="text-muted ms-1">({{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB)</small>
-                                            </td>
-                                            <td class="fw-bold text-dark">
-                                                Sholat {{ ucfirst($prayer->prayer_name) }}
-                                            </td>
-                                            <td>
-                                                <i class="fas fa-map-marker-alt text-danger me-1"></i>
-                                                {{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}
-                                            </td>
-                                            <td class="text-center">
-                                                @if($prayer->status === 'hadir' || $prayer->status === 'terlaksana')
-                                                    <span class="badge bg-success rounded-pill px-3 py-1">
-                                                        <i class="fas fa-check-circle me-1"></i> {{ ucfirst($prayer->status) }}
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-secondary rounded-pill px-3 py-1">
-                                                        {{ ucfirst($prayer->status) }}
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center pe-3">
-                                                <button type="button" 
-                                                        class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-detail-sholat"
-                                                        data-tanggal="{{ \Carbon\Carbon::parse($prayer->date)->translatedFormat('d F Y') }}"
-                                                        data-jam="{{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB"
-                                                        data-sholat="Sholat {{ ucfirst($prayer->prayer_name) }}"
-                                                        data-lokasi="{{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}"
-                                                        data-status="{{ ucfirst($prayer->status) }}"
-                                                        data-catatan="{{ $prayer->notes ?? '-' }}"
-                                                        data-foto="{{ $prayer->photo_evidence ? asset('storage/' . $prayer->photo_evidence) : '' }}">
-                                                    <i class="fas fa-eye me-1"></i> Detail
-                                                </button>
-                                            </td>
+                                            <th class="ps-3">Tanggal & Jam</th>
+                                            <th>Nama Sholat</th>
+                                            <th>Lokasi / Masjid</th>
+                                            <th class="text-center">Status</th>
+                                            <th class="text-center pe-3">Aksi</th>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="5" class="text-center text-muted py-4">
-                                                <i class="fas fa-pray fa-2x mb-2 d-block opacity-50"></i>
-                                                Belum ada riwayat pelaksanaan sholat.
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($prayerHistory as $prayer)
+                                            <tr>
+                                                <td class="ps-3 fw-semibold text-nowrap">
+                                                    <i class="far fa-calendar-alt text-muted me-1"></i>
+                                                    {{ \Carbon\Carbon::parse($prayer->date)->format('d/m/Y') }}
+                                                    <small class="text-muted ms-1">({{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB)</small>
+                                                </td>
+                                                <td class="fw-bold text-dark">
+                                                    Sholat {{ ucfirst($prayer->prayer_name) }}
+                                                </td>
+                                                <td>
+                                                    <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                                    {{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}
+                                                </td>
+                                                <td class="text-center">
+                                                    @if($prayer->status === 'hadir' || $prayer->status === 'terlaksana')
+                                                        <span class="badge bg-success rounded-pill px-3 py-1">
+                                                            <i class="fas fa-check-circle me-1"></i> {{ ucfirst($prayer->status) }}
+                                                        </span>
+                                                    @else
+                                                        <span class="badge bg-secondary rounded-pill px-3 py-1">
+                                                            {{ ucfirst($prayer->status) }}
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-center pe-3">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-detail-sholat"
+                                                            data-tanggal="{{ \Carbon\Carbon::parse($prayer->date)->translatedFormat('d F Y') }}"
+                                                            data-jam="{{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB"
+                                                            data-sholat="Sholat {{ ucfirst($prayer->prayer_name) }}"
+                                                            data-lokasi="{{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}"
+                                                            data-status="{{ ucfirst($prayer->status) }}"
+                                                            data-catatan="{{ $prayer->notes ?? '-' }}"
+                                                            data-foto="{{ $prayer->photo_evidence ? asset('storage/' . $prayer->photo_evidence) : '' }}">
+                                                        <i class="fas fa-eye me-1"></i> Detail
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    <i class="fas fa-pray fa-2x mb-2 d-block opacity-50"></i>
+                                                    Belum ada riwayat pelaksanaan sholat.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 2. TAMPILAN CARD SHOLAT (GRID RESPONSIF) -->
+                        <div id="prayer-view-card" class="p-3 d-none">
+                            <div class="row g-3">
+                                @forelse($prayerHistory as $prayer)
+                                    <div class="col-12 col-md-6">
+                                        <div class="card border border-start border-4 border-info rounded-3 shadow-sm h-100">
+                                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                                <div>
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <span class="badge bg-light text-dark border">
+                                                            <i class="far fa-calendar-alt me-1 text-primary"></i>
+                                                            {{ \Carbon\Carbon::parse($prayer->date)->format('d/m/Y') }}
+                                                        </span>
+                                                        @if($prayer->status === 'hadir' || $prayer->status === 'terlaksana')
+                                                            <span class="badge bg-success rounded-pill px-3 py-1">
+                                                                <i class="fas fa-check-circle me-1"></i> {{ ucfirst($prayer->status) }}
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-secondary rounded-pill px-3 py-1">
+                                                                {{ ucfirst($prayer->status) }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    <h6 class="fw-bold text-dark mb-1">
+                                                        Sholat {{ ucfirst($prayer->prayer_name) }}
+                                                    </h6>
+                                                    <div class="small text-muted mb-2">
+                                                        <i class="far fa-clock me-1 text-primary"></i> {{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB
+                                                    </div>
+                                                    <div class="p-2 border rounded bg-light mb-2 small">
+                                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                                        {{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}
+                                                    </div>
+                                                </div>
+                                                <div class="text-end pt-2 border-top">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-detail-sholat"
+                                                            data-tanggal="{{ \Carbon\Carbon::parse($prayer->date)->translatedFormat('d F Y') }}"
+                                                            data-jam="{{ \Carbon\Carbon::parse($prayer->check_in_time)->format('H:i') }} WIB"
+                                                            data-sholat="Sholat {{ ucfirst($prayer->prayer_name) }}"
+                                                            data-lokasi="{{ $prayer->masjid_name ?? ucfirst($prayer->location_type ?? 'Sekolah') }}"
+                                                            data-status="{{ ucfirst($prayer->status) }}"
+                                                            data-catatan="{{ $prayer->notes ?? '-' }}"
+                                                            data-foto="{{ $prayer->photo_evidence ? asset('storage/' . $prayer->photo_evidence) : '' }}">
+                                                        <i class="fas fa-eye me-1"></i> Detail
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="col-12 text-center py-4 text-muted">
+                                        <i class="fas fa-pray fa-2x mb-2 d-block opacity-50"></i>
+                                        Belum ada riwayat pelaksanaan sholat.
+                                    </div>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -269,7 +344,7 @@
                     </div>
 
                     <div class="card-body p-0">
-                        <!-- 1. TAMPILAN TABEL (DEFAULT) -->
+                        <!-- 1. TAMPILAN TABEL -->
                         <div id="gate-view-table">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
@@ -726,6 +801,30 @@
             const btnTable = document.getElementById('btn-gate-table');
             const btnCard = document.getElementById('btn-gate-card');
 
+            if (!viewTable || !viewCard) return;
+
+            if (mode === 'card') {
+                viewCard.classList.remove('d-none');
+                viewTable.classList.add('d-none');
+                btnCard.classList.add('active', 'bg-primary', 'text-white');
+                btnTable.classList.remove('active', 'bg-primary', 'text-white');
+            } else {
+                viewTable.classList.remove('d-none');
+                viewCard.classList.add('d-none');
+                btnTable.classList.add('active', 'bg-primary', 'text-white');
+                btnCard.classList.remove('active', 'bg-primary', 'text-white');
+            }
+        }
+
+        // FUNGSI SWITCHER TAMPILAN HISTORI SHOLAT (CARD VS TABEL)
+        function switchPrayerView(mode) {
+            const viewTable = document.getElementById('prayer-view-table');
+            const viewCard = document.getElementById('prayer-view-card');
+            const btnTable = document.getElementById('btn-prayer-table');
+            const btnCard = document.getElementById('btn-prayer-card');
+
+            if (!viewTable || !viewCard) return;
+
             if (mode === 'card') {
                 viewCard.classList.remove('d-none');
                 viewTable.classList.add('d-none');
@@ -741,6 +840,23 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             
+            // OTOMATIS AKTIFKAN MODE CARD JIKA DIBUKA DI SMARTPHONE (< 768px)
+            if (window.innerWidth < 768) {
+                switchGateView('card');
+                switchPrayerView('card');
+            } else {
+                switchGateView('table');
+                switchPrayerView('table');
+            }
+
+            // DETEKSI AUTO RESIZE LAYAR
+            window.addEventListener('resize', function() {
+                if (window.innerWidth < 768) {
+                    switchGateView('card');
+                    switchPrayerView('card');
+                }
+            });
+
             // 1. CONFIRMATION SWEETALERT UNTUK ABSEN MAPEL
             const btnAbsens = document.querySelectorAll('.btn-absen-trigger');
             btnAbsens.forEach(btn => {
