@@ -172,6 +172,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/monitoring/telegram/logs-clear', [TelegramMonitoringController::class, 'clearLogs'])->name('monitoring.telegram.clearLogs');
     Route::post('/monitoring/telegram/subscribers/{id}/approve', [TelegramMonitoringController::class, 'approveSubscriber'])->name('monitoring.telegram.approveSubscriber');
     Route::post('/monitoring/telegram/subscribers/{id}/reject', [TelegramMonitoringController::class, 'rejectSubscriber'])->name('monitoring.telegram.rejectSubscriber');
+    Route::post('/monitoring/telegram/subscribers/{id}/cancel', [TelegramMonitoringController::class, 'cancelSubscriber'])->name('monitoring.telegram.cancelSubscriber');
 
     Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
     Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');

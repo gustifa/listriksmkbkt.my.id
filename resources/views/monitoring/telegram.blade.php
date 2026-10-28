@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- CSS Select2 (Tambahkan jika di layout utama belum ada) -->
+<!-- CSS Select2 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
@@ -233,20 +233,20 @@
                                     @elseif($sub->approval_status == 'pending')
                                         <span class="badge bg-warning text-dark">Menunggu Persetujuan</span>
                                     @else
-                                        <span class="badge bg-danger">Ditolak</span>
+                                        <span class="badge bg-danger">Ditolak / Nonaktif</span>
                                     @endif
                                 </td>
                                 <td class="text-center">
                                     @if($sub->approval_status == 'pending')
-                                        <!-- Tombol Setujui (Buka Modal) -->
+                                        <!-- Tombol Setujui (Buka Modal Select2) -->
                                         <button type="button" class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal{{ $sub->id }}">
                                             <i class="bi bi-check-circle"></i> Setujui
                                         </button>
                                         
-                                        <!-- Tombol Tolak -->
-                                        <form action="{{ route('monitoring.telegram.rejectSubscriber', $sub->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tolak pendaftaran akun Telegram ini?')">
+                                        <!-- Tombol Tolak Pengajuan -->
+                                        <form action="{{ route('monitoring.telegram.rejectSubscriber', $sub->id) }}" method="POST" class="d-inline btn-cancel-action" data-title="Tolak Pendaftaran?" data-text="Pengajuan akun Telegram ini akan ditolak!">
                                             @csrf
-                                            <button type="submit" class="btn btn-danger btn-sm">
+                                            <button type="button" class="btn btn-danger btn-sm">
                                                 <i class="bi bi-x-circle"></i> Tolak
                                             </button>
                                         </form>
@@ -267,7 +267,6 @@
                                                             </p>
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Pilih Siswa:</label>
-                                                                <!-- Class select2-student ditambahkan di sini -->
                                                                 <select name="student_id" class="form-select select2-student" style="width: 100%;" required>
                                                                     <option value="">-- Ketik Nama Siswa / Kelas --</option>
                                                                     @foreach(\App\Models\Student::with('classroom')->orderBy('name')->get() as $std)
@@ -284,6 +283,15 @@
                                                 </div>
                                             </div>
                                         </div>
+
+                                    @elseif($sub->approval_status == 'approved' || $sub->is_active)
+                                        <!-- TOMBOL MEMBATALKAN/MENONAK TIFKAN TELEGRAM YANG SUDAH TERDAFTAR -->
+                                        <form action="{{ route('monitoring.telegram.cancelSubscriber', $sub->id) }}" method="POST" class="d-inline btn-cancel-action" data-title="Batalkan Akses Telegram?" data-text="Akses notifikasi untuk orang tua ini akan dinonaktifkan!">
+                                            @csrf
+                                            <button type="button" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-person-x me-1"></i> Batalkan Akses
+                                            </button>
+                                        </form>
                                     @else
                                         <span class="text-muted small">-</span>
                                     @endif
@@ -317,7 +325,7 @@
         $('.modal').on('shown.bs.modal', function () {
             $(this).find('.select2-student').select2({
                 theme: 'bootstrap-5',
-                dropdownParent: $(this), // MENCEGAH SELECT2 TERBLOCK OLEH MODAL
+                dropdownParent: $(this),
                 placeholder: '-- Ketik Nama Siswa / Kelas --',
                 allowClear: true
             });
@@ -371,6 +379,32 @@
                 });
             });
         }
+
+        // Konfirmasi SweetAlert2 untuk Tolak / Batalkan Akses Orang Tua
+        document.querySelectorAll('.btn-cancel-action button').forEach(button => {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                const form = this.closest('form');
+                const title = form.getAttribute('data-title') || 'Konfirmasi Aksi';
+                const text = form.getAttribute('data-text') || 'Apakah Anda yakin?';
+
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Proses!',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
     });
 </script>
 @endsection

@@ -136,4 +136,33 @@ class TelegramMonitoringController extends Controller
 
         return redirect()->back()->with('success', 'Semua log riwayat pesan berhasil dibersihkan.');
     }
+
+    /**
+ * Membatalkan/Menonaktifkan Akun Telegram Orang Tua yang Sudah Terdaftar
+ */
+public function cancelSubscriber($id, TelegramService $telegramService)
+{
+    $subscriber = TelegramSubscriber::findOrFail($id);
+
+    // 1. Kosongkan telegram_chat_id di tabel student jika ada
+    if ($subscriber->student_id) {
+        Student::where('id', $subscriber->student_id)->update(['telegram_chat_id' => null]);
+    }
+
+    // 2. Ubah status subscriber menjadi nonaktif & rejected/cancelled
+    $subscriber->update([
+        'student_id'      => null,
+        'is_active'       => false,
+        'approval_status' => 'rejected',
+    ]);
+
+    // 3. Kirim notifikasi ke Telegram Orang Tua bahwa akunnya telah dinonaktifkan Admin
+    $pesan = "⚠️ *Pendaftaran Telegram Dinonaktifkan Admin*\n\n" .
+             "Akun Telegram Anda telah dilepaskan dari sistem notifikasi presensi siswa oleh Admin SISFO.\n\n" .
+             "Jika ini adalah kekeliruan, silakan hubungi pihak sekolah atau ketik /start untuk mendaftar kembali.";
+
+    $telegramService->sendMessage($subscriber->chat_id, $pesan, 'pengumuman', 'Penonaktifan Akun');
+
+    return back()->with('success', "Pendaftaran Telegram untuk {$subscriber->parent_name} berhasil dibatalkan!");
+}
 }
