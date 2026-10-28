@@ -5,70 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Services\TelegramService;
-use App\Models\TelegramSubscriber; // Jangan lupa import model ini
+use App\Models\TelegramSubscriber;
 
 class TelegramWebhookController extends Controller
 {
-    // public function handle(Request $request, TelegramService $telegramService)
-    // {
-    //     if ($request->isMethod('get')) {
-    //         return response()->json([
-    //             'status'  => true,
-    //             'message' => 'Endpoint Webhook Telegram SISFO Aktif!'
-    //         ]);
-    //     }
-
-    //     $update = $request->all();
-
-    //     if (!isset($update['message'])) {
-    //         return response()->json(['status' => 'ok']);
-    //     }
-
-    //     $chatId = $update['message']['chat']['id'];
-    //     $message = $update['message'];
-
-    //     // 1. Jika Pengguna Mengirimkan Kontak (Menekan Tombol Share Contact)
-    //     if (isset($message['contact'])) {
-    //         $phone = $message['contact']['phone_number'];
-            
-    //         // Bersihkan format nomor HP (ambil angka saja)
-    //         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-            
-    //         // Cocokkan 9 digit terakhir dengan database SISFO
-    //         $student = Student::where('phone', 'like', '%' . substr($cleanPhone, -9))->first();
-
-    //         if ($student) {
-    //             $student->update(['telegram_chat_id' => $chatId]);
-                
-    //             $reply = "✅ *Pendaftaran Berhasil!*\n\n" .
-    //                      "Akun Telegram Anda telah terhubung dengan siswa:\n" .
-    //                      "👤 Nama: *{$student->name}*\n" .
-    //                      "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
-    //                      "Notifikasi presensi harian akan dikirimkan ke akun ini.";
-    //         } else {
-    //             $reply = "❌ *Pendaftaran Gagal!*\n\n" .
-    //                      "Nomor HP Telegram Anda (`+{$cleanPhone}`) tidak ditemukan di database sekolah.\n" .
-    //                      "Silakan hubungi pihak tata usaha sekolah untuk memperbarui nomor HP Anda.";
-    //         }
-
-    //         // Kirim balasan dan hapus custom keyboard
-    //         $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
-    //         return response()->json(['status' => 'ok']);
-    //     }
-
-    //     // 2. Jika Pengguna Ketik /start atau /daftar
-    //     $text = trim($message['text'] ?? '');
-
-    //     if ($text === '/start' || $text === '/daftar') {
-    //         $prompt = "Selamat datang di Bot Absensi SISFO.\n\n" .
-    //                   "Untuk menerima notifikasi presensi putra/putri Anda, silakan tekan tombol *'Bagikan Kontak'* di bawah ini:";
-            
-    //         // Kirim pesan dengan Tombol Share Contact
-    //         $telegramService->sendContactButton($chatId, $prompt);
-    //     }
-
-    //     return response()->json(['status' => 'ok']);
-    // }
     public function handle(Request $request, TelegramService $telegramService)
     {
         if ($request->isMethod('get')) {
@@ -103,10 +43,10 @@ class TelegramWebhookController extends Controller
             $student = Student::where('phone', 'like', '%' . substr($cleanPhone, -9))->first();
 
             if ($student) {
-                // A. Update telegram_chat_id pada tabel students (opsional/jika masih dipakai)
+                // Update telegram_chat_id pada tabel students
                 $student->update(['telegram_chat_id' => $chatId]);
 
-                // B. SIMPAN / UPDATE KE TABEL telegram_subscribers (Kunci agar muncul di monitoring)
+                // Simpan / update ke tabel telegram_subscribers
                 TelegramSubscriber::updateOrCreate(
                     ['chat_id' => (string) $chatId],
                     [
@@ -135,15 +75,41 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 2. Jika Pengguna Ketik /start atau /daftar
+        // 2. Tentukan perintah teks dari pengguna
         $text = trim($message['text'] ?? '');
 
+        // Pendaftaran (/start atau /daftar)
         if ($text === '/start' || $text === '/daftar') {
             $prompt = "Selamat datang di Bot Absensi SISFO.\n\n" .
                     "Untuk menerima notifikasi presensi putra/putri Anda, silakan tekan tombol *'Bagikan Kontak'* di bawah ini:";
             
-            // Kirim pesan dengan Tombol Share Contact
             $telegramService->sendContactButton($chatId, $prompt);
+            return response()->json(['status' => 'ok']);
+        }
+
+        // Pembatalan Pendaftaran (/batal atau /stop)
+        if ($text === '/batal' || $text === '/stop') {
+            $subscriber = TelegramSubscriber::where('chat_id', (string) $chatId)->first();
+
+            if ($subscriber && $subscriber->is_active) {
+                // Ubah status subscriber menjadi nonaktif
+                $subscriber->update(['is_active' => false]);
+
+                // Kosongkan telegram_chat_id di tabel student terkait (jika ada)
+                if ($subscriber->student_id) {
+                    Student::where('id', $subscriber->student_id)
+                        ->update(['telegram_chat_id' => null]);
+                }
+
+                $reply = "❌ *Pendaftaran Dibatalkan!*\n\n" .
+                         "Akun Telegram Anda telah dinonaktifkan dari sistem notifikasi sekolah.\n\n" .
+                         "Ketik /start atau /daftar jika ingin mendaftar kembali.";
+            } else {
+                $reply = "ℹ️ Akun Telegram Anda tidak terdaftar atau sudah nonaktif di sistem kami.";
+            }
+
+            $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+            return response()->json(['status' => 'ok']);
         }
 
         return response()->json(['status' => 'ok']);

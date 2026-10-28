@@ -166,7 +166,8 @@ Route::middleware(['auth'])->group(function () {
 
     
     Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
-    
+    Route::patch('/monitoring/telegram/subscriber/{id}/toggle', [TelegramMonitoringController::class, 'toggleStatus'])->name('monitoring.telegram.toggle');
+
     Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
     Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');
     
