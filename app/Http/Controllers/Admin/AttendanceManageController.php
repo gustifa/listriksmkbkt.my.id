@@ -10,30 +10,47 @@ use App\Models\Attendance;
 use App\Models\PrayerAttendance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AttendanceManageController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. Endpoint AJAX untuk mengambil daftar siswa berdasarkan kelas
+        $user = Auth::user();
+
+        // Ambil daftar ID kelas yang berhak diakses oleh user/guru via scopeAccessibleBy
+        $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
+
+        // 1. Endpoint AJAX untuk mengambil daftar siswa berdasarkan kelas (dibatasi scope)
         if ($request->ajax() && $request->has('get_students')) {
             $classroomId = $request->query('classroom_id');
-            $students = Student::where('classroom_id', $classroomId)
-                ->orderBy('name', 'asc')
-                ->get(['id', 'name', 'nis']);
+
+            // Keamanan: Pastikan classroom_id terdaftar di kelas yang boleh diakses
+            if ($accessibleClassroomIds->contains($classroomId)) {
+                $students = Student::where('classroom_id', $classroomId)
+                    ->orderBy('name', 'asc')
+                    ->get(['id', 'name', 'nis']);
+            } else {
+                $students = collect();
+            }
 
             return response()->json($students);
         }
 
-        $classrooms = Classroom::orderBy('name', 'asc')->get();
+        // 2. Tampilkan dropdown kelas yang HANYA boleh diakses oleh user yang sedang login
+        $classrooms = Classroom::accessibleBy($user)->orderBy('name', 'asc')->get();
+
         $date = $request->query('date', Carbon::today()->toDateString());
         $classroomId = $request->query('classroom_id');
         $studentId = $request->query('student_id');
 
         $students = collect();
         if ($classroomId) {
-            $students = Student::where('classroom_id', $classroomId)->orderBy('name', 'asc')->get();
+            // Validasi hak akses kelas
+            if ($accessibleClassroomIds->contains($classroomId)) {
+                $students = Student::where('classroom_id', $classroomId)->orderBy('name', 'asc')->get();
+            }
         }
 
         $gateAttendances = collect();
@@ -41,22 +58,30 @@ class AttendanceManageController extends Controller
         $prayerAttendances = collect();
 
         if ($studentId || $classroomId) {
-            $studentIds = $studentId ? [$studentId] : $students->pluck('id')->toArray();
+            // Jika memilih siswa spesifik, pastikan siswa tersebut berada di kelas otoritas user
+            if ($studentId) {
+                $validStudent = Student::whereIn('classroom_id', $accessibleClassroomIds)->find($studentId);
+                $studentIds = $validStudent ? [$validStudent->id] : [];
+            } else {
+                $studentIds = $students->pluck('id')->toArray();
+            }
 
-            $gateAttendances = DailyAttendance::with('student')
-                ->whereIn('student_id', $studentIds)
-                ->whereDate('date', $date)
-                ->get();
+            if (!empty($studentIds)) {
+                $gateAttendances = DailyAttendance::with('student')
+                    ->whereIn('student_id', $studentIds)
+                    ->whereDate('date', $date)
+                    ->get();
 
-            $subjectAttendances = Attendance::with(['student', 'subject'])
-                ->whereIn('student_id', $studentIds)
-                ->whereDate('date', $date)
-                ->get();
+                $subjectAttendances = Attendance::with(['student', 'subject'])
+                    ->whereIn('student_id', $studentIds)
+                    ->whereDate('date', $date)
+                    ->get();
 
-            $prayerAttendances = PrayerAttendance::with('student')
-                ->whereIn('student_id', $studentIds)
-                ->whereDate('date', $date)
-                ->get();
+                $prayerAttendances = PrayerAttendance::with('student')
+                    ->whereIn('student_id', $studentIds)
+                    ->whereDate('date', $date)
+                    ->get();
+            }
         }
 
         return view('admin.attendance.manage', compact(
@@ -66,91 +91,29 @@ class AttendanceManageController extends Controller
     }
 
     // Endpoint DELETE Gate
-    // public function deleteGate($id)
-    // {
-    //     $attendance = DailyAttendance::findOrFail($id);
+    public function deleteGate($id)
+    {
+        $attendance = DailyAttendance::with('student')->find($id);
 
-    //     // Catat ke Log sebelum dihapus
-    //     activity('Presensi Gerbang')
-    //         ->performedOn($attendance)
-    //         ->causedBy(auth()->user())
-    //         ->withProperties([
-    //             'student_name' => $attendance->student->name ?? '-',
-    //             'date' => $attendance->date,
-    //             'status' => $attendance->status,
-    //         ])
-    //     ->log("Membatalkan/menghapus presensi gerbang siswa {$attendance->student->name}");
-    //     if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
-    //     if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
-    //     $attendance->delete();
+        if (!$attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data presensi tidak ditemukan atau sudah dihapus.'
+            ], 404);
+        }
 
-    //     return response()->json(['success' => true, 'message' => 'Presensi gerbang berhasil dibatalkan.']);
-    // }
+        // Hapus bukti foto dari storage jika ada
+        if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
+        if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
 
-    // Endpoint DELETE Gate
-public function deleteGate($id)
-{
-    $attendance = DailyAttendance::with('student')->find($id);
+        // Hapus presensi
+        $attendance->delete();
 
-    if (!$attendance) {
         return response()->json([
-            'success' => false,
-            'message' => 'Data presensi tidak ditemukan atau sudah dihapus.'
-        ], 404);
+            'success' => true,
+            'message' => 'Presensi gerbang berhasil dibatalkan.'
+        ]);
     }
-
-    // Hapus bukti foto dari storage jika ada
-    if ($attendance->photo_in) Storage::disk('public')->delete($attendance->photo_in);
-    if ($attendance->photo_out) Storage::disk('public')->delete($attendance->photo_out);
-
-    // Proses hapus ini akan otomatis memicu Trait LogsActivity di Model secara tunggal
-    $attendance->delete();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Presensi gerbang berhasil dibatalkan.'
-    ]);
-}
-
-//     public function deleteGate($id)
-// {
-//     $attendance = DailyAttendance::with('student')->find($id);
-
-//     if (!$attendance) {
-//         return response()->json([
-//             'success' => false,
-//             'message' => 'Data presensi sudah dihapus atau tidak ditemukan.'
-//         ], 404);
-//     }
-
-//     $studentName = $attendance->student->name ?? 'Siswa';
-
-//     try {
-//         if (function_exists('activity')) {
-//             activity('Presensi Gerbang')
-//                 ->performedOn($attendance)
-//                 ->causedBy(auth()->user())
-//                 ->withProperties([
-//                     'student_name' => $studentName,
-//                     'date'         => $attendance->date,
-//                     'status'       => $attendance->status,
-//                 ])
-//                 ->log("Membatalkan/menghapus presensi gerbang siswa {$studentName}");
-//         }
-//     } catch (\Throwable $e) {
-//         \Log::error('Spatie Activitylog Error: ' . $e->getMessage());
-//     }
-
-//     if ($attendance->photo_in) \Storage::disk('public')->delete($attendance->photo_in);
-//     if ($attendance->photo_out) \Storage::disk('public')->delete($attendance->photo_out);
-
-//     $attendance->delete();
-
-//     return response()->json([
-//         'success' => true,
-//         'message' => 'Presensi gerbang berhasil dibatalkan.'
-//     ], 200);
-// }
 
     // Endpoint DELETE Subject
     public function deleteSubject($id)

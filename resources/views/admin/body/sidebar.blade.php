@@ -169,11 +169,12 @@ $status = $guruId->status ?? '0';
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-cog"></i></div>
-                        <div class="menu-title">Setting</div>
+                        <div class="menu-title">Manage</div>
                     </a>
                     <ul>
                         <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-mobile-vibration'></i>Reset HP Siswa</a></li>
                         <li><a href="{{ route('monitoring.telegram') }}"><i class='bx bx-radio-circle'></i>Telegram</a></li>
+                        <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-slider-alt'></i>Manage Presensi</a></li>
                     </ul>
                 </li>
                 <li class="menu-label">Manajemen Kejuruan</li>

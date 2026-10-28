@@ -99,6 +99,32 @@
                         </div>
                     </div>
                 </div>
+                <!-- 3. REKAP KEHADIRAN -->
+                <div class="mb-4 border-0 shadow-sm card">
+                    <div class="py-3 bg-white card-header">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-pie me-2"></i>Rekap Kehadiran</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center row">
+                            <div class="col">
+                                <h4 class="mb-0 fw-bold text-success">{{ $summary['present'] ?? 0 }}</h4>
+                                <small class="text-muted">Hadir</small>
+                            </div>
+                            <div class="col">
+                                <h4 class="mb-0 fw-bold text-warning">{{ $summary['sick'] ?? 0 }}</h4>
+                                <small class="text-muted">Sakit</small>
+                            </div>
+                            <div class="col">
+                                <h4 class="mb-0 fw-bold text-info">{{ $summary['permit'] ?? 0 }}</h4>
+                                <small class="text-muted">Izin</small>
+                            </div>
+                            <div class="col">
+                                <h4 class="mb-0 fw-bold text-secondary">{{ $summary['total'] ?? 0 }}</h4>
+                                <small class="text-muted">Total Hari</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 
