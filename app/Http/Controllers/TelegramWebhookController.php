@@ -43,19 +43,19 @@ class TelegramWebhookController extends Controller
             $student = Student::where('phone', 'like', '%' . substr($cleanPhone, -9))->first();
 
             if ($student) {
-                // Update telegram_chat_id pada tabel students
+                // SKENARIO A: NOMOR TERDAFTAR DI DATABASE (LANGSUNG AKTIF)
                 $student->update(['telegram_chat_id' => $chatId]);
 
-                // Simpan / update ke tabel telegram_subscribers
                 TelegramSubscriber::updateOrCreate(
                     ['chat_id' => (string) $chatId],
                     [
-                        'student_id'    => $student->id,
-                        'parent_name'   => $parentName,
-                        'phone_number'  => $cleanPhone,
-                        'username'      => $username,
-                        'is_active'     => true,
-                        'subscribed_at' => now(),
+                        'student_id'      => $student->id,
+                        'parent_name'     => $parentName,
+                        'phone_number'    => $cleanPhone,
+                        'username'        => $username,
+                        'is_active'       => true,
+                        'approval_status' => 'approved',
+                        'subscribed_at'   => now(),
                     ]
                 );
 
@@ -65,9 +65,23 @@ class TelegramWebhookController extends Controller
                         "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
                         "Notifikasi presensi harian akan dikirimkan ke akun ini.";
             } else {
-                $reply = "❌ *Pendaftaran Gagal!*\n\n" .
-                        "Nomor HP Telegram Anda (`+{$cleanPhone}`) tidak ditemukan di database sekolah.\n" .
-                        "Silakan hubungi pihak tata usaha sekolah untuk memperbarui nomor HP Anda.";
+                // SKENARIO B: NOMOR TIDAK TERDAFTAR (MASUK STATUS PENDING APPROVAL)
+                TelegramSubscriber::updateOrCreate(
+                    ['chat_id' => (string) $chatId],
+                    [
+                        'student_id'      => null,
+                        'parent_name'     => $parentName,
+                        'phone_number'    => $cleanPhone,
+                        'username'        => $username,
+                        'is_active'       => false,
+                        'approval_status' => 'pending',
+                        'subscribed_at'   => now(),
+                    ]
+                );
+
+                $reply = "⏳ *Pendaftaran Dalam Proses Verifikasi!*\n\n" .
+                        "Nomor HP Telegram Anda (`+{$cleanPhone}`) belum terdaftar di database sekolah.\n\n" .
+                        "Pengajuan pendaftaran Anda telah diteruskan ke *Admin SISFO*. Mohon tunggu konfirmasi persetujuan dari Admin untuk mengaktifkan notifikasi.";
             }
 
             // Kirim balasan dan hapus custom keyboard
@@ -92,8 +106,11 @@ class TelegramWebhookController extends Controller
             $subscriber = TelegramSubscriber::where('chat_id', (string) $chatId)->first();
 
             if ($subscriber && $subscriber->is_active) {
-                // Ubah status subscriber menjadi nonaktif
-                $subscriber->update(['is_active' => false]);
+                // Ubah status subscriber menjadi nonaktif & rejected/cancelled
+                $subscriber->update([
+                    'is_active'       => false,
+                    'approval_status' => 'rejected'
+                ]);
 
                 // Kosongkan telegram_chat_id di tabel student terkait (jika ada)
                 if ($subscriber->student_id) {
