@@ -79,6 +79,7 @@ use App\Http\Controllers\SiswaDashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\Pm2Controller;
 use App\Http\Controllers\WhatsappGatewayController;
+use App\Http\Controllers\TelegramMonitoringController;
 
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryLoanController;
@@ -164,7 +165,8 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 Route::middleware(['auth'])->group(function () {
 
     
-
+    Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
+    
     Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index');
     Route::get('/alumni/data', [AlumniController::class, 'getData'])->name('alumni.data');
     
