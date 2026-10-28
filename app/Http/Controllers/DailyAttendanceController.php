@@ -25,6 +25,7 @@ use App\Notifications\LateStudentNotification;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
 use App\Jobs\SendTelegramJob; // Tambahkan import Job Telegram
+use App\Services\TelegramService; // Pastikan import di bagian atas file
 
 class DailyAttendanceController extends Controller
 {
@@ -609,55 +610,113 @@ class DailyAttendanceController extends Controller
      * Helper Private: Kirim Pesan WA via Queue
      * PERBAIKAN: Menangani Relasi Null & Inisialisasi Variabel Pesan
      */
+    // private function sendNotification($student, $type, $time, $status = '')
+    // {
+    //     $settings = Setting::pluck('value', 'key')->toArray();
+    //     $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah'; // Pakai default jika null
+    //     if (empty($student->phone)) return;
+
+    //     $tgl = date('d-m-Y');
+
+    //     // Cek apakah relasi classroom ada, jika tidak pakai '-' agar tidak error
+    //     $kelas = $student->classroom ? $student->classroom->name : '-';
+
+    //     $msg = ''; // Default string kosong
+
+    //     if ($type == 'datang') {
+    //         $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
+    //                "Yth. Orang Tua/Wali,\n" .
+    //                "👤 Nama: *{$student->name}*\n" .
+    //                "🏫 Kelas: {$kelas}\n" .
+    //                "📅 Waktu: {$time} WIB\n" .
+    //                "📝 Status: *" . strtoupper($status) . "*\n\n" .
+    //                "_Absensi_Sekolah_";
+    //     } elseif ($type == 'pulang') {
+    //         $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
+    //                "Yth. Orang Tua/Wali,\n" .
+    //                "👤 Nama: *{$student->name}*\n" .
+    //                "🏫 Kelas: {$kelas}\n" .
+    //                "📅 Waktu: {$time} WIB\n" .
+    //                "📝 Status: *PULANG SEKOLAH*\n\n" .
+    //                "_Absensi_Sekolah_";
+    //     } elseif ($type == 'manual') {
+    //         // Format pesan untuk input manual
+    //         $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+    //                "👤 Nama: *{$student->name}*\n" .
+    //                "🏫 Kelas: {$kelas}\n" .
+    //                "📝 Status: *" . strtoupper($status) . "*\n" .
+    //                "Ket: Data diinput manual oleh petugas.\n\n" .
+    //                "_Absensi_Sekolah_";
+    //     }
+
+    //     // Hanya dispatch job jika pesan berhasil dibuat
+    //     if (!empty($msg)) {
+    //         SendWhatsappJob::dispatch($student->phone, $msg);
+    //     }
+
+    //     // 2. Dispatch Notifikasi Telegram Bot (Baru)
+    //     if (!empty($student->telegram_chat_id)) {
+    //         SendTelegramJob::dispatch($student->telegram_chat_id, $msg);
+    //     }
+    // }
+
     private function sendNotification($student, $type, $time, $status = '')
-    {
-        $settings = Setting::pluck('value', 'key')->toArray();
-        $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah'; // Pakai default jika null
-        if (empty($student->phone)) return;
+{
+    $settings = Setting::pluck('value', 'key')->toArray();
+    $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah';
+    $tgl = date('d-m-Y');
+    $kelas = $student->classroom ? $student->classroom->name : '-';
 
-        $tgl = date('d-m-Y');
+    $msg = '';
 
-        // Cek apakah relasi classroom ada, jika tidak pakai '-' agar tidak error
-        $kelas = $student->classroom ? $student->classroom->name : '-';
-
-        $msg = ''; // Default string kosong
-
-        if ($type == 'datang') {
-            $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
-                   "Yth. Orang Tua/Wali,\n" .
-                   "👤 Nama: *{$student->name}*\n" .
-                   "🏫 Kelas: {$kelas}\n" .
-                   "📅 Waktu: {$time} WIB\n" .
-                   "📝 Status: *" . strtoupper($status) . "*\n\n" .
-                   "_Absensi_Sekolah_";
-        } elseif ($type == 'pulang') {
-            $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
-                   "Yth. Orang Tua/Wali,\n" .
-                   "👤 Nama: *{$student->name}*\n" .
-                   "🏫 Kelas: {$kelas}\n" .
-                   "📅 Waktu: {$time} WIB\n" .
-                   "📝 Status: *PULANG SEKOLAH*\n\n" .
-                   "_Absensi_Sekolah_";
-        } elseif ($type == 'manual') {
-            // Format pesan untuk input manual
-            $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
-                   "👤 Nama: *{$student->name}*\n" .
-                   "🏫 Kelas: {$kelas}\n" .
-                   "📝 Status: *" . strtoupper($status) . "*\n" .
-                   "Ket: Data diinput manual oleh petugas.\n\n" .
-                   "_Absensi_Sekolah_";
-        }
-
-        // Hanya dispatch job jika pesan berhasil dibuat
-        if (!empty($msg)) {
-            SendWhatsappJob::dispatch($student->phone, $msg);
-        }
-
-        // 2. Dispatch Notifikasi Telegram Bot (Baru)
-        if (!empty($student->telegram_chat_id)) {
-            SendTelegramJob::dispatch($student->telegram_chat_id, $msg);
-        }
+    if ($type == 'datang') {
+        $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
+               "Yth. Orang Tua/Wali,\n" .
+               "👤 Nama: *{$student->name}*\n" .
+               "🏫 Kelas: {$kelas}\n" .
+               "📅 Waktu: {$time} WIB\n" .
+               "📝 Status: *" . strtoupper($status) . "*\n\n" .
+               "_{$inf_app}_";
+    } elseif ($type == 'pulang') {
+        $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
+               "Yth. Orang Tua/Wali,\n" .
+               "👤 Nama: *{$student->name}*\n" .
+               "🏫 Kelas: {$kelas}\n" .
+               "📅 Waktu: {$time} WIB\n" .
+               "📝 Status: *PULANG SEKOLAH*\n\n" .
+               "_{$inf_app}_";
+    } elseif ($type == 'manual') {
+        $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+               "👤 Nama: *{$student->name}*\n" .
+               "🏫 Kelas: {$kelas}\n" .
+               "📝 Status: *" . strtoupper($status) . "*\n" .
+               "Ket: Data diinput manual oleh petugas.\n\n" .
+               "_{$inf_app}_";
     }
+
+    if (empty($msg)) return;
+
+    // 1. Kirim WA (Queue Job)
+    if (!empty($student->phone)) {
+        SendWhatsappJob::dispatch($student->phone, $msg);
+    }
+
+    // 2. Kirim Telegram via TelegramService (Langsung simpan Log ke DB)
+    // Cari subscriber aktif berdasarkan student_id ATAU telegram_chat_id
+    $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+                    ->where('is_active', true)
+                    ->first();
+
+    $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+    if ($chatId) {
+        $telegramService = app(TelegramService::class);
+        $title = ($type === 'pulang') ? 'Laporan Kepulangan Siswa' : 'Laporan Kedatangan Siswa';
+        
+        // Memanggil TelegramService yang sudah memuat logging ke telegram_notifications
+        $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+    }
+}
 
     /**
      * Halaman Dashboard Realtime (Monitor)
