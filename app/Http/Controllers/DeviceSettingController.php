@@ -62,14 +62,14 @@ class DeviceSettingController extends Controller
     //     return view('admin.device_settings.index', compact('settings', 'students', 'selectedClassroom'));
     // }
 
-    public function __construct()
-    {
-        // IZINKAN ROLE-ROLE TERKAIT UNTUK MENGAKSES CONTROLLER INI
-        $this->middleware(['role:admin|super_admin|super-admin|wali_kelas|wali-kelas|walas|guru_bk|bk|kabeng|kaprog|kaproka']);
+    // public function __construct()
+    // {
+    //     // IZINKAN ROLE-ROLE TERKAIT UNTUK MENGAKSES CONTROLLER INI
+    //     $this->middleware(['role:admin|super_admin|super-admin|wali_kelas|wali-kelas|walas|guru_bk|bk|kabeng|kaprog|kaproka']);
         
-        // ATAU JIKA MENGGUNAKAN SPATIE PERMISSION (Pilih salah satu sesuai arsitektur Anda):
-        // $this->middleware('permission:device-settings.view');
-    }
+    //     // ATAU JIKA MENGGUNAKAN SPATIE PERMISSION (Pilih salah satu sesuai arsitektur Anda):
+    //     // $this->middleware('permission:device-settings.view');
+    // }
 
     public function index(Request $request)
     {
