@@ -99,29 +99,55 @@
                         </div>
                     </div>
                 </div>
-                <!-- 3. REKAP KEHADIRAN -->
-                <div class="mb-4 border-0 shadow-sm card">
-                    <div class="py-3 bg-white card-header">
-                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-pie me-2"></i>Rekap Kehadiran</h6>
+                <!-- 3. JURNAL KEGIATAN -->
+                <div class="border-0 shadow-sm card">
+                    <div class="py-3 bg-white card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-book-open me-2"></i>Jurnal Kegiatan</h6>
+                        <small class="text-muted">Log Aktivitas Siswa</small>
                     </div>
-                    <div class="card-body">
-                        <div class="text-center row">
-                            <div class="col">
-                                <h4 class="mb-0 fw-bold text-success">{{ $summary['present'] ?? 0 }}</h4>
-                                <small class="text-muted">Hadir</small>
-                            </div>
-                            <div class="col">
-                                <h4 class="mb-0 fw-bold text-warning">{{ $summary['sick'] ?? 0 }}</h4>
-                                <small class="text-muted">Sakit</small>
-                            </div>
-                            <div class="col">
-                                <h4 class="mb-0 fw-bold text-info">{{ $summary['permit'] ?? 0 }}</h4>
-                                <small class="text-muted">Izin</small>
-                            </div>
-                            <div class="col">
-                                <h4 class="mb-0 fw-bold text-secondary">{{ $summary['total'] ?? 0 }}</h4>
-                                <small class="text-muted">Total Hari</small>
-                            </div>
+                    <div class="p-0 card-body">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table mb-0 table-sm table-hover small">
+                                <thead class="bg-light sticky-top">
+                                    <tr>
+                                        <th class="ps-3">Tanggal</th>
+                                        <th class="text-center">Jam</th>
+                                        <th>Kegiatan</th>
+                                        <th class="text-center">Bukti</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($attendances as $log)
+                                    <tr>
+                                        <td class="ps-3 fw-bold">{{ \Carbon\Carbon::parse($log->date)->format('d/m') }}</td>
+                                        <td class="text-center">
+                                            <span class="d-block text-success">{{ \Carbon\Carbon::parse($log->time)->format('H:i') }}</span>
+                                            <span class="d-block text-danger">{{ $log->check_out_time ? \Carbon\Carbon::parse($log->check_out_time)->format('H:i') : '-' }}</span>
+                                        </td>
+                                        <td>
+                                            @if($log->status == 'present')
+                                                <div class="text-truncate" style="max-width: 180px;" title="{{ $log->activity_log }}">
+                                                    {{ $log->activity_log ?? '-' }}
+                                                </div>
+                                            @else
+                                                <span class="badge bg-{{ $log->status == 'sick' ? 'warning' : 'info' }}">
+                                                    {{ ucfirst($log->status) }}
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($log->photo_path)
+                                                <a href="{{ asset('storage/'.$log->photo_path) }}" target="_blank" class="text-secondary"><i class="fas fa-image"></i></a>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="4" class="py-3 text-center text-muted">Belum ada data jurnal.</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
