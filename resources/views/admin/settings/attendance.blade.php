@@ -32,6 +32,7 @@
                             @csrf
                             <div class="card-body p-0">
 
+                                {{-- SEKSI 1: JAM OPERASIONAL --}}
                                 <h6 class="text-primary fw-bold mb-3"><i class="fas fa-clock me-2"></i> Jam Operasional Scan</h6>
                                 <div class="row">
                                     <div class="mb-3 col-md-3 form-group">
@@ -54,6 +55,7 @@
                                             value="{{ $setting->early_departure_time ?? '10:00' }}" required>
                                         <div class="form-text">Sebelum jam ini siswa tidak bisa scan pulang.</div>
                                     </div>
+
                                     <div class="mb-3 col-md-3 form-group">
                                         <label class="form-label fw-bold text-danger">Jam Eksekusi Otomatis Alpa</label>
                                         <input type="time" name="auto_absent_time" class="form-control border-danger"
@@ -64,11 +66,43 @@
 
                                 <hr class="my-4">
 
-                                <!-- PENGATURAN GEOFENCING / PETA -->
+                                {{-- SEKSI 2: FITUR TELEGRAM & MODE BELAJAR --}}
+                                <h6 class="text-primary fw-bold mb-3"><i class="fab fa-telegram me-2"></i> Pengaturan Notifikasi Telegram & Mode Belajar</h6>
+                                <div class="row mb-2">
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Lampiran Foto Wajah di Telegram</label>
+                                        <select name="send_photo_telegram" class="form-select">
+                                            <option value="1" {{ ($setting->send_photo_telegram ?? true) ? 'selected' : '' }}>
+                                                ✅ Ya (Lampirkan Foto Wajah + Pesan Laporan)
+                                            </option>
+                                            <option value="0" {{ !($setting->send_photo_telegram ?? true) ? 'selected' : '' }}>
+                                                ❌ Tidak (Kirim Pesan Teks Laporan Saja)
+                                            </option>
+                                        </select>
+                                        <div class="form-text">Jika diaktifkan, notifikasi Telegram ke orang tua akan menyertakan foto hasil scan siswa.</div>
+                                    </div>
+
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Mode Pembelajaran Sekolah</label>
+                                        <select name="learning_mode" class="form-select">
+                                            <option value="PTM" {{ ($setting->learning_mode ?? 'PTM') == 'PTM' ? 'selected' : '' }}>
+                                                🏫 Tatap Muka (PTM / Gerbang)
+                                            </option>
+                                            <option value="PJJ" {{ ($setting->learning_mode ?? 'PTM') == 'PJJ' ? 'selected' : '' }}>
+                                                💻 Pembelajaran Jarak Jauh (PJJ / HP Mandiri)
+                                            </option>
+                                        </select>
+                                        <div class="form-text">Memperbarui judul laporan notifikasi menjadi <strong>(GERBANG)</strong> atau <strong>(PJJ)</strong>.</div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                {{-- SEKSI 3: PENGATURAN GEOFENCING / PETA --}}
                                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                     <h6 class="text-primary fw-bold mb-0"><i class="fas fa-map-marked-alt me-2"></i> Lokasi Absensi (Geofencing)</h6>
                                     
-                                    <!-- TOGGLE ON/OFF GEOFENCING (PTM / PJJ) -->
+                                    <!-- TOGGLE ON/OFF GEOFENCING -->
                                     <div class="form-check form-switch bg-light p-2 rounded border">
                                         <input class="form-check-input ms-0 me-2" type="checkbox" id="is_geofence_active" name="is_geofence_active" value="1" 
                                                {{ ($setting->is_geofence_active ?? true) ? 'checked' : '' }} style="transform: scale(1.3); cursor: pointer;">
@@ -78,7 +112,7 @@
                                     </div>
                                 </div>
 
-                                <!-- SEARCH BOX -->
+                                <!-- SEARCH BOX PETA -->
                                 <div class="mb-3 input-group">
                                     <input type="text" id="map_search_input" class="form-control form-control-lg" placeholder="Cari lokasi sekolah/masjid...">
                                     <button class="btn btn-outline-primary" type="button" onclick="searchLocation()">

@@ -20,5 +20,12 @@ class AttendanceSetting extends Model
         'radius_meters',
         'is_geofence_active', // <--- Tambahkan ini
         'auto_absent_time', // <--- Tambahkan ini
+        'send_photo_telegram',
+        'learning_mode',
+    ];
+
+    protected $casts = [
+        'send_photo_telegram' => 'boolean',
+        'is_geofence_active'  => 'boolean',
     ];
 }

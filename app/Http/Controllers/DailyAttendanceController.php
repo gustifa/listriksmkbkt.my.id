@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Jobs\SendTelegramJob; // Tambahkan import Job Telegram
 use App\Services\TelegramService; // Pastikan import di bagian atas file
 
+
 class DailyAttendanceController extends Controller
 {
     /**
@@ -718,20 +719,91 @@ class DailyAttendanceController extends Controller
 //     }
 // }
 
-    private function sendNotification($student, $type, $time, $status = '')
-{
-    $settings = Setting::pluck('value', 'key')->toArray();
-    $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah';
-    $kelas = $student->classroom ? $student->classroom->name : '-';
+//     private function sendNotification($student, $type, $time, $status = '')
+// {
+//     $settings = Setting::pluck('value', 'key')->toArray();
+//     $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah';
+//     $kelas = $student->classroom ? $student->classroom->name : '-';
 
-    // Set locale Carbon ke Bahasa Indonesia dan format Hari, Tanggal Bulan Tahun
-    $hariTanggal = Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY'); 
-    // Contoh hasil: "Rabu, 28 Oktober 2026"
+//     // Set locale Carbon ke Bahasa Indonesia dan format Hari, Tanggal Bulan Tahun
+//     $hariTanggal = Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY'); 
+//     // Contoh hasil: "Rabu, 28 Oktober 2026"
+
+//     $msg = '';
+
+//     if ($type == 'datang') {
+//         $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'pulang') {
+//         $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *PULANG SEKOLAH*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'manual') {
+//         $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n" .
+//                "Ket: Data diinput manual oleh petugas.\n\n" .
+//                "_{$inf_app}_";
+//     }
+
+//     if (empty($msg)) return;
+
+//     // 1. Kirim WA (Queue Job)
+//     if (!empty($student->phone)) {
+//         SendWhatsappJob::dispatch($student->phone, $msg);
+//     }
+
+//     // 2. Kirim Telegram via TelegramService (Langsung simpan Log ke DB)
+//     $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+//                     ->where('is_active', true)
+//                     ->first();
+
+//     $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+//     if ($chatId) {
+//         $telegramService = app(TelegramService::class);
+//         $title = ($type === 'pulang') ? 'Laporan Kepulangan Siswa' : 'Laporan Kedatangan Siswa';
+        
+//         $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+//     }
+// }
+
+private function sendNotification($student, $type, $time, $status = '', $photoPath = null)
+{
+    // 1. Ambil Pengaturan dari Database
+    $setting = AttendanceSetting::first();
+    $settingsKV = Setting::pluck('value', 'key')->toArray();
+    $inf_app = $settingsKV['inf_app'] ?? 'Sistem Sekolah';
+    
+    // Opsi Fitur Admin
+    $isSendPhoto = $setting ? (bool) ($setting->send_photo_telegram ?? true) : true;
+    $learningMode = $setting ? ($setting->learning_mode ?? 'PTM') : 'PTM'; // PTM atau PJJ
+    
+    // Tentukan Label Mode Pembelajaran untuk Judul Pesan
+    $modeLabel = ($learningMode === 'PJJ') ? '(PJJ)' : '(GERBANG)';
+
+    $kelas = $student->classroom ? $student->classroom->name : '-';
+    $hariTanggal = \Carbon\Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY');
 
     $msg = '';
 
+    // 2. Buat Format Pesan Sesuai Mode (PTM / PJJ)
     if ($type == 'datang') {
-        $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
+        $msg = "*LAPORAN KEDATANGAN {$modeLabel}*\n\n" .
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
@@ -740,7 +812,7 @@ class DailyAttendanceController extends Controller
                "📝 Status: *" . strtoupper($status) . "*\n\n" .
                "_{$inf_app}_";
     } elseif ($type == 'pulang') {
-        $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
+        $msg = "*LAPORAN KEPULANGAN {$modeLabel}*\n\n" .
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
@@ -761,12 +833,12 @@ class DailyAttendanceController extends Controller
 
     if (empty($msg)) return;
 
-    // 1. Kirim WA (Queue Job)
+    // 3. Kirim WA (Queue Job)
     if (!empty($student->phone)) {
         SendWhatsappJob::dispatch($student->phone, $msg);
     }
 
-    // 2. Kirim Telegram via TelegramService (Langsung simpan Log ke DB)
+    // 4. Kirim Telegram via TelegramService
     $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
                     ->where('is_active', true)
                     ->first();
@@ -775,9 +847,16 @@ class DailyAttendanceController extends Controller
 
     if ($chatId) {
         $telegramService = app(TelegramService::class);
-        $title = ($type === 'pulang') ? 'Laporan Kepulangan Siswa' : 'Laporan Kedatangan Siswa';
-        
-        $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+        $title = ($type === 'pulang') 
+            ? "Laporan Kepulangan Siswa {$modeLabel}" 
+            : "Laporan Kedatangan Siswa {$modeLabel}";
+
+        // CEK OPSI ADMIN: Kirim foto HANYA jika fitur kirim foto diaktifkan ($isSendPhoto == true) DAN file foto ada
+        if ($isSendPhoto && !empty($photoPath)) {
+            $telegramService->sendPhoto($chatId, $photoPath, $msg, 'absensi', $title);
+        } else {
+            $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+        }
     }
 }
 
