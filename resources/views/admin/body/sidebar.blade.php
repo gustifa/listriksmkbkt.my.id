@@ -104,6 +104,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('database.index')}}"><i class='bx bx-data'></i>Database</a></li>
                         <li><a href="{{route('pm2.index')}}"><i class='bx bx-server'></i>Server PM2</a></li>
                         <li><a href="{{route('whatsapp.index')}}"><i class='bx bxl-whatsapp'></i>WA Gateway</a></li>
+                        <li><a href="{{route('monitoring.telegram')}}"><i class='bx bxl-whatsapp'></i>Telegram</a></li>
                         <li><a href="{{route('license.index')}}"><i class='bx bx-key'></i>Lisensi</a></li>
                     </ul>
                 </li>
