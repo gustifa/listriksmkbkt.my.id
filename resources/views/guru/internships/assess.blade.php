@@ -119,7 +119,8 @@
                                 <tbody>
                                     @forelse($attendances as $log)
                                     <tr>
-                                        <td class="ps-3 fw-bold">{{ \Carbon\Carbon::parse($log->date)->format('d/m') }}</td>
+                                        <!-- <td class="ps-3 fw-bold">{{ \Carbon\Carbon::parse($log->date)->format('d/m') }}</td> -->
+                                        <td class="ps-3 fw-bold">{{ \Carbon\Carbon::parse($log->date)->translatedFormat('l, d F Y') }}</td>
                                         <td class="text-center">
                                             <span class="d-block text-success">{{ \Carbon\Carbon::parse($log->time)->format('H:i') }}</span>
                                             <span class="d-block text-danger">{{ $log->check_out_time ? \Carbon\Carbon::parse($log->check_out_time)->format('H:i') : '-' }}</span>
