@@ -38,4 +38,43 @@ class TelegramService
             return false;
         }
     }
+
+    /**
+ * Kirim Pesan dengan Tombol Share Contact
+ */
+public function sendContactButton($chatId, string $text): bool
+{
+    return Http::post($this->baseUrl . 'sendMessage', [
+        'chat_id'      => $chatId,
+        'text'         => $text,
+        'parse_mode'   => 'Markdown',
+        'reply_markup' => json_encode([
+            'keyboard' => [
+                [
+                    [
+                        'text'            => '📱 Bagikan Nomor Kontak Saya',
+                        'request_contact' => true
+                    ]
+                ]
+            ],
+            'resize_keyboard'   => true,
+            'one_time_keyboard' => true
+        ])
+    ])->successful();
+}
+
+/**
+ * Kirim Pesan Sekaligus Menghapus Keyboard
+ */
+public function sendMessageWithRemoveKeyboard($chatId, string $text): bool
+{
+    return Http::post($this->baseUrl . 'sendMessage', [
+        'chat_id'      => $chatId,
+        'text'         => $text,
+        'parse_mode'   => 'Markdown',
+        'reply_markup' => json_encode([
+            'remove_keyboard' => true
+        ])
+    ])->successful();
+}
 }
