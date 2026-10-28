@@ -10,12 +10,73 @@ use Illuminate\Support\Facades\Auth;
 
 class DeviceSettingController extends Controller
 {
+    // public function index(Request $request)
+    // {
+    //     $user = Auth::user();
+    //     $settings = SystemSetting::pluck('value', 'key');
+
+    //     // 1. Ambil ID Kelas yang berhak diakses oleh User/Guru via Scope AccessibleBy
+    //     $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
+
+    //     // 2. Query Data Siswa (Dibatasi hanya siswa di kelas yang berhak diakses)
+    //     $query = User::role('siswa')
+    //         ->whereHas('student', function ($q) use ($accessibleClassroomIds) {
+    //             $q->whereIn('classroom_id', $accessibleClassroomIds);
+    //         })
+    //         ->with('student.classroom');
+
+    //     // Filter 1: Cari Nama / Email
+    //     if ($request->filled('search')) {
+    //         $search = trim($request->search);
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('name', 'ILIKE', "%{$search}%")
+    //               ->orWhere('email', 'ILIKE', "%{$search}%");
+    //         });
+    //     }
+
+    //     // Filter 2: Berdasarkan Kelas (classroom_id di tabel students)
+    //     if ($request->filled('classroom_id')) {
+    //         $classId = $request->classroom_id;
+            
+    //         // Validasi keamanan: Pastikan classroom_id yang dipilih terdaftar di kelas yang diizinkan
+    //         if ($accessibleClassroomIds->contains($classId)) {
+    //             $query->whereHas('student', function ($q) use ($classId) {
+    //                 $q->where('classroom_id', $classId);
+    //             });
+    //         } else {
+    //             // Jika mencoba akses kelas di luar otoritasnya, kunci query ke 0 hasil
+    //             $query->whereRaw('1 = 0');
+    //         }
+    //     }
+
+    //     $students = $query->orderBy('name', 'asc')
+    //                       ->paginate(15)
+    //                       ->appends($request->all());
+
+    //     // 3. Ambil data kelas terpilih (jika ada filter)
+    //     $selectedClassroom = null;
+    //     if ($request->filled('classroom_id') && $accessibleClassroomIds->contains($request->classroom_id)) {
+    //         $selectedClassroom = Classroom::find($request->classroom_id);
+    //     }
+
+    //     return view('admin.device_settings.index', compact('settings', 'students', 'selectedClassroom'));
+    // }
+
+    public function __construct()
+    {
+        // IZINKAN ROLE-ROLE TERKAIT UNTUK MENGAKSES CONTROLLER INI
+        $this->middleware(['role:admin|super_admin|super-admin|wali_kelas|wali-kelas|walas|guru_bk|bk|kabeng|kaprog|kaproka']);
+        
+        // ATAU JIKA MENGGUNAKAN SPATIE PERMISSION (Pilih salah satu sesuai arsitektur Anda):
+        // $this->middleware('permission:device-settings.view');
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
         $settings = SystemSetting::pluck('value', 'key');
 
-        // 1. Ambil ID Kelas yang berhak diakses oleh User/Guru via Scope AccessibleBy
+        // 1. Ambil ID Kelas yang berhak diakses via scopeAccessibleBy
         $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
 
         // 2. Query Data Siswa (Dibatasi hanya siswa di kelas yang berhak diakses)
@@ -38,13 +99,13 @@ class DeviceSettingController extends Controller
         if ($request->filled('classroom_id')) {
             $classId = $request->classroom_id;
             
-            // Validasi keamanan: Pastikan classroom_id yang dipilih terdaftar di kelas yang diizinkan
+            // Validasi keamanan: Pastikan classroom_id terdaftar di kelas yang diizinkan
             if ($accessibleClassroomIds->contains($classId)) {
                 $query->whereHas('student', function ($q) use ($classId) {
                     $q->where('classroom_id', $classId);
                 });
             } else {
-                // Jika mencoba akses kelas di luar otoritasnya, kunci query ke 0 hasil
+                // Kunci query ke 0 hasil jika di luar otoritas
                 $query->whereRaw('1 = 0');
             }
         }
