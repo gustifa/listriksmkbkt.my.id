@@ -6,6 +6,14 @@
         <h4 class="fw-bold mb-0">Monitoring Bot & Notifikasi Telegram</h4>
     </div>
 
+    {{-- Alert Success / Error bawaan session Laravel --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     {{-- Ringkasan Statistik --}}
     <div class="row g-3 mb-4">
         <div class="col-md-3">
@@ -65,10 +73,10 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="fw-bold mb-0">Riwayat Pengiriman Pesan</h6>
                         @if($logs->count() > 0)
-                        <form action="{{ route('monitoring.telegram.clearLogs') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus SELURUH riwayat pesan?')">
+                        <form action="{{ route('monitoring.telegram.clearLogs') }}" method="POST">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm">
+                            <button type="button" id="btn-clear-all-logs" class="btn btn-danger btn-sm">
                                 <i class="bi bi-trash me-1"></i> Bersihkan Semua Log
                             </button>
                         </form>
@@ -147,10 +155,10 @@
                                 </td>
                                 <td class="small text-danger">{{ $log->error_log ?? '-' }}</td>
                                 <td class="text-center">
-                                    <form action="{{ route('monitoring.telegram.destroyLog', $log->id) }}" method="POST" onsubmit="return confirm('Hapus log pesan ini?')">
+                                    <form action="{{ route('monitoring.telegram.destroyLog', $log->id) }}" method="POST">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger btn-sm border-0" title="Hapus Log">
+                                        <button type="button" class="btn btn-outline-danger btn-sm border-0 btn-delete-log" title="Hapus Log">
                                             <i class="bi bi-trash"></i> Hapus
                                         </button>
                                     </form>
@@ -229,4 +237,59 @@
 
     </div>
 </div>
+
+{{-- SweetAlert2 JS --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Hapus Single Log
+        document.querySelectorAll('.btn-delete-log').forEach(button => {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                const form = this.closest('form');
+
+                Swal.fire({
+                    title: 'Hapus Log Pesan?',
+                    text: "Data riwayat log ini akan dihapus dari sistem!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus!',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
+
+        // Bersihkan Semua Log
+        const btnClearAll = document.getElementById('btn-clear-all-logs');
+        if (btnClearAll) {
+            btnClearAll.addEventListener('click', function (e) {
+                e.preventDefault();
+                const form = this.closest('form');
+
+                Swal.fire({
+                    title: 'Bersihkan Semua Log?',
+                    text: "Seluruh riwayat pengiriman pesan akan dihapus dan tidak bisa dikembalikan!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Bersihkan Semua!',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        }
+    });
+</script>
 @endsection
