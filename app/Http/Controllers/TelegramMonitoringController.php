@@ -65,15 +65,86 @@ class TelegramMonitoringController extends Controller
     //         'subscribers'
     //     ));
     // }
+//     public function index(Request $request)
+// {
+//     // 1. Metric Summary
+//     $totalSubscribers = TelegramSubscriber::where('is_active', true)->count();
+//     $totalSentSuccess = TelegramNotification::where('status', 'success')->count();
+//     $totalSentFailed  = TelegramNotification::where('status', 'failed')->count();
+//     $todaySentCount   = TelegramNotification::whereDate('created_at', today())->count();
+
+//     // 2. Query Log Notifikasi
+//     $logsQuery = TelegramNotification::with('subscriber')->latest();
+
+//     if ($request->filled('status')) {
+//         $logsQuery->where('status', $request->status);
+//     }
+
+//     if ($request->filled('type')) {
+//         $logsQuery->where('type', $request->type);
+//     }
+
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $logsQuery->where(function ($q) use ($search) {
+//             $q->where('recipient_name', 'like', "%{$search}%")
+//               ->orWhere('title', 'like', "%{$search}%")
+//               ->orWhere('chat_id', 'like', "%{$search}%");
+//         });
+//     }
+
+//     $logs = $logsQuery->paginate(15, ['*'], 'logs_page');
+
+//     // 3. Query Subscriber (Orang Tua)
+//     $subscribersQuery = TelegramSubscriber::with('student.classroom')->latest();
+
+//     if ($request->filled('sub_search')) {
+//         $subSearch = $request->sub_search;
+//         $subscribersQuery->where(function ($q) use ($subSearch) {
+//             $q->where('parent_name', 'like', "%{$subSearch}%")
+//               ->orWhere('chat_id', 'like', "%{$subSearch}%")
+//               ->orWhere('phone_number', 'like', "%{$subSearch}%");
+//         });
+//     }
+
+//     $subscribers = $subscribersQuery->paginate(15, ['*'], 'sub_page');
+
+//     // 4. [BARU] Ambil Siswa yang Berada di Kelas Sesuai Hak Akses User via Scope accessibleBy
+//     $accessibleClassroomIds = Classroom::accessibleBy(Auth::user())->pluck('id');
+
+//     $accessibleStudents = Student::with('classroom')
+//         ->whereIn('classroom_id', $accessibleClassroomIds)
+//         ->orderBy('name')
+//         ->get();
+
+//     return view('monitoring.telegram', compact(
+//         'totalSubscribers',
+//         'totalSentSuccess',
+//         'totalSentFailed',
+//         'todaySentCount',
+//         'logs',
+//         'subscribers',
+//         'accessibleStudents' // <--- Oper variabel ini ke View
+//     ));
+// }
+
     public function index(Request $request)
 {
-    // 1. Metric Summary
-    $totalSubscribers = TelegramSubscriber::where('is_active', true)->count();
+    $user = Auth::user();
+
+    // 1. Ambil ID Kelas yang berhak diakses oleh User yang sedang login (Admin/Guru)
+    $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
+
+    // 2. Metric Summary (Disesuaikan dengan cakupan kelas user)
+    $totalSubscribers = TelegramSubscriber::whereHas('student', function ($q) use ($accessibleClassroomIds) {
+        $q->whereIn('classroom_id', $accessibleClassroomIds);
+    })->orWhereNull('student_id')->where('is_active', true)->count();
+
     $totalSentSuccess = TelegramNotification::where('status', 'success')->count();
     $totalSentFailed  = TelegramNotification::where('status', 'failed')->count();
     $todaySentCount   = TelegramNotification::whereDate('created_at', today())->count();
 
-    // 2. Query Log Notifikasi
+    // 3. Query Log Notifikasi
     $logsQuery = TelegramNotification::with('subscriber')->latest();
 
     if ($request->filled('status')) {
@@ -95,8 +166,17 @@ class TelegramMonitoringController extends Controller
 
     $logs = $logsQuery->paginate(15, ['*'], 'logs_page');
 
-    // 3. Query Subscriber (Orang Tua)
-    $subscribersQuery = TelegramSubscriber::with('student.classroom')->latest();
+    // 4. Query Subscriber Orang Tua (DIBATASI BERDASARKAN SCOPE ACCESSIBLE BY)
+    $subscribersQuery = TelegramSubscriber::with(['student.classroom'])
+        ->where(function ($query) use ($accessibleClassroomIds) {
+            // Tampilkan orang tua yang siswanya berada di kelas sesuai hak akses guru/admin
+            $query->whereHas('student', function ($q) use ($accessibleClassroomIds) {
+                $q->whereIn('classroom_id', $accessibleClassroomIds);
+            })
+            // Tetap tampilkan yang statusnya pending (belum dihubungkan ke siswa)
+            ->orWhereNull('student_id');
+        })
+        ->latest();
 
     if ($request->filled('sub_search')) {
         $subSearch = $request->sub_search;
@@ -109,9 +189,7 @@ class TelegramMonitoringController extends Controller
 
     $subscribers = $subscribersQuery->paginate(15, ['*'], 'sub_page');
 
-    // 4. [BARU] Ambil Siswa yang Berada di Kelas Sesuai Hak Akses User via Scope accessibleBy
-    $accessibleClassroomIds = Classroom::accessibleBy(Auth::user())->pluck('id');
-
+    // 5. Ambil daftar siswa untuk Modal Dropdown Select2 (Dibatalkan/Disetujui)
     $accessibleStudents = Student::with('classroom')
         ->whereIn('classroom_id', $accessibleClassroomIds)
         ->orderBy('name')
@@ -124,7 +202,7 @@ class TelegramMonitoringController extends Controller
         'todaySentCount',
         'logs',
         'subscribers',
-        'accessibleStudents' // <--- Oper variabel ini ke View
+        'accessibleStudents'
     ));
 }
 
