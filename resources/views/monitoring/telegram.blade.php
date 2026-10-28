@@ -198,32 +198,95 @@
                                 <th>No</th>
                                 <th>Nama Orang Tua</th>
                                 <th>Siswa Terkait</th>
-                                <th>Username Telegram</th>
-                                <th>Chat ID</th>
-                                <th>No. HP</th>
-                                <th>Status Bot</th>
+                                <th>Chat ID / No. HP</th>
+                                <th>Status Approval</th>
+                                <th class="text-center">Aksi Admin</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($subscribers as $index => $sub)
                             <tr>
                                 <td>{{ $subscribers->firstItem() + $index }}</td>
-                                <td><strong>{{ $sub->parent_name }}</strong></td>
-                                <td>{{ $sub->student->name ?? '-' }}</td>
-                                <td>{{ $sub->username ? '@'.$sub->username : '-' }}</td>
-                                <td><code>{{ $sub->chat_id }}</code></td>
-                                <td>{{ $sub->phone_number ?? '-' }}</td>
                                 <td>
-                                    @if($sub->is_active)
-                                        <span class="badge bg-success">Aktif</span>
+                                    <strong>{{ $sub->parent_name }}</strong><br>
+                                    <small class="text-muted">{{ $sub->username ? '@'.$sub->username : '-' }}</small>
+                                </td>
+                                <td>
+                                    @if($sub->student)
+                                        <span class="fw-bold">{{ $sub->student->name }}</span><br>
+                                        <small class="text-muted">{{ $sub->student->classroom->name ?? '-' }}</small>
                                     @else
-                                        <span class="badge bg-secondary">Nonaktif</span>
+                                        <span class="badge bg-warning text-dark">Belum Dihubungkan</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <code>{{ $sub->chat_id }}</code><br>
+                                    <small class="text-muted">{{ $sub->phone_number ?? '-' }}</small>
+                                </td>
+                                <td>
+                                    @if($sub->approval_status == 'approved')
+                                        <span class="badge bg-success">Disetujui</span>
+                                    @elseif($sub->approval_status == 'pending')
+                                        <span class="badge bg-warning text-dark">Menunggu Persetujuan</span>
+                                    @else
+                                        <span class="badge bg-danger">Ditolak</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($sub->approval_status == 'pending')
+                                        <!-- Tombol Setujui (Buka Modal) -->
+                                        <button type="button" class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal{{ $sub->id }}">
+                                            <i class="bi bi-check-circle"></i> Setujui
+                                        </button>
+                                        
+                                        <!-- Tombol Tolak -->
+                                        <form action="{{ route('monitoring.telegram.rejectSubscriber', $sub->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tolak pendaftaran akun Telegram ini?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="bi bi-x-circle"></i> Tolak
+                                            </button>
+                                        </form>
+
+                                        <!-- MODAL PILIH SISWA UNTUK APPROVAL -->
+                                        <div class="modal fade text-start" id="approveModal{{ $sub->id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <form action="{{ route('monitoring.telegram.approveSubscriber', $sub->id) }}" method="POST">
+                                                        @csrf
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title fw-bold">Pilih Siswa untuk {{ $sub->parent_name }}</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <p class="small text-muted mb-3">
+                                                                Nomor HP Telegram ini (<code>{{ $sub->phone_number }}</code>) belum terdaftar di database. Silakan pilih siswa terkait untuk menyetujui pendaftaran.
+                                                            </p>
+                                                            <div class="mb-3">
+                                                                <label class="form-label fw-bold">Pilih Siswa:</label>
+                                                                <select name="student_id" class="form-select" required>
+                                                                    <option value="">-- Cari & Pilih Nama Siswa --</option>
+                                                                    @foreach(\App\Models\Student::with('classroom')->orderBy('name')->get() as $std)
+                                                                        <option value="{{ $std->id }}">{{ $std->name }} ({{ $std->classroom->name ?? '-' }})</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                            <button type="submit" class="btn btn-success">Setujui & Hubungkan</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span class="text-muted small">-</span>
                                     @endif
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">Belum ada orang tua yang terdaftar.</td>
+                                <td colspan="6" class="text-center py-4 text-muted">Belum ada orang tua yang terdaftar.</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -242,7 +305,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Hapus Single Log
+        // 1. Hapus Single Log
         document.querySelectorAll('.btn-delete-log').forEach(button => {
             button.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -266,7 +329,7 @@
             });
         });
 
-        // Bersihkan Semua Log
+        // 2. Bersihkan Semua Log
         const btnClearAll = document.getElementById('btn-clear-all-logs');
         if (btnClearAll) {
             btnClearAll.addEventListener('click', function (e) {
