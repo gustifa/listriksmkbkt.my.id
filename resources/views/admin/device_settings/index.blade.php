@@ -17,6 +17,7 @@
         <div class="card-header bg-primary text-white">
             <h6 class="mb-0"><i class="bx bx-cog me-1"></i> Konfigurasi Sistem</h6>
         </div>
+        @hasanyrole('super_admin|admin')
         <div class="card-body">
             <form action="{{ route('admin.device-settings.update') }}" method="POST">
                 @csrf
@@ -53,6 +54,7 @@
                 </div>
             </form>
         </div>
+        @endhasanyrole
     </div>
 
     {{-- Tabel Data Siswa & Perangkat --}}
