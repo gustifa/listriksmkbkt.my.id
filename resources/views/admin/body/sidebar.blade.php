@@ -173,6 +173,7 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Kejuruan</a></li>
                         <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel Kejuruan</a></li>
+                        <li><a href="{{ route('monitoring.telegram') }}"><i class='bx bx-radio-circle'></i>Telegram</a></li>
                     </ul>
                 </li>
 
@@ -236,6 +237,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('admin.guidance.index')}}"><i class='bx bx-radio-circle'></i>Daftar Bimbingan</a></li>
                         <li><a href="{{route('admin.guidance.create')}}"><i class='bx bx-radio-circle'></i>Tambah Pembinaan</a></li>
                         <li><a href="{{route('admin.violation-types.index')}}"><i class='bx bx-radio-circle'></i>Master Pelanggaran</a></li>
+                        <li><a href="{{ route('monitoring.telegram') }}"><i class='bx bx-radio-circle'></i>Telegram</a></li>
                     </ul>
                 </li>
                 <li>
