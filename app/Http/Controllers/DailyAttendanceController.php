@@ -660,12 +660,73 @@ class DailyAttendanceController extends Controller
     //     }
     // }
 
+//     private function sendNotification($student, $type, $time, $status = '')
+// {
+//     $settings = Setting::pluck('value', 'key')->toArray();
+//     $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah';
+//     $tgl = date('d-m-Y');
+//     $kelas = $student->classroom ? $student->classroom->name : '-';
+
+//     $msg = '';
+
+//     if ($type == 'datang') {
+//         $msg = "*LAPORAN KEDATANGAN (GERBANG)*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Waktu: {$time} WIB\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'pulang') {
+//         $msg = "*LAPORAN KEPULANGAN (GERBANG)*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Waktu: {$time} WIB\n" .
+//                "📝 Status: *PULANG SEKOLAH*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'manual') {
+//         $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n" .
+//                "Ket: Data diinput manual oleh petugas.\n\n" .
+//                "_{$inf_app}_";
+//     }
+
+//     if (empty($msg)) return;
+
+//     // 1. Kirim WA (Queue Job)
+//     if (!empty($student->phone)) {
+//         SendWhatsappJob::dispatch($student->phone, $msg);
+//     }
+
+//     // 2. Kirim Telegram via TelegramService (Langsung simpan Log ke DB)
+//     // Cari subscriber aktif berdasarkan student_id ATAU telegram_chat_id
+//     $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+//                     ->where('is_active', true)
+//                     ->first();
+
+//     $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+//     if ($chatId) {
+//         $telegramService = app(TelegramService::class);
+//         $title = ($type === 'pulang') ? 'Laporan Kepulangan Siswa' : 'Laporan Kedatangan Siswa';
+        
+//         // Memanggil TelegramService yang sudah memuat logging ke telegram_notifications
+//         $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+//     }
+// }
+
     private function sendNotification($student, $type, $time, $status = '')
 {
     $settings = Setting::pluck('value', 'key')->toArray();
     $inf_app = $settings['inf_app'] ?? 'Sistem Sekolah';
-    $tgl = date('d-m-Y');
     $kelas = $student->classroom ? $student->classroom->name : '-';
+
+    // Set locale Carbon ke Bahasa Indonesia dan format Hari, Tanggal Bulan Tahun
+    $hariTanggal = Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY'); 
+    // Contoh hasil: "Rabu, 28 Oktober 2026"
 
     $msg = '';
 
@@ -674,7 +735,8 @@ class DailyAttendanceController extends Controller
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
-               "📅 Waktu: {$time} WIB\n" .
+               "📅 Hari/Tgl: {$hariTanggal}\n" .
+               "⏰ Jam: {$time} WIB\n" .
                "📝 Status: *" . strtoupper($status) . "*\n\n" .
                "_{$inf_app}_";
     } elseif ($type == 'pulang') {
@@ -682,13 +744,16 @@ class DailyAttendanceController extends Controller
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
-               "📅 Waktu: {$time} WIB\n" .
+               "📅 Hari/Tgl: {$hariTanggal}\n" .
+               "⏰ Jam: {$time} WIB\n" .
                "📝 Status: *PULANG SEKOLAH*\n\n" .
                "_{$inf_app}_";
     } elseif ($type == 'manual') {
         $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
+               "📅 Hari/Tgl: {$hariTanggal}\n" .
+               "⏰ Jam: {$time} WIB\n" .
                "📝 Status: *" . strtoupper($status) . "*\n" .
                "Ket: Data diinput manual oleh petugas.\n\n" .
                "_{$inf_app}_";
@@ -702,7 +767,6 @@ class DailyAttendanceController extends Controller
     }
 
     // 2. Kirim Telegram via TelegramService (Langsung simpan Log ke DB)
-    // Cari subscriber aktif berdasarkan student_id ATAU telegram_chat_id
     $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
                     ->where('is_active', true)
                     ->first();
@@ -713,7 +777,6 @@ class DailyAttendanceController extends Controller
         $telegramService = app(TelegramService::class);
         $title = ($type === 'pulang') ? 'Laporan Kepulangan Siswa' : 'Laporan Kedatangan Siswa';
         
-        // Memanggil TelegramService yang sudah memuat logging ke telegram_notifications
         $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
     }
 }
