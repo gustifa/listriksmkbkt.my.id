@@ -1,21 +1,31 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Classroom;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DeviceSettingController extends Controller
 {
     public function index(Request $request)
     {
+        $user = Auth::user();
         $settings = SystemSetting::pluck('value', 'key');
 
-        // Load relasi student beserta classroom-nya
-        $query = User::role('siswa')->with('student.classroom');
+        // 1. Ambil ID Kelas yang berhak diakses oleh User/Guru via Scope AccessibleBy
+        $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
 
-        // Filter 1: Nama / Email
+        // 2. Query Data Siswa (Dibatasi hanya siswa di kelas yang berhak diakses)
+        $query = User::role('siswa')
+            ->whereHas('student', function ($q) use ($accessibleClassroomIds) {
+                $q->whereIn('classroom_id', $accessibleClassroomIds);
+            })
+            ->with('student.classroom');
+
+        // Filter 1: Cari Nama / Email
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -27,67 +37,59 @@ class DeviceSettingController extends Controller
         // Filter 2: Berdasarkan Kelas (classroom_id di tabel students)
         if ($request->filled('classroom_id')) {
             $classId = $request->classroom_id;
-            $query->whereHas('student', function ($q) use ($classId) {
-                $q->where('classroom_id', $classId);
-            });
+            
+            // Validasi keamanan: Pastikan classroom_id yang dipilih terdaftar di kelas yang diizinkan
+            if ($accessibleClassroomIds->contains($classId)) {
+                $query->whereHas('student', function ($q) use ($classId) {
+                    $q->where('classroom_id', $classId);
+                });
+            } else {
+                // Jika mencoba akses kelas di luar otoritasnya, kunci query ke 0 hasil
+                $query->whereRaw('1 = 0');
+            }
         }
 
         $students = $query->orderBy('name', 'asc')
                           ->paginate(15)
                           ->appends($request->all());
 
+        // 3. Ambil data kelas terpilih (jika ada filter)
         $selectedClassroom = null;
-        if ($request->filled('classroom_id')) {
+        if ($request->filled('classroom_id') && $accessibleClassroomIds->contains($request->classroom_id)) {
             $selectedClassroom = Classroom::find($request->classroom_id);
         }
 
         return view('admin.device_settings.index', compact('settings', 'students', 'selectedClassroom'));
     }
 
-    // public function getClasses(Request $request)
-    // {
-    //     $search = trim($request->input('q', ''));
-    //     $query = Classroom::query();
-
-    //     if (!empty($search)) {
-    //         $query->where('name', 'ILIKE', "%{$search}%");
-    //     }
-
-    //     $classes = $query->orderBy('name', 'asc')->limit(20)->get();
-
-    //     $results = $classes->map(function ($class) {
-    //         return [
-    //             'id'   => $class->id,
-    //             'text' => $class->name,
-    //         ];
-    //     });
-
-    //     return response()->json(['results' => $results]);
-    // }
-
+    /**
+     * Endpoint Select2 AJAX Filter Kelas (Dibatasi sesuai Role AccessibleBy)
+     */
     public function getClasses(Request $request)
-{
-    $search = trim($request->input('q', ''));
+    {
+        $search = trim($request->input('q', ''));
+        $user   = Auth::user();
 
-    $query = Classroom::query();
+        // Terapkan scopeAccessibleBy pada pencarian kelas Select2
+        $query = Classroom::accessibleBy($user);
 
-    if (!empty($search)) {
-        $query->where('name', 'ILIKE', "%{$search}%");
+        if (!empty($search)) {
+            $query->where('name', 'ILIKE', "%{$search}%");
+        }
+
+        $classes = $query->orderBy('name', 'asc')->limit(30)->get();
+
+        $results = $classes->map(function ($class) {
+            return [
+                'id'   => (string) $class->id, // UUID
+                'text' => $class->name,        // Nama Kelas
+            ];
+        });
+
+        return response()->json([
+            'results' => $results
+        ]);
     }
-
-    $classes = $query->orderBy('name', 'asc')->limit(30)->get();
-
-    $results = $classes->map(function ($class) {
-        return [
-            'id'   => (string) $class->id,   // UUID
-            'text' => $class->name,          // Nama Kelas
-        ];
-    });
-
-    return response()->json([
-        'results' => $results
-    ]);
-}
 
     public function updateSettings(Request $request)
     {
@@ -104,7 +106,18 @@ class DeviceSettingController extends Controller
 
     public function resetDevice(Request $request, $id)
     {
-        $student = User::findOrFail($id);
+        $user = Auth::user();
+        $student = User::role('siswa')->with('student')->findOrFail($id);
+
+        // Validasi keamanan: Pastikan guru hanya bisa reset HP siswa di kelas otoritasnya
+        $accessibleClassroomIds = Classroom::accessibleBy($user)->pluck('id');
+        
+        if ($student->student && !$accessibleClassroomIds->contains($student->student->classroom_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak akses untuk mereset perangkat siswa di kelas ini.',
+            ], 403);
+        }
 
         $student->forceFill([
             'device_id_1' => null,

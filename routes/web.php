@@ -455,9 +455,16 @@ Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahu
 // =========================================================================
 Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->group(function () {
 
+    Route::get('/admin/device-settings', [DeviceSettingController::class, 'index'])->name('admin.device-settings.index');
+    Route::post('/admin/device-settings/update', [DeviceSettingController::class, 'updateSettings'])->name('admin.device-settings.update');
+    Route::post('/admin/device-settings/reset/{id}', [DeviceSettingController::class, 'resetDevice'])->name('admin.device-settings.reset');
+    Route::get('/admin/device-settings/classes', [DeviceSettingController::class, 'getClasses'])->name('admin.device-settings.classes');
+    
     Route::resource('admin/additional-tasks', AdditionalTaskController::class)->except([
         'create', 'edit', 'show'
     ]);
+
+    
 
     // MANAJEMEN USER ROLES MULTI-ROLE & SCOPE
     Route::prefix('admin')->name('admin.')->group(function () {
@@ -485,10 +492,7 @@ Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->gr
     Route::delete('/admin/attendance/subject/{id}', [AttendanceManageController::class, 'deleteSubject'])->name('admin.attendance.subject.delete');
     Route::delete('/admin/attendance/prayer/{id}', [AttendanceManageController::class, 'deletePrayer'])->name('admin.attendance.prayer.delete');
    
-    Route::get('/admin/device-settings', [DeviceSettingController::class, 'index'])->name('admin.device-settings.index');
-    Route::post('/admin/device-settings/update', [DeviceSettingController::class, 'updateSettings'])->name('admin.device-settings.update');
-    Route::post('/admin/device-settings/reset/{id}', [DeviceSettingController::class, 'resetDevice'])->name('admin.device-settings.reset');
-    Route::get('/admin/device-settings/classes', [DeviceSettingController::class, 'getClasses'])->name('admin.device-settings.classes');
+    
 
     Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity_logs.index');
     Route::delete('/admin/activity-logs/clear', [ActivityLogController::class, 'clearLog'])->name('admin.activity-logs.clear');
