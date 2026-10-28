@@ -2436,6 +2436,204 @@ public function studentScanView()
     //     ]);
     // }
 
+    // public function storeStudentSelfScan(Request $request)
+    // {
+    //     // --- VALIDASI HARI LIBUR (MINGGU & KALENDER MERAH) ---
+    //     $holidayCheck = $this->isHoliday(Carbon::today());
+    //     if ($holidayCheck['is_holiday']) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Gagal Absen! ' . $holidayCheck['reason']
+    //         ], 400);
+    //     }
+
+    //     // 1. Ambil Pengaturan Absensi & Geofencing
+    //     $setting = AttendanceSetting::first();
+    //     $isGeofenceActive = $setting ? (bool) $setting->is_geofence_active : true;
+
+    //     // 2. Validasi Input
+    //     $rules = [
+    //         'image'     => 'required|string',
+    //         'latitude'  => $isGeofenceActive ? 'required|numeric' : 'nullable|numeric',
+    //         'longitude' => $isGeofenceActive ? 'required|numeric' : 'nullable|numeric',
+    //     ];
+
+    //     if ($request->has('method') && $request->method === 'face') {
+    //         $rules['descriptor'] = 'nullable|string';
+    //     }
+
+    //     $request->validate($rules);
+
+    //     // 3. Cek User & Siswa
+    //     $user = Auth::user();
+    //     $student = $user->student ?? Student::where('user_id', $user->id)->first();
+
+    //     if (!$student) {
+    //         return response()->json(['status' => 'error', 'message' => 'Data siswa tidak ditemukan!'], 404);
+    //     }
+
+    //     // 4. Cek Tahun Ajaran Aktif
+    //     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+    //     if (!$activeAcademicYear) {
+    //         return response()->json(['status' => 'error', 'message' => 'Tahun Pelajaran belum diaktifkan Admin.'], 400);
+    //     }
+
+    //     // 5. Validasi Jarak Geofence
+    //     if ($isGeofenceActive) {
+    //         $schoolLat = $setting->latitude ?? -0.30512300;
+    //         $schoolLng = $setting->longitude ?? 100.36912300;
+    //         $maxRadius = $setting->radius_meters ?? 100;
+
+    //         $userLat = $request->latitude;
+    //         $userLng = $request->longitude;
+
+    //         if ($userLat && $userLng) {
+    //             $distance = $this->calculateDistance($userLat, $userLng, $schoolLat, $schoolLng);
+
+    //             if ($distance > $maxRadius) {
+    //                 return response()->json([
+    //                     'status'  => 'error',
+    //                     'message' => 'Gagal Absen! Anda berada di luar area sekolah. Jarak Anda: ' . round($distance) . ' meter dari sekolah (Batas max: ' . $maxRadius . 'm).'
+    //                 ], 400);
+    //             }
+    //         } else {
+    //             return response()->json([
+    //                 'status'  => 'error',
+    //                 'message' => 'Gagal Absen! Lokasi GPS diperlukan untuk mode PTM.'
+    //             ], 400);
+    //         }
+    //     }
+
+    //     $date = date('Y-m-d');
+    //     $time = date('H:i:s');
+
+    //     // 6. Pengaturan Waktu Masuk/Pulang
+    //     $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';
+    //     $batasTerlambat   = $setting ? $setting->late_limit_time : '07:00:00';
+    //     $batasBolehPulang = $setting ? $setting->early_departure_time : '10:00:00';
+
+    //     if ($time < $jamMulaiScan) {
+    //         return response()->json(['status' => 'error', 'message' => 'Absensi belum dibuka.'], 400);
+    //     }
+
+    //     $attendance = DailyAttendance::where('student_id', $student->id)->where('date', $date)->first();
+
+    //     // --- SKENARIO PULANG ---
+    //     if ($attendance) {
+    //         if ($attendance->departure_time) {
+    //             return response()->json(['status' => 'error', 'message' => 'Anda sudah absen pulang hari ini!'], 400);
+    //         }
+
+    //         if ($time < $batasBolehPulang) {
+    //             return response()->json(['status' => 'error', 'message' => 'Belum waktunya pulang!'], 400);
+    //         }
+
+    //         $photoPath = $this->saveImage($request->image, $student->nis, 'out_hp', $date);
+
+    //         $attendance->update([
+    //             'departure_time' => $time,
+    //             'photo_out'      => $photoPath,
+    //             'updated_at'     => now()
+    //         ]);
+
+    //         $this->sendNotification($student, 'pulang', $time);
+
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'message' => 'Berhasil Absen Pulang dari HP!',
+    //             'time'    => $time
+    //         ]);
+    //     }
+
+    //     // --- SKENARIO DATANG ---
+    //     // Evaluasi keterlambatan menggunakan Carbon untuk hasil yang akurat
+    //     $nowTime   = \Carbon\Carbon::parse($time);
+    //     $lateLimit = \Carbon\Carbon::parse($batasTerlambat);
+    //     $isLate    = $nowTime->greaterThan($lateLimit);
+    //     $statusDB  = $isLate ? 'terlambat' : 'hadir';
+
+    //     $photoPath = $this->saveImage($request->image, $student->nis, 'in_hp', $date);
+
+    //     $newAttendance = DailyAttendance::create([
+    //         'id'               => (string) \Illuminate\Support\Str::uuid(),
+    //         'student_id'       => $student->id,
+    //         'academic_year_id' => $activeAcademicYear->id,
+    //         'date'             => $date,
+    //         'arrival_time'     => $time,
+    //         'status'           => $statusDB,
+    //         'photo_in'         => $photoPath,
+    //         'recorded_by'      => $isGeofenceActive ? 'HP Mandiri Siswa (PTM)' : 'HP Mandiri Siswa (PJJ)'
+    //     ]);
+
+    //     $this->sendNotification($student, 'datang', $time, $statusDB);
+
+    //     // =========================================================
+    //     // OTOMATISASI PENCATATAN PELANGGARAN TERLAMBAT (DINAMIS)
+    //     // =========================================================
+    //     if ($isLate) {
+    //         $violationType = $this->getViolationTypeByKeywords(['terlambat', 'lambat', 'late']);
+
+    //         if ($violationType) {
+    //             \App\Models\StudentViolation::firstOrCreate(
+    //                 [
+    //                     'student_id'        => $student->id,
+    //                     'date'              => $date,
+    //                     'violation_type_id' => $violationType->id,
+    //                 ],
+    //                 [
+    //                     'id'          => (string) \Illuminate\Support\Str::uuid(),
+    //                     'note'        => 'Terlambat absensi mandiri HP pukul ' . $time,
+    //                     'reported_by' => null, // null untuk sistem otomatis
+    //                     'is_synced'   => false,
+    //                 ]
+    //             );
+    //         }
+
+    //         // --- TRIGGER NOTIFIKASI LONCENG KE GURU ---
+    //         $student->load([
+    //             'classroom.homeroomTeacher.user',
+    //             'classroom.counselingTeacher.user',
+    //             'classroom.major.workshopTeacher.user'
+    //         ]);
+
+    //         $classroom = $student->classroom ?? null;
+    //         $recipients = collect();
+
+    //         if ($classroom) {
+    //             // 1. Wali Kelas
+    //             if ($classroom->homeroomTeacher && $classroom->homeroomTeacher->user) {
+    //                 $recipients->push($classroom->homeroomTeacher->user);
+    //             }
+
+    //             // 2. Guru BK
+    //             if ($classroom->counselingTeacher && $classroom->counselingTeacher->user) {
+    //                 $recipients->push($classroom->counselingTeacher->user);
+    //             }
+
+    //             // 3. Kepala Bengkel
+    //             $major = $classroom->major ?? null;
+    //             if ($major && $major->workshopTeacher && $major->workshopTeacher->user) {
+    //                 $recipients->push($major->workshopTeacher->user);
+    //             }
+    //         }
+
+    //         // Kirim notifikasi lonceng ke guru terkait
+    //         if ($recipients->isNotEmpty()) {
+    //             Notification::send($recipients->unique('id'), new LateStudentNotification($newAttendance));
+    //         }
+    //     }
+
+    //     return response()->json([
+    //         'status'  => 'success',
+    //         'message' => $isLate ? 'Absen Masuk Berhasil (TERLAMBAT)' : 'Absen Masuk Berhasil (HADIR)',
+    //         'time'    => $time
+    //     ]);
+    // }
+
+    /**
+     * Proses Simpan Absensi Wajah & Geolocation dari HP Siswa
+     * Route: POST /student/scan
+     */
     public function storeStudentSelfScan(Request $request)
     {
         // --- VALIDASI HARI LIBUR (MINGGU & KALENDER MERAH) ---
@@ -2518,7 +2716,9 @@ public function studentScanView()
 
         $attendance = DailyAttendance::where('student_id', $student->id)->where('date', $date)->first();
 
-        // --- SKENARIO PULANG ---
+        // ==========================================================
+        // SKENARIO PULANG (CHECK-OUT)
+        // ==========================================================
         if ($attendance) {
             if ($attendance->departure_time) {
                 return response()->json(['status' => 'error', 'message' => 'Anda sudah absen pulang hari ini!'], 400);
@@ -2536,7 +2736,8 @@ public function studentScanView()
                 'updated_at'     => now()
             ]);
 
-            $this->sendNotification($student, 'pulang', $time);
+            // DITERUSKAN PARAMETER $photoPath KE NOTIFIKASI PULANG
+            $this->sendNotification($student, 'pulang', $time, '', $photoPath);
 
             return response()->json([
                 'status'  => 'success',
@@ -2545,8 +2746,9 @@ public function studentScanView()
             ]);
         }
 
-        // --- SKENARIO DATANG ---
-        // Evaluasi keterlambatan menggunakan Carbon untuk hasil yang akurat
+        // ==========================================================
+        // SKENARIO DATANG (CHECK-IN)
+        // ==========================================================
         $nowTime   = \Carbon\Carbon::parse($time);
         $lateLimit = \Carbon\Carbon::parse($batasTerlambat);
         $isLate    = $nowTime->greaterThan($lateLimit);
@@ -2565,7 +2767,8 @@ public function studentScanView()
             'recorded_by'      => $isGeofenceActive ? 'HP Mandiri Siswa (PTM)' : 'HP Mandiri Siswa (PJJ)'
         ]);
 
-        $this->sendNotification($student, 'datang', $time, $statusDB);
+        // DITERUSKAN PARAMETER $photoPath KE NOTIFIKASI DATANG
+        $this->sendNotification($student, 'datang', $time, $statusDB, $photoPath);
 
         // =========================================================
         // OTOMATISASI PENCATATAN PELANGGARAN TERLAMBAT (DINAMIS)
@@ -2583,7 +2786,7 @@ public function studentScanView()
                     [
                         'id'          => (string) \Illuminate\Support\Str::uuid(),
                         'note'        => 'Terlambat absensi mandiri HP pukul ' . $time,
-                        'reported_by' => null, // null untuk sistem otomatis
+                        'reported_by' => null,
                         'is_synced'   => false,
                     ]
                 );
