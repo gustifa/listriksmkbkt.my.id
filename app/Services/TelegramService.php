@@ -19,25 +19,53 @@ class TelegramService
     /**
      * Kirim Pesan Teks via Telegram API
      */
+    // public function sendMessage($chatId, string $text): bool
+    // {
+    //     if (empty($chatId) || empty($this->token)) {
+    //         return false;
+    //     }
+
+    //     try {
+    //         $response = Http::post($this->baseUrl . 'sendMessage', [
+    //             'chat_id'    => $chatId,
+    //             'text'       => $text,
+    //             'parse_mode' => 'Markdown',
+    //         ]);
+
+    //         return $response->successful();
+    //     } catch (\Exception $e) {
+    //         Log::error("Gagal mengirim Telegram ke {$chatId}: " . $e->getMessage());
+    //         return false;
+    //     }
+    // }
+
     public function sendMessage($chatId, string $text): bool
-    {
-        if (empty($chatId) || empty($this->token)) {
-            return false;
-        }
-
-        try {
-            $response = Http::post($this->baseUrl . 'sendMessage', [
-                'chat_id'    => $chatId,
-                'text'       => $text,
-                'parse_mode' => 'Markdown',
-            ]);
-
-            return $response->successful();
-        } catch (\Exception $e) {
-            Log::error("Gagal mengirim Telegram ke {$chatId}: " . $e->getMessage());
-            return false;
-        }
+{
+    if (empty($chatId) || empty($this->token)) {
+        Log::warning("Telegram: Chat ID atau Token kosong.");
+        return false;
     }
+
+    try {
+        $response = Http::post($this->baseUrl . 'sendMessage', [
+            'chat_id'    => $chatId,
+            'text'       => $text,
+            'parse_mode' => 'Markdown',
+        ]);
+
+        if ($response->successful()) {
+            Log::info("Telegram SUKSES terkirim ke Chat ID: {$chatId}");
+            return true;
+        }
+
+        Log::error("Telegram GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $response->body());
+        return false;
+
+    } catch (\Exception $e) {
+        Log::error("Telegram ERROR ke {$chatId}: " . $e->getMessage());
+        return false;
+    }
+}
 
     /**
  * Kirim Pesan dengan Tombol Share Contact
