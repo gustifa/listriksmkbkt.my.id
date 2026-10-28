@@ -768,7 +768,9 @@ Route::middleware(['auth', 'role:siswa'])->group(function () {
         Route::get('/my-profile', [StudentAreaController::class, 'profileStudent'])->name('profile');
         Route::put('/my-profile', [StudentAreaController::class, 'updateProfile'])->name('profile.update');
         Route::get('/my-history/subject', [StudentAreaController::class, 'historySubject'])->name('history.subject');
+        Route::get('/history-subject/{id}/detail', [StudentAreaController::class, 'getAttendanceDetail'])->name('history_subject.detail');
         Route::get('/my-history/daily', [StudentAreaController::class, 'historyDaily'])->name('history.daily');
+        Route::get('/history-daily/{id}/detail', [StudentAreaController::class, 'getDailyDetail'])->name('history_daily.detail');
 
         Route::get('/my-card', [StudentAreaController::class, 'printCard'])->name('print.card');
 
