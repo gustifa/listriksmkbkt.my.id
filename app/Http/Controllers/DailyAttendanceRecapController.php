@@ -53,11 +53,11 @@ class DailyAttendanceRecapController extends Controller
         $endOfWeek    = Carbon::parse($selectedDate)->endOfWeek(Carbon::FRIDAY);
 
         $weekDates = [
-            'Senin'  => $startOfWeek->copy()->addDays(0)->format('Y-m-d'),
-            'Selasa' => $startOfWeek->copy()->addDays(1)->format('Y-m-d'),
-            'Rabu'   => $startOfWeek->copy()->addDays(2)->format('Y-m-d'),
-            'Kamis'  => $startOfWeek->copy()->addDays(3)->format('Y-m-d'),
-            'Jumat'  => $startOfWeek->copy()->addDays(4)->format('Y-m-d'),
+            'Senin'  => $startOfWeek->copy()->addDays(0)->format('d/m/Y'),
+            'Selasa' => $startOfWeek->copy()->addDays(1)->format('d/m/Y'),
+            'Rabu'   => $startOfWeek->copy()->addDays(2)->format('d/m/Y'),
+            'Kamis'  => $startOfWeek->copy()->addDays(3)->format('d/m/Y'),
+            'Jumat'  => $startOfWeek->copy()->addDays(4)->format('d/m/Y'),
         ];
 
         $classroomId = trim($request->input('classroom_id'));
@@ -84,37 +84,65 @@ class DailyAttendanceRecapController extends Controller
             ->whereBetween('date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
             ->get();
 
+        $dbRecords = [];
+        foreach ($dailyRecords as $record) {
+            $dbRecords[$record->student_id][$record->date] = $record;
+        }
+
+        // Inisialisasi & OTO-FILL ALPA jika tanpa keterangan
         $attendanceMap = [];
         $summary = [];
+        $todayDate = Carbon::now()->format('Y-m-d');
 
         foreach ($students as $student) {
             $summary[$student->id] = ['hadir' => 0, 'terlambat' => 0, 'sakit' => 0, 'izin' => 0, 'alpa' => 0];
-        }
 
-        foreach ($dailyRecords as $record) {
-            $date = $record->date;
-            $sId  = $record->student_id;
+            foreach ($weekDates as $dayName => $dateFormatted) {
+                $rawDate = Carbon::createFromFormat('d/m/Y', $dateFormatted)->format('Y-m-d');
+                $record  = $dbRecords[$student->id][$rawDate] ?? null;
 
-            $arrivalTime   = $record->arrival_time ? Carbon::parse($record->arrival_time)->format('H:i') : '-';
-            $departureTime = $record->departure_time ? Carbon::parse($record->departure_time)->format('H:i') : '-';
-            $status        = strtolower(trim($record->status));
+                if ($record) {
+                    $arrivalTime   = $record->arrival_time ? Carbon::parse($record->arrival_time)->format('H:i') : '-';
+                    $departureTime = $record->departure_time ? Carbon::parse($record->departure_time)->format('H:i') : '-';
+                    $status        = strtolower(trim($record->status ?? ''));
 
-            $attendanceMap[$sId][$date] = [
-                'arrival'   => $arrivalTime,
-                'departure' => $departureTime,
-                'status'    => $status
-            ];
+                    if (empty($status) || in_array($status, ['tanpa keterangan', 'alpa', 'a', 'x'])) {
+                        $status = 'alpa';
+                    }
 
-            if (isset($summary[$sId])) {
-                if ($status === 'hadir') $summary[$sId]['hadir']++;
-                elseif ($status === 'terlambat') $summary[$sId]['terlambat']++;
-                elseif ($status === 'sakit') $summary[$sId]['sakit']++;
-                elseif ($status === 'izin') $summary[$sId]['izin']++;
-                elseif ($status === 'alpa' || $status === 'x') $summary[$sId]['alpa']++;
+                    $attendanceMap[$student->id][$rawDate] = [
+                        'arrival'   => $arrivalTime,
+                        'departure' => $departureTime,
+                        'status'    => $status
+                    ];
+
+                    if ($status === 'hadir') $summary[$student->id]['hadir']++;
+                    elseif ($status === 'terlambat') $summary[$student->id]['terlambat']++;
+                    elseif ($status === 'sakit') $summary[$student->id]['sakit']++;
+                    elseif ($status === 'izin') $summary[$student->id]['izin']++;
+                    else $summary[$student->id]['alpa']++;
+
+                } else {
+                    // Jika tidak ada record sama sekali di DB
+                    if ($rawDate <= $todayDate) {
+                        $attendanceMap[$student->id][$rawDate] = [
+                            'arrival'   => '-',
+                            'departure' => '-',
+                            'status'    => 'alpa'
+                        ];
+                        $summary[$student->id]['alpa']++;
+                    } else {
+                        $attendanceMap[$student->id][$rawDate] = [
+                            'arrival'   => '-',
+                            'departure' => '-',
+                            'status'    => '-'
+                        ];
+                    }
+                }
             }
         }
 
-        // Ambil Data Settings & Pengecekan Multi-Key Fallback Logo
+        // Ambil Data Settings & Fallback Key Logo
         $settingsRaw = DB::table('settings')->get()->pluck('value', 'key');
 
         $logoLeftVal  = $settingsRaw['logo_left_st'] ?? $settingsRaw['logo_left'] ?? $settingsRaw['logo_kiri'] ?? null;

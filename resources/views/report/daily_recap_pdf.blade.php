@@ -41,10 +41,10 @@
         .table-recap thead th { font-weight: bold; background: #f2f2f2; text-transform: uppercase; }
         .text-left { text-align: left !important; padding-left: 4px !important; }
 
-        /* ALOKASI PROPORSIONAL BERBASIS PERSENTASE DOMPDF */
+        /* ALOKASI PERSENTASE DOMPDF */
         .col-no   { width: 3%; }
         .col-nis  { width: 6%; }
-        .col-nama { width: 28%; } /* OPTIMAL UNTUK NAMA PANJANG */
+        .col-nama { width: 28%; } /* DIPERLEBAR AGAR NAMA TIDAK TERPISAH BANYAK BARIS */
         .col-lp   { width: 3%; }
         .col-time { width: 4.8%; font-size: 5pt; }
         .col-stat { width: 2.4%; font-size: 5pt; }
@@ -147,7 +147,13 @@
                         @endphp
                         <td>
                             @if($rec)
-                                <span class="{{ $rec['status'] == 'terlambat' ? 'txt-late' : '' }}">{{ $rec['arrival'] }}</span>
+                                @if($rec['status'] == 'alpa')
+                                    <span class="txt-alpa">X</span>
+                                @elseif($rec['status'] == 'terlambat')
+                                    <span class="txt-late">{{ $rec['arrival'] }}</span>
+                                @else
+                                    {{ $rec['arrival'] }}
+                                @endif
                             @else
                                 -
                             @endif
