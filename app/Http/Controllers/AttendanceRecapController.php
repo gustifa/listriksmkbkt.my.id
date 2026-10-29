@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf; // IMPORT DOMPDF
 
 class AttendanceRecapController extends Controller
 {
@@ -33,7 +34,6 @@ class AttendanceRecapController extends Controller
         if (empty($path)) return null;
 
         $fullPath = public_path('storage/' . $path);
-        
         if (!file_exists($fullPath)) {
             $fullPath = storage_path('app/public/' . $path);
         }
@@ -47,7 +47,7 @@ class AttendanceRecapController extends Controller
         return null;
     }
 
-    public function weeklyRecap(Request $request)
+    private function prepareRecapData(Request $request)
     {
         $selectedDate = $request->input('date', Carbon::now()->format('Y-m-d'));
         $startOfWeek  = Carbon::parse($selectedDate)->startOfWeek(Carbon::MONDAY);
@@ -188,7 +188,7 @@ class AttendanceRecapController extends Controller
             }
         }
 
-        // 7. Ambil Data Presensi Real
+        // 7. Data Presensi Real
         $studentIds = $students->pluck('id')->toArray();
 
         $attendances = Attendance::whereIn('student_id', $studentIds)
@@ -237,15 +237,13 @@ class AttendanceRecapController extends Controller
             }
         }
 
-        // 9. OTO-FILL 'X' MERAH & HITUNG ALPA (HANYA UNTUK HARI YANG SUDAH/SEDANG DILALUI)
+        // 9. Oto-fill 'X' Merah (Hanya Hari yang Dilalui)
         $todayDate = Carbon::now()->format('Y-m-d');
 
         foreach ($students as $student) {
             for ($day = 1; $day <= 5; $day++) {
-                // Hitung tanggal aktual untuk hari ke-1 s/d 5 (Senin - Jumat)
                 $currentDayDate = $startOfWeek->copy()->addDays($day - 1)->format('Y-m-d');
 
-                // Jika hari belum masuk (hari di masa depan), lewati dan biarkan sel kosong
                 if ($currentDayDate > $todayDate) {
                     continue;
                 }
@@ -268,7 +266,7 @@ class AttendanceRecapController extends Controller
             }
         }
 
-        return view('report.weekly_recap', compact(
+        return compact(
             'students', 
             'recapMap', 
             'summary', 
@@ -279,6 +277,28 @@ class AttendanceRecapController extends Controller
             'daySubjectMap',
             'settings',
             'officers'
-        ));
+        );
+    }
+
+    // METHOD PRATINJAU HTML DI BROWSER
+    public function weeklyRecap(Request $request)
+    {
+        $data = $this->prepareRecapData($request);
+        return view('report.weekly_recap', $data);
+    }
+
+    // METHOD DOWNLOAD PDF LANGSUNG DENGAN DOMPDF
+    public function downloadPdf(Request $request)
+    {
+        $data = $this->prepareRecapData($request);
+
+        // Load view khusus dompdf / view yang sama
+        $pdf = Pdf::loadView('report.weekly_recap_pdf', $data)
+                  ->setPaper('a4', 'landscape')
+                  ->setWarnings(false);
+
+        $filename = 'Rekap_Presensi_Mingguan_' . str_replace(' ', '_', $data['classroom']->name ?? 'Kelas') . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

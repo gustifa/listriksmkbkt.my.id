@@ -153,7 +153,7 @@
             padding-left: 2px !important;
         }
 
-        /* UKURAN KOLOM DIBUAT RAMPING & PRESISI */
+        /* PENETAPAN LEBAR KOLOM RAMPING */
         .col-no { width: 14px; }
         .col-nis { width: 32px; }
         .col-nama { width: 120px; }
@@ -223,7 +223,7 @@
             height: 20px;
         }
 
-        /* OPSI CETAK A4 LANDSCAPE PAS 1 HALAMAN */
+        /* OPSI CETAK A4 LANDSCAPE */
         @media print {
             body {
                 background: #fff;
@@ -265,23 +265,26 @@
 </head>
 <body>
 
-    <div class="container-print">
-        
-        <!-- HEADER KONTROL (TIDAK DICETAK) -->
-        <div class="no-print" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 6px 10px; border-radius: 4px;">
-            <div>
-                <h4 style="margin: 0; color: #0d6efd;">Laporan Presensi Mingguan - Kelas {{ $classroom->name ?? '' }}</h4>
-                <small style="color: #6c757d;">Periode: {{ isset($startOfWeek) ? $startOfWeek->translatedFormat('d F Y') : '-' }} s/d {{ isset($endOfWeek) ? $endOfWeek->translatedFormat('d F Y') : '-' }}</small>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <a href="{{ route('attendances.filter') }}" style="padding: 6px 14px; background: #6c757d; color: #fff; text-decoration: none; border-radius: 15px; font-weight: bold; font-size: 10px;">
-                    ← Kembali Filter
-                </a>
-                <button onclick="window.print()" style="padding: 6px 18px; background: #0d6efd; color: #fff; border: none; border-radius: 15px; font-weight: bold; cursor: pointer; font-size: 10px;">
-                    🖨️ Cetak / Download PDF
-                </button>
-            </div>
+    <!-- HEADER KONTROL (TIDAK DICETAK) -->
+    <div class="no-print" style="margin: 10px auto; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 6px 10px; border-radius: 4px;">
+        <div>
+            <h4 style="margin: 0; color: #0d6efd;">Laporan Presensi Mingguan - Kelas {{ $classroom->name ?? '' }}</h4>
+            <small style="color: #6c757d;">Periode: {{ isset($startOfWeek) ? $startOfWeek->translatedFormat('d F Y') : '-' }} s/d {{ isset($endOfWeek) ? $endOfWeek->translatedFormat('d F Y') : '-' }}</small>
         </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ route('attendances.filter') }}" style="padding: 6px 14px; background: #6c757d; color: #fff; text-decoration: none; border-radius: 15px; font-weight: bold; font-size: 10px;">
+                ← Kembali Filter
+            </a>
+            <a href="{{ route('attendances.weekly-recap.pdf', request()->all()) }}" style="padding: 6px 18px; background: #0d6efd; color: #fff; text-decoration: none; border-radius: 15px; font-weight: bold; font-size: 10px;">
+                📥 Download PDF (DomPDF)
+            </a>
+            <button onclick="window.print()" style="padding: 6px 14px; background: #198754; color: #fff; border: none; border-radius: 15px; font-weight: bold; cursor: pointer; font-size: 10px;">
+                🖨️ Cetak Native
+            </button>
+        </div>
+    </div>
+
+    <div class="container-print">
 
         <!-- 1. KOP SURAT RESMI -->
         <div class="kop-container">

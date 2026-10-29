@@ -172,6 +172,7 @@ Route::middleware(['auth'])->group(function () {
     
     // Route Generate Laporan PDF
     Route::get('/attendances/weekly-recap', [AttendanceRecapController::class, 'weeklyRecap'])->name('attendances.weekly-recap');
+    Route::get('/attendances/weekly-recap/download-pdf', [AttendanceRecapController::class, 'downloadPdf'])->name('attendances.weekly-recap.pdf');
 
     // Route::get('/attendances/weekly-recap', [AttendanceRecapController::class, 'weeklyRecap'])->name('attendances.weekly-recap');
     Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
