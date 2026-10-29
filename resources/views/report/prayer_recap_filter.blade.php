@@ -1,9 +1,12 @@
-@section('title', 'Laporan Mingguan Terpadu')
+   
+@extends('layouts.app')
 <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .filter-card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #ffffff; }
         .filter-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #ffffff; border-top-left-radius: 12px; border-top-right-radius: 12px; padding: 20px; }
     </style>
+@section('title', 'Laporan Mingguan Sholat')
+
 @section('content')
 
 <div class="container py-5">
