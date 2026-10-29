@@ -85,7 +85,7 @@ class TelegramWebhookController extends Controller
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 } else {
-                    // SKENARIO B: NOMOR HP TIDAK TERDAFTAR -> MINTA INPUT NISN/NIS
+                    // SKENARIO B: NOMOR HP TIDAK TERDAFTAR -> GUNAKAN STATUS 'pending' SUPAYA LOLOS CHECK CONSTRAINT
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
                         [
@@ -94,7 +94,7 @@ class TelegramWebhookController extends Controller
                             'phone_number'    => (string) $cleanPhone,
                             'username'        => $username,
                             'is_active'       => false,
-                            'approval_status' => 'pending_nisn',
+                            'approval_status' => 'pending', // Menggunakan 'pending' standar
                             'subscribed_at'   => now()->format('Y-m-d H:i:s'),
                         ]
                     );
@@ -137,22 +137,18 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Jika akun MENUNGGU PERSETUJUAN ADMIN
-            if ($subscriber && $subscriber->approval_status === 'pending_approval') {
-                $student     = Student::find($subscriber->student_id);
-                $studentName = $student ? $student->name : '-';
+            // Jika akun MENUNGGU PERSETUJUAN / INPUT NISN (STATUS PENDING)
+            if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->is_active) {
+                if ($subscriber->student_id) {
+                    $student     = Student::find($subscriber->student_id);
+                    $studentName = $student ? $student->name : '-';
 
-                $reply = "⏳ *Pendaftaran Anda Sedang Menunggu Verifikasi Admin*\n\n" .
-                         "Pengajuan untuk siswa *{$studentName}* telah diterima dan sedang diproses oleh Admin SISFO. Mohon tunggu konfirmasi persetujuan.";
-
-                $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
-                return response()->json(['status' => 'ok']);
-            }
-
-            // Jika akun MENUNGGU INPUT NISN
-            if ($subscriber && $subscriber->approval_status === 'pending_nisn') {
-                $reply = "⚠️ *Status Pendaftaran Belum Lengkap*\n\n" .
-                         "Nomor HP Anda belum terdaftar di sistem. Silakan *ketik nomor NISN atau NIS* putra/putri Anda sekarang untuk mengajukan pendaftaran:";
+                    $reply = "⏳ *Pendaftaran Anda Sedang Menunggu Verifikasi Admin*\n\n" .
+                             "Pengajuan untuk siswa *{$studentName}* telah diterima dan sedang diproses oleh Admin SISFO. Mohon tunggu konfirmasi persetujuan.";
+                } else {
+                    $reply = "⚠️ *Status Pendaftaran Belum Lengkap*\n\n" .
+                             "Nomor HP Anda belum terdaftar di sistem. Silakan *ketik nomor NISN atau NIS* putra/putri Anda sekarang untuk mengajukan pendaftaran:";
+                }
 
                 $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 return response()->json(['status' => 'ok']);
@@ -217,7 +213,7 @@ class TelegramWebhookController extends Controller
         // 4. HANDLE PROSES INPUT NISN / NIS DARI ORANG TUA
         $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
-        if ($subscriber && in_array($subscriber->approval_status, ['pending_nisn', 'pending']) && !empty($text)) {
+        if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !empty($text)) {
             $student = Student::where('nisn', $text)->orWhere('nis', $text)->first();
 
             if (!$student) {
@@ -228,8 +224,7 @@ class TelegramWebhookController extends Controller
             }
 
             $subscriber->update([
-                'student_id'      => $student->id,
-                'approval_status' => 'pending_approval'
+                'student_id' => $student->id,
             ]);
 
             $className = optional($student->classroom)->name ?? '-';
@@ -294,7 +289,7 @@ class TelegramWebhookController extends Controller
         [$action, $subscriberId] = explode('_', $data);
         $subscriber = TelegramSubscriber::find($subscriberId);
 
-        if (!$subscriber || !in_array($subscriber->approval_status, ['pending_approval', 'pending_nisn', 'pending'])) {
+        if (!$subscriber || $subscriber->approval_status === 'approved') {
             $telegramService->answerCallbackQuery($callbackId, "Pengajuan ini sudah diproses atau tidak valid.", true);
             return;
         }
