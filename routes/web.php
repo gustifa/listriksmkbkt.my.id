@@ -37,6 +37,7 @@ use App\Http\Controllers\UkkPackageController;
 use App\Http\Controllers\UkkController;
 use App\Http\Controllers\ExternalExaminerController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\AttendanceRecapController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -166,7 +167,13 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
 
+    Route::get('/attendances/weekly-recap/filter', [AttendanceRecapController::class, 'index'])->name('attendances.filter');
+    Route::get('/attendances/get-students/{classroomId}', [AttendanceRecapController::class, 'getStudentsByClassroom']);
     
+    // Route Generate Laporan PDF
+    Route::get('/attendances/weekly-recap', [AttendanceRecapController::class, 'weeklyRecap'])->name('attendances.weekly-recap');
+
+    // Route::get('/attendances/weekly-recap', [AttendanceRecapController::class, 'weeklyRecap'])->name('attendances.weekly-recap');
     Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
     Route::patch('/monitoring/telegram/subscriber/{id}/toggle', [TelegramMonitoringController::class, 'toggleStatus'])->name('monitoring.telegram.toggle');
     // Route Hapus Log Telegram
