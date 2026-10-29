@@ -214,6 +214,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
                         <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi Scope</a></li>
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
+                        <li><a href="{{ route('attendances.filter') }}"><i class='bx bx-id-card'></i>Mingguan</a></li>
                     </ul>
                 </li>
             @endhasanyrole

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Student;
@@ -27,17 +28,12 @@ class AttendanceRecapController extends Controller
         return response()->json($students);
     }
 
-    /**
-     * Helper konversi file gambar ke Base64 Data URI (Anti-Broken Image)
-     */
     private function getBase64Image($path)
     {
         if (empty($path)) return null;
 
-        // 1. Cek langsung di direktori public/storage/ (sesuai struktur fisik folder)
         $fullPath = public_path('storage/' . $path);
         
-        // 2. Fallback ke storage/app/public/
         if (!file_exists($fullPath)) {
             $fullPath = storage_path('app/public/' . $path);
         }
@@ -57,7 +53,6 @@ class AttendanceRecapController extends Controller
         $startOfWeek  = Carbon::parse($selectedDate)->startOfWeek(Carbon::MONDAY);
         $endOfWeek    = Carbon::parse($selectedDate)->endOfWeek(Carbon::FRIDAY);
 
-        // Pemetaan Tanggal Aktif Senin - Jumat
         $weekDates = [
             'Senin'  => $startOfWeek->copy()->addDays(0)->format('d/m/Y'),
             'Selasa' => $startOfWeek->copy()->addDays(1)->format('d/m/Y'),
@@ -69,10 +64,9 @@ class AttendanceRecapController extends Controller
         $classroomId = trim($request->input('classroom_id'));
         $studentId   = $request->filled('student_id') ? trim($request->input('student_id')) : null;
 
-        // 1. Ambil Settings & Pemetaan Key Database
+        // 1. Settings & Logo
         $settingsRaw = DB::table('settings')->get()->pluck('value', 'key');
         
-        // Membaca key logo_left_st & logo_right_st dari Navicat DB
         $logoLeftPath  = $settingsRaw['logo_left_st'] ?? $settingsRaw['logo_left'] ?? null;
         $logoRightPath = $settingsRaw['logo_right_st'] ?? $settingsRaw['logo_right'] ?? null;
 
@@ -89,7 +83,7 @@ class AttendanceRecapController extends Controller
             'kepsek_nip'     => $settingsRaw['signature_nip'] ?? $settingsRaw['nip_surat'] ?? '19740731 200801 1 002',
         ];
 
-        // 2. Ambil Detail Kelas beserta Relasi
+        // 2. Detail Kelas
         $classroom = null;
         if (!empty($classroomId)) {
             $classroom = Classroom::with([
@@ -110,7 +104,7 @@ class AttendanceRecapController extends Controller
             $classroomId = $classroom->id ?? null;
         }
 
-        // 3. Ambil Daftar Siswa
+        // 3. Daftar Siswa
         $studentsQuery = Student::query();
         if (!empty($classroomId)) {
             $studentsQuery->where('classroom_id', (string) $classroomId);
@@ -122,7 +116,7 @@ class AttendanceRecapController extends Controller
 
         $students = $studentsQuery->orderBy('name', 'asc')->get();
 
-        // 4. Data Pejabat Pengesahan (Aman dari Exception)
+        // 4. Pejabat Pengesahan
         $walasNama = optional($classroom->homeroomTeacher)->name ?? 'SATRIAL FITRI';
         $walasNip  = optional($classroom->homeroomTeacher)->nip ?? '197510042006041000';
 
@@ -141,13 +135,13 @@ class AttendanceRecapController extends Controller
             'ketua_nis'  => $ketuaNis,
         ];
 
-        // 5. Master Time Slots Khusus Lesson
+        // 5. Time Slots
         $lessonSlots = DB::table('time_slots')
                         ->where('type', 'lesson')
                         ->orderBy('start_time', 'asc')
                         ->get();
 
-        // 6. Pemetaan Hari & Jadwal Pelajaran
+        // 6. Pemetaan Jadwal
         $dayVariations = [
             1 => ['Senin', 'senin', 'Monday', 'monday', '1'],
             2 => ['Selasa', 'selasa', 'Tuesday', 'tuesday', '2'],
@@ -243,9 +237,19 @@ class AttendanceRecapController extends Controller
             }
         }
 
-        // 9. Oto-fill 'X' Merah & Hitung Alpa per Jadwal Event
+        // 9. OTO-FILL 'X' MERAH & HITUNG ALPA (HANYA UNTUK HARI YANG SUDAH/SEDANG DILALUI)
+        $todayDate = Carbon::now()->format('Y-m-d');
+
         foreach ($students as $student) {
             for ($day = 1; $day <= 5; $day++) {
+                // Hitung tanggal aktual untuk hari ke-1 s/d 5 (Senin - Jumat)
+                $currentDayDate = $startOfWeek->copy()->addDays($day - 1)->format('Y-m-d');
+
+                // Jika hari belum masuk (hari di masa depan), lewati dan biarkan sel kosong
+                if ($currentDayDate > $todayDate) {
+                    continue;
+                }
+
                 foreach ($schedulesPerDay[$day] as $sch) {
                     $jamIndexes = $scheduleJamMap[$sch->id] ?? [];
                     
