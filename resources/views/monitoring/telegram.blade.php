@@ -233,21 +233,25 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <!-- Chat ID Telegram (Tetap tampil di atas) -->
-                                    <span class="d-block text-muted small">{{ $sub->chat_id }}</span>
+                                    <!-- Chat ID Telegram yang bisa diklik untuk langsung membuka chat Telegram -->
+                                    @if($sub->chat_id)
+                                        <a href="https://t.me/{{ $sub->chat_id }}" target="_blank" class="text-danger text-decoration-none fw-bold d-block" title="Buka chat Telegram">
+                                            <i class="fab fa-telegram-plane me-1"></i> {{ $sub->chat_id }}
+                                        </a>
+                                    @else
+                                        <span class="text-muted d-block">-</span>
+                                    @endif
 
-                                    <!-- Nomor HP yang bisa diklik untuk langsung ke WhatsApp -->
+                                    <!-- Nomor HP WhatsApp di bawahnya (yang sudah kita buat sebelumnya) -->
                                     @if($sub->phone_number)
                                         @php
-                                            // Bersihkan nomor dari karakter non-angka (seperti +, spasi, tanda hubung)
-                                            // Agar formatnya sesuai standar wa.me (contoh: 6281374618985)
                                             $cleanPhone = preg_replace('/[^0-9]/', '', $sub->phone_number);
                                         @endphp
-                                        <a href="https://wa.me/{{ $cleanPhone }}" target="_blank" class="text-primary text-decoration-none fw-bold" title="Kirim pesan WhatsApp">
+                                        <a href="https://wa.me/{{ $cleanPhone }}" target="_blank" class="text-primary text-decoration-none small" title="Kirim pesan WhatsApp">
                                             <i class="fab fa-whatsapp text-success me-1"></i> {{ $sub->phone_number }}
                                         </a>
                                     @else
-                                        <span class="text-muted">-</span>
+                                        <span class="text-muted small">-</span>
                                     @endif
                                 </td>
                                 <td>
