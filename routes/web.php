@@ -781,6 +781,7 @@ Route::middleware(['auth', 'role:siswa'])->group(function () {
         Route::get('/dashboard', [DashboardStudentController::class, 'index'])->name('dashboard');
         Route::post('/attendance/store', [DashboardStudentController::class, 'storeSubjectAttendance'])->name('attendance.store');
         Route::post('/permit/store', [DashboardStudentController::class, 'storeLeavePermit'])->name('permit.store');
+        Route::post('/telegram/disconnect', [DashboardStudentController::class, 'disconnectTelegram'])->name('telegram.disconnect');
         Route::get('/my-profile', [StudentAreaController::class, 'profileStudent'])->name('profile');
         Route::put('/my-profile', [StudentAreaController::class, 'updateProfile'])->name('profile.update');
         Route::get('/my-history/subject', [StudentAreaController::class, 'historySubject'])->name('history.subject');

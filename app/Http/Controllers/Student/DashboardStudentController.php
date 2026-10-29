@@ -14,6 +14,8 @@ use App\Models\Schedule;
 use App\Models\Attendance;
 use App\Models\PrayerAttendance;
 use App\Models\Holiday; // <-- Import Model Holiday
+use App\Services\TelegramService;
+use App\Models\TelegramSubscriber;
 
 class DashboardStudentController extends Controller
 {
@@ -494,4 +496,46 @@ class DashboardStudentController extends Controller
 
     return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
 }
+
+
+/**
+ * Membatalkan / Memutuskan Sambungan Telegram dari Akun Siswa
+ */
+public function disconnectTelegram(TelegramService $telegramService)
+{
+    $student = Student::where('user_id', Auth::id())->firstOrFail();
+
+    if ($student->telegram_chat_id) {
+        $chatId = $student->telegram_chat_id;
+
+        // 1. Kosongkan telegram_chat_id di tabel students
+        $student->update(['telegram_chat_id' => null]);
+
+        // 2. Nonaktifkan subscriber siswa di tabel telegram_subscribers
+        TelegramSubscriber::where('student_id', $student->id)
+            ->where('user_type', 'student')
+            ->update([
+                'is_active'       => false,
+                'approval_status' => 'rejected',
+            ]);
+
+        // 3. Kirim notifikasi konfirmasi ke Telegram siswa
+        $pesan = "⚠️ *Akses Telegram Diputuskan*\n\n" .
+                 "Akun Telegram Anda telah dilepaskan dari portal SISFO melalui Dashboard Siswa.\n\n" .
+                 "Anda tidak akan lagi menerima notifikasi presensi harian. Ketik /start atau hubungkan ulang dari web jika ingin mendaftar kembali.";
+
+        try {
+            $telegramService->sendMessageWithRemoveKeyboard($chatId, $pesan);
+        } catch (\Exception $e) {
+            // Abaikan jika bot diblokir oleh pengguna
+        }
+
+        return redirect()->back()->with('success', 'Berhasil memutuskan sambungan dengan Bot Telegram!');
+    }
+
+    return redirect()->back()->with('info', 'Akun Anda belum terhubung dengan Telegram.');
+}
+
+
+
 }

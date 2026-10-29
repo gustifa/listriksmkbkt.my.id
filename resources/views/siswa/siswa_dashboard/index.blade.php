@@ -56,12 +56,17 @@
                     </div>
                     <div>
                         @if($student->telegram_chat_id || (isset($telegramSubscriber) && $telegramSubscriber))
-                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" disabled>
-                                <i class="fas fa-check-double me-1"></i> Sudah Terhubung
-                            </button>
+                            <!-- TOMBOL PUTUSKAN SAMBUNGAN -->
+                            <form action="{{ route('student.telegram.disconnect') }}" method="POST" class="d-inline form-disconnect-telegram">
+                                @csrf
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold btn-disconnect-trigger">
+                                    <i class="fas fa-plug-circle-xmark me-1"></i> Putuskan Sambungan
+                                </button>
+                            </form>
                         @else
                             @php
-                                $botUsername = env('TELEGRAM_BOT_USERNAME', 'NamaBotListrikBot');
+                                $botUsername = config('services.telegram.bot_username', env('TELEGRAM_BOT_USERNAME', 'listrikbk_bot'));
+                                $botUsername = ltrim($botUsername, '@');
                                 $telegramUrl = "https://t.me/{$botUsername}?start=student_{$student->id}";
                             @endphp
                             <a href="{{ $telegramUrl }}" target="_blank" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
@@ -898,6 +903,29 @@
                     switchPrayerView('card');
                 }
             });
+
+            // KONFIRMASI PUTUSKAN SAMBUNGAN TELEGRAM
+            const btnDisconnect = document.querySelector('.btn-disconnect-trigger');
+            if (btnDisconnect) {
+                btnDisconnect.addEventListener('click', function() {
+                    const form = this.closest('form');
+                    Swal.fire({
+                        title: 'Putuskan Sambungan Telegram?',
+                        text: 'Anda tidak akan menerima notifikasi presensi harian via Telegram lagi.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: '<i class="fas fa-plug-circle-xmark me-1"></i> Ya, Putuskan!',
+                        cancelButtonText: 'Batal',
+                        customClass: { popup: 'rounded-4 shadow' }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            }
 
             // 1. CONFIRMATION SWEETALERT UNTUK ABSEN MAPEL
             const btnAbsens = document.querySelectorAll('.btn-absen-trigger');
