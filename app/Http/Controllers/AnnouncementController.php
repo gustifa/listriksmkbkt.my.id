@@ -50,14 +50,13 @@ class AnnouncementController extends Controller
         $query = TelegramSubscriber::where('is_active', true)
             ->where('approval_status', 'approved');
 
+        // Filter target diperketat agar tidak tercampur
         if ($request->target_role === 'parent') {
             $query->where('user_type', 'parent');
         } elseif ($request->target_role === 'student') {
-            $query->where(function($q) {
-                $q->where('user_type', 'student')
-                  ->orWhereNotNull('student_id');
-            });
+            $query->where('user_type', 'student');
         }
+        // Jika 'all', tidak perlu filter user_type (mencakup semua)
 
         if ($request->filled('classroom_id')) {
             $classroomId = $request->classroom_id;
@@ -66,7 +65,8 @@ class AnnouncementController extends Controller
             });
         }
 
-        $subscribers = $query->get();
+        // Gunakan unique('chat_id') agar tidak ada chat_id yang dikirimi pesan dua kali
+        $subscribers = $query->get()->unique('chat_id');
 
         // Format Pesan Telegram
         $msgText = "📢 *PENGUMUMAN SEKOLAH*\n\n" .
@@ -130,7 +130,7 @@ class AnnouncementController extends Controller
             });
         }
 
-        $subscribers = $query->get();
+        $subscribers = $query->get()->unique('chat_id');
 
         $recipients = $subscribers->map(function ($sub) {
             $studentName = optional($sub->student)->name ?? '-';
@@ -148,7 +148,7 @@ class AnnouncementController extends Controller
 
         return response()->json([
             'total'      => $recipients->count(),
-            'recipients' => $recipients
+            'recipients' => $recipients->values()
         ]);
     }
 }

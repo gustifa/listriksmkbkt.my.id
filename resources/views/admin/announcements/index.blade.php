@@ -41,7 +41,6 @@
                                         <h6 class="fw-bold text-dark mb-1">{{ $item->title }}</h6>
                                         <p class="text-muted small mb-0 text-truncate" style="max-width: 400px;">{{ $item->content }}</p>
                                         
-                                        <!-- Menampilkan Tombol Lampiran Berkas -->
                                         @if($item->attachment)
                                             <div class="mt-2">
                                                 <a href="{{ asset('storage/' . $item->attachment) }}" target="_blank" class="badge bg-light text-primary border text-decoration-none py-1 px-2">
@@ -106,8 +105,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <!-- WAJIB ADA enctype="multipart/form-data" AGAR FILE BERHASIL DI-UPLOAD -->
-                <form action="{{ route('admin.announcements.store') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.announcements.store') }}" method="POST" enctype="multipart/form-data" id="form-create-announcement">
                     @csrf
                     <div class="modal-body p-4">
                         <div class="mb-3">
@@ -177,7 +175,7 @@
                     </div>
                     <div class="modal-footer bg-light rounded-bottom-4">
                         <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">
+                        <button type="submit" id="btn-submit" class="btn btn-primary rounded-pill px-4 fw-bold">
                             <i class="fas fa-paper-plane me-1"></i> Kirim & Broadcast
                         </button>
                     </div>
@@ -244,6 +242,13 @@
 
             $('#target_role, #select-classroom').on('change', function () {
                 fetchRecipientPreview();
+            });
+
+            // Mencegah double submit
+            $('#form-create-announcement').on('submit', function() {
+                const btn = $('#btn-submit');
+                btn.prop('disabled', true);
+                btn.html('<i class="fas fa-spinner fa-spin me-1"></i> Mengirim...');
             });
 
             const deleteButtons = document.querySelectorAll('.btn-delete-trigger');
