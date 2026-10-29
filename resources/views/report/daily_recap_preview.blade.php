@@ -7,7 +7,7 @@
     <style>
         * { box-sizing: border-box; font-family: "Arial", sans-serif; }
         html, body { background-color: #f8f9fa; margin: 0; padding: 4px; font-size: 8px; }
-        .container-print { background: #fff; padding: 8px 12px; margin: 0 auto; max-width: 1100px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .container-print { background: #fff; padding: 8px 12px; margin: 0 auto; max-width: 1150px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
 
         .kop-container { width: 100%; margin-bottom: 4px; }
         .header-kop { width: 100%; border-collapse: collapse; }
@@ -37,13 +37,13 @@
         .table-recap thead th { font-weight: bold; background-color: #f2f2f2; text-transform: uppercase; }
         .text-left { text-align: left !important; padding-left: 4px !important; }
 
-        /* PROPORSIONAL LEBAR KOLOM PREVIEW */
-        .col-no   { width: 20px; }
-        .col-nis  { width: 40px; }
-        .col-nama { width: 230px; } /* DIPERLEBAR AGAR NAMA TIDAK TERTEKAN */
-        .col-lp   { width: 18px; }
-        .col-time { width: 30px; font-size: 6.8px; }
-        .col-stat { width: 16px; font-size: 7.5px; }
+        /* ALOKASI LEBAR PERSENTASE PREVIEW */
+        .col-no   { width: 3%; }
+        .col-nis  { width: 6%; }
+        .col-nama { width: 28%; } /* DIPERLEBAR HINGGA 28% */
+        .col-lp   { width: 3%; }
+        .col-time { width: 4.8%; font-size: 6.8px; }
+        .col-stat { width: 2.4%; font-size: 7.5px; }
 
         .txt-alpa { color: #d9534f; font-weight: bold; }
         .txt-late { color: #e67e22; font-weight: bold; }
@@ -65,7 +65,7 @@
 <body>
 
     <!-- KONTROL BAR -->
-    <div class="no-print" style="margin: 10px auto; max-width: 1100px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 8px 12px; border-radius: 6px;">
+    <div class="no-print" style="margin: 10px auto; max-width: 1150px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 8px 12px; border-radius: 6px;">
         <div>
             <h4 style="margin: 0; color: #0d6efd;">Pratinjau Presensi Gerbang - Kelas {{ $classroom->name ?? '' }}</h4>
             <small style="color: #6c757d;">Periode: {{ isset($startOfWeek) ? $startOfWeek->format('d/m/Y') : '-' }} s/d {{ isset($endOfWeek) ? $endOfWeek->format('d/m/Y') : '-' }}</small>
@@ -175,7 +175,13 @@
                             @endphp
                             <td>
                                 @if($rec)
-                                    <span class="{{ $rec['status'] == 'terlambat' ? 'txt-late' : '' }}">{{ $rec['arrival'] }}</span>
+                                    @if($rec['status'] == 'alpa')
+                                        <span class="txt-alpa">X</span>
+                                    @elseif($rec['status'] == 'terlambat')
+                                        <span class="txt-late">{{ $rec['arrival'] }}</span>
+                                    @else
+                                        {{ $rec['arrival'] }}
+                                    @endif
                                 @else
                                     -
                                 @endif
