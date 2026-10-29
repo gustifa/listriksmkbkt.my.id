@@ -48,7 +48,7 @@ class TelegramWebhookController extends Controller
 
                 $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
-                // Membedakan apakah nomor HP terdaftar sebagai HP Ortu ('phone') atau HP Siswa ('student_phone')
+                // Cek pencocokan nomor HP
                 $studentByParent  = Student::where('phone', 'like', '%' . $lastDigits)->first();
                 $studentByStudent = Student::where('student_phone', 'like', '%' . $lastDigits)->first();
 
@@ -60,7 +60,7 @@ class TelegramWebhookController extends Controller
                     $userType = 'student';
                 } else {
                     $student  = null;
-                    $userType = 'parent'; // Default untuk pengajuan baru
+                    $userType = 'parent';
                 }
 
                 if ($student) {
@@ -131,16 +131,53 @@ class TelegramWebhookController extends Controller
         // Perintah /start atau /daftar
         if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
 
-            // A. CEK DEEP LINKING UNTUK PENDAFTARAN LANGSUNG SISWA DARI DASHBOARD (/start student_ID)
+            // A. DEEP LINKING DARI DASHBOARD SISWA (/start student_ID)
             if (preg_match('/^\/start\s+student_([a-f0-9\-]+)$/i', $text, $matches)) {
                 $studentId = $matches[1];
                 $student   = Student::find($studentId);
 
                 if ($student) {
-                    try {
-                        $student->update(['telegram_chat_id' => $chatId]);
-                    } catch (\Exception $ex) {
-                        Log::warning("Gagal update telegram_chat_id di student: " . $ex->getMessage());
+                    $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+
+                    // VALIDASI NOMOR HP SISWA:
+                    // Jika student_phone di database masih kosong, minta bagikan kontak untuk pengisian otomatis
+                    if (empty($student->student_phone) && (!$subscriber || empty($subscriber->phone_number))) {
+                        
+                        // Simpan draf subscriber sementara agar bot ingat siswa yang sedang mendaftar
+                        TelegramSubscriber::updateOrCreate(
+                            ['chat_id' => $chatId],
+                            [
+                                'student_id'      => $student->id,
+                                'parent_name'     => $student->name,
+                                'user_type'       => 'student',
+                                'is_active'       => false,
+                                'approval_status' => 'pending',
+                            ]
+                        );
+
+                        $prompt = "📱 *Verifikasi Nomor Telepon Siswa*\n\n" .
+                                  "Halo *{$student->name}*, nomor telepon Anda belum terdata di sistem sekolah.\n\n" .
+                                  "Silakan tekan tombol *'📱 Bagikan Nomor Kontak Saya'* di bawah untuk mendaftarkan nomor HP Telegram Anda secara otomatis ke sistem.";
+
+                        $telegramService->sendContactButton($chatId, $prompt);
+                        return response()->json(['status' => 'ok']);
+                    }
+
+                    // Jika student_phone di DB kosong TAPI siswa sudah mengirim kontak, update student_phone secara otomatis!
+                    if (empty($student->student_phone) && $subscriber && !empty($subscriber->phone_number)) {
+                        try {
+                            $student->update([
+                                'student_phone'    => $subscriber->phone_number,
+                                'telegram_chat_id' => $chatId,
+                            ]);
+                        } catch (\Exception $ex) {
+                            Log::warning("Gagal update student_phone: " . $ex->getMessage());
+                        }
+                    } else {
+                        // Jika student_phone sudah ada di DB, langsung update telegram_chat_id
+                        try {
+                            $student->update(['telegram_chat_id' => $chatId]);
+                        } catch (\Exception $ex) {}
                     }
 
                     $firstName   = $message['from']['first_name'] ?? '';
@@ -153,6 +190,7 @@ class TelegramWebhookController extends Controller
                         [
                             'student_id'      => $student->id,
                             'parent_name'     => $studentName,
+                            'phone_number'    => $student->student_phone ?? ($subscriber->phone_number ?? null),
                             'username'        => $username,
                             'user_type'       => 'student',
                             'is_active'       => true,
@@ -167,7 +205,8 @@ class TelegramWebhookController extends Controller
                              "Akun Telegram Anda telah terhubung sebagai *Siswa*:\n" .
                              "👤 Nama Siswa: *{$student->name}*\n" .
                              "🏫 Kelas: *{$className}*\n" .
-                             "🆔 NISN: *{$student->nisn}*\n\n" .
+                             "🆔 NISN: *{$student->nisn}*\n" .
+                             "📱 No. HP: `+" . ($student->student_phone ?? $subscriber->phone_number ?? '-') . "`\n\n" .
                              "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
