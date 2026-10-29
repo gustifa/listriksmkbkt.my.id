@@ -31,7 +31,7 @@ class Student extends Model
         'status', 'classroom_id', 'is_promoted', 'previous_school',
         'father_name', 'father_nik', 'father_education', 'father_job', 'father_income',
         'mother_name', 'mother_nik', 'mother_education', 'mother_job', 'mother_income',
-        'guardian_name', 'guardian_nik', 'guardian_education', 'guardian_job', 'guardian_income', 'student_phone',
+        'guardian_name', 'guardian_nik', 'guardian_education', 'guardian_job', 'guardian_income', 'student_phone', 'telegram_chat_id',
     ];
 
     public function user()
