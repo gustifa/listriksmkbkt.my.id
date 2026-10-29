@@ -219,6 +219,12 @@ class DashboardStudentController extends Controller
             ->limit(5)
             ->get();
 
+        // Tambahkan relasi/pengecekan telegram subscriber untuk siswa yang sedang login
+        $telegramSubscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+            ->where('user_type', 'student')
+            ->where('is_active', true)
+            ->first();
+
         return view('siswa.siswa_dashboard.index', compact(
             'student',
             'todayAttendance',
@@ -229,7 +235,8 @@ class DashboardStudentController extends Controller
             'activeExams',
             'timelines',
             'prayerHistory',
-            'gateHistory'
+            'gateHistory',
+            'telegramSubscriber'
         ));
     }
 

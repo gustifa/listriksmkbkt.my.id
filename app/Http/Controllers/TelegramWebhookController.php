@@ -129,10 +129,55 @@ class TelegramWebhookController extends Controller
         $lowerText = strtolower($text);
 
         // Perintah /start atau /daftar
-        if ($lowerText === '/start' || $lowerText === '/daftar') {
+        if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
+
+            // A. CEK DEEP LINKING UNTUK PENDAFTARAN LANGSUNG SISWA DARI DASHBOARD (/start student_ID)
+            if (preg_match('/^\/start\s+student_([a-f0-9\-]+)$/i', $text, $matches)) {
+                $studentId = $matches[1];
+                $student   = Student::find($studentId);
+
+                if ($student) {
+                    try {
+                        $student->update(['telegram_chat_id' => $chatId]);
+                    } catch (\Exception $ex) {
+                        Log::warning("Gagal update telegram_chat_id di student: " . $ex->getMessage());
+                    }
+
+                    $firstName   = $message['from']['first_name'] ?? '';
+                    $lastName    = $message['from']['last_name'] ?? '';
+                    $studentName = trim($firstName . ' ' . $lastName) ?: $student->name;
+                    $username    = $message['from']['username'] ?? null;
+
+                    TelegramSubscriber::updateOrCreate(
+                        ['chat_id' => $chatId],
+                        [
+                            'student_id'      => $student->id,
+                            'parent_name'     => $studentName,
+                            'username'        => $username,
+                            'user_type'       => 'student',
+                            'is_active'       => true,
+                            'approval_status' => 'approved',
+                            'subscribed_at'   => now()->format('Y-m-d H:i:s'),
+                        ]
+                    );
+
+                    $className = optional($student->classroom)->name ?? '-';
+
+                    $reply = "🎉 *Pendaftaran Berhasil!*\n\n" .
+                             "Akun Telegram Anda telah terhubung sebagai *Siswa*:\n" .
+                             "👤 Nama Siswa: *{$student->name}*\n" .
+                             "🏫 Kelas: *{$className}*\n" .
+                             "🆔 NISN: *{$student->nisn}*\n\n" .
+                             "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
+
+                    $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                    return response()->json(['status' => 'ok']);
+                }
+            }
+
+            // B. CEK JIKA USER SUDAH APPROVED
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
-            // Jika akun SUDAH APPROVED
             if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
                 $student     = Student::find($subscriber->student_id);
                 $studentName = $student ? $student->name : '-';
@@ -150,7 +195,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Jika akun MENUNGGU PERSETUJUAN / INPUT NISN (STATUS PENDING)
+            // C. JIKA AKUN MENUNGGU PERSETUJUAN / INPUT NISN (STATUS PENDING)
             if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->is_active) {
                 if ($subscriber->student_id) {
                     $student     = Student::find($subscriber->student_id);
@@ -167,7 +212,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Jika BELUM TERDAFTAR atau AKUN NONAKTIF -> Tampilkan tombol Share Contact
+            // D. JIKA BELUM TERDAFTAR atau AKUN NONAKTIF -> Tampilkan tombol Share Contact
             $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
                       "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali & Siswa.\n\n" .
                       "📌 *Panduan Perintah Bot:*\n" .

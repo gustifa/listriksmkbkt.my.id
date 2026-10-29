@@ -31,6 +31,48 @@
             </div>
         </div>
 
+        <!-- BANNER INTEGRASI BOT TELEGRAM SISWA -->
+        <div class="card border-0 shadow-sm rounded-3 mb-4 bg-white border-start border-4 border-info">
+            <div class="card-body p-3 p-md-4">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-info bg-opacity-10 text-info p-3 rounded-circle me-3 flex-shrink-0">
+                            <i class="fab fa-telegram-plane fa-2x"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark">
+                                Notifikasi Bot Telegram SISFO
+                            </h6>
+                            <p class="text-muted small mb-0">
+                                @if($student->telegram_chat_id || (isset($telegramSubscriber) && $telegramSubscriber))
+                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> Terhubung</span> 
+                                    Akun Telegram Anda sudah terhubung dan aktif menerima notifikasi presensi.
+                                @else
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Belum Terhubung</span> 
+                                    Hubungkan akun Telegram Anda untuk menerima laporan kehadiran secara real-time.
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        @if($student->telegram_chat_id || (isset($telegramSubscriber) && $telegramSubscriber))
+                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" disabled>
+                                <i class="fas fa-check-double me-1"></i> Sudah Terhubung
+                            </button>
+                        @else
+                            @php
+                                $botUsername = env('TELEGRAM_BOT_USERNAME', 'NamaBotListrikBot');
+                                $telegramUrl = "https://t.me/{$botUsername}?start=student_{$student->id}";
+                            @endphp
+                            <a href="{{ $telegramUrl }}" target="_blank" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                                <i class="fab fa-telegram-plane me-1"></i> Hubungkan ke Telegram
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 1. STATISTIK KARTU (RESPONSIF GRID) -->
         <div class="row g-3 mb-4">
             <!-- Status Presensi Hari Ini -->
