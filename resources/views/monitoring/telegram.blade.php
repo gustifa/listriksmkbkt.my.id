@@ -187,6 +187,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
                     <form method="GET" action="{{ route('monitoring.telegram') }}" class="row g-2">
+                        <input type="hidden" name="sub_page" value="1">
                         <div class="col-md-4">
                             <input type="text" name="sub_search" class="form-control" placeholder="Cari nama orang tua, No HP, Chat ID..." value="{{ request('sub_search') }}">
                         </div>
@@ -218,26 +219,28 @@
                                 <td>
                                     @if($sub->student)
                                         <span class="fw-bold">{{ $sub->student->name }}</span><br>
-                                        <small class="text-muted">{{ $sub->student->classroom->name ?? '-' }}</small>
+                                        <small class="text-muted">{{ $sub->student->classroom->name ?? '-' }} (NISN: {{ $sub->student->nisn ?? '-' }})</small>
                                     @else
-                                        <span class="badge bg-warning text-dark">Belum Dihubungkan</span>
+                                        <span class="badge bg-secondary">Belum Memilih Siswa</span>
                                     @endif
                                 </td>
                                 <td>
                                     <code>{{ $sub->chat_id }}</code><br>
-                                    <small class="text-muted">{{ $sub->phone_number ?? '-' }}</small>
+                                    <small class="text-muted">{{ $sub->phone_number ? '+'.$sub->phone_number : '-' }}</small>
                                 </td>
                                 <td>
                                     @if($sub->approval_status == 'approved')
-                                        <span class="badge bg-success">Disetujui</span>
-                                    @elseif($sub->approval_status == 'pending')
-                                        <span class="badge bg-warning text-dark">Menunggu Persetujuan</span>
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Disetujui</span>
+                                    @elseif(in_array($sub->approval_status, ['pending_approval', 'pending']))
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Menunggu Persetujuan Admin</span>
+                                    @elseif($sub->approval_status == 'pending_nisn')
+                                        <span class="badge bg-info text-dark"><i class="bi bi-pencil me-1"></i> Menunggu Input NISN Ortu</span>
                                     @else
-                                        <span class="badge bg-danger">Ditolak / Nonaktif</span>
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i> Ditolak / Nonaktif</span>
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    @if($sub->approval_status == 'pending')
+                                    @if(in_array($sub->approval_status, ['pending', 'pending_approval', 'pending_nisn']))
                                         <!-- Tombol Setujui (Buka Modal Select2) -->
                                         <button type="button" class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal{{ $sub->id }}">
                                             <i class="bi bi-check-circle"></i> Setujui
@@ -263,14 +266,16 @@
                                                         </div>
                                                         <div class="modal-body">
                                                             <p class="small text-muted mb-3">
-                                                                Nomor HP Telegram ini (<code>{{ $sub->phone_number }}</code>) belum terdaftar di database. Silakan cari nama siswa terkait untuk menyetujui pendaftaran.
+                                                                Nomor HP Telegram ini (<code>+{{ $sub->phone_number }}</code>) terhubung dengan pengajuan. Silakan konfirmasi atau pilih siswa terkait.
                                                             </p>
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Pilih Siswa:</label>
                                                                 <select name="student_id" class="form-select select2-student" style="width: 100%;" required>
                                                                     <option value="">-- Ketik Nama Siswa / Kelas --</option>
                                                                     @foreach($accessibleStudents as $std)
-                                                                        <option value="{{ $std->id }}">{{ $std->name }} - {{ $std->classroom->name ?? '-' }} (NIS: {{ $std->nis }})</option>
+                                                                        <option value="{{ $std->id }}" {{ $sub->student_id == $std->id ? 'selected' : '' }}>
+                                                                            {{ $std->name }} - {{ $std->classroom->name ?? '-' }} (NISN: {{ $std->nisn ?? $std->nis }})
+                                                                        </option>
                                                                     @endforeach
                                                                 </select>
                                                             </div>
