@@ -39,6 +39,7 @@ use App\Http\Controllers\ExternalExaminerController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AttendanceRecapController;
 use App\Http\Controllers\DailyAttendanceRecapController;
+use App\Http\Controllers\PrayerAttendanceRecapController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -178,6 +179,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/daily-recap', [DailyAttendanceRecapController::class, 'index'])->name('daily.recap.index');
     Route::get('/daily-recap/preview', [DailyAttendanceRecapController::class, 'preview'])->name('daily.recap.preview');
     Route::get('/daily-recap/pdf', [DailyAttendanceRecapController::class, 'downloadPdf'])->name('daily.recap.pdf');
+
+    Route::get('/prayer-recap', [PrayerAttendanceRecapController::class, 'index'])->name('prayer.recap.index');
+    Route::get('/prayer-recap/preview', [PrayerAttendanceRecapController::class, 'preview'])->name('prayer.recap.preview');
+    Route::get('/prayer-recap/pdf', [PrayerAttendanceRecapController::class, 'downloadPdf'])->name('prayer.recap.pdf');
 
     // Route::get('/attendances/weekly-recap', [AttendanceRecapController::class, 'weeklyRecap'])->name('attendances.weekly-recap');
     Route::get('/monitoring/telegram', [TelegramMonitoringController::class, 'index'])->name('monitoring.telegram');
