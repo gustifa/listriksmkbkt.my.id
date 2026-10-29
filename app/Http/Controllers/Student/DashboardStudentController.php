@@ -501,39 +501,82 @@ class DashboardStudentController extends Controller
 /**
  * Membatalkan / Memutuskan Sambungan Telegram dari Akun Siswa
  */
+// public function disconnectTelegram(TelegramService $telegramService)
+// {
+//     $student = Student::where('user_id', Auth::id())->firstOrFail();
+
+//     if ($student->telegram_chat_id) {
+//         $chatId = $student->telegram_chat_id;
+
+//         // 1. Kosongkan telegram_chat_id di tabel students
+//         $student->update(['telegram_chat_id' => null]);
+
+//         // 2. Nonaktifkan subscriber siswa di tabel telegram_subscribers
+//         TelegramSubscriber::where('student_id', $student->id)
+//             ->where('user_type', 'student')
+//             ->update([
+//                 'is_active'       => false,
+//                 'approval_status' => 'rejected',
+//             ]);
+
+//         // 3. Kirim notifikasi konfirmasi ke Telegram siswa
+//         $pesan = "⚠️ *Akses Telegram Diputuskan*\n\n" .
+//                  "Akun Telegram Anda telah dilepaskan dari portal SISFO melalui Dashboard Siswa.\n\n" .
+//                  "Anda tidak akan lagi menerima notifikasi presensi harian. Ketik /start atau hubungkan ulang dari web jika ingin mendaftar kembali.";
+
+//         try {
+//             $telegramService->sendMessageWithRemoveKeyboard($chatId, $pesan);
+//         } catch (\Exception $e) {
+//             // Abaikan jika bot diblokir oleh pengguna
+//         }
+
+//         return redirect()->back()->with('success', 'Berhasil memutuskan sambungan dengan Bot Telegram!');
+//     }
+
+//     return redirect()->back()->with('info', 'Akun Anda belum terhubung dengan Telegram.');
+// }
+
 public function disconnectTelegram(TelegramService $telegramService)
 {
     $student = Student::where('user_id', Auth::id())->firstOrFail();
 
+    // 1. Ambil semua subscriber terkait siswa ini (baik berdasarkan chat_id maupun student_id)
+    $subscribers = TelegramSubscriber::where('student_id', $student->id)
+        ->orWhere(function ($query) use ($student) {
+            if ($student->telegram_chat_id) {
+                $query->where('chat_id', $student->telegram_chat_id);
+            }
+        })
+        ->get();
+
+    // 2. Kirim notifikasi ke Telegram sebelum sambungan diputus
     if ($student->telegram_chat_id) {
-        $chatId = $student->telegram_chat_id;
-
-        // 1. Kosongkan telegram_chat_id di tabel students
-        $student->update(['telegram_chat_id' => null]);
-
-        // 2. Nonaktifkan subscriber siswa di tabel telegram_subscribers
-        TelegramSubscriber::where('student_id', $student->id)
-            ->where('user_type', 'student')
-            ->update([
-                'is_active'       => false,
-                'approval_status' => 'rejected',
-            ]);
-
-        // 3. Kirim notifikasi konfirmasi ke Telegram siswa
         $pesan = "⚠️ *Akses Telegram Diputuskan*\n\n" .
                  "Akun Telegram Anda telah dilepaskan dari portal SISFO melalui Dashboard Siswa.\n\n" .
-                 "Anda tidak akan lagi menerima notifikasi presensi harian. Ketik /start atau hubungkan ulang dari web jika ingin mendaftar kembali.";
+                 "Anda tidak akan lagi menerima notifikasi presensi harian. Hubungkan ulang dari web jika ingin mendaftar kembali.";
 
         try {
-            $telegramService->sendMessageWithRemoveKeyboard($chatId, $pesan);
+            $telegramService->sendMessageWithRemoveKeyboard($student->telegram_chat_id, $pesan);
         } catch (\Exception $e) {
             // Abaikan jika bot diblokir oleh pengguna
         }
-
-        return redirect()->back()->with('success', 'Berhasil memutuskan sambungan dengan Bot Telegram!');
     }
 
-    return redirect()->back()->with('info', 'Akun Anda belum terhubung dengan Telegram.');
+    // 3. Hapus / Nonaktifkan record subscriber di tabel telegram_subscribers
+    foreach ($subscribers as $sub) {
+        $sub->update([
+            'student_id'      => null,
+            'is_active'       => false,
+            'approval_status' => 'rejected',
+        ]);
+    }
+
+    // 4. Kosongkan telegram_chat_id di tabel students
+    $student->update([
+        'telegram_chat_id' => null
+    ]);
+
+    return redirect()->back()->with('success', 'Berhasil memutuskan sambungan akun Telegram!');
 }
 
 
