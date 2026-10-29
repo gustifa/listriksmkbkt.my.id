@@ -21,9 +21,7 @@ class TelegramWebhookController extends Controller
 
         $update = $request->all();
 
-        // -------------------------------------------------------------------
         // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL SETUJUI / TOLAK DARI ADMIN)
-        // -------------------------------------------------------------------
         if (isset($update['callback_query'])) {
             $this->handleAdminCallback($update['callback_query'], $telegramService);
             return response()->json(['status' => 'ok']);
@@ -36,9 +34,7 @@ class TelegramWebhookController extends Controller
         $chatId  = (string) $update['message']['chat']['id'];
         $message = $update['message'];
 
-        // -------------------------------------------------------------------
         // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
-        // -------------------------------------------------------------------
         if (isset($message['contact'])) {
             try {
                 $contact    = $message['contact'];
@@ -50,14 +46,21 @@ class TelegramWebhookController extends Controller
                 $parentName = trim($firstName . ' ' . $lastName) ?: 'Orang Tua';
                 $username   = $message['from']['username'] ?? null;
 
-                // Pencocokan nomor HP ke database (memeriksa 9 digit terakhir)
-                $student = Student::where('phone', 'like', '%' . substr($cleanPhone, -9))
-                            ->orWhere('parent_phone', 'like', '%' . substr($cleanPhone, -9))
-                            ->first();
+                $lastDigits = substr($cleanPhone, -9);
+
+                // PENCARIAN DUA KOLOM: phone (HP Ortu) DAN student_phone (HP Siswa)
+                $student = Student::where(function ($q) use ($lastDigits) {
+                    $q->where('phone', 'like', '%' . $lastDigits)
+                      ->orWhere('student_phone', 'like', '%' . $lastDigits);
+                })->first();
 
                 if ($student) {
                     // KONDISI A: NOMOR HP TERDAFTAR -> LANGSUNG APPROVED
-                    $student->update(['telegram_chat_id' => $chatId]);
+                    try {
+                        $student->update(['telegram_chat_id' => $chatId]);
+                    } catch (\Exception $ex) {
+                        Log::warning("Gagal update telegram_chat_id di student: " . $ex->getMessage());
+                    }
 
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
@@ -72,15 +75,17 @@ class TelegramWebhookController extends Controller
                         ]
                     );
 
+                    $className = $student->classroom ? $student->classroom->name : '-';
+
                     $reply = "✅ *Pendaftaran Berhasil!*\n\n" .
                             "Akun Telegram Anda telah terhubung dengan siswa:\n" .
                             "👤 Nama: *{$student->name}*\n" .
-                            "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
+                            "🏫 Kelas: *{$className}*\n\n" .
                             "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 } else {
-                    // KONDISI B: NOMOR HP TIDAK TERDAFTAR -> MINTA INPUT NISN / NIS
+                    // KONDISI B: NOMOR HP TIDAK TERDAFTAR -> MINTA NISN/NIS
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
                         [
@@ -100,20 +105,17 @@ class TelegramWebhookController extends Controller
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 }
             } catch (\Exception $e) {
-                Log::error("Error Telegram Contact Webhook: " . $e->getMessage());
-                $telegramService->sendMessageWithRemoveKeyboard($chatId, "⚠️ Terjadi kendala sistem. Silakan coba lagi atau hubungi Admin SISFO.");
+                Log::error("Error Telegram Contact Webhook: " . $e->getMessage() . " File: " . $e->getFile() . " Line: " . $e->getLine());
+                $telegramService->sendMessageWithRemoveKeyboard($chatId, "⚠️ Terjadi kendala sistem. Silakan coba beberapa saat lagi atau hubungi Admin SISFO.");
             }
 
             return response()->json(['status' => 'ok']);
         }
 
-        // -------------------------------------------------------------------
         // 3. HANDLE PESAN TEKS DAN PERINTAH BOT
-        // -------------------------------------------------------------------
         $text = trim($message['text'] ?? '');
         $lowerText = strtolower($text);
 
-        // Perintah /start atau /daftar
         if ($lowerText === '/start' || $lowerText === '/daftar') {
             $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
                       "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali.\n\n" .
@@ -129,7 +131,6 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // Perintah /help
         if ($lowerText === '/help') {
             $reply = "ℹ️ *BANTUAN BOT NOTIFIKASI SISFO*\n\n" .
                      "1️⃣ *Bagaimana cara mendaftar?*\n" .
@@ -143,7 +144,6 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // Perintah /batal atau /stop
         if ($lowerText === '/batal' || $lowerText === '/stop') {
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
@@ -154,8 +154,9 @@ class TelegramWebhookController extends Controller
                 ]);
 
                 if ($subscriber->student_id) {
-                    Student::where('id', $subscriber->student_id)
-                        ->update(['telegram_chat_id' => null]);
+                    try {
+                        Student::where('id', $subscriber->student_id)->update(['telegram_chat_id' => null]);
+                    } catch (\Exception $ex) {}
                 }
 
                 $reply = "❌ *Pendaftaran Dibatalkan!*\n\n" .
@@ -169,12 +170,10 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // -------------------------------------------------------------------
         // 4. HANDLE PROSES INPUT NISN / NIS DARI ORANG TUA
-        // -------------------------------------------------------------------
         $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
-        if ($subscriber && $subscriber->approval_status === 'pending_nisn' && !empty($text)) {
+        if ($subscriber && in_array($subscriber->approval_status, ['pending_nisn', 'pending']) && !empty($text)) {
             $student = Student::where('nisn', $text)->orWhere('nis', $text)->first();
 
             if (!$student) {
@@ -184,22 +183,21 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Simpan student_id dan ubah status menjadi pending_approval
             $subscriber->update([
                 'student_id'      => $student->id,
                 'approval_status' => 'pending_approval'
             ]);
 
-            // Kirim Balasan ke Telegram Orang Tua
+            $className = $student->classroom ? $student->classroom->name : '-';
+
             $reply = "⏳ *Pendaftaran Dalam Proses Verifikasi!*\n\n" .
                      "Data Siswa Ditemukan:\n" .
                      "👤 Nama: *{$student->name}*\n" .
-                     "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
+                     "🏫 Kelas: *{$className}*\n\n" .
                      "Pengajuan Anda telah diteruskan ke *Admin SISFO*. Mohon tunggu konfirmasi persetujuan dari Admin untuk mengaktifkan notifikasi.";
             
             $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
 
-            // Kirim Notifikasi ke Grup Telegram Admin
             $this->notifyAdminGroup($subscriber, $student, $telegramService);
 
             return response()->json(['status' => 'ok']);
@@ -208,22 +206,20 @@ class TelegramWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    /**
-     * Mengirimkan Notifikasi Ringkasan ke Grup Telegram Admin
-     */
     private function notifyAdminGroup(TelegramSubscriber $subscriber, Student $student, TelegramService $telegramService): void
     {
         $adminGroupChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
 
         if (empty($adminGroupChatId)) {
-            Log::warning("TELEGRAM_ADMIN_CHAT_ID belum dikonfigurasi di file .env");
             return;
         }
+
+        $className = $student->classroom ? $student->classroom->name : '-';
 
         $text = "📩 *Pengajuan Pendaftaran Telegram Ortu*\n\n" .
                 "👤 Ortu: *{$subscriber->parent_name}*\n" .
                 "📞 No HP: `+{$subscriber->phone_number}`\n" .
-                "🎯 Siswa: *{$student->name}* (" . ($student->classroom ? $student->classroom->name : '-') . ")\n" .
+                "🎯 Siswa: *{$student->name}* ({$className})\n" .
                 "🆔 NISN: `{$student->nisn}`\n\n" .
                 "Apakah Anda ingin menyetujui penghubungan akun ini?";
 
@@ -239,9 +235,6 @@ class TelegramWebhookController extends Controller
         $telegramService->sendMessage($adminGroupChatId, $text, 'pendaftaran', 'Pengajuan Ortu', $keyboard);
     }
 
-    /**
-     * Menangani Klik Tombol Setujui / Tolak dari Admin di Telegram
-     */
     private function handleAdminCallback(array $callbackQuery, TelegramService $telegramService): void
     {
         $callbackId = $callbackQuery['id'];
@@ -257,7 +250,7 @@ class TelegramWebhookController extends Controller
         [$action, $subscriberId] = explode('_', $data);
         $subscriber = TelegramSubscriber::find($subscriberId);
 
-        if (!$subscriber || $subscriber->approval_status !== 'pending_approval') {
+        if (!$subscriber || !in_array($subscriber->approval_status, ['pending_approval', 'pending_nisn', 'pending'])) {
             $telegramService->answerCallbackQuery($callbackId, "Pengajuan ini sudah diproses atau tidak valid.", true);
             return;
         }
@@ -265,31 +258,28 @@ class TelegramWebhookController extends Controller
         $student = Student::find($subscriber->student_id);
 
         if ($action === 'approve') {
-            // Update Subscriber
             $subscriber->update([
                 'approval_status' => 'approved',
                 'is_active'       => true,
                 'subscribed_at'   => now(),
             ]);
 
-            // Update data siswa
             if ($student) {
-                $student->update([
-                    'telegram_chat_id' => $subscriber->chat_id,
-                    'phone'            => $subscriber->phone_number
-                ]);
+                try {
+                    $student->update(['telegram_chat_id' => $subscriber->chat_id]);
+                } catch (\Exception $ex) {}
             }
 
-            // Pesan Konfirmasi ke Telegram Ortu
+            $className = $student && $student->classroom ? $student->classroom->name : '-';
+
             $replyOrtu = "🎉 *Pendaftaran Disetujui Admin!*\n\n" .
                          "Akun Telegram Anda telah diverifikasi dan dihubungkan dengan siswa:\n" .
                          "👤 Nama: *{$student->name}*\n" .
-                         "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
+                         "🏫 Kelas: *{$className}*\n\n" .
                          "Notifikasi presensi harian sudah aktif.";
             
             $telegramService->sendMessageWithRemoveKeyboard($subscriber->chat_id, $replyOrtu);
 
-            // Update Pesan Teks di Grup Admin
             $adminReply = "✅ *Pengajuan Disetujui*\n" .
                           "Ortu: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
                           "Siswa: " . ($student ? $student->name : '-');
@@ -303,14 +293,12 @@ class TelegramWebhookController extends Controller
                 'is_active'       => false,
             ]);
 
-            // Pesan Penolakan ke Telegram Ortu
             $replyOrtu = "❌ *Pendaftaran Ditolak Admin*\n\n" .
                          "Mohon maaf, pengajuan pendaftaran akun Telegram Anda tidak dapat diverifikasi.\n" .
                          "Silakan hubungi pihak sekolah / Admin SISFO untuk pembaruan data.";
             
             $telegramService->sendMessageWithRemoveKeyboard($subscriber->chat_id, $replyOrtu);
 
-            // Update Pesan Teks di Grup Admin
             $adminReply = "❌ *Pengajuan Ditolak*\n" .
                           "Ortu: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
                           "Siswa: " . ($student ? $student->name : '-');
