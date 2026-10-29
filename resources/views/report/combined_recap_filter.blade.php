@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filter Laporan Rekapitulasi Mingguan Terpadu</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <style>
+   
+@extends('layouts.app')
+<style>
         body { 
             background-color: #f4f6f9; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -31,9 +25,10 @@
             font-size: 0.85rem;
         }
     </style>
-</head>
-<body>
 
+@section('title', 'Laporan Mingguan Terpadu')
+
+@section('content')
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-7 col-lg-6">
@@ -88,6 +83,4 @@
         </div>
     </div>
 </div>
-
-</body>
-</html>
+@endsection
