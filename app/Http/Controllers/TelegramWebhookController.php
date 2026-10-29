@@ -21,7 +21,7 @@ class TelegramWebhookController extends Controller
 
         $update = $request->all();
 
-        // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL INLINE ADMIN)
+        // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL INLINE DARI ADMIN TELEGRAM)
         if (isset($update['callback_query'])) {
             $this->handleAdminCallback($update['callback_query'], $telegramService);
             return response()->json(['status' => 'ok']);
@@ -44,7 +44,7 @@ class TelegramWebhookController extends Controller
                 $firstName  = $contact['first_name'] ?? '';
                 $lastName   = $contact['last_name'] ?? '';
                 $parentName = trim($firstName . ' ' . $lastName) ?: 'Orang Tua';
-                $username   = $message['from']['username'] ?? null;
+                $username   = isset($message['from']['username']) ? (string)$message['from']['username'] : null;
 
                 $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
@@ -66,12 +66,12 @@ class TelegramWebhookController extends Controller
                         ['chat_id' => $chatId],
                         [
                             'student_id'      => $student->id,
-                            'parent_name'     => $parentName,
-                            'phone_number'    => $cleanPhone,
+                            'parent_name'     => (string) $parentName,
+                            'phone_number'    => (string) $cleanPhone,
                             'username'        => $username,
                             'is_active'       => true,
                             'approval_status' => 'approved',
-                            'subscribed_at'   => now(),
+                            'subscribed_at'   => now()->format('Y-m-d H:i:s'),
                         ]
                     );
 
@@ -90,12 +90,12 @@ class TelegramWebhookController extends Controller
                         ['chat_id' => $chatId],
                         [
                             'student_id'      => null,
-                            'parent_name'     => $parentName,
-                            'phone_number'    => $cleanPhone,
+                            'parent_name'     => (string) $parentName,
+                            'phone_number'    => (string) $cleanPhone,
                             'username'        => $username,
                             'is_active'       => false,
                             'approval_status' => 'pending_nisn',
-                            'subscribed_at'   => now(),
+                            'subscribed_at'   => now()->format('Y-m-d H:i:s'),
                         ]
                     );
 
@@ -116,13 +116,13 @@ class TelegramWebhookController extends Controller
         $text      = trim($message['text'] ?? '');
         $lowerText = strtolower($text);
 
-        // --- PENANGANAN PERINTAH /START ATAU /DAFTAR TERPERBAIKI ---
+        // Perintah /start atau /daftar
         if ($lowerText === '/start' || $lowerText === '/daftar') {
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
             // Jika akun SUDAH APPROVED
             if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
-                $student   = Student::find($subscriber->student_id);
+                $student     = Student::find($subscriber->student_id);
                 $studentName = $student ? $student->name : '-';
                 $className   = $student && $student->classroom ? $student->classroom->name : '-';
 
@@ -214,7 +214,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 4. HANDLE INPUT NISN / NIS DARI ORANG TUA
+        // 4. HANDLE PROSES INPUT NISN / NIS DARI ORANG TUA
         $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
         if ($subscriber && in_array($subscriber->approval_status, ['pending_nisn', 'pending']) && !empty($text)) {
@@ -305,7 +305,7 @@ class TelegramWebhookController extends Controller
             $subscriber->update([
                 'approval_status' => 'approved',
                 'is_active'       => true,
-                'subscribed_at'   => now(),
+                'subscribed_at'   => now()->format('Y-m-d H:i:s'),
             ]);
 
             if ($student) {
