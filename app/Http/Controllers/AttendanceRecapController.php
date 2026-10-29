@@ -15,7 +15,10 @@ class AttendanceRecapController extends Controller
 {
     public function index()
     {
-        $classrooms = Classroom::orderBy('name', 'asc')->get();
+        // $classrooms = Classroom::orderBy('name', 'asc')->get();
+        $classrooms = Classroom::where('is_active', true)
+                           ->orderBy('name', 'asc')
+                           ->get();
         return view('report.weekly_recap_filter', compact('classrooms'));
     }
 
