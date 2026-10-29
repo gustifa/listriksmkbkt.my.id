@@ -21,7 +21,7 @@ class TelegramWebhookController extends Controller
 
         $update = $request->all();
 
-        // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL SETUJUI / TOLAK DARI ADMIN TELEGRAM)
+        // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL SETUJUI / TOLAK DARI ADMIN)
         if (isset($update['callback_query'])) {
             $this->handleAdminCallback($update['callback_query'], $telegramService);
             return response()->json(['status' => 'ok']);
@@ -34,7 +34,7 @@ class TelegramWebhookController extends Controller
         $chatId  = (string) $update['message']['chat']['id'];
         $message = $update['message'];
 
-        // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
+        // 2. HANDLE BAGIKAN KONTAK (SHARE CONTACT)
         if (isset($message['contact'])) {
             try {
                 $contact    = $message['contact'];
@@ -48,7 +48,7 @@ class TelegramWebhookController extends Controller
 
                 $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
-                // Mencari pencocokan ke kolom phone (HP Ortu) atau student_phone (HP Siswa)
+                // Pencocokan ke kolom phone (Ortu) atau student_phone (Siswa)
                 $student = Student::where(function ($q) use ($lastDigits) {
                     $q->where('phone', 'like', '%' . $lastDigits)
                       ->orWhere('student_phone', 'like', '%' . $lastDigits);
@@ -71,7 +71,7 @@ class TelegramWebhookController extends Controller
                             'username'        => $username,
                             'is_active'       => true,
                             'approval_status' => 'approved',
-                            'subscribed_at'   => now(),
+                            'subscribed_at'   => now(), // Selalu diisi agar tidak memicu error NOT NULL
                         ]
                     );
 
@@ -95,12 +95,12 @@ class TelegramWebhookController extends Controller
                             'username'        => $username,
                             'is_active'       => false,
                             'approval_status' => 'pending_nisn',
-                            'subscribed_at'   => now(), // Mengisi value agar lolos Not Null PostgreSQL
+                            'subscribed_at'   => now(), // Wajib diisi (PostgreSQL constraint)
                         ]
                     );
 
                     $reply = "⚠️ *Nomor HP Anda (`+{$cleanPhone}`) belum terdaftar di database sekolah.*\n\n" .
-                            "Silakan *ketik nomor NISN atau NIS* putra/putri Anda di bawah ini untuk mengajukan verifikasi pendaftaran ke Admin SISFO:";
+                            "Silakan *ketik nomor NISN atau NIS* putra/putri Anda di bawah ini untuk mengajukan pendaftaran ke Admin SISFO:";
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 }
@@ -116,7 +116,6 @@ class TelegramWebhookController extends Controller
         $text      = trim($message['text'] ?? '');
         $lowerText = strtolower($text);
 
-        // Perintah /start atau /daftar
         if ($lowerText === '/start' || $lowerText === '/daftar') {
             $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
                       "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali.\n\n" .
@@ -132,7 +131,6 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // Perintah /help
         if ($lowerText === '/help') {
             $reply = "ℹ️ *BANTUAN BOT NOTIFIKASI SISFO*\n\n" .
                      "1️⃣ *Bagaimana cara mendaftar?*\n" .
@@ -146,7 +144,6 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // Perintah /batal atau /stop
         if ($lowerText === '/batal' || $lowerText === '/stop') {
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
@@ -173,7 +170,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 4. HANDLE PROSES INPUT NISN / NIS OLEH ORANG TUA
+        // 4. HANDLE PROSES INPUT NISN / NIS DARI ORANG TUA
         $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
         if ($subscriber && in_array($subscriber->approval_status, ['pending_nisn', 'pending']) && !empty($text)) {
@@ -186,7 +183,6 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Hubungkan student_id & ubah status menjadi pending_approval
             $subscriber->update([
                 'student_id'      => $student->id,
                 'approval_status' => 'pending_approval'
@@ -202,7 +198,6 @@ class TelegramWebhookController extends Controller
             
             $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
 
-            // Kirim pemberitahuan ke grup Telegram Admin (opsional jika dikonfigurasi)
             $this->notifyAdminGroup($subscriber, $student, $telegramService);
 
             return response()->json(['status' => 'ok']);
@@ -211,9 +206,6 @@ class TelegramWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    /**
-     * Mengirimkan Notifikasi ke Grup Telegram Admin
-     */
     private function notifyAdminGroup(TelegramSubscriber $subscriber, Student $student, TelegramService $telegramService): void
     {
         $adminGroupChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
@@ -243,9 +235,6 @@ class TelegramWebhookController extends Controller
         $telegramService->sendMessage($adminGroupChatId, $text, 'pendaftaran', 'Pengajuan Ortu', $keyboard);
     }
 
-    /**
-     * Menangani Klik Tombol Setujui / Tolak oleh Admin di Telegram
-     */
     private function handleAdminCallback(array $callbackQuery, TelegramService $telegramService): void
     {
         $callbackId = $callbackQuery['id'];
