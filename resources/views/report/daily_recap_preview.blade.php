@@ -5,157 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pratinjau Rekap Presensi Gerbang Harian/Mingguan</title>
     <style>
-        * {
-            box-sizing: border-box;
-            font-family: "Arial", sans-serif;
-        }
+        * { box-sizing: border-box; font-family: "Arial", sans-serif; }
+        html, body { background-color: #f8f9fa; margin: 0; padding: 4px; font-size: 8px; }
+        .container-print { background: #fff; padding: 8px 12px; margin: 0 auto; max-width: 1100px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
 
-        html, body {
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 4px;
-            font-size: 8px;
-        }
-
-        .container-print {
-            background: #fff;
-            padding: 8px 12px;
-            margin: 0 auto;
-            max-width: 1050px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        /* 1. KOP SURAT */
-        .kop-container {
-            width: 100%;
-            margin-bottom: 4px;
-        }
-
-        .header-kop {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .header-kop td {
-            border: none !important;
-            padding: 0;
-            vertical-align: middle;
-        }
-
-        .kop-title {
-            text-align: center;
-            line-height: 1.1;
-        }
-
+        .kop-container { width: 100%; margin-bottom: 4px; }
+        .header-kop { width: 100%; border-collapse: collapse; }
+        .header-kop td { border: none !important; padding: 0; vertical-align: middle; }
+        .kop-logo-left, .kop-logo-right { width: 50px; text-align: center; }
+        .kop-logo-left img, .kop-logo-right img { max-width: 45px; max-height: 45px; object-fit: contain; }
+        
+        .kop-title { text-align: center; line-height: 1.1; }
         .kop-title .provinsi { font-size: 10px; font-weight: bold; margin: 0; }
         .kop-title .dinas { font-size: 9px; font-weight: bold; margin: 0; }
         .kop-title .sekolah { font-size: 11px; font-weight: bold; margin: 0; }
         .kop-title .alamat { font-size: 7.5px; font-style: italic; margin-top: 1px; }
 
-        .kop-line {
-            border-top: 2px solid #000;
-            border-bottom: 0.5px solid #000;
-            height: 2px;
-            margin-top: 2px;
-            margin-bottom: 4px;
-        }
+        .kop-line { border-top: 2px solid #000; border-bottom: 0.5px solid #000; height: 2px; margin-top: 2px; margin-bottom: 4px; }
 
-        /* 2. JUDUL DAFTAR HADIR & META INFO */
-        .report-title {
-            text-align: center;
-            margin-bottom: 4px;
-        }
+        .report-title { text-align: center; margin-bottom: 4px; }
+        .report-title h4 { margin: 0; font-size: 10px; font-weight: bold; text-decoration: underline; text-transform: uppercase; }
+        .report-title p { margin: 2px 0 0 0; font-size: 8px; font-weight: bold; }
 
-        .report-title h4 {
-            margin: 0;
-            font-size: 10px;
-            font-weight: bold;
-            text-decoration: underline;
-            text-transform: uppercase;
-        }
+        .meta-info { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 8px; font-weight: bold; }
+        .meta-info td { border: none !important; padding: 1px 0; vertical-align: top; }
 
-        .report-title p {
-            margin: 2px 0 0 0;
-            font-size: 8px;
-            font-weight: bold;
+        .table-recap { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .table-recap th, .table-recap td {
+            border: 0.5px solid #000000; padding: 2px 1px; text-align: center; vertical-align: middle; font-size: 7.5px; word-wrap: break-word; line-height: 1.1;
         }
+        .table-recap thead th { font-weight: bold; background-color: #f2f2f2; text-transform: uppercase; }
+        .text-left { text-align: left !important; padding-left: 4px !important; }
 
-        .meta-info {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 4px;
-            font-size: 8px;
-            font-weight: bold;
-        }
-
-        .meta-info td {
-            border: none !important;
-            padding: 1px 0;
-            vertical-align: top;
-        }
-
-        /* 3. TABEL REKAP UTAMA */
-        .table-recap {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        .table-recap th, 
-        .table-recap td {
-            border: 0.5px solid #000000;
-            padding: 2px 0;
-            text-align: center;
-            vertical-align: middle;
-            font-size: 7.5px;
-            word-wrap: break-word;
-            line-height: 1;
-        }
-
-        .table-recap thead th {
-            font-weight: bold;
-            background-color: #f2f2f2;
-            text-transform: uppercase;
-        }
-
-        .text-left {
-            text-align: left !important;
-            padding-left: 4px !important;
-        }
-
-        .col-no { width: 22px; }
-        .col-nis { width: 45px; }
-        .col-nama { width: 170px; }
-        .col-lp { width: 20px; }
-        .col-time { width: 35px; font-size: 7px; }
-        .col-stat { width: 20px; font-size: 7.5px; }
+        /* PROPORSIONAL LEBAR KOLOM PREVIEW */
+        .col-no   { width: 20px; }
+        .col-nis  { width: 40px; }
+        .col-nama { width: 230px; } /* DIPERLEBAR AGAR NAMA TIDAK TERTEKAN */
+        .col-lp   { width: 18px; }
+        .col-time { width: 30px; font-size: 6.8px; }
+        .col-stat { width: 16px; font-size: 7.5px; }
 
         .txt-alpa { color: #d9534f; font-weight: bold; }
         .txt-late { color: #e67e22; font-weight: bold; }
 
-        /* 4. AREA PENGESAHAN TANDA TANGAN */
-        .signature-section {
-            width: 100%;
-            margin-top: 8px;
-            border: none;
-            border-collapse: collapse;
-            page-break-inside: avoid;
-        }
+        .signature-section { width: 100%; margin-top: 10px; border: none; border-collapse: collapse; page-break-inside: avoid; }
+        .signature-section td { border: none !important; text-align: center; vertical-align: top; font-size: 8px; padding: 0; line-height: 1.1; }
+        .signature-space { height: 25px; }
 
-        .signature-section td {
-            border: none !important;
-            text-align: center;
-            vertical-align: top;
-            font-size: 8px;
-            padding: 0;
-            line-height: 1.1;
-        }
-
-        .signature-space {
-            height: 25px;
-        }
-
-        /* OPSI CETAK NATIVE BROWSER */
         @media print {
             body { background: #fff; padding: 0; margin: 0; }
             .container-print { box-shadow: none; padding: 0; margin: 0; max-width: 100%; width: 100%; }
@@ -168,8 +64,8 @@
 </head>
 <body>
 
-    <!-- HEADER KONTROL (TIDAK DICETAK) -->
-    <div class="no-print" style="margin: 10px auto; max-width: 1050px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 8px 12px; border-radius: 6px;">
+    <!-- KONTROL BAR -->
+    <div class="no-print" style="margin: 10px auto; max-width: 1100px; display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 8px 12px; border-radius: 6px;">
         <div>
             <h4 style="margin: 0; color: #0d6efd;">Pratinjau Presensi Gerbang - Kelas {{ $classroom->name ?? '' }}</h4>
             <small style="color: #6c757d;">Periode: {{ isset($startOfWeek) ? $startOfWeek->format('d/m/Y') : '-' }} s/d {{ isset($endOfWeek) ? $endOfWeek->format('d/m/Y') : '-' }}</small>
@@ -189,15 +85,25 @@
 
     <div class="container-print">
 
-        <!-- 1. KOP SURAT RESMI -->
+        <!-- 1. KOP SURAT BERLOGO -->
         <div class="kop-container">
             <table class="header-kop">
                 <tr>
+                    <td class="kop-logo-left">
+                        @if(!empty($settings['logo_left']))
+                            <img src="{{ $settings['logo_left'] }}" alt="Logo Kiri">
+                        @endif
+                    </td>
                     <td class="kop-title">
                         <p class="provinsi">{{ strtoupper($settings['provinsi_name']) }}</p>
                         <p class="dinas">DINAS PENDIDIKAN</p>
                         <p class="sekolah">{{ strtoupper($settings['school_name']) }}</p>
                         <p class="alamat">{{ $settings['school_address'] }}</p>
+                    </td>
+                    <td class="kop-logo-right">
+                        @if(!empty($settings['logo_right']))
+                            <img src="{{ $settings['logo_right'] }}" alt="Logo Kanan">
+                        @endif
                     </td>
                 </tr>
             </table>
@@ -210,7 +116,7 @@
             <p>PERIODE {{ $startOfWeek->format('d/m/Y') }} S/D {{ $endOfWeek->format('d/m/Y') }}</p>
         </div>
 
-        <!-- 3. INFORMASI DETAIL KELAS -->
+        <!-- 3. DETAIL KELAS -->
         <table class="meta-info">
             <tr>
                 <td style="width: 100px;">KELAS</td>
@@ -234,7 +140,7 @@
                     @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
                         <th colspan="2">
                             {{ $day }}<br>
-                            <span style="font-size: 6.5px; font-weight: normal;">{{ \Carbon\Carbon::parse($weekDates[$day])->format('d/m/Y') }}</span>
+                            <span style="font-size: 6.5px; font-weight: normal;">{{ $weekDates[$day] ?? '' }}</span>
                         </th>
                     @endforeach
 
@@ -262,7 +168,9 @@
 
                         @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
                             @php
-                                $dDate = $weekDates[$day];
+                                $dDate = \Carbon\Carbon::parse($startOfWeek)->addDays(match($day) {
+                                    'Senin' => 0, 'Selasa' => 1, 'Rabu' => 2, 'Kamis' => 3, 'Jumat' => 4
+                                })->format('Y-m-d');
                                 $rec = $attendanceMap[$st->id][$dDate] ?? null;
                             @endphp
                             <td>
@@ -289,7 +197,7 @@
             </tbody>
         </table>
 
-        <!-- 5. AREA PENGESAHAN TANDA TANGAN -->
+        <!-- 5. AREA PENGESAHAN -->
         <table class="signature-section">
             <tr>
                 <td style="width: 33%;">

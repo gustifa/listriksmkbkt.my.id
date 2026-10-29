@@ -22,6 +22,29 @@ class DailyAttendanceRecapController extends Controller
         return view('report.daily_recap_filter', compact('classrooms'));
     }
 
+    // HELPER BASE64 UNTUK PEMBACAAN LOGO DI DOMPDF & BROWSER PREVIEW
+    private function getBase64Image($path)
+    {
+        if (!$path) return null;
+
+        $possiblePaths = [
+            public_path('storage/' . ltrim($path, '/')),
+            storage_path('app/public/' . ltrim($path, '/')),
+            public_path(ltrim($path, '/')),
+        ];
+
+        foreach ($possiblePaths as $filePath) {
+            if (file_exists($filePath) && is_file($filePath)) {
+                $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                $mimeType  = ($extension === 'jpg' || $extension === 'jpeg') ? 'image/jpeg' : 'image/png';
+                $data      = file_get_contents($filePath);
+                return 'data:' . $mimeType . ';base64,' . base64_encode($data);
+            }
+        }
+
+        return null;
+    }
+
     // 2. HELPER PREPARE DATA & CONVERT LOGO TO BASE64
     private function prepareData(Request $request)
     {
@@ -91,31 +114,11 @@ class DailyAttendanceRecapController extends Controller
             }
         }
 
-        // Ambil Data Settings
+        // Ambil Data Settings & Pengecekan Multi-Key Fallback Logo
         $settingsRaw = DB::table('settings')->get()->pluck('value', 'key');
 
-        // Helper Konversi Logo File/Path DB ke Base64 untuk Render DomPDF & Browser
-        $getLogoBase64 = function($key) use ($settingsRaw) {
-            $val = $settingsRaw[$key] ?? null;
-            if (!$val) return null;
-
-            $possiblePaths = [
-                public_path('storage/' . ltrim($val, '/')),
-                storage_path('app/public/' . ltrim($val, '/')),
-                public_path(ltrim($val, '/')),
-            ];
-
-            foreach ($possiblePaths as $filePath) {
-                if (file_exists($filePath) && is_file($filePath)) {
-                    $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-                    $mimeType  = ($extension === 'jpg' || $extension === 'jpeg') ? 'image/jpeg' : 'image/png';
-                    $data      = file_get_contents($filePath);
-                    return 'data:' . $mimeType . ';base64,' . base64_encode($data);
-                }
-            }
-
-            return null;
-        };
+        $logoLeftVal  = $settingsRaw['logo_left_st'] ?? $settingsRaw['logo_left'] ?? $settingsRaw['logo_kiri'] ?? null;
+        $logoRightVal = $settingsRaw['logo_right_st'] ?? $settingsRaw['logo_right'] ?? $settingsRaw['logo_kanan'] ?? null;
 
         $settings = [
             'provinsi_name'  => $settingsRaw['provinsi_name'] ?? 'PEMERINTAH PROVINSI SUMATERA BARAT',
@@ -126,8 +129,8 @@ class DailyAttendanceRecapController extends Controller
             'school_phone'   => $settingsRaw['school_phone'] ?? '',
             'kepsek_nama'    => $settingsRaw['ttd_surat'] ?? 'GUSTIAN BUDIARTO, M.Pd.',
             'kepsek_nip'     => $settingsRaw['signature_nip'] ?? '19740731 200801 1 002',
-            'logo_left'      => $getLogoBase64('logo_left'),
-            'logo_right'     => $getLogoBase64('logo_right'),
+            'logo_left'      => $this->getBase64Image($logoLeftVal),
+            'logo_right'     => $this->getBase64Image($logoRightVal),
         ];
 
         $officers = [
@@ -168,7 +171,7 @@ class DailyAttendanceRecapController extends Controller
                 'updated_at'   => Carbon::now(),
             ]);
         } catch (\Exception $e) {
-            // Silence exception so log failure doesn't block response
+            // Silence exception
         }
     }
 

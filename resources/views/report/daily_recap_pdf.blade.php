@@ -11,6 +11,9 @@
         .kop-container { width: 100%; margin-bottom: 3px; }
         .header-kop { width: 100%; border-collapse: collapse; }
         .header-kop td { border: none !important; padding: 0; vertical-align: middle; }
+        .kop-logo-left, .kop-logo-right { width: 40px; text-align: center; }
+        .kop-logo-left img, .kop-logo-right img { max-width: 32px; max-height: 32px; }
+
         .kop-title { text-align: center; line-height: 1; }
         .kop-title .provinsi { font-size: 7pt; font-weight: bold; margin: 0; }
         .kop-title .dinas { font-size: 6pt; font-weight: bold; margin: 0; }
@@ -33,22 +36,24 @@
             text-align: center;
             vertical-align: middle;
             font-size: 5.5pt;
+            line-height: 1;
         }
         .table-recap thead th { font-weight: bold; background: #f2f2f2; text-transform: uppercase; }
-        .text-left { text-align: left !important; padding-left: 3px !important; }
+        .text-left { text-align: left !important; padding-left: 4px !important; }
 
-        .col-no { width: 18px; }
-        .col-nis { width: 35px; }
-        .col-nama { width: 140px; }
-        .col-lp { width: 15px; }
-        .col-time { width: 18px; font-size: 4.8pt; }
-        .col-stat { width: 14px; font-size: 5pt; }
+        /* ALOKASI PROPORSIONAL BERBASIS PERSENTASE DOMPDF */
+        .col-no   { width: 3%; }
+        .col-nis  { width: 6%; }
+        .col-nama { width: 28%; } /* OPTIMAL UNTUK NAMA PANJANG */
+        .col-lp   { width: 3%; }
+        .col-time { width: 4.8%; font-size: 5pt; }
+        .col-stat { width: 2.4%; font-size: 5pt; }
 
         .txt-alpa { color: #d9534f; font-weight: bold; }
         .txt-late { color: #e67e22; font-weight: bold; }
 
-        .signature-table { width: 100%; margin-top: 8px; border-collapse: collapse; }
-        .signature-table td { border: none !important; text-align: center; vertical-align: top; font-size: 6.5pt; }
+        .signature-table { width: 100%; margin-top: 6px; border-collapse: collapse; page-break-inside: avoid; }
+        .signature-table td { border: none !important; text-align: center; vertical-align: top; font-size: 6.5pt; line-height: 1.1; }
         .sig-space { height: 20px; }
     </style>
 </head>
@@ -58,20 +63,20 @@
     <div class="kop-container">
         <table class="header-kop">
             <tr>
-                <td style="width: 40px; text-align: center; vertical-align: middle;">
+                <td class="kop-logo-left">
                     @if(!empty($settings['logo_left']))
-                        <img src="{{ $settings['logo_left'] }}" style="max-width: 32px; max-height: 32px;">
+                        <img src="{{ $settings['logo_left'] }}" alt="Logo Kiri">
                     @endif
                 </td>
-                <td class="kop-title" style="text-align: center; vertical-align: middle;">
+                <td class="kop-title">
                     <p class="provinsi">{{ strtoupper($settings['provinsi_name']) }}</p>
                     <p class="dinas">DINAS PENDIDIKAN</p>
                     <p class="sekolah">{{ strtoupper($settings['school_name']) }}</p>
                     <p class="alamat">{{ $settings['school_address'] }}</p>
                 </td>
-                <td style="width: 40px; text-align: center; vertical-align: middle;">
+                <td class="kop-logo-right">
                     @if(!empty($settings['logo_right']))
-                        <img src="{{ $settings['logo_right'] }}" style="max-width: 32px; max-height: 32px;">
+                        <img src="{{ $settings['logo_right'] }}" alt="Logo Kanan">
                     @endif
                 </td>
             </tr>
@@ -105,7 +110,10 @@
                 <th rowspan="2" class="col-lp">L/P</th>
 
                 @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                    <th colspan="2">{{ $day }}<br><span style="font-size: 4.5pt; font-weight: normal;">{{ \Carbon\Carbon::parse($weekDates[$day])->format('d/m') }}</span></th>
+                    <th colspan="2">
+                        {{ $day }}<br>
+                        <span style="font-size: 4.5pt; font-weight: normal;">{{ $weekDates[$day] ?? '' }}</span>
+                    </th>
                 @endforeach
 
                 <th colspan="5">REKAP</th>
@@ -132,7 +140,9 @@
 
                     @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
                         @php
-                            $dDate = $weekDates[$day];
+                            $dDate = \Carbon\Carbon::parse($startOfWeek)->addDays(match($day) {
+                                'Senin' => 0, 'Selasa' => 1, 'Rabu' => 2, 'Kamis' => 3, 'Jumat' => 4
+                            })->format('Y-m-d');
                             $rec = $attendanceMap[$st->id][$dDate] ?? null;
                         @endphp
                         <td>
