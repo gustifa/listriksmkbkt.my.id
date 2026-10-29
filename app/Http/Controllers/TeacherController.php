@@ -159,6 +159,7 @@ class TeacherController extends Controller
     // 3. Update Seluruh Data Profil (Tabel Teacher)
     $teacher->update([
         'nip'                => $request->nip,
+        'name'              => $request->name,
         'phone'              => $request->phone,
         'gender'             => $request->gender,
         'place_of_birth'     => $request->place_of_birth,
