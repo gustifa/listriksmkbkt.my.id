@@ -22,72 +22,138 @@ class AnnouncementController extends Controller
     }
 
     // Simpan pengumuman baru & kirim broadcast ke Telegram
+    // public function store(Request $request, TelegramService $telegramService)
+    // {
+    //     $request->validate([
+    //         'title'        => 'required|string|max:255',
+    //         'content'      => 'required|string',
+    //         'target_role'  => 'required|in:all,parent,student',
+    //         'classroom_id' => 'nullable|exists:classrooms,id',
+    //         'attachment'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    //     ]);
+
+    //     $attachmentPath = null;
+    //     if ($request->hasFile('attachment')) {
+    //         $attachmentPath = $request->file('attachment')->store('announcements', 'public');
+    //     }
+
+    //     // Simpan ke database
+    //     $announcement = Announcement::create([
+    //         'title'        => $request->title,
+    //         'content'      => $request->content,
+    //         'target_role'  => $request->target_role,
+    //         'classroom_id' => $request->classroom_id,
+    //         'attachment'   => $attachmentPath,
+    //         'created_by'   => Auth::id(),
+    //     ]);
+
+    //     // === PROSES BROADCAST KE TELEGRAM ORANG TUA / SISWA ===
+    //     $query = TelegramSubscriber::where('is_active', true)
+    //         ->where('approval_status', 'approved');
+
+    //     // Filter berdasarkan target role
+    //     if ($request->target_role === 'parent') {
+    //         $query->where('user_type', 'parent');
+    //     } elseif ($request->target_role === 'student') {
+    //         $query->where('user_type', 'student');
+    //     }
+
+    //     // Filter berdasarkan kelas jika dipilih
+    //     if ($request->filled('classroom_id')) {
+    //         $classroomId = $request->classroom_id;
+    //         $query->whereHas('student', function ($q) use ($classroomId) {
+    //             $q->where('classroom_id', $classroomId);
+    //         });
+    //     }
+
+    //     $subscribers = $query->get();
+
+    //     // Format Pesan Telegram
+    //     $msgText = "📢 *PENGUMUMAN SEKOLAH*\n\n" .
+    //                "📌 *{$announcement->title}*\n\n" .
+    //                "{$announcement->content}\n\n" .
+    //                "--- *SMKN 1 Bukittinggi* ---";
+
+    //     // Kirim broadcast ke setiap subscriber yang cocok
+    //     foreach ($subscribers as $sub) {
+    //         try {
+    //             if (!empty($sub->chat_id)) {
+    //                 $telegramService->sendMessage($sub->chat_id, $msgText);
+    //             }
+    //         } catch (\Exception $e) {
+    //             // Lewati jika gagal kirim ke chat_id tertentu
+    //         }
+    //     }
+
+    //     return redirect()->route('admin.announcements.index')
+    //         ->with('success', 'Pengumuman berhasil dipublikasikan dan disiarkan via Telegram!');
+    // }
+
     public function store(Request $request, TelegramService $telegramService)
-    {
-        $request->validate([
-            'title'        => 'required|string|max:255',
-            'content'      => 'required|string',
-            'target_role'  => 'required|in:all,parent,student',
-            'classroom_id' => 'nullable|exists:classrooms,id',
-            'attachment'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-        ]);
+{
+    $request->validate([
+        'title'        => 'required|string|max:255',
+        'content'      => 'required|string',
+        'target_role'  => 'required|in:all,parent,student',
+        'classroom_id' => 'nullable|exists:classrooms,id',
+        'attachment'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    ]);
 
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('announcements', 'public');
-        }
-
-        // Simpan ke database
-        $announcement = Announcement::create([
-            'title'        => $request->title,
-            'content'      => $request->content,
-            'target_role'  => $request->target_role,
-            'classroom_id' => $request->classroom_id,
-            'attachment'   => $attachmentPath,
-            'created_by'   => Auth::id(),
-        ]);
-
-        // === PROSES BROADCAST KE TELEGRAM ORANG TUA / SISWA ===
-        $query = TelegramSubscriber::where('is_active', true)
-            ->where('approval_status', 'approved');
-
-        // Filter berdasarkan target role
-        if ($request->target_role === 'parent') {
-            $query->where('user_type', 'parent');
-        } elseif ($request->target_role === 'student') {
-            $query->where('user_type', 'student');
-        }
-
-        // Filter berdasarkan kelas jika dipilih
-        if ($request->filled('classroom_id')) {
-            $classroomId = $request->classroom_id;
-            $query->whereHas('student', function ($q) use ($classroomId) {
-                $q->where('classroom_id', $classroomId);
-            });
-        }
-
-        $subscribers = $query->get();
-
-        // Format Pesan Telegram
-        $msgText = "📢 *PENGUMUMAN SEKOLAH*\n\n" .
-                   "📌 *{$announcement->title}*\n\n" .
-                   "{$announcement->content}\n\n" .
-                   "--- *SMKN 1 Bukittinggi* ---";
-
-        // Kirim broadcast ke setiap subscriber yang cocok
-        foreach ($subscribers as $sub) {
-            try {
-                if (!empty($sub->chat_id)) {
-                    $telegramService->sendMessage($sub->chat_id, $msgText);
-                }
-            } catch (\Exception $e) {
-                // Lewati jika gagal kirim ke chat_id tertentu
-            }
-        }
-
-        return redirect()->route('admin.announcements.index')
-            ->with('success', 'Pengumuman berhasil dipublikasikan dan disiarkan via Telegram!');
+    $attachmentPath = null;
+    if ($request->hasFile('attachment')) {
+        $attachmentPath = $request->file('attachment')->store('announcements', 'public');
     }
+
+    // SIMPAN KE DATABASE (Biarkan trait HasUuids di model yang otomatis membuat UUID untuk 'id')
+    $announcement = Announcement::create([
+        'title'        => $request->title,
+        'content'      => $request->content,
+        'target_role'  => $request->target_role,
+        'classroom_id' => $request->classroom_id ?: null, // Pastikan kosong menjadi null
+        'attachment'   => $attachmentPath,
+        'created_by'   => Auth::id(),
+    ]);
+
+    // === PROSES BROADCAST KE TELEGRAM ORANG TUA / SISWA ===
+    $query = TelegramSubscriber::where('is_active', true)
+        ->where('approval_status', 'approved');
+
+    if ($request->target_role === 'parent') {
+        $query->where('user_type', 'parent');
+    } elseif ($request->target_role === 'student') {
+        $query->where(function($q) {
+            $q->where('user_type', 'student')
+              ->orWhereNotNull('student_id');
+        });
+    }
+
+    if ($request->filled('classroom_id')) {
+        $classroomId = $request->classroom_id;
+        $query->whereHas('student', function ($q) use ($classroomId) {
+            $q->where('classroom_id', $classroomId);
+        });
+    }
+
+    $subscribers = $query->get();
+
+    $msgText = "📢 *PENGUMUMAN SEKOLAH*\n\n" .
+               "📌 *{$announcement->title}*\n\n" .
+               "{$announcement->content}\n\n" .
+               "--- *SMKN 1 Bukittinggi* ---";
+
+    foreach ($subscribers as $sub) {
+        try {
+            if (!empty($sub->chat_id)) {
+                $telegramService->sendMessage($sub->chat_id, $msgText);
+            }
+        } catch (\Exception $e) {
+            // Lewati jika gagal kirim ke chat_id tertentu
+        }
+    }
+
+    return redirect()->route('admin.announcements.index')
+        ->with('success', 'Pengumuman berhasil dipublikasikan dan disiarkan via Telegram!');
+}
 
     // Hapus pengumuman
     public function destroy($id)
