@@ -233,8 +233,22 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <code>{{ $sub->chat_id }}</code><br>
-                                    <small class="text-muted">{{ $sub->phone_number ? '+'.$sub->phone_number : '-' }}</small>
+                                    <!-- Chat ID Telegram (Tetap tampil di atas) -->
+                                    <span class="d-block text-muted small">{{ $sub->chat_id }}</span>
+
+                                    <!-- Nomor HP yang bisa diklik untuk langsung ke WhatsApp -->
+                                    @if($sub->phone_number)
+                                        @php
+                                            // Bersihkan nomor dari karakter non-angka (seperti +, spasi, tanda hubung)
+                                            // Agar formatnya sesuai standar wa.me (contoh: 6281374618985)
+                                            $cleanPhone = preg_replace('/[^0-9]/', '', $sub->phone_number);
+                                        @endphp
+                                        <a href="https://wa.me/{{ $cleanPhone }}" target="_blank" class="text-primary text-decoration-none fw-bold" title="Kirim pesan WhatsApp">
+                                            <i class="fab fa-whatsapp text-success me-1"></i> {{ $sub->phone_number }}
+                                        </a>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($sub->approval_status == 'approved')
