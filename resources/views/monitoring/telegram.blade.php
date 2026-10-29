@@ -233,16 +233,16 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <!-- Chat ID Telegram yang bisa diklik untuk langsung membuka chat Telegram -->
+                                    <!-- Chat ID Telegram dengan skema tg://openmessage agar langsung membuka chat di aplikasi -->
                                     @if($sub->chat_id)
-                                        <a href="https://t.me/{{ $sub->chat_id }}" target="_blank" class="text-danger text-decoration-none fw-bold d-block" title="Buka chat Telegram">
+                                        <a href="tg://openmessage?user_id={{ $sub->chat_id }}" class="text-danger text-decoration-none fw-bold d-block" title="Buka chat Telegram langsung">
                                             <i class="fab fa-telegram-plane me-1"></i> {{ $sub->chat_id }}
                                         </a>
                                     @else
                                         <span class="text-muted d-block">-</span>
                                     @endif
 
-                                    <!-- Nomor HP WhatsApp di bawahnya (yang sudah kita buat sebelumnya) -->
+                                    <!-- Nomor HP WhatsApp di bawahnya -->
                                     @if($sub->phone_number)
                                         @php
                                             $cleanPhone = preg_replace('/[^0-9]/', '', $sub->phone_number);
@@ -254,6 +254,7 @@
                                         <span class="text-muted small">-</span>
                                     @endif
                                 </td>
+    
                                 <td>
                                     @if($sub->approval_status == 'approved')
                                         <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Disetujui</span>
