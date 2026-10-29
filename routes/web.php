@@ -36,6 +36,8 @@ use App\Http\Controllers\TranskripAbsensiController;
 use App\Http\Controllers\UkkPackageController;
 use App\Http\Controllers\UkkController;
 use App\Http\Controllers\ExternalExaminerController;
+use App\Http\Controllers\AnnouncementController;
+
 
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\ScheduleController;
@@ -305,6 +307,16 @@ Route::middleware(['auth', 'role:guru|admin|super_admin'])->group(function () {
 // GROUP 2: AREA OPERASIONAL, BK, WALI KELAS, KAPROG, KABENG, TU, PIKET, SECURITY
 // =========================================================================
 Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahumas|kaprog|kabeng|wali_kelas|guru_bk|pokja_pkl|pembina_ekskul|ka_tu|pegawai|bendahara|security|guru|piket'])->group(function () {
+
+    Route::get('/admin/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements.index');
+    Route::post('/admin/announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    // Route AJAX Preview Penerima
+    Route::get('/admin/announcements/preview-recipients', [AnnouncementController::class, 'previewRecipients'])->name('admin.announcements.preview');
+    // Parameter menggunakan UUID (string)
+    Route::delete('/admin/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
+    // Route::get('/admin/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements.index');
+    // Route::post('/admin/announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    // Route::delete('/admin/announcements/{id}', [AnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
 
     Route::get('/admin/reports/student-calendar', [StudentAttendanceReportController::class, 'index'])->name('admin.reports.student-calendar.index');
     Route::get('/admin/reports/student-calendar/students-by-classroom/{classroomId}', [StudentAttendanceReportController::class, 'getStudentsByClassroom'])->name('admin.reports.student-calendar.students');
