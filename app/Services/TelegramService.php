@@ -23,7 +23,7 @@ class TelegramService
     /**
      * Kirim Pesan Teks via Telegram API & Simpan Log Monitoring
      */
-    public function sendMessage($chatId, string $text, string $type = 'absensi', ?string $title = null, ?array $replyMarkup = null): bool
+    public function sendMessage($chatId, string $text, string $type = 'absensi', ?string $title = null): bool
     {
         if (empty($chatId) || empty($this->token)) {
             Log::warning("Telegram: Chat ID atau Token kosong.");
@@ -46,17 +46,11 @@ class TelegramService
         ]);
 
         try {
-            $payload = [
+            $response = Http::post($this->baseUrl . 'sendMessage', [
                 'chat_id'    => $chatId,
                 'text'       => $text,
                 'parse_mode' => 'Markdown',
-            ];
-
-            if ($replyMarkup) {
-                $payload['reply_markup'] = json_encode($replyMarkup);
-            }
-
-            $response = Http::post($this->baseUrl . 'sendMessage', $payload);
+            ]);
 
             if ($response->successful()) {
                 Log::info("Telegram SUKSES terkirim ke Chat ID: {$chatId}");
@@ -212,31 +206,6 @@ class TelegramService
             'reply_markup' => json_encode([
                 'remove_keyboard' => true
             ])
-        ])->successful();
-    }
-
-    /**
-     * Edit Teks Pesan Yang Sudah Ada (Dipakai saat Admin menekan tombol Approve/Reject)
-     */
-    public function editMessageText($chatId, int $messageId, string $text): bool
-    {
-        return Http::post($this->baseUrl . 'editMessageText', [
-            'chat_id'    => $chatId,
-            'message_id' => $messageId,
-            'text'       => $text,
-            'parse_mode' => 'Markdown',
-        ])->successful();
-    }
-
-    /**
-     * Respon Pop-up Callback Query dari Tombol Inline
-     */
-    public function answerCallbackQuery(string $callbackQueryId, string $text, bool $showAlert = false): bool
-    {
-        return Http::post($this->baseUrl . 'answerCallbackQuery', [
-            'callback_query_id' => $callbackQueryId,
-            'text'              => $text,
-            'show_alert'        => $showAlert,
         ])->successful();
     }
 }
