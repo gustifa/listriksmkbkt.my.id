@@ -21,7 +21,7 @@ class TelegramWebhookController extends Controller
 
         $update = $request->all();
 
-        // 1. HANDLE CALLBACK QUERY (RESPON TOMBOL SETUJUI / TOLAK DARI ADMIN)
+        // 1. HANDLE CALLBACK QUERY (TOMBOL SETUJUI/TOLAK DARI ADMIN TELEGRAM)
         if (isset($update['callback_query'])) {
             $this->handleAdminCallback($update['callback_query'], $telegramService);
             return response()->json(['status' => 'ok']);
@@ -34,34 +34,40 @@ class TelegramWebhookController extends Controller
         $chatId  = (string) $update['message']['chat']['id'];
         $message = $update['message'];
 
-        // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
+        // 2. HANDLE BAGIKAN KONTAK (SHARE CONTACT)
         if (isset($message['contact'])) {
+            $contact    = $message['contact'];
+            $phone      = $contact['phone_number'];
+            $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+
+            $firstName  = $contact['first_name'] ?? '';
+            $lastName   = $contact['last_name'] ?? '';
+            $parentName = trim($firstName . ' ' . $lastName) ?: 'Orang Tua';
+            $username   = $message['from']['username'] ?? null;
+
+            $lastDigits = substr($cleanPhone, -9);
+
+            $student = null;
+            
+            // Pencarian Siswa (Di-catch terpisah agar query DB tidak mematikan sistem)
             try {
-                $contact    = $message['contact'];
-                $phone      = $contact['phone_number'];
-                $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-
-                $firstName  = $contact['first_name'] ?? '';
-                $lastName   = $contact['last_name'] ?? '';
-                $parentName = trim($firstName . ' ' . $lastName) ?: 'Orang Tua';
-                $username   = $message['from']['username'] ?? null;
-
-                $lastDigits = substr($cleanPhone, -9);
-
-                // PENCARIAN DUA KOLOM: phone (HP Ortu) DAN student_phone (HP Siswa)
                 $student = Student::where(function ($q) use ($lastDigits) {
                     $q->where('phone', 'like', '%' . $lastDigits)
                       ->orWhere('student_phone', 'like', '%' . $lastDigits);
                 })->first();
+            } catch (\Exception $e) {
+                Log::error("Error Query Student: " . $e->getMessage());
+            }
 
-                if ($student) {
-                    // KONDISI A: NOMOR HP TERDAFTAR -> LANGSUNG APPROVED
-                    try {
-                        $student->update(['telegram_chat_id' => $chatId]);
-                    } catch (\Exception $ex) {
-                        Log::warning("Gagal update telegram_chat_id di student: " . $ex->getMessage());
-                    }
+            if ($student) {
+                // KONDISI A: NOMOR TERDAFTAR -> LANGSUNG APPROVED
+                try {
+                    $student->update(['telegram_chat_id' => $chatId]);
+                } catch (\Exception $ex) {
+                    Log::warning("Gagal update telegram_chat_id: " . $ex->getMessage());
+                }
 
+                try {
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
                         [
@@ -74,18 +80,22 @@ class TelegramWebhookController extends Controller
                             'subscribed_at'   => now(),
                         ]
                     );
+                } catch (\Exception $ex) {
+                    Log::error("Error updateOrCreate Subscriber: " . $ex->getMessage());
+                }
 
-                    $className = $student->classroom ? $student->classroom->name : '-';
+                $className = $student->classroom ? $student->classroom->name : '-';
 
-                    $reply = "✅ *Pendaftaran Berhasil!*\n\n" .
-                            "Akun Telegram Anda telah terhubung dengan siswa:\n" .
-                            "👤 Nama: *{$student->name}*\n" .
-                            "🏫 Kelas: *{$className}*\n\n" .
-                            "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
+                $reply = "✅ *Pendaftaran Berhasil!*\n\n" .
+                        "Akun Telegram Anda telah terhubung dengan siswa:\n" .
+                        "👤 Nama: *{$student->name}*\n" .
+                        "🏫 Kelas: *{$className}*\n\n" .
+                        "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
 
-                    $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
-                } else {
-                    // KONDISI B: NOMOR HP TIDAK TERDAFTAR -> MINTA NISN/NIS
+                $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+            } else {
+                // KONDISI B: NOMOR TIDAK TERDAFTAR -> MINTA NISN/NIS
+                try {
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
                         [
@@ -98,15 +108,27 @@ class TelegramWebhookController extends Controller
                             'subscribed_at'   => null,
                         ]
                     );
-
-                    $reply = "⚠️ *Nomor HP Anda (`+{$cleanPhone}`) belum terdaftar di database sekolah.*\n\n" .
-                            "Silakan *ketik NISN atau NIS* putra/putri Anda di bawah ini untuk mengajukan pendaftaran ke Admin:";
-
-                    $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                } catch (\Exception $ex) {
+                    // Fallback jika status enum database belum mendukung 'pending_nisn'
+                    Log::warning("Gagal set status pending_nisn, fallback ke pending: " . $ex->getMessage());
+                    TelegramSubscriber::updateOrCreate(
+                        ['chat_id' => $chatId],
+                        [
+                            'student_id'      => null,
+                            'parent_name'     => $parentName,
+                            'phone_number'    => $cleanPhone,
+                            'username'        => $username,
+                            'is_active'       => false,
+                            'approval_status' => 'pending',
+                            'subscribed_at'   => null,
+                        ]
+                    );
                 }
-            } catch (\Exception $e) {
-                Log::error("Error Telegram Contact Webhook: " . $e->getMessage() . " File: " . $e->getFile() . " Line: " . $e->getLine());
-                $telegramService->sendMessageWithRemoveKeyboard($chatId, "⚠️ Terjadi kendala sistem. Silakan coba beberapa saat lagi atau hubungi Admin SISFO.");
+
+                $reply = "⚠️ *Nomor HP Anda (`+{$cleanPhone}`) belum terdaftar di database sekolah.*\n\n" .
+                        "Silakan *ketik NISN atau NIS* putra/putri Anda di bawah ini untuk mengajukan pendaftaran ke Admin:";
+
+                $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
             }
 
             return response()->json(['status' => 'ok']);
