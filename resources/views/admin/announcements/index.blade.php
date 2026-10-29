@@ -40,6 +40,15 @@
                                     <td class="ps-3 py-3">
                                         <h6 class="fw-bold text-dark mb-1">{{ $item->title }}</h6>
                                         <p class="text-muted small mb-0 text-truncate" style="max-width: 400px;">{{ $item->content }}</p>
+                                        
+                                        <!-- Menampilkan Tombol Lampiran Berkas -->
+                                        @if($item->attachment)
+                                            <div class="mt-2">
+                                                <a href="{{ asset('storage/' . $item->attachment) }}" target="_blank" class="badge bg-light text-primary border text-decoration-none py-1 px-2">
+                                                    <i class="fas fa-paperclip me-1"></i> Lihat Berkas Lampiran
+                                                </a>
+                                            </div>
+                                        @endif
                                     </td>
                                     <td>
                                         @if($item->target_role === 'parent')
@@ -97,6 +106,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+                <!-- WAJIB ADA enctype="multipart/form-data" AGAR FILE BERHASIL DI-UPLOAD -->
                 <form action="{{ route('admin.announcements.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body p-4">
@@ -125,7 +135,7 @@
                             </div>
                         </div>
 
-                        <!-- KOTAK PRATINJAU TARGET PENERIMA -->
+                        <!-- PRATINJAU TARGET PENERIMA -->
                         <div class="mb-3 p-3 bg-light border rounded-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="fw-bold text-primary mb-0">
@@ -157,7 +167,6 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Isi Pengumuman / Pesan <span class="text-danger">*</span></label>
                             <textarea name="content" class="form-control rounded-3" rows="4" placeholder="Tuliskan isi pengumuman lengkap yang akan dikirimkan ke Telegram..." required></textarea>
-                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Pesan ini akan otomatis dikirimkan ke Bot Telegram penerima target secara real-time.</small>
                         </div>
 
                         <div class="mb-3">
@@ -177,14 +186,13 @@
         </div>
     </div>
 
-    <!-- SCRIPT SELECT2, AJAX PREVIEW & SWEETALERT2 -->
+    <!-- SCRIPT JS -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Inisialisasi Select2 di dalam Modal Bootstrap
             $('#select-classroom').select2({
                 theme: 'bootstrap-5',
                 dropdownParent: $('#modalCreateAnnouncement'),
@@ -193,12 +201,11 @@
                 width: '100%'
             });
 
-            // Fungsi untuk memuat pratinjau penerima via AJAX
             function fetchRecipientPreview() {
                 const targetRole = $('#target_role').val();
                 const classroomId = $('#select-classroom').val();
 
-                $('#preview-recipients-tbody').html('<tr><td colspan="4" class="text-center text-muted py-2">Memuat data penerima...</td></tr>');
+                $('#preview-recipients-tbody').html('<tr><td colspan="4" class="text-center text-muted py-2">Memuat data...</td></tr>');
                 $('#recipient-count-badge').text('Memuat...');
 
                 $.ajax({
@@ -224,18 +231,13 @@
                                 `;
                             });
                         } else {
-                            rows = '<tr><td colspan="4" class="text-center text-muted py-2">Tidak ada penerima Telegram aktif yang cocok dengan filter ini.</td></tr>';
+                            rows = '<tr><td colspan="4" class="text-center text-muted py-2">Tidak ada penerima Telegram aktif.</td></tr>';
                         }
                         $('#preview-recipients-tbody').html(rows);
-                    },
-                    error: function() {
-                        $('#recipient-count-badge').text('0 Penerima');
-                        $('#preview-recipients-tbody').html('<tr><td colspan="4" class="text-center text-danger py-2">Gagal memuat pratinjau penerima.</td></tr>');
                     }
                 });
             }
 
-            // Trigger AJAX saat modal dibuka atau pilihan filter diubah
             $('#modalCreateAnnouncement').on('shown.bs.modal', function () {
                 fetchRecipientPreview();
             });
@@ -244,19 +246,18 @@
                 fetchRecipientPreview();
             });
 
-            // SweetAlert konfirmasi hapus data
             const deleteButtons = document.querySelectorAll('.btn-delete-trigger');
             deleteButtons.forEach(btn => {
                 btn.addEventListener('click', function () {
                     const form = this.closest('form');
                     Swal.fire({
                         title: 'Hapus Pengumuman?',
-                        text: 'Pengumuman ini akan dihapus permanen dari sistem.',
+                        text: 'Pengumuman ini akan dihapus permanen.',
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#dc3545',
                         cancelButtonColor: '#6c757d',
-                        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Ya, Hapus!',
+                        confirmButtonText: 'Ya, Hapus!',
                         cancelButtonText: 'Batal',
                         customClass: { popup: 'rounded-4 shadow' }
                     }).then((result) => {
