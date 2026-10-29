@@ -41,6 +41,7 @@
                                         <h6 class="fw-bold text-dark mb-1">{{ $item->title }}</h6>
                                         <p class="text-muted small mb-0 text-truncate" style="max-width: 400px;">{{ $item->content }}</p>
                                         
+                                        <!-- Menampilkan Tombol Lampiran Berkas -->
                                         @if($item->attachment)
                                             <div class="mt-2">
                                                 <a href="{{ asset('storage/' . $item->attachment) }}" target="_blank" class="badge bg-light text-primary border text-decoration-none py-1 px-2">
@@ -105,6 +106,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+                <!-- Form dengan id="form-create-announcement" dan enctype untuk upload file -->
                 <form action="{{ route('admin.announcements.store') }}" method="POST" enctype="multipart/form-data" id="form-create-announcement">
                     @csrf
                     <div class="modal-body p-4">
@@ -175,6 +177,7 @@
                     </div>
                     <div class="modal-footer bg-light rounded-bottom-4">
                         <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                        <!-- Tombol Kirim dengan id="btn-submit" -->
                         <button type="submit" id="btn-submit" class="btn btn-primary rounded-pill px-4 fw-bold">
                             <i class="fas fa-paper-plane me-1"></i> Kirim & Broadcast
                         </button>
@@ -191,6 +194,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Inisialisasi Select2
             $('#select-classroom').select2({
                 theme: 'bootstrap-5',
                 dropdownParent: $('#modalCreateAnnouncement'),
@@ -199,6 +203,7 @@
                 width: '100%'
             });
 
+            // AJAX Preview Penerima
             function fetchRecipientPreview() {
                 const targetRole = $('#target_role').val();
                 const classroomId = $('#select-classroom').val();
@@ -244,13 +249,21 @@
                 fetchRecipientPreview();
             });
 
-            // Mencegah double submit
-            $('#form-create-announcement').on('submit', function() {
+            // PENGAMAN KETAT: Mencegah double submit / klik tombol berkali-kali
+            let isSubmitted = false;
+            $('#form-create-announcement').on('submit', function(e) {
+                if (isSubmitted) {
+                    e.preventDefault();
+                    return false;
+                }
+                isSubmitted = true;
+                
                 const btn = $('#btn-submit');
                 btn.prop('disabled', true);
-                btn.html('<i class="fas fa-spinner fa-spin me-1"></i> Mengirim...');
+                btn.html('<i class="fas fa-spinner fa-spin me-1"></i> Sedang Mengirim...');
             });
 
+            // SweetAlert Hapus Data
             const deleteButtons = document.querySelectorAll('.btn-delete-trigger');
             deleteButtons.forEach(btn => {
                 btn.addEventListener('click', function () {
