@@ -315,6 +315,9 @@ class CombinedWeeklyReportController extends Controller
     // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN)
     public function downloadPdf(Request $request)
     {
+        // Naikkan batas memori & waktu eksekusi untuk proses ekspor 3 halaman padat
+        ini_set('memory_limit', '512M');
+        set_time_limit(300);
         $data = $this->prepareCombinedData($request);
 
         $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
