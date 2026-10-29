@@ -1,17 +1,10 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filter Rekap Presensi Sholat</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+@section('title', 'Laporan Mingguan Terpadu')
+<style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .filter-card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #ffffff; }
         .filter-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #ffffff; border-top-left-radius: 12px; border-top-right-radius: 12px; padding: 20px; }
     </style>
-</head>
-<body>
+@section('content')
 
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -54,5 +47,4 @@
     </div>
 </div>
 
-</body>
-</html>
+@endsection
