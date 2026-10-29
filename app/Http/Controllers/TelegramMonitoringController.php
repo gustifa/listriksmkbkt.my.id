@@ -50,14 +50,12 @@ class TelegramMonitoringController extends Controller
 
         $logs = $logsQuery->paginate(15, ['*'], 'logs_page');
 
-        // 4. Query Subscriber Orang Tua (DIBATASI BERDASARKAN SCOPE ACCESSIBLE BY)
+        // 4. Query Subscriber Pengguna (Orang Tua & Siswa)
         $subscribersQuery = TelegramSubscriber::with(['student.classroom'])
             ->where(function ($query) use ($accessibleClassroomIds) {
-                // Tampilkan orang tua yang siswanya berada di kelas sesuai hak akses guru/admin
                 $query->whereHas('student', function ($q) use ($accessibleClassroomIds) {
                     $q->whereIn('classroom_id', $accessibleClassroomIds);
                 })
-                // Tetap tampilkan yang statusnya pending (belum dihubungkan ke siswa)
                 ->orWhereNull('student_id');
             })
             ->latest();
@@ -67,13 +65,18 @@ class TelegramMonitoringController extends Controller
             $subscribersQuery->where(function ($q) use ($subSearch) {
                 $q->where('parent_name', 'like', "%{$subSearch}%")
                   ->orWhere('chat_id', 'like', "%{$subSearch}%")
-                  ->orWhere('phone_number', 'like', "%{$subSearch}%");
+                  ->orWhere('phone_number', 'like', "%{$subSearch}%")
+                  ->orWhere('user_type', 'like', "%{$subSearch}%")
+                  ->orWhereHas('student', function ($sq) use ($subSearch) {
+                      $sq->where('name', 'like', "%{$subSearch}%")
+                        ->orWhere('nisn', 'like', "%{$subSearch}%");
+                  });
             });
         }
 
         $subscribers = $subscribersQuery->paginate(15, ['*'], 'sub_page');
 
-        // 5. Ambil daftar siswa untuk Modal Dropdown Select2 (Dibatalkan/Disetujui)
+        // 5. Ambil daftar siswa untuk Modal Dropdown Select2
         $accessibleStudents = Student::with('classroom')
             ->whereIn('classroom_id', $accessibleClassroomIds)
             ->orderBy('name')
@@ -91,7 +94,7 @@ class TelegramMonitoringController extends Controller
     }
 
     /**
-     * Menyetujui Pendaftaran Orang Tua & Menghubungkan ke Siswa
+     * Menyetujui Pendaftaran Akun & Menghubungkan ke Siswa
      */
     public function approveSubscriber(Request $request, $id, TelegramService $telegramService)
     {
@@ -102,21 +105,23 @@ class TelegramMonitoringController extends Controller
         $subscriber = TelegramSubscriber::findOrFail($id);
         $student    = Student::with('classroom')->findOrFail($request->student_id);
 
-        // Update status subscriber menjadi aktif, approved & isi timestamp subscribed_at (aman PostgreSQL)
+        // Update status subscriber menjadi aktif, approved & isi timestamp subscribed_at
         $subscriber->update([
             'student_id'      => $student->id,
             'is_active'       => true,
             'approval_status' => 'approved',
-            'subscribed_at'   => now(),
+            'subscribed_at'   => now()->format('Y-m-d H:i:s'),
         ]);
 
         // Hubungkan telegram_chat_id ke tabel student
         $student->update(['telegram_chat_id' => $subscriber->chat_id]);
 
-        // Kirim konfirmasi ke Telegram Orang Tua
+        $roleLabel = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
+
+        // Kirim konfirmasi ke Telegram
         $pesan = "🎉 *Pendaftaran Disetujui Admin!*\n\n" .
-                 "Akun Telegram Anda telah diverifikasi dan dihubungkan dengan siswa:\n" .
-                 "👤 Nama: *{$student->name}*\n" .
+                 "Akun Telegram Anda telah diverifikasi dan dihubungkan sebagai *{$roleLabel}*:\n" .
+                 "👤 Nama Siswa: *{$student->name}*\n" .
                  "🏫 Kelas: " . ($student->classroom ? $student->classroom->name : '-') . "\n\n" .
                  "Notifikasi presensi harian sudah aktif.";
 
@@ -126,7 +131,7 @@ class TelegramMonitoringController extends Controller
     }
 
     /**
-     * Menolak/Membatalkan Pengajuan Pendaftaran Orang Tua
+     * Menolak/Membatalkan Pengajuan Pendaftaran
      */
     public function rejectSubscriber($id, TelegramService $telegramService)
     {
@@ -137,7 +142,7 @@ class TelegramMonitoringController extends Controller
             'approval_status' => 'rejected',
         ]);
 
-        // Kirim penolakan ke Telegram Orang Tua
+        // Kirim penolakan ke Telegram
         $pesan = "❌ *Pendaftaran Ditolak Admin*\n\n" .
                  "Mohon maaf, pengajuan pendaftaran akun Telegram Anda (`+{$subscriber->phone_number}`) tidak dapat diverifikasi.\n\n" .
                  "Silakan hubungi Pihak Sekolah / Admin SISFO untuk pembaruan data nomor HP.";
@@ -156,7 +161,7 @@ class TelegramMonitoringController extends Controller
         return redirect()->back()->with('success', 'Log riwayat pesan berhasil dihapus.');
     }
 
-    // Hapus seluruh log pesan (Kosongkan riwayat)
+    // Hapus seluruh log pesan
     public function clearLogs()
     {
         TelegramNotification::truncate();
@@ -165,7 +170,7 @@ class TelegramMonitoringController extends Controller
     }
 
     /**
-     * Membatalkan/Menonaktifkan Akun Telegram Orang Tua yang Sudah Terdaftar
+     * Membatalkan/Menonaktifkan Akun Telegram yang Sudah Terdaftar
      */
     public function cancelSubscriber($id, TelegramService $telegramService)
     {
@@ -176,16 +181,16 @@ class TelegramMonitoringController extends Controller
             Student::where('id', $subscriber->student_id)->update(['telegram_chat_id' => null]);
         }
 
-        // 2. Ubah status subscriber menjadi nonaktif & rejected/cancelled
+        // 2. Ubah status subscriber menjadi nonaktif & rejected
         $subscriber->update([
             'student_id'      => null,
             'is_active'       => false,
             'approval_status' => 'rejected',
         ]);
 
-        // 3. Kirim notifikasi ke Telegram Orang Tua bahwa akunnya telah dinonaktifkan Admin
+        // 3. Kirim notifikasi ke Telegram
         $pesan = "⚠️ *Pendaftaran Telegram Dinonaktifkan Admin*\n\n" .
-                 "Akun Telegram Anda telah dilepaskan dari sistem notifikasi presensi siswa oleh Admin SISFO.\n\n" .
+                 "Akun Telegram Anda telah dilepaskan dari sistem notifikasi presensi sekolah oleh Admin SISFO.\n\n" .
                  "Jika ini adalah kekeliruan, silakan hubungi pihak sekolah atau ketik /start untuk mendaftar kembali.";
 
         $telegramService->sendMessage($subscriber->chat_id, $pesan, 'pengumuman', 'Penonaktifan Akun');

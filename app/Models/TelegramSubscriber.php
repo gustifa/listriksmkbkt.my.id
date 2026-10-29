@@ -22,6 +22,7 @@ class TelegramSubscriber extends Model
         'subscribed_at',
         'is_active',
         'approval_status', // Tambahkan kolom ini
+        'user_type', // <--- Tambahkan ini
     ];
 
     protected $casts = [

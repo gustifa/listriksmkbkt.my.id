@@ -23,7 +23,7 @@
         <div class="col-md-3">
             <div class="card border-0 shadow-sm border-start border-primary border-4 rounded-3">
                 <div class="card-body">
-                    <div class="text-muted small">Orang Tua Terdaftar</div>
+                    <div class="text-muted small">Pengguna Terdaftar</div>
                     <div class="h3 fw-bold mb-0 text-primary">{{ number_format($totalSubscribers) }}</div>
                 </div>
             </div>
@@ -63,7 +63,7 @@
         </li>
         <li class="nav-item">
             <button class="nav-link {{ request()->has('sub_page') ? 'active' : '' }} fw-bold" id="subscribers-tab" data-bs-toggle="tab" data-bs-target="#subscribers" type="button">
-                Daftar Orang Tua Terdaftar ({{ $totalSubscribers }})
+                Daftar Pengguna Terdaftar ({{ $totalSubscribers }})
             </button>
         </li>
     </ul>
@@ -182,14 +182,14 @@
             </div>
         </div>
 
-        {{-- TAB 2: DAFTAR ORANG TUA TERDAFTAR --}}
+        {{-- TAB 2: DAFTAR PENGGUNA TERDAFTAR --}}
         <div class="tab-pane fade {{ request()->has('sub_page') ? 'show active' : '' }}" id="subscribers" role="tabpanel">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
                     <form method="GET" action="{{ route('monitoring.telegram') }}" class="row g-2">
                         <input type="hidden" name="sub_page" value="1">
                         <div class="col-md-4">
-                            <input type="text" name="sub_search" class="form-control" placeholder="Cari nama orang tua, No HP, Chat ID..." value="{{ request('sub_search') }}">
+                            <input type="text" name="sub_search" class="form-control" placeholder="Cari nama akun, No HP, Chat ID..." value="{{ request('sub_search') }}">
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">Cari</button>
@@ -201,7 +201,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th>No</th>
-                                <th>Nama Orang Tua</th>
+                                <th>Nama Akun</th>
+                                <th>Peran</th>
                                 <th>Siswa Terkait</th>
                                 <th>Chat ID / No. HP</th>
                                 <th>Status Approval</th>
@@ -215,6 +216,13 @@
                                 <td>
                                     <strong>{{ $sub->parent_name }}</strong><br>
                                     <small class="text-muted">{{ $sub->username ? '@'.$sub->username : '-' }}</small>
+                                </td>
+                                <td>
+                                    @if(($sub->user_type ?? 'parent') === 'student')
+                                        <span class="badge bg-purple text-white" style="background-color: #6f42c1;"><i class="bi bi-person-badge me-1"></i> Siswa</span>
+                                    @else
+                                        <span class="badge bg-primary"><i class="bi bi-person-heart me-1"></i> Orang Tua</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($sub->student)
@@ -234,7 +242,7 @@
                                     @elseif(in_array($sub->approval_status, ['pending_approval', 'pending']))
                                         <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Menunggu Persetujuan Admin</span>
                                     @elseif($sub->approval_status == 'pending_nisn')
-                                        <span class="badge bg-info text-dark"><i class="bi bi-pencil me-1"></i> Menunggu Input NISN Ortu</span>
+                                        <span class="badge bg-info text-dark"><i class="bi bi-pencil me-1"></i> Menunggu Input NISN</span>
                                     @else
                                         <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i> Ditolak / Nonaktif</span>
                                     @endif
@@ -291,7 +299,7 @@
 
                                     @elseif($sub->approval_status == 'approved' || $sub->is_active)
                                         <!-- TOMBOL MEMBATALKAN/MENONAKTIFKAN TELEGRAM YANG SUDAH TERDAFTAR -->
-                                        <form action="{{ route('monitoring.telegram.cancelSubscriber', $sub->id) }}" method="POST" class="d-inline btn-cancel-action" data-title="Batalkan Akses Telegram?" data-text="Akses notifikasi untuk orang tua ini akan dinonaktifkan!">
+                                        <form action="{{ route('monitoring.telegram.cancelSubscriber', $sub->id) }}" method="POST" class="d-inline btn-cancel-action" data-title="Batalkan Akses Telegram?" data-text="Akses notifikasi untuk akun ini akan dinonaktifkan!">
                                             @csrf
                                             <button type="button" class="btn btn-outline-danger btn-sm">
                                                 <i class="bi bi-person-x me-1"></i> Batalkan Akses
@@ -304,7 +312,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">Belum ada orang tua yang terdaftar.</td>
+                                <td colspan="7" class="text-center py-4 text-muted">Belum ada pengguna yang terdaftar.</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -385,7 +393,7 @@
             });
         }
 
-        // Konfirmasi SweetAlert2 untuk Tolak / Batalkan Akses Orang Tua
+        // Konfirmasi SweetAlert2 untuk Tolak / Batalkan Akses Pengguna
         document.querySelectorAll('.btn-cancel-action button').forEach(button => {
             button.addEventListener('click', function (e) {
                 e.preventDefault();

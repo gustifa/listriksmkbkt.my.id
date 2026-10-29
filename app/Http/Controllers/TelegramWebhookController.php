@@ -43,16 +43,25 @@ class TelegramWebhookController extends Controller
 
                 $firstName  = $contact['first_name'] ?? '';
                 $lastName   = $contact['last_name'] ?? '';
-                $parentName = trim($firstName . ' ' . $lastName) ?: 'Orang Tua';
+                $parentName = trim($firstName . ' ' . $lastName) ?: 'Pengguna';
                 $username   = isset($message['from']['username']) ? (string)$message['from']['username'] : null;
 
                 $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
-                // Pencocokan ke kolom phone (HP Ortu) atau student_phone (HP Siswa)
-                $student = Student::where(function ($q) use ($lastDigits) {
-                    $q->where('phone', 'like', '%' . $lastDigits)
-                      ->orWhere('student_phone', 'like', '%' . $lastDigits);
-                })->first();
+                // Membedakan apakah nomor HP terdaftar sebagai HP Ortu ('phone') atau HP Siswa ('student_phone')
+                $studentByParent  = Student::where('phone', 'like', '%' . $lastDigits)->first();
+                $studentByStudent = Student::where('student_phone', 'like', '%' . $lastDigits)->first();
+
+                if ($studentByParent) {
+                    $student  = $studentByParent;
+                    $userType = 'parent';
+                } elseif ($studentByStudent) {
+                    $student  = $studentByStudent;
+                    $userType = 'student';
+                } else {
+                    $student  = null;
+                    $userType = 'parent'; // Default untuk pengajuan baru
+                }
 
                 if ($student) {
                     // SKENARIO A: NOMOR HP TERDAFTAR (LANGSUNG APPROVED)
@@ -69,6 +78,7 @@ class TelegramWebhookController extends Controller
                             'parent_name'     => (string) $parentName,
                             'phone_number'    => (string) $cleanPhone,
                             'username'        => $username,
+                            'user_type'       => $userType,
                             'is_active'       => true,
                             'approval_status' => 'approved',
                             'subscribed_at'   => now()->format('Y-m-d H:i:s'),
@@ -76,16 +86,17 @@ class TelegramWebhookController extends Controller
                     );
 
                     $className = optional($student->classroom)->name ?? '-';
+                    $roleLabel = $userType === 'student' ? 'Siswa' : 'Orang Tua/Wali';
 
                     $reply = "✅ *Pendaftaran Berhasil!*\n\n" .
-                            "Akun Telegram Anda telah terhubung dengan siswa:\n" .
-                            "👤 Nama: *{$student->name}*\n" .
+                            "Akun Telegram Anda telah terhubung sebagai *{$roleLabel}*:\n" .
+                            "👤 Nama Siswa: *{$student->name}*\n" .
                             "🏫 Kelas: *{$className}*\n\n" .
                             "Notifikasi presensi harian akan otomatis dikirimkan ke akun ini.";
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 } else {
-                    // SKENARIO B: NOMOR HP TIDAK TERDAFTAR -> GUNAKAN STATUS 'pending' SUPAYA LOLOS CHECK CONSTRAINT
+                    // SKENARIO B: NOMOR HP TIDAK TERDAFTAR -> MASUK STATUS PENDING & MINTA NISN/NIS
                     TelegramSubscriber::updateOrCreate(
                         ['chat_id' => $chatId],
                         [
@@ -93,14 +104,15 @@ class TelegramWebhookController extends Controller
                             'parent_name'     => (string) $parentName,
                             'phone_number'    => (string) $cleanPhone,
                             'username'        => $username,
+                            'user_type'       => 'parent',
                             'is_active'       => false,
-                            'approval_status' => 'pending', // Menggunakan 'pending' standar
+                            'approval_status' => 'pending',
                             'subscribed_at'   => now()->format('Y-m-d H:i:s'),
                         ]
                     );
 
                     $reply = "⚠️ *Nomor HP Anda (`+{$cleanPhone}`) belum terdaftar di database sekolah.*\n\n" .
-                            "Silakan *ketik nomor NISN atau NIS* putra/putri Anda di bawah ini untuk mengajukan pendaftaran ke Admin SISFO:";
+                            "Silakan *ketik nomor NISN atau NIS* siswa di bawah ini untuk mengajukan pendaftaran ke Admin SISFO:";
 
                     $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
                 }
@@ -125,9 +137,10 @@ class TelegramWebhookController extends Controller
                 $student     = Student::find($subscriber->student_id);
                 $studentName = $student ? $student->name : '-';
                 $className   = $student && $student->classroom ? $student->classroom->name : '-';
+                $roleLabel   = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
 
                 $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
-                         "👤 Orang Tua: *{$subscriber->parent_name}*\n" .
+                         "👤 Peran: *{$roleLabel}*\n" .
                          "🎯 Siswa Terhubung: *{$studentName}*\n" .
                          "🏫 Kelas: *{$className}*\n\n" .
                          "Anda tidak perlu mendaftar ulang. Notifikasi presensi akan otomatis dikirimkan ke akun ini.\n\n" .
@@ -147,7 +160,7 @@ class TelegramWebhookController extends Controller
                              "Pengajuan untuk siswa *{$studentName}* telah diterima dan sedang diproses oleh Admin SISFO. Mohon tunggu konfirmasi persetujuan.";
                 } else {
                     $reply = "⚠️ *Status Pendaftaran Belum Lengkap*\n\n" .
-                             "Nomor HP Anda belum terdaftar di sistem. Silakan *ketik nomor NISN atau NIS* putra/putri Anda sekarang untuk mengajukan pendaftaran:";
+                             "Nomor HP Anda belum terdaftar di sistem. Silakan *ketik nomor NISN atau NIS* siswa sekarang untuk mengajukan pendaftaran:";
                 }
 
                 $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
@@ -156,7 +169,7 @@ class TelegramWebhookController extends Controller
 
             // Jika BELUM TERDAFTAR atau AKUN NONAKTIF -> Tampilkan tombol Share Contact
             $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
-                      "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali.\n\n" .
+                      "Bot ini memberikan layanan notifikasi presensi siswa secara *real-time* langsung ke akun Telegram Orang Tua/Wali & Siswa.\n\n" .
                       "📌 *Panduan Perintah Bot:*\n" .
                       "🔹 `/start` atau `/daftar` : Cek status / pendaftaran\n" .
                       "🔹 `/batal` atau `/stop` : Membatalkan notifikasi Telegram\n" .
@@ -175,7 +188,7 @@ class TelegramWebhookController extends Controller
                      "1️⃣ *Bagaimana cara mendaftar?*\n" .
                      "Ketik `/start` lalu tekan tombol *'📱 Bagikan Nomor Kontak Saya'*.\n\n" .
                      "2️⃣ *Nomor HP tidak terdaftar?*\n" .
-                     "Ketik *NISN atau NIS* putra/putri Anda saat diminta untuk mengajukan verifikasi ke Admin SISFO.\n\n" .
+                     "Ketik *NISN atau NIS* siswa saat diminta untuk mengajukan verifikasi ke Admin SISFO.\n\n" .
                      "3️⃣ *Bagaimana berhenti berlangganan?*\n" .
                      "Ketik `/batal` atau `/stop` kapan saja.";
 
@@ -210,7 +223,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 4. HANDLE PROSES INPUT NISN / NIS DARI ORANG TUA
+        // 4. HANDLE PROSES INPUT NISN / NIS DARI PENGGUNA
         $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
         if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !empty($text)) {
@@ -254,9 +267,10 @@ class TelegramWebhookController extends Controller
         }
 
         $className = optional($student->classroom)->name ?? '-';
+        $roleLabel = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua';
 
-        $text = "📩 *Pengajuan Pendaftaran Telegram Ortu*\n\n" .
-                "👤 Ortu: *{$subscriber->parent_name}*\n" .
+        $text = "📩 *Pengajuan Pendaftaran Telegram*\n\n" .
+                "👤 Pemohon: *{$subscriber->parent_name}* ({$roleLabel})\n" .
                 "📞 No HP: `+{$subscriber->phone_number}`\n" .
                 "🎯 Siswa: *{$student->name}* ({$className})\n" .
                 "🆔 NISN: `{$student->nisn}`\n\n" .
@@ -271,7 +285,7 @@ class TelegramWebhookController extends Controller
             ]
         ];
 
-        $telegramService->sendMessage($adminGroupChatId, $text, 'pendaftaran', 'Pengajuan Ortu', $keyboard);
+        $telegramService->sendMessage($adminGroupChatId, $text, 'pendaftaran', 'Pengajuan Ortu/Siswa', $keyboard);
     }
 
     private function handleAdminCallback(array $callbackQuery, TelegramService $telegramService): void
@@ -320,7 +334,7 @@ class TelegramWebhookController extends Controller
             $telegramService->sendMessageWithRemoveKeyboard($subscriber->chat_id, $replyOrtu);
 
             $adminReply = "✅ *Pengajuan Disetujui*\n" .
-                          "Ortu: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
+                          "Pemohon: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
                           "Siswa: " . ($student ? $student->name : '-');
             
             $telegramService->editMessageText($adminChat, $messageId, $adminReply);
@@ -339,7 +353,7 @@ class TelegramWebhookController extends Controller
             $telegramService->sendMessageWithRemoveKeyboard($subscriber->chat_id, $replyOrtu);
 
             $adminReply = "❌ *Pengajuan Ditolak*\n" .
-                          "Ortu: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
+                          "Pemohon: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
                           "Siswa: " . ($student ? $student->name : '-');
 
             $telegramService->editMessageText($adminChat, $messageId, $adminReply);
