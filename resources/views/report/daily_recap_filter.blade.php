@@ -1,19 +1,15 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filter Rekap Presensi Gerbang Harian/Mingguan</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+
+@extends('layouts.app')
+<style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .filter-card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #ffffff; }
         .filter-header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #ffffff; border-top-left-radius: 12px; border-top-right-radius: 12px; padding: 20px; }
         .btn-custom-primary { background-color: #0d6efd; border: none; font-weight: 600; }
         .btn-custom-primary:hover { background-color: #0b5ed7; }
     </style>
-</head>
-<body>
+@section('title', 'Filter Rekap Presensi Gerbang Harian/Mingguan')
+
+@section('content')
 
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -58,7 +54,4 @@
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+@endsection

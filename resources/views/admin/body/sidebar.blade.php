@@ -216,6 +216,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
                         <li><a href="{{ route('attendances.filter') }}"><i class='bx bx-id-card'></i>Mingguan PBM</a></li>
                         <li><a href="{{ route('daily.recap.index') }}"><i class='bx bx-id-card'></i>Mingguan Gate</a></li>
+                        <li><a href="{{ route('combined.recap.index') }}"><i class='bx bx-id-card'></i>GPS</a></li>
                     </ul>
                 </li>
             @endhasanyrole
