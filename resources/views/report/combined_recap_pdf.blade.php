@@ -31,12 +31,37 @@
         .meta-table { width: 100%; margin-bottom: 2px; font-weight: bold; font-size: 6pt; }
         .meta-table td { border: none !important; padding: 1px 0; }
 
+        /* LAYOUT TABEL TERKONTROL UNTUK PREVENT TEKS DEMPET */
         .table-recap { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .table-recap th, .table-recap td {
-            border: 0.3pt solid #000; padding: 1px 0; text-align: center; vertical-align: middle; font-size: 4.5pt; line-height: 1;
+            border: 0.3pt solid #000; 
+            padding: 1px 0; 
+            text-align: center; 
+            vertical-align: middle; 
+            font-size: 4.5pt; 
+            line-height: 1;
+            overflow: hidden;
+            word-wrap: break-word;
         }
         .table-recap thead th { font-weight: bold; background: #f2f2f2; text-transform: uppercase; }
         .text-left { text-align: left !important; padding-left: 2px !important; }
+
+        /* KHUSUS HEADER KODE MAPEL (JAM 1 - 10) */
+        .th-subject {
+            font-size: 3pt !important;
+            letter-spacing: -0.2px;
+            padding: 1px 0 !important;
+            height: 13px;
+            max-width: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .th-jam {
+            font-size: 3.5pt !important;
+            font-weight: bold;
+        }
 
         .txt-alpa { color: #d9534f; font-weight: bold; }
         .txt-ok { color: #198754; font-weight: bold; }
@@ -107,21 +132,27 @@
                 <th rowspan="3" style="width: 18%;">NAMA PESERTA DIDIK</th>
                 <th rowspan="3" style="width: 2%;">L/P</th>
                 @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                    <th colspan="10">{{ $day }} ({{ $weekDates[$day] }})</th>
+                    <th colspan="10" style="width: 13.8%;">{{ $day }} ({{ $weekDates[$day] }})</th>
                 @endforeach
-                <th colspan="3" style="width: 6%;">REKAP</th>
+                <th colspan="3" style="width: 4%;">REKAP</th>
             </tr>
             <tr>
                 @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
                     @for($j = 1; $j <= 10; $j++)
-                        <th style="font-size: 3.5pt;">{{ $daySubjectMap[$day][$j] ?? '' }}</th>
+                        <th class="th-subject" title="{{ $daySubjectMap[$day][$j] ?? '' }}">
+                            {{ substr($daySubjectMap[$day][$j] ?? '', 0, 5) }}
+                        </th>
                     @endfor
                 @endforeach
-                <th rowspan="2">S</th><th rowspan="2">I</th><th rowspan="2">A</th>
+                <th rowspan="2" style="width: 1.33%;">S</th>
+                <th rowspan="2" style="width: 1.33%;">I</th>
+                <th rowspan="2" style="width: 1.33%;">A</th>
             </tr>
             <tr>
                 @for($i = 0; $i < 5; $i++)
-                    @for($j = 1; $j <= 10; $j++) <th style="font-size: 3.5pt;">{{ $j }}</th> @endfor
+                    @for($j = 1; $j <= 10; $j++) 
+                        <th class="th-jam">{{ $j }}</th> 
+                    @endfor
                 @endfor
             </tr>
         </thead>
