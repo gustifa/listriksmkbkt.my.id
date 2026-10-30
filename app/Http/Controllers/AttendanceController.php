@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http; // <--- WAJIB IMPORT HTTP CLIENT
 use App\Jobs\SendWhatsappJob; // <--- WAJIB IMPORT JOB
+use App\Models\IzinSiswa;
 
 class AttendanceController extends Controller
 {
@@ -119,6 +120,28 @@ class AttendanceController extends Controller
         // VALIDASI 1: CEK KEHADIRAN GERBANG (DailyAttendance)
         // =================================================================
         $today = Carbon::today();
+
+        // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+        $approvedLeave = IzinSiswa::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($today) {
+                $q->whereDate('date', $today)
+                  ->orWhere(function ($q2) use ($today) {
+                      $q2->whereNotNull('end_date')
+                         ->whereDate('date', '<=', $today)
+                         ->whereDate('end_date', '>=', $today);
+                  });
+            })
+            ->first();
+
+        if ($approvedLeave) {
+            $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Mapel Ditolak! Siswa {$student->name} tercatat berstatus {$statusLabel} (Disetujui)."
+            ]);
+        }
+        // ------------------------------------------------
 
         $dailyLog = DailyAttendance::where('student_id', $student->id)
                     ->whereDate('date', $today)

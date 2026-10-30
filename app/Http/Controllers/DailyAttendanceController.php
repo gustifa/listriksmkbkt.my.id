@@ -26,6 +26,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Notification;
 use App\Jobs\SendTelegramJob; // Tambahkan import Job Telegram
 use App\Services\TelegramService; // Pastikan import di bagian atas file
+use App\Models\IzinSiswa;
 
 
 class DailyAttendanceController extends Controller
@@ -1863,6 +1864,27 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
         $date = date('Y-m-d');
         $time = date('H:i:s'); // Format waktu standar H:i:s
 
+        // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+        $approvedLeave = IzinSiswa::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($date) {
+                $q->whereDate('date', $date)
+                  ->orWhere(function ($q2) use ($date) {
+                      $q2->whereNotNull('end_date')
+                         ->whereDate('date', '<=', $date)
+                         ->whereDate('end_date', '>=', $date);
+                  });
+            })
+            ->first();
+
+        if ($approvedLeave) {
+            $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Gerbang Ditolak! Siswa {$student->name} tercatat status {$statusLabel} (Disetujui)."
+            ], 400);
+        }
+
         // 2. Cek Data Absensi Hari Ini
         $attendance = DailyAttendance::where('student_id', $student->id)
                         ->where('date', $date)
@@ -2670,6 +2692,10 @@ public function studentScanView()
             return response()->json(['status' => 'error', 'message' => 'Data siswa tidak ditemukan!'], 404);
         }
 
+        // $date = date('Y-m-d');
+
+        
+
         // 4. Cek Tahun Ajaran Aktif
         $activeAcademicYear = AcademicYear::where('is_active', true)->first();
         if (!$activeAcademicYear) {
@@ -2704,6 +2730,28 @@ public function studentScanView()
 
         $date = date('Y-m-d');
         $time = date('H:i:s');
+
+        // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+        $approvedLeave = IzinSiswa::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($date) {
+                $q->whereDate('date', $date)
+                  ->orWhere(function ($q2) use ($date) {
+                      $q2->whereNotNull('end_date')
+                         ->whereDate('date', '<=', $date)
+                         ->whereDate('end_date', '>=', $date);
+                  });
+            })
+            ->first();
+
+        if ($approvedLeave) {
+            $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi HP Ditolak! Anda tercatat berstatus {$statusLabel} yang telah disetujui."
+            ], 400);
+        }
+        // ------------------------------------------------
 
         // 6. Pengaturan Waktu Masuk/Pulang
         $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';
