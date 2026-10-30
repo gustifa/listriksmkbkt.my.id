@@ -53,10 +53,23 @@
 
                     <form action="{{ route('combined.recap.preview') }}" method="GET" target="_blank">
                         
+                        <!-- <div class="mb-3">
+                            <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas <span class="text-danger">*</span></label>
+                            <select name="classroom_id" id="classroom_id" class="form-select" required>
+                                <option value="">-- Pilih Kelas --</option>
+                                @foreach($classrooms as $classroom)
+                                    <option value="{{ $classroom->id }}" {{ request('classroom_id') == $classroom->id ? 'selected' : '' }}>
+                                        {{ $classroom->name }} ({{ $classroom->major->name ?? 'Umum' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div> -->
                         <div class="mb-3">
                             <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas <span class="text-danger">*</span></label>
                             <select name="classroom_id" id="classroom_id" class="form-select" required>
                                 <option value="">-- Pilih Kelas --</option>
+                                <option value="all" style="font-weight: bold; color: #0d6efd;">📦 Semua Kelas (Export ZIP Paket)</option>
+                                <option disabled>------------------------------------</option>
                                 @foreach($classrooms as $classroom)
                                     <option value="{{ $classroom->id }}" {{ request('classroom_id') == $classroom->id ? 'selected' : '' }}>
                                         {{ $classroom->name }} ({{ $classroom->major->name ?? 'Umum' }})

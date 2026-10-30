@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use ZipArchive;
+use Illuminate\Support\Facades\File;
 
 class CombinedWeeklyReportController extends Controller
 {
@@ -338,30 +340,83 @@ class CombinedWeeklyReportController extends Controller
     // }
 
     // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN TERPADU)
+    // public function downloadPdf(Request $request)
+    // {
+    //     // Naikkan batas memori & waktu eksekusi
+    //     ini_set('memory_limit', '512M');
+    //     set_time_limit(300);
+
+    //     $data = $this->prepareCombinedData($request);
+
+    //     // Format nama kelas (bersihkan spasi dan karakter khusus)
+    //     $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
+
+    //     // Format timestamp untuk nama file (Contoh: Jumat_30102026_095700)
+    //     $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
+
+    //     // Susun nama file PDF
+    //     $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
+
+    //     $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+    //             ->setPaper('a4', 'landscape')
+    //             ->setOption([
+    //                 'isRemoteEnabled'      => true,
+    //                 'isHtml5ParserEnabled' => true,
+    //                 'dpi'                  => 96,
+    //             ])
+    //             ->setWarnings(false);
+
+    //     return $pdf->download($fileName);
+    // }
+
+    // 4. DOWNLOAD PDF (SINGLE OR ALL CLASSROOMS)
     public function downloadPdf(Request $request)
     {
-        // Naikkan batas memori & waktu eksekusi
-        ini_set('memory_limit', '512M');
-        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        set_time_limit(600);
 
+        $classroomId = $request->input('classroom_id');
+
+        // JIKA USER MEMILIH "ALL" / SEMUA KELAS -> GENERATE ZIP BATCH
+        if ($classroomId === 'all') {
+            $classrooms = Classroom::where('is_active', true)->orderBy('name', 'asc')->get();
+            $zipFileName = 'Laporan_Mingguan_Terpadu_Semua_Kelas_' . Carbon::now()->translatedFormat('l_dMY_His') . '.zip';
+            $zipPath = storage_path('app/public/' . $zipFileName);
+
+            $zip = new ZipArchive;
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                foreach ($classrooms as $cls) {
+                    // Duplicate request dengan ID kelas spesifik
+                    $subRequest = new Request($request->all());
+                    $subRequest->merge(['classroom_id' => $cls->id]);
+
+                    $data = $this->prepareCombinedData($subRequest);
+                    $className = str_replace([' ', '/', '\\'], '_', $cls->name ?? 'Kelas');
+                    $pdfFileName = "Laporan_Mingguan_{$className}.pdf";
+
+                    $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+                            ->setPaper('a4', 'landscape')
+                            ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
+                            ->setWarnings(false);
+
+                    // Masukkan stream PDF ke dalam ZIP
+                    $zip->addFromString($pdfFileName, $pdf->output());
+                }
+                $zip->close();
+            }
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
+
+        // JIKA HANYA MEMILIH 1 KELAS SPESIFIK
         $data = $this->prepareCombinedData($request);
-
-        // Format nama kelas (bersihkan spasi dan karakter khusus)
         $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
-
-        // Format timestamp untuk nama file (Contoh: Jumat_30102026_095700)
         $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
-
-        // Susun nama file PDF
         $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
 
         $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
                 ->setPaper('a4', 'landscape')
-                ->setOption([
-                    'isRemoteEnabled'      => true,
-                    'isHtml5ParserEnabled' => true,
-                    'dpi'                  => 96,
-                ])
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
                 ->setWarnings(false);
 
         return $pdf->download($fileName);
