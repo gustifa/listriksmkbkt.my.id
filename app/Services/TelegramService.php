@@ -208,4 +208,44 @@ class TelegramService
             ])
         ])->successful();
     }
+
+    /**
+     * Kirim Pesan dengan Tombol Inline (Interactive Buttons)
+     */
+    public function sendMessageWithInlineKeyboard($chatId, string $text, array $inlineKeyboard): bool
+    {
+        return Http::post($this->baseUrl . 'sendMessage', [
+            'chat_id'      => $chatId,
+            'text'         => $text,
+            'parse_mode'   => 'Markdown',
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $inlineKeyboard
+            ])
+        ])->successful();
+    }
+
+    /**
+     * Jawab Callback Query dari Tombol Inline
+     */
+    public function answerCallbackQuery(string $callbackQueryId, string $text = '', bool $showAlert = false): bool
+    {
+        return Http::post($this->baseUrl . 'answerCallbackQuery', [
+            'callback_query_id' => $callbackQueryId,
+            'text'              => $text,
+            'show_alert'        => $showAlert,
+        ])->successful();
+    }
+
+    /**
+     * Edit Teks Pesan yang Sudah Terkirim (Untuk Notifikasi Admin)
+     */
+    public function editMessageText($chatId, $messageId, string $text): bool
+    {
+        return Http::post($this->baseUrl . 'editMessageText', [
+            'chat_id'    => $chatId,
+            'message_id' => $messageId,
+            'text'       => $text,
+            'parse_mode' => 'Markdown',
+        ])->successful();
+    }
 }
