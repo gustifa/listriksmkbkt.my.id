@@ -1,30 +1,30 @@
-   
 @extends('layouts.app')
+
 <style>
-        body { 
-            background-color: #f4f6f9; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        }
-        .filter-card { 
-            border: none; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-            background: #ffffff; 
-            overflow: hidden;
-        }
-        .filter-header { 
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
-            color: #ffffff; 
-            padding: 24px 20px; 
-        }
-        .info-box {
-            background-color: #f8f9fa;
-            border-left: 4px solid #0d6efd;
-            border-radius: 4px;
-            padding: 12px;
-            font-size: 0.85rem;
-        }
-    </style>
+    body { 
+        background-color: #f4f6f9; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    }
+    .filter-card { 
+        border: none; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        background: #ffffff; 
+        overflow: hidden;
+    }
+    .filter-header { 
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+        color: #ffffff; 
+        padding: 24px 20px; 
+    }
+    .info-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        border-radius: 4px;
+        padding: 12px;
+        font-size: 0.85rem;
+    }
+</style>
 
 @section('title', 'Laporan Mingguan Terpadu')
 
@@ -51,19 +51,8 @@
                         </ul>
                     </div>
 
-                    <form action="{{ route('combined.recap.preview') }}" method="GET" target="_blank">
+                    <form id="recap-form" action="{{ route('combined.recap.preview') }}" method="GET" target="_blank">
                         
-                        <!-- <div class="mb-3">
-                            <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas <span class="text-danger">*</span></label>
-                            <select name="classroom_id" id="classroom_id" class="form-select" required>
-                                <option value="">-- Pilih Kelas --</option>
-                                @foreach($classrooms as $classroom)
-                                    <option value="{{ $classroom->id }}" {{ request('classroom_id') == $classroom->id ? 'selected' : '' }}>
-                                        {{ $classroom->name }} ({{ $classroom->major->name ?? 'Umum' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div> -->
                         <div class="mb-3">
                             <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas <span class="text-danger">*</span></label>
                             <select name="classroom_id" id="classroom_id" class="form-select" required>
@@ -85,7 +74,7 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary py-2 fw-bold">
+                            <button type="submit" id="btn-submit" class="btn btn-primary py-2 fw-bold">
                                 <i class="bi bi-eye-fill me-1"></i> Pratinjau Laporan Terpadu
                             </button>
                         </div>
@@ -96,4 +85,26 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectClass = document.getElementById('classroom_id');
+        const btnSubmit = document.getElementById('btn-submit');
+        const recapForm = document.getElementById('recap-form');
+
+        selectClass.addEventListener('change', function () {
+            if (this.value === 'all') {
+                btnSubmit.className = 'btn btn-success py-2 fw-bold';
+                btnSubmit.innerHTML = '<i class="bi bi-file-earmark-zip-fill me-1"></i> Download ZIP Semua Kelas';
+                recapForm.action = "{{ route('combined.recap.pdf') }}";
+                recapForm.removeAttribute('target');
+            } else {
+                btnSubmit.className = 'btn btn-primary py-2 fw-bold';
+                btnSubmit.innerHTML = '<i class="bi bi-eye-fill me-1"></i> Pratinjau Laporan Terpadu';
+                recapForm.action = "{{ route('combined.recap.preview') }}";
+                recapForm.setAttribute('target', '_blank');
+            }
+        });
+    });
+</script>
 @endsection

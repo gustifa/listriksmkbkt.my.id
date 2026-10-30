@@ -71,17 +71,18 @@ class CombinedWeeklyReportController extends Controller
             'Minggu' => $startOfWeek->copy()->addDays(6)->format('d/m/Y'),
         ];
 
-        // Detail Kelas Aktif
+        // Detail Kelas Aktif (Dengan Penanganan UUID / Value 'all')
         $classroomId = trim($request->input('classroom_id'));
-        $classroom   = Classroom::with(['homeroomTeacher', 'counselingTeacher', 'classLeader', 'major'])
-            ->where('id', $classroomId)
-            ->where('is_active', true)
-            ->first();
 
-        if (!$classroom) {
+        if ($classroomId === 'all' || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $classroomId)) {
             $classroom = Classroom::with(['homeroomTeacher', 'counselingTeacher', 'classLeader', 'major'])
                 ->where('is_active', true)
                 ->orderBy('name', 'asc')
+                ->first();
+        } else {
+            $classroom = Classroom::with(['homeroomTeacher', 'counselingTeacher', 'classLeader', 'major'])
+                ->where('id', $classroomId)
+                ->where('is_active', true)
                 ->first();
         }
 
@@ -312,7 +313,7 @@ class CombinedWeeklyReportController extends Controller
             'daySubjectMap', 'learningRecapMap', 'learningSummary',
             'gateMap', 'gateSummary',
             'prayerMap', 'prayerSummary',
-            'generatedAt' // Passing variabel timestamp generate ke Blade
+            'generatedAt'
         );
     }
 
@@ -323,53 +324,7 @@ class CombinedWeeklyReportController extends Controller
         return view('report.combined_recap_preview', $data);
     }
 
-    // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN)
-    // public function downloadPdf(Request $request)
-    // {
-    //     ini_set('memory_limit', '512M');
-    //     set_time_limit(300);
-
-    //     $data = $this->prepareCombinedData($request);
-
-    //     $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
-    //               ->setPaper('a4', 'landscape')
-    //               ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
-    //               ->setWarnings(false);
-
-    //     return $pdf->download('Laporan_Mingguan_Terpadu_' . str_replace(' ', '_', $data['classroom']->name ?? 'Kelas') . '.pdf');
-    // }
-
-    // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN TERPADU)
-    // public function downloadPdf(Request $request)
-    // {
-    //     // Naikkan batas memori & waktu eksekusi
-    //     ini_set('memory_limit', '512M');
-    //     set_time_limit(300);
-
-    //     $data = $this->prepareCombinedData($request);
-
-    //     // Format nama kelas (bersihkan spasi dan karakter khusus)
-    //     $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
-
-    //     // Format timestamp untuk nama file (Contoh: Jumat_30102026_095700)
-    //     $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
-
-    //     // Susun nama file PDF
-    //     $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
-
-    //     $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
-    //             ->setPaper('a4', 'landscape')
-    //             ->setOption([
-    //                 'isRemoteEnabled'      => true,
-    //                 'isHtml5ParserEnabled' => true,
-    //                 'dpi'                  => 96,
-    //             ])
-    //             ->setWarnings(false);
-
-    //     return $pdf->download($fileName);
-    // }
-
-    // 4. DOWNLOAD PDF (SINGLE OR ALL CLASSROOMS)
+    // 4. DOWNLOAD PDF (SINGLE OR ALL CLASSROOMS ZIP)
     public function downloadPdf(Request $request)
     {
         ini_set('memory_limit', '1024M');
@@ -386,7 +341,6 @@ class CombinedWeeklyReportController extends Controller
             $zip = new ZipArchive;
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
                 foreach ($classrooms as $cls) {
-                    // Duplicate request dengan ID kelas spesifik
                     $subRequest = new Request($request->all());
                     $subRequest->merge(['classroom_id' => $cls->id]);
 
@@ -399,7 +353,6 @@ class CombinedWeeklyReportController extends Controller
                             ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
                             ->setWarnings(false);
 
-                    // Masukkan stream PDF ke dalam ZIP
                     $zip->addFromString($pdfFileName, $pdf->output());
                 }
                 $zip->close();
@@ -408,7 +361,7 @@ class CombinedWeeklyReportController extends Controller
             return response()->download($zipPath)->deleteFileAfterSend(true);
         }
 
-        // JIKA HANYA MEMILIH 1 KELAS SPESIFIK
+        // JIKA MEMILIH 1 KELAS SPESIFIK
         $data = $this->prepareCombinedData($request);
         $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
         $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
