@@ -454,7 +454,7 @@ class TelegramWebhookController extends Controller
                 "--------------------------------------\n";
 
         if ($logs->isEmpty()) {
-            $text .= "_\nBelum ada catatan presensi gerbang._";
+            $text .= "_\nBelum ada catatan presensi gerbang._\n\n";
         } else {
             foreach ($logs as $log) {
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
@@ -480,7 +480,15 @@ class TelegramWebhookController extends Controller
         }
 
         $text .= "--- *SMKN 1 Bukittinggi* ---";
-        $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+
+        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $keyboard = [
+            [
+                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+            ]
+        ];
+
+        $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
     }
 
     private function sendRekapPembelajaran($chatId, TelegramService $telegramService)
@@ -501,7 +509,7 @@ class TelegramWebhookController extends Controller
                 "--------------------------------------\n";
 
         if ($logs->isEmpty()) {
-            $text .= "_\nBelum ada catatan presensi pembelajaran kelas._";
+            $text .= "_\nBelum ada catatan presensi pembelajaran kelas._\n\n";
         } else {
             foreach ($logs as $log) {
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
@@ -525,7 +533,15 @@ class TelegramWebhookController extends Controller
         }
 
         $text .= "--- *SMKN 1 Bukittinggi* ---";
-        $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+
+        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $keyboard = [
+            [
+                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+            ]
+        ];
+
+        $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
     }
 
     private function sendRekapSholat($chatId, TelegramService $telegramService)
@@ -546,7 +562,7 @@ class TelegramWebhookController extends Controller
                 "--------------------------------------\n";
 
         if ($logs->isEmpty()) {
-            $text .= "_\nBelum ada catatan presensi sholat._";
+            $text .= "_\nBelum ada catatan presensi sholat._\n\n";
         } else {
             foreach ($logs as $log) {
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
@@ -572,7 +588,15 @@ class TelegramWebhookController extends Controller
         }
 
         $text .= "--- *SMKN 1 Bukittinggi* ---";
-        $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+
+        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $keyboard = [
+            [
+                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+            ]
+        ];
+
+        $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
     }
 
     private function handleRekapCallback(array $callbackQuery, TelegramService $telegramService): void
