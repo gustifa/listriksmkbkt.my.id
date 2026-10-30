@@ -55,6 +55,9 @@ class CombinedWeeklyReportController extends Controller
         $endOfWeek    = Carbon::parse($selectedDate)->endOfWeek(Carbon::SUNDAY);
         $todayDate    = Carbon::now()->format('Y-m-d');
 
+        // Generate Waktu Cetak Dokumen (Hari, Tanggal & Jam)
+        $generatedAt  = Carbon::now()->translatedFormat('l, d F Y - H:i:s') . ' WIB';
+
         // Mapping Tanggal
         $weekDates = [
             'Senin'  => $startOfWeek->copy()->addDays(0)->format('d/m/Y'),
@@ -168,8 +171,6 @@ class CombinedWeeklyReportController extends Controller
             $dayOfWeek = Carbon::parse($att->date)->dayOfWeekIso;
             if ($dayOfWeek <= 5 && isset($learningRecapMap[$att->student_id])) {
                 $stLower = strtolower(trim($att->status));
-                // $code = match($stLower) { 'hadir' => '✓', 'sakit' => 'S', 'izin' => 'I', default => 'X' };
-                // SESUDAH (Ganti '✓' dengan 'v'):
                 $code = match($stLower) { 
                     'hadir'   => 'v', 
                     'sakit'   => 'S', 
@@ -285,7 +286,7 @@ class CombinedWeeklyReportController extends Controller
                     $rec = $prayerDbMap[$student->id][$rawDate][$prayer] ?? null;
 
                     if ($rec) {
-                        $checkIn = $rec->check_in_time ? Carbon::parse($rec->check_in_time)->format('H:i') : '✓';
+                        $checkIn = $rec->check_in_time ? Carbon::parse($rec->check_in_time)->format('H:i') : 'v';
                         $st = strtolower(trim($rec->status ?? 'hadir'));
 
                         $prayerMap[$student->id][$rawDate][$prayer] = ['time' => $checkIn, 'status' => $st];
@@ -308,7 +309,8 @@ class CombinedWeeklyReportController extends Controller
             'students', 'classroom', 'weekDates', 'startOfWeek', 'endOfWeek', 'settings', 'officers',
             'daySubjectMap', 'learningRecapMap', 'learningSummary',
             'gateMap', 'gateSummary',
-            'prayerMap', 'prayerSummary'
+            'prayerMap', 'prayerSummary',
+            'generatedAt' // Passing variabel timestamp generate ke Blade
         );
     }
 
@@ -322,9 +324,9 @@ class CombinedWeeklyReportController extends Controller
     // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN)
     public function downloadPdf(Request $request)
     {
-        // Naikkan batas memori & waktu eksekusi untuk proses ekspor 3 halaman padat
         ini_set('memory_limit', '512M');
         set_time_limit(300);
+
         $data = $this->prepareCombinedData($request);
 
         $pdf = Pdf::loadView('report.combined_recap_pdf', $data)

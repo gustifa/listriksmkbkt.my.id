@@ -45,6 +45,25 @@
         .signature-table { width: 100%; margin-top: 5px; border-collapse: collapse; page-break-inside: avoid; }
         .signature-table td { border: none !important; text-align: center; vertical-align: top; font-size: 6pt; line-height: 1; }
         .sig-space { height: 18px; }
+
+        /* FOOTER TIMESTAMP GENERATE */
+        .pdf-footer {
+            margin-top: 4px;
+            font-size: 4.5pt;
+            color: #555;
+            border-top: 0.3pt solid #ccc;
+            padding-top: 2px;
+            width: 100%;
+        }
+        .pdf-footer table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .pdf-footer td {
+            border: none !important;
+            padding: 0;
+            font-size: 4.5pt;
+        }
     </style>
 </head>
 <body>
@@ -139,6 +158,15 @@
         </tr>
     </table>
 
+    <div class="pdf-footer">
+        <table>
+            <tr>
+                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
+                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
+            </tr>
+        </table>
+    </div>
+
     <!-- BATAS HALAMAN 1 DENGAN HALAMAN 2 -->
     <div class="page-break"></div>
 
@@ -232,6 +260,15 @@
             <td style="width: 33%;">Bukittinggi, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}<br>Wali Kelas<div class="sig-space"></div><strong><u>{{ $officers['walas_nama'] }}</u></strong><br>NIP. {{ $officers['walas_nip'] }}</td>
         </tr>
     </table>
+
+    <div class="pdf-footer">
+        <table>
+            <tr>
+                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
+                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
+            </tr>
+        </table>
+    </div>
 
     <!-- BATAS HALAMAN 2 DENGAN HALAMAN 3 -->
     <div class="page-break"></div>
@@ -332,6 +369,15 @@
             <td style="width: 33%;">Bukittinggi, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}<br>Wali Kelas<div class="sig-space"></div><strong><u>{{ $officers['walas_nama'] }}</u></strong><br>NIP. {{ $officers['walas_nip'] }}</td>
         </tr>
     </table>
+
+    <div class="pdf-footer">
+        <table>
+            <tr>
+                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
+                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
+            </tr>
+        </table>
+    </div>
 
 </body>
 </html>
