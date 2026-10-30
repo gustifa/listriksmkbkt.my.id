@@ -168,7 +168,14 @@ class CombinedWeeklyReportController extends Controller
             $dayOfWeek = Carbon::parse($att->date)->dayOfWeekIso;
             if ($dayOfWeek <= 5 && isset($learningRecapMap[$att->student_id])) {
                 $stLower = strtolower(trim($att->status));
-                $code = match($stLower) { 'hadir' => '✓', 'sakit' => 'S', 'izin' => 'I', default => 'X' };
+                // $code = match($stLower) { 'hadir' => '✓', 'sakit' => 'S', 'izin' => 'I', default => 'X' };
+                // SESUDAH (Ganti '✓' dengan 'v'):
+                $code = match($stLower) { 
+                    'hadir'   => 'v', 
+                    'sakit'   => 'S', 
+                    'izin'    => 'I', 
+                    default   => 'X' 
+                };
                 $jamIndexes = $scheduleJamMap[$att->schedule_id] ?? [$att->jam_ke ?? 1];
 
                 foreach ($jamIndexes as $jIdx) {
