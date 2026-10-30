@@ -299,7 +299,7 @@ class TelegramWebhookController extends Controller
                 }
 
                 // BELUM TERDAFTAR
-                $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO SMKN 1 BUKITTINGGI*\n\n" .
+                $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO Listrik SMKN 1 BUKITTINGGI*\n\n" .
                           "Bot ini menyediakan informasi rekapitulasi absensi gerbang, kelas, dan ibadah sholat secara otomatis.\n\n" .
                           "Silakan tekan tombol *'📱 Bagikan Nomor Kontak Saya'* di bawah untuk mendaftar.";
                 
@@ -479,7 +479,7 @@ class TelegramWebhookController extends Controller
             }
         }
 
-        $text .= "--- *SMKN 1 Bukittinggi* ---";
+        $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
         $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
         $keyboard = [
@@ -532,7 +532,7 @@ class TelegramWebhookController extends Controller
             }
         }
 
-        $text .= "--- *SMKN 1 Bukittinggi* ---";
+        $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
         $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
         $keyboard = [
@@ -587,7 +587,7 @@ class TelegramWebhookController extends Controller
             }
         }
 
-        $text .= "--- *SMKN 1 Bukittinggi* ---";
+        $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
         $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
         $keyboard = [
