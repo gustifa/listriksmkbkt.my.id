@@ -1,414 +1,162 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Laporan Rekapitulasi Mingguan Terpadu Siswa</title>
-    <style>
-        @page { size: A4 landscape; margin: 3mm; }
-        * { box-sizing: border-box; font-family: "Helvetica", "Arial", sans-serif; }
-        body { background: #fff; margin: 0; padding: 0; font-size: 5pt; line-height: 1; }
-        
-        .page-break { page-break-after: always; }
+@extends('layouts.app')
 
-        .kop-container { width: 100%; margin-bottom: 2px; }
-        .header-kop { width: 100%; border-collapse: collapse; }
-        .header-kop td { border: none !important; padding: 0; vertical-align: middle; }
-        .kop-logo-left, .kop-logo-right { width: 35px; text-align: center; }
-        .kop-logo-left img, .kop-logo-right img { max-width: 28px; max-height: 28px; }
+<style>
+    body { 
+        background-color: #f4f6f9; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    }
+    .filter-card { 
+        border: none; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        background: #ffffff; 
+        overflow: hidden;
+    }
+    .filter-header { 
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+        color: #ffffff; 
+        padding: 24px 20px; 
+    }
+    .info-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        border-radius: 4px;
+        padding: 12px;
+        font-size: 0.85rem;
+    }
+    .classroom-list-box { 
+        max-height: 220px; 
+        overflow-y: auto; 
+        border: 1px solid #dee2e6; 
+        border-radius: 6px; 
+        padding: 10px; 
+        background: #fff; 
+    }
+</style>
 
-        .kop-title { text-align: center; line-height: 1; }
-        .kop-title .provinsi { font-size: 6.5pt; font-weight: bold; margin: 0; }
-        .kop-title .dinas { font-size: 5.5pt; font-weight: bold; margin: 0; }
-        .kop-title .sekolah { font-size: 7.5pt; font-weight: bold; margin: 0; }
-        .kop-title .alamat { font-size: 4.5pt; font-style: italic; margin-top: 1px; }
+@section('title', 'Laporan Mingguan Terpadu')
 
-        .kop-line { border-top: 1.5px solid #000; border-bottom: 0.5px solid #000; height: 1px; margin-top: 1px; margin-bottom: 2px; }
+@section('content')
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="card filter-card">
+                <div class="filter-header text-center">
+                    <i class="bi bi-journal-text display-5 mb-2 d-block"></i>
+                    <h4 class="mb-1 fw-bold">Laporan Mingguan Terpadu</h4>
+                    <p class="mb-0 opacity-75 small">Rekapitulasi 3 Halaman Per Kelas</p>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="info-box mb-4">
+                        <span class="fw-bold text-primary d-block mb-1">
+                            <i class="bi bi-info-circle-fill me-1"></i> Cakupan Laporan 3 Halaman:
+                        </span>
+                        <ul class="mb-0 ps-3 text-secondary">
+                            <li><strong>Halaman 1:</strong> Presensi Pembelajaran (Jam 1 - 10)[cite: 1, 3]</li>
+                            <li><strong>Halaman 2:</strong> Presensi Gerbang Harian (Masuk & Pulang)[cite: 1, 2, 7]</li>
+                            <li><strong>Halaman 3:</strong> Presensi Sholat 5 Waktu (Senin - Minggu)</li>
+                        </ul>
+                    </div>
 
-        .report-title { text-align: center; margin-bottom: 2px; }
-        .report-title h3 { margin: 0; font-size: 8pt; text-transform: uppercase; text-decoration: underline; }
-        .report-title p { margin: 1px 0 0 0; font-size: 6pt; font-weight: bold; }
+                    <form id="recap-form" action="{{ route('combined.recap.preview') }}" method="GET" target="_blank">
+                        
+                        <!-- PILIHAN CHECKBOX CENTANG KELAS -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-semibold mb-0">Pilih Kelas <span class="text-danger">*</span></label>
+                                <div>
+                                    <button type="button" id="btn-select-all" class="btn btn-sm btn-outline-primary py-0 px-2 small">Pilih Semua</button>
+                                </div>
+                            </div>
 
-        .meta-table { width: 100%; margin-bottom: 2px; font-weight: bold; font-size: 6pt; }
-        .meta-table td { border: none !important; padding: 1px 0; }
+                            <div class="classroom-list-box">
+                                @foreach($classrooms as $classroom)
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input cls-checkbox" type="checkbox" name="classroom_ids[]" value="{{ $classroom->id }}" id="cls_{{ $classroom->id }}">
+                                        <label class="form-check-label" for="cls_{{ $classroom->id }}">
+                                            <strong>{{ $classroom->name }}</strong> <span class="text-muted">({{ $classroom->major->name ?? 'Umum' }})</span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <small id="selection-hint" class="text-muted mt-1 d-block">Centang 1 kelas untuk Pratinjau, atau centang beberapa kelas untuk Download ZIP Batch[cite: 8].</small>
+                        </div>
 
-        /* LAYOUT TABEL TERKONTROL UNTUK PREVENT TEKS DEMPET */
-        .table-recap { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .table-recap th, .table-recap td {
-            border: 0.3pt solid #000; 
-            padding: 1px 0; 
-            text-align: center; 
-            vertical-align: middle; 
-            font-size: 4.5pt; 
-            line-height: 1;
-            overflow: hidden;
-            word-wrap: break-word;
+                        <div class="mb-4">
+                            <label for="date" class="form-label fw-semibold">Pilih Tanggal Pekan <span class="text-danger">*</span></label>
+                            <input type="date" name="date" id="date" class="form-control" value="{{ request('date', \Carbon\Carbon::now()->format('Y-m-d')) }}" required>
+                            <small class="text-muted mt-1 d-block">Sistem akan mengambil rentang 1 pekan penuh sesuai tanggal yang dipilih[cite: 1, 2, 7].</small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" id="btn-submit" class="btn btn-secondary py-2 fw-bold" disabled>
+                                Pilih Kelas Terlebih Dahulu
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const checkboxes = document.querySelectorAll('.cls-checkbox');
+        const btnSelectAll = document.getElementById('btn-select-all');
+        const btnSubmit = document.getElementById('btn-submit');
+        const recapForm = document.getElementById('recap-form');
+
+        function updateFormState() {
+            const checkedBoxes = document.querySelectorAll('.cls-checkbox:checked');
+            const checkedCount = checkedBoxes.length;
+
+            if (checkedCount === 0) {
+                btnSubmit.disabled = true;
+                btnSubmit.className = 'btn btn-secondary py-2 fw-bold';
+                btnSubmit.innerHTML = 'Pilih Kelas Terlebih Dahulu';
+            } else if (checkedCount === 1) {
+                btnSubmit.disabled = false;
+                btnSubmit.className = 'btn btn-primary py-2 fw-bold';
+                btnSubmit.innerHTML = '<i class="bi bi-eye-fill me-1"></i> Pratinjau Laporan Terpadu';
+                
+                // Set parameter classroom_id untuk single preview
+                let singleInput = recapForm.querySelector('input[name="classroom_id"]');
+                if (!singleInput) {
+                    singleInput = document.createElement('input');
+                    singleInput.type = 'hidden';
+                    singleInput.name = 'classroom_id';
+                    recapForm.appendChild(singleInput);
+                }
+                singleInput.value = checkedBoxes[0].value;
+
+                recapForm.action = "{{ route('combined.recap.preview') }}";
+                recapForm.setAttribute('target', '_blank');
+            } else {
+                btnSubmit.disabled = false;
+                btnSubmit.className = 'btn btn-success py-2 fw-bold';
+                btnSubmit.innerHTML = '<i class="bi bi-file-earmark-zip-fill me-1"></i> Download Paket ZIP (' + checkedCount + ' Kelas)';
+                
+                // Hapus single classroom_id input jika ada
+                const singleInput = recapForm.querySelector('input[name="classroom_id"]');
+                if (singleInput) singleInput.remove();
+
+                recapForm.action = "{{ route('combined.recap.pdf') }}";
+                recapForm.removeAttribute('target');
+            }
         }
-        .table-recap thead th { font-weight: bold; background: #f2f2f2; text-transform: uppercase; }
-        .text-left { text-align: left !important; padding-left: 2px !important; }
 
-        /* KHUSUS HEADER KODE MAPEL (JAM 1 - 10) */
-        .th-subject {
-            font-size: 3pt !important;
-            letter-spacing: -0.2px;
-            padding: 1px 0 !important;
-            height: 13px;
-            max-width: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        checkboxes.forEach(cb => cb.addEventListener('change', updateFormState));
 
-        .th-jam {
-            font-size: 3.5pt !important;
-            font-weight: bold;
-        }
-
-        .txt-alpa { color: #d9534f; font-weight: bold; }
-        .txt-ok { color: #198754; font-weight: bold; }
-        .txt-late { color: #e67e22; font-weight: bold; }
-
-        .signature-table { width: 100%; margin-top: 5px; border-collapse: collapse; page-break-inside: avoid; }
-        .signature-table td { border: none !important; text-align: center; vertical-align: top; font-size: 6pt; line-height: 1; }
-        .sig-space { height: 18px; }
-
-        /* FOOTER TIMESTAMP GENERATE */
-        .pdf-footer {
-            margin-top: 4px;
-            font-size: 4.5pt;
-            color: #555;
-            border-top: 0.3pt solid #ccc;
-            padding-top: 2px;
-            width: 100%;
-        }
-        .pdf-footer table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .pdf-footer td {
-            border: none !important;
-            padding: 0;
-            font-size: 4.5pt;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- ========================================================================= -->
-    <!-- HALAMAN 1: REKAPITULASI PRESENSI PEMBELAJARAN ( KELAS ) -->
-    <!-- ========================================================================= -->
-    <div class="kop-container">
-        <table class="header-kop">
-            <tr>
-                <td class="kop-logo-left">@if(!empty($settings['logo_left']))<img src="{{ $settings['logo_left'] }}">@endif</td>
-                <td class="kop-title">
-                    <p class="provinsi">{{ strtoupper($settings['provinsi_name']) }}</p>
-                    <p class="dinas">DINAS PENDIDIKAN</p>
-                    <p class="sekolah">{{ strtoupper($settings['school_name']) }}</p>
-                    <p class="alamat">{{ $settings['school_address'] }}</p>
-                </td>
-                <td class="kop-logo-right">@if(!empty($settings['logo_right']))<img src="{{ $settings['logo_right'] }}">@endif</td>
-            </tr>
-        </table>
-        <div class="kop-line"></div>
-    </div>
-
-    <div class="report-title">
-        <h3>LAPORAN MINGGUAN REKAPITULASI PRESENSI PEMBELAJARAN</h3>
-        <p>PERIODE {{ $startOfWeek->format('d/m/Y') }} S/D {{ $startOfWeek->copy()->addDays(4)->format('d/m/Y') }}</p>
-    </div>
-
-    <table class="meta-table">
-        <tr>
-            <td>KELAS : {{ strtoupper($classroom->name ?? '') }}</td>
-            <td style="text-align: right;">KONSENTRASI : {{ strtoupper($classroom->major->name ?? '-') }}</td>
-        </tr>
-    </table>
-
-    <table class="table-recap">
-        <thead>
-            <tr>
-                <th rowspan="3" style="width: 2.2%;">NO</th>
-                <th rowspan="3" style="width: 4.8%;">NIS</th>
-                <th rowspan="3" style="width: 18%;">NAMA PESERTA DIDIK</th>
-                <th rowspan="3" style="width: 2%;">L/P</th>
-                @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                    <th colspan="10" style="width: 13.8%;">{{ $day }} ({{ $weekDates[$day] }})</th>
-                @endforeach
-                <th colspan="3" style="width: 4%;">REKAP</th>
-            </tr>
-            <tr>
-                @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                    @for($j = 1; $j <= 10; $j++)
-                        <th class="th-subject" title="{{ $daySubjectMap[$day][$j] ?? '' }}">
-                            {{ substr($daySubjectMap[$day][$j] ?? '', 0, 5) }}
-                        </th>
-                    @endfor
-                @endforeach
-                <th rowspan="2" style="width: 1.33%;">S</th>
-                <th rowspan="2" style="width: 1.33%;">I</th>
-                <th rowspan="2" style="width: 1.33%;">A</th>
-            </tr>
-            <tr>
-                @for($i = 0; $i < 5; $i++)
-                    @for($j = 1; $j <= 10; $j++) 
-                        <th class="th-jam">{{ $j }}</th> 
-                    @endfor
-                @endfor
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($students as $idx => $st)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ $st->nis ?? '-' }}</td>
-                    <td class="text-left"><strong>{{ strtoupper($st->name ?? '') }}</strong></td>
-                    <td>{{ substr($st->gender ?? 'L', 0, 1) }}</td>
-
-                    @for($day = 1; $day <= 5; $day++)
-                        @for($jam = 1; $jam <= 10; $jam++)
-                            @php $val = $learningRecapMap[$st->id][$day][$jam] ?? ''; @endphp
-                            <td class="{{ $val == 'X' ? 'txt-alpa' : ($val == 'v' ? 'txt-ok' : '') }}">
-                                {{ $val }}
-                            </td>
-                        @endfor
-                    @endfor
-
-                    <td>{{ $learningSummary[$st->id]['sakit'] ?: '' }}</td>
-                    <td>{{ $learningSummary[$st->id]['izin'] ?: '' }}</td>
-                    <td class="txt-alpa">{{ $learningSummary[$st->id]['alpa'] ?: '' }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <table class="signature-table">
-        <tr>
-            <td style="width: 33%;">Mengetahui,<br>Kepala Sekolah<div class="sig-space"></div><strong><u>{{ $settings['kepsek_nama'] }}</u></strong><br>NIP. {{ $settings['kepsek_nip'] }}</td>
-            <td style="width: 33%;"><br>Guru BP / BK<div class="sig-space"></div><strong><u>{{ $officers['bk_nama'] }}</u></strong><br>NIP. {{ $officers['bk_nip'] }}</td>
-            <td style="width: 33%;">Bukittinggi, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}<br>Wali Kelas<div class="sig-space"></div><strong><u>{{ $officers['walas_nama'] }}</u></strong><br>NIP. {{ $officers['walas_nip'] }}</td>
-        </tr>
-    </table>
-
-    <div class="pdf-footer">
-        <table>
-            <tr>
-                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
-                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
-            </tr>
-        </table>
-    </div>
-
-    <!-- BATAS HALAMAN 1 DENGAN HALAMAN 2 -->
-    <div class="page-break"></div>
-
-    <!-- ========================================================================= -->
-    <!-- HALAMAN 2: REKAPITULASI PRESENSI GERBANG ( MASUK / PULANG ) -->
-    <!-- ========================================================================= -->
-    <div class="kop-container">
-        <table class="header-kop">
-            <tr>
-                <td class="kop-logo-left">@if(!empty($settings['logo_left']))<img src="{{ $settings['logo_left'] }}">@endif</td>
-                <td class="kop-title">
-                    <p class="provinsi">{{ strtoupper($settings['provinsi_name']) }}</p>
-                    <p class="dinas">DINAS PENDIDIKAN</p>
-                    <p class="sekolah">{{ strtoupper($settings['school_name']) }}</p>
-                    <p class="alamat">{{ $settings['school_address'] }}</p>
-                </td>
-                <td class="kop-logo-right">@if(!empty($settings['logo_right']))<img src="{{ $settings['logo_right'] }}">@endif</td>
-            </tr>
-        </table>
-        <div class="kop-line"></div>
-    </div>
-
-    <div class="report-title">
-        <h3>REKAPITULASI PRESENSI GERBANG SISWA</h3>
-        <p>PERIODE {{ $startOfWeek->format('d/m/Y') }} S/D {{ $startOfWeek->copy()->addDays(4)->format('d/m/Y') }}</p>
-    </div>
-
-    <table class="meta-table">
-        <tr>
-            <td>KELAS : {{ strtoupper($classroom->name ?? '') }}</td>
-            <td style="text-align: right;">KONSENTRASI : {{ strtoupper($classroom->major->name ?? '-') }}</td>
-        </tr>
-    </table>
-
-    <table class="table-recap">
-        <thead>
-            <tr>
-                <th rowspan="2" style="width: 3%;">NO</th>
-                <th rowspan="2" style="width: 6%;">NIS</th>
-                <th rowspan="2" style="width: 28%;">NAMA PESERTA DIDIK</th>
-                <th rowspan="2" style="width: 3%;">L/P</th>
-                @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                    <th colspan="2">{{ $day }} ({{ $weekDates[$day] }})</th>
-                @endforeach
-                <th colspan="5" style="width: 12%;">REKAP</th>
-            </tr>
-            <tr>
-                @for($i = 0; $i < 5; $i++)
-                    <th style="width: 4.8%;">MASUK</th><th style="width: 4.8%;">PULANG</th>
-                @endfor
-                <th style="width: 2.4%;">H</th><th style="width: 2.4%;">T</th><th style="width: 2.4%;">S</th><th style="width: 2.4%;">I</th><th style="width: 2.4%;">A</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($students as $idx => $st)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ $st->nis ?? '-' }}</td>
-                    <td class="text-left"><strong>{{ strtoupper($st->name ?? '') }}</strong></td>
-                    <td>{{ substr($st->gender ?? 'L', 0, 1) }}</td>
-
-                    @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'] as $day)
-                        @php
-                            $dDateRaw = \Carbon\Carbon::parse($startOfWeek)->addDays(match($day) { 'Senin' => 0, 'Selasa' => 1, 'Rabu' => 2, 'Kamis' => 3, 'Jumat' => 4 })->format('Y-m-d');
-                            $rec = $gateMap[$st->id][$dDateRaw] ?? null;
-                        @endphp
-                        <td>
-                            @if($rec)
-                                @if($rec['status'] == 'alpa') <span class="txt-alpa">X</span>
-                                @elseif($rec['status'] == 'terlambat') <span class="txt-late">{{ $rec['arrival'] }}</span>
-                                @else {{ $rec['arrival'] }} @endif
-                            @else - @endif
-                        </td>
-                        <td>{{ $rec ? $rec['departure'] : '-' }}</td>
-                    @endforeach
-
-                    <td>{{ $gateSummary[$st->id]['hadir'] ?: '' }}</td>
-                    <td class="txt-late">{{ $gateSummary[$st->id]['terlambat'] ?: '' }}</td>
-                    <td>{{ $gateSummary[$st->id]['sakit'] ?: '' }}</td>
-                    <td>{{ $gateSummary[$st->id]['izin'] ?: '' }}</td>
-                    <td class="txt-alpa">{{ $gateSummary[$st->id]['alpa'] ?: '' }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <table class="signature-table">
-        <tr>
-            <td style="width: 33%;">Mengetahui,<br>Kepala Sekolah<div class="sig-space"></div><strong><u>{{ $settings['kepsek_nama'] }}</u></strong><br>NIP. {{ $settings['kepsek_nip'] }}</td>
-            <td style="width: 33%;"><br>Guru BP / BK<div class="sig-space"></div><strong><u>{{ $officers['bk_nama'] }}</u></strong><br>NIP. {{ $officers['bk_nip'] }}</td>
-            <td style="width: 33%;">Bukittinggi, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}<br>Wali Kelas<div class="sig-space"></div><strong><u>{{ $officers['walas_nama'] }}</u></strong><br>NIP. {{ $officers['walas_nip'] }}</td>
-        </tr>
-    </table>
-
-    <div class="pdf-footer">
-        <table>
-            <tr>
-                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
-                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
-            </tr>
-        </table>
-    </div>
-
-    <!-- BATAS HALAMAN 2 DENGAN HALAMAN 3 -->
-    <div class="page-break"></div>
-
-    <!-- ========================================================================= -->
-    <!-- HALAMAN 3: REKAPITULASI PRESENSI SHOLAT ( 7 HARI SENIN - MINGGU ) -->
-    <!-- ========================================================================= -->
-    <div class="kop-container">
-        <table class="header-kop">
-            <tr>
-                <td class="kop-logo-left">@if(!empty($settings['logo_left']))<img src="{{ $settings['logo_left'] }}">@endif</td>
-                <td class="kop-title">
-                    <p class="provinsi">{{ strtoupper($settings['provinsi_name']) }}</p>
-                    <p class="dinas">DINAS PENDIDIKAN</p>
-                    <p class="sekolah">{{ strtoupper($settings['school_name']) }}</p>
-                    <p class="alamat">{{ $settings['school_address'] }}</p>
-                </td>
-                <td class="kop-logo-right">@if(!empty($settings['logo_right']))<img src="{{ $settings['logo_right'] }}">@endif</td>
-            </tr>
-        </table>
-        <div class="kop-line"></div>
-    </div>
-
-    <div class="report-title">
-        <h3>REKAPITULASI PRESENSI SHOLAT SISWA</h3>
-        <p>PERIODE {{ $startOfWeek->format('d/m/Y') }} S/D {{ $endOfWeek->format('d/m/Y') }}</p>
-    </div>
-
-    <table class="meta-table">
-        <tr>
-            <td>KELAS : {{ strtoupper($classroom->name ?? '') }}</td>
-            <td style="text-align: right;">KONSENTRASI : {{ strtoupper($classroom->major->name ?? '-') }}</td>
-        </tr>
-    </table>
-
-    <table class="table-recap">
-        <thead>
-            <tr>
-                <th rowspan="2" style="width: 2.2%;">NO</th>
-                <th rowspan="2" style="width: 4.8%;">NIS</th>
-                <th rowspan="2" style="width: 18%;">NAMA PESERTA DIDIK</th>
-                <th rowspan="2" style="width: 2%;">L/P</th>
-
-                @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'] as $day)
-                    <th colspan="5">{{ $day }} ({{ $weekDates[$day] }})</th>
-                @endforeach
-
-                <th colspan="2" style="width: 5%;">TOTAL</th>
-            </tr>
-            <tr>
-                @for($i = 0; $i < 7; $i++)
-                    <th style="width: 2.02%; font-size: 3.8pt;">SBH</th>
-                    <th style="width: 2.02%; font-size: 3.8pt;">DZH</th>
-                    <th style="width: 2.02%; font-size: 3.8pt;">ASH</th>
-                    <th style="width: 2.02%; font-size: 3.8pt;">MGB</th>
-                    <th style="width: 2.02%; font-size: 3.8pt;">ISY</th>
-                @endfor
-                <th style="width: 2.5%;">HADIR</th><th style="width: 2.5%;">ALPA</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($students as $idx => $st)
-                <tr>
-                    <td>{{ $idx + 1 }}</td>
-                    <td>{{ $st->nis ?? '-' }}</td>
-                    <td class="text-left"><strong>{{ strtoupper($st->name ?? '') }}</strong></td>
-                    <td>{{ substr($st->gender ?? 'L', 0, 1) }}</td>
-
-                    @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'] as $day)
-                        @php
-                            $dDateRaw = \Carbon\Carbon::parse($startOfWeek)->addDays(match($day) {
-                                'Senin' => 0, 'Selasa' => 1, 'Rabu' => 2, 'Kamis' => 3, 'Jumat' => 4, 'Sabtu' => 5, 'Minggu' => 6
-                            })->format('Y-m-d');
-                        @endphp
-
-                        @foreach(['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'] as $pr)
-                            @php $rec = $prayerMap[$st->id][$dDateRaw][$pr] ?? null; @endphp
-                            <td>
-                                @if($rec)
-                                    @if($rec['status'] == 'alpa') <span class="txt-alpa">X</span>
-                                    @else <span class="txt-ok">{{ $rec['time'] }}</span> @endif
-                                @else - @endif
-                            </td>
-                        @endforeach
-                    @endforeach
-
-                    <td class="txt-ok">{{ $prayerSummary[$st->id]['hadir'] ?: '' }}</td>
-                    <td class="txt-alpa">{{ $prayerSummary[$st->id]['alpa'] ?: '' }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <table class="signature-table">
-        <tr>
-            <td style="width: 33%;">Mengetahui,<br>Kepala Sekolah<div class="sig-space"></div><strong><u>{{ $settings['kepsek_nama'] }}</u></strong><br>NIP. {{ $settings['kepsek_nip'] }}</td>
-            <td style="width: 33%;"><br>Guru BP / BK<div class="sig-space"></div><strong><u>{{ $officers['bk_nama'] }}</u></strong><br>NIP. {{ $officers['bk_nip'] }}</td>
-            <td style="width: 33%;">Bukittinggi, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}<br>Wali Kelas<div class="sig-space"></div><strong><u>{{ $officers['walas_nama'] }}</u></strong><br>NIP. {{ $officers['walas_nip'] }}</td>
-        </tr>
-    </table>
-
-    <div class="pdf-footer">
-        <table>
-            <tr>
-                <td style="text-align: left;"><em>Dokumen ini dicetak otomatis oleh Sistem Informasi Sekolah</em></td>
-                <td style="text-align: right;"><strong>Waktu Generate:</strong> {{ $generatedAt }}</td>
-            </tr>
-        </table>
-    </div>
-
-</body>
-</html>
+        let allSelected = false;
+        btnSelectAll.addEventListener('click', function () {
+            allSelected = !allSelected;
+            checkboxes.forEach(cb => cb.checked = allSelected);
+            btnSelectAll.textContent = allSelected ? 'Batal Semua' : 'Pilih Semua';
+            updateFormState();
+        });
+    });
+</script>
+@endsection

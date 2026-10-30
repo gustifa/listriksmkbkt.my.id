@@ -325,53 +325,113 @@ class CombinedWeeklyReportController extends Controller
     }
 
     // 4. DOWNLOAD PDF (SINGLE OR ALL CLASSROOMS ZIP)
-    public function downloadPdf(Request $request)
-    {
-        ini_set('memory_limit', '1024M');
-        set_time_limit(600);
+    // public function downloadPdf(Request $request)
+    // {
+    //     ini_set('memory_limit', '1024M');
+    //     set_time_limit(600);
 
-        $classroomId = $request->input('classroom_id');
+    //     $classroomId = $request->input('classroom_id');
 
-        // JIKA USER MEMILIH "ALL" / SEMUA KELAS -> GENERATE ZIP BATCH
-        if ($classroomId === 'all') {
-            $classrooms = Classroom::where('is_active', true)->orderBy('name', 'asc')->get();
-            $zipFileName = 'Laporan_Mingguan_Terpadu_Semua_Kelas_' . Carbon::now()->translatedFormat('l_dMY_His') . '.zip';
-            $zipPath = storage_path('app/public/' . $zipFileName);
+    //     // JIKA USER MEMILIH "ALL" / SEMUA KELAS -> GENERATE ZIP BATCH
+    //     if ($classroomId === 'all') {
+    //         $classrooms = Classroom::where('is_active', true)->orderBy('name', 'asc')->get();
+    //         $zipFileName = 'Laporan_Mingguan_Terpadu_Semua_Kelas_' . Carbon::now()->translatedFormat('l_dMY_His') . '.zip';
+    //         $zipPath = storage_path('app/public/' . $zipFileName);
 
-            $zip = new ZipArchive;
-            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-                foreach ($classrooms as $cls) {
-                    $subRequest = new Request($request->all());
-                    $subRequest->merge(['classroom_id' => $cls->id]);
+    //         $zip = new ZipArchive;
+    //         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+    //             foreach ($classrooms as $cls) {
+    //                 $subRequest = new Request($request->all());
+    //                 $subRequest->merge(['classroom_id' => $cls->id]);
 
-                    $data = $this->prepareCombinedData($subRequest);
-                    $className = str_replace([' ', '/', '\\'], '_', $cls->name ?? 'Kelas');
-                    $pdfFileName = "Laporan_Mingguan_{$className}.pdf";
+    //                 $data = $this->prepareCombinedData($subRequest);
+    //                 $className = str_replace([' ', '/', '\\'], '_', $cls->name ?? 'Kelas');
+    //                 $pdfFileName = "Laporan_Mingguan_{$className}.pdf";
 
-                    $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
-                            ->setPaper('a4', 'landscape')
-                            ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
-                            ->setWarnings(false);
+    //                 $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+    //                         ->setPaper('a4', 'landscape')
+    //                         ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
+    //                         ->setWarnings(false);
 
-                    $zip->addFromString($pdfFileName, $pdf->output());
-                }
-                $zip->close();
+    //                 $zip->addFromString($pdfFileName, $pdf->output());
+    //             }
+    //             $zip->close();
+    //         }
+
+    //         return response()->download($zipPath)->deleteFileAfterSend(true);
+    //     }
+
+    //     // JIKA MEMILIH 1 KELAS SPESIFIK
+    //     $data = $this->prepareCombinedData($request);
+    //     $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
+    //     $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
+    //     $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
+
+    //     $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+    //             ->setPaper('a4', 'landscape')
+    //             ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
+    //             ->setWarnings(false);
+
+    //     return $pdf->download($fileName);
+    // }
+    // 4. DOWNLOAD PDF (SINGLE, SELECTED MULTIPLE, OR ALL CLASSROOMS ZIP)
+public function downloadPdf(Request $request)
+{
+    ini_set('memory_limit', '1024M');
+    set_time_limit(600);
+
+    // Ambil input array classroom_ids atau string classroom_id
+    $selectedClassroomIds = $request->input('classroom_ids', []);
+    $singleClassroomId = $request->input('classroom_id');
+
+    // Jika input tunggal diberikan dan bernilai 'all', atau array berisi 'all'
+    if ($singleClassroomId === 'all' || in_array('all', (array)$selectedClassroomIds)) {
+        $classrooms = Classroom::where('is_active', true)->orderBy('name', 'asc')->get();
+    } elseif (!empty($selectedClassroomIds) && is_array($selectedClassroomIds)) {
+        $classrooms = Classroom::whereIn('id', $selectedClassroomIds)->where('is_active', true)->orderBy('name', 'asc')->get();
+    } else {
+        $classrooms = Classroom::where('id', $singleClassroomId)->where('is_active', true)->get();
+    }
+
+    // JIKA KELAS YANG DIPILIH LEBIH DARI 1 -> GENERATE ZIP
+    if ($classrooms->count() > 1) {
+        $zipFileName = 'Laporan_Mingguan_Terpadu_Batch_' . Carbon::now()->translatedFormat('l_dMY_His') . '.zip';
+        $zipPath = storage_path('app/public/' . $zipFileName);
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+            foreach ($classrooms as $cls) {
+                $subRequest = new Request($request->all());
+                $subRequest->merge(['classroom_id' => $cls->id]);
+
+                $data = $this->prepareCombinedData($subRequest);
+                $className = str_replace([' ', '/', '\\'], '_', $cls->name ?? 'Kelas');
+                $pdfFileName = "Laporan_Mingguan_{$className}.pdf";
+
+                $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+                        ->setPaper('a4', 'landscape')
+                        ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
+                        ->setWarnings(false);
+
+                $zip->addFromString($pdfFileName, $pdf->output());
             }
-
-            return response()->download($zipPath)->deleteFileAfterSend(true);
+            $zip->close();
         }
 
-        // JIKA MEMILIH 1 KELAS SPESIFIK
-        $data = $this->prepareCombinedData($request);
-        $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
-        $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
-        $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
-
-        $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
-                ->setPaper('a4', 'landscape')
-                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
-                ->setWarnings(false);
-
-        return $pdf->download($fileName);
+        return response()->download($zipPath)->deleteFileAfterSend(true);
     }
+
+    // JIKA HANYA 1 KELAS SPESIFIK
+    $data = $this->prepareCombinedData($request);
+    $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
+    $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
+    $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
+
+    $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+            ->setPaper('a4', 'landscape')
+            ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'dpi' => 96])
+            ->setWarnings(false);
+
+    return $pdf->download($fileName);
+}
 }
