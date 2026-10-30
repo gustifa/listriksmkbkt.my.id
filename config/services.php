@@ -43,6 +43,7 @@ return [
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        'admin_group_link' => env('TELEGRAM_ADMIN_GROUP_LINK', 'https://t.me/+p_yx7_McCC5jN2U1'),
     ],
 
 ];

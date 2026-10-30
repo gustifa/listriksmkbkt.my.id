@@ -46,6 +46,9 @@ class TelegramWebhookController extends Controller
             $chatId  = (string) $update['message']['chat']['id'];
             $message = $update['message'];
 
+            // Link Grup Telegram Admin
+            $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+
             // =========================================================================
             // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
             // =========================================================================
@@ -109,9 +112,16 @@ class TelegramWebhookController extends Controller
                                 "🔹 `/rekap` : Menu Pilihan Rekap\n" .
                                 "🔹 `/gerbang` : Rekap Kehadiran Gerbang\n" .
                                 "🔹 `/pembelajaran` : Rekap Jam Belajar\n" .
-                                "🔹 `/sholat` : Rekap Ibadah Sholat";
+                                "🔹 `/sholat` : Rekap Ibadah Sholat\n\n" .
+                                "Silakan klik tombol di bawah untuk bergabung ke Grup Telegram Admin SISFO:";
 
-                        $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                        $keyboard = [
+                            [
+                                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                            ]
+                        ];
+
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
                     } else {
                         TelegramSubscriber::updateOrCreate(
                             ['chat_id' => $chatId],
@@ -239,7 +249,13 @@ class TelegramWebhookController extends Controller
                                  "🆔 NISN: *{$student->nisn}*\n\n" .
                                  "Gunakan perintah `/rekap` untuk mengecek riwayat absensi Anda.";
 
-                        $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                        $keyboard = [
+                            [
+                                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                            ]
+                        ];
+
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
                         return response()->json(['status' => 'ok']);
                     }
                 }
@@ -264,7 +280,13 @@ class TelegramWebhookController extends Controller
                              "🔹 `/sholat` : Rekap Ibadah Sholat\n\n" .
                              "Ketik `/batal` jika ingin berhenti berlangganan.";
 
-                    $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                    $keyboard = [
+                        [
+                            ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                        ]
+                    ];
+
+                    $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
                     return response()->json(['status' => 'ok']);
                 }
 
@@ -293,9 +315,16 @@ class TelegramWebhookController extends Controller
                          "• `/gerbang` : Cek absensi di gerbang sekolah\n" .
                          "• `/pembelajaran` : Cek absensi di jam kelas\n" .
                          "• `/sholat` : Cek absensi ibadah sholat\n" .
-                         "• `/batal` : Berhenti berlangganan";
+                         "• `/batal` : Berhenti berlangganan\n\n" .
+                         "Butuh bantuan lebih lanjut? Bergabunglah dengan Grup Admin kami:";
 
-                $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                $keyboard = [
+                    [
+                        ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                    ]
+                ];
+
+                $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
                 return response()->json(['status' => 'ok']);
             }
 
@@ -606,6 +635,7 @@ class TelegramWebhookController extends Controller
         }
 
         $student = Student::find($subscriber->student_id);
+        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
         if ($action === 'approve') {
             $subscriber->update([
@@ -626,9 +656,16 @@ class TelegramWebhookController extends Controller
                          "Akun Telegram Anda telah diverifikasi untuk siswa:\n" .
                          "👤 Nama: *{$student->name}*\n" .
                          "🏫 Kelas: *{$className}*\n\n" .
-                         "Gunakan perintah `/rekap` untuk melihat rekap absensi.";
-            
-            $telegramService->sendMessageWithRemoveKeyboard($subscriber->chat_id, $replyOrtu);
+                         "Gunakan perintah `/rekap` untuk melihat rekap absensi.\n\n" .
+                         "Silakan bergabung ke Grup Telegram Admin SISFO di bawah ini:";
+
+            $keyboard = [
+                [
+                    ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                ]
+            ];
+
+            $telegramService->sendMessageWithInlineKeyboard($subscriber->chat_id, $replyOrtu, $keyboard);
 
             $adminReply = "✅ *Pengajuan Disetujui*\n" .
                           "Pemohon: {$subscriber->parent_name} (+{$subscriber->phone_number})\n" .
