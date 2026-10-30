@@ -322,18 +322,48 @@ class CombinedWeeklyReportController extends Controller
     }
 
     // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN)
+    // public function downloadPdf(Request $request)
+    // {
+    //     ini_set('memory_limit', '512M');
+    //     set_time_limit(300);
+
+    //     $data = $this->prepareCombinedData($request);
+
+    //     $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+    //               ->setPaper('a4', 'landscape')
+    //               ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+    //               ->setWarnings(false);
+
+    //     return $pdf->download('Laporan_Mingguan_Terpadu_' . str_replace(' ', '_', $data['classroom']->name ?? 'Kelas') . '.pdf');
+    // }
+
+    // 4. DOWNLOAD PDF (DOMPDF 3 HALAMAN TERPADU)
     public function downloadPdf(Request $request)
     {
+        // Naikkan batas memori & waktu eksekusi
         ini_set('memory_limit', '512M');
         set_time_limit(300);
 
         $data = $this->prepareCombinedData($request);
 
-        $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
-                  ->setPaper('a4', 'landscape')
-                  ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
-                  ->setWarnings(false);
+        // Format nama kelas (bersihkan spasi dan karakter khusus)
+        $className = str_replace([' ', '/', '\\'], '_', $data['classroom']->name ?? 'Kelas');
 
-        return $pdf->download('Laporan_Mingguan_Terpadu_' . str_replace(' ', '_', $data['classroom']->name ?? 'Kelas') . '.pdf');
+        // Format timestamp untuk nama file (Contoh: Jumat_30102026_095700)
+        $fileTimestamp = Carbon::now()->translatedFormat('l_dMY_His');
+
+        // Susun nama file PDF
+        $fileName = "Laporan_Mingguan_Terpadu_{$className}_{$fileTimestamp}.pdf";
+
+        $pdf = Pdf::loadView('report.combined_recap_pdf', $data)
+                ->setPaper('a4', 'landscape')
+                ->setOption([
+                    'isRemoteEnabled'      => true,
+                    'isHtml5ParserEnabled' => true,
+                    'dpi'                  => 96,
+                ])
+                ->setWarnings(false);
+
+        return $pdf->download($fileName);
     }
 }
