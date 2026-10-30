@@ -364,48 +364,154 @@ class TelegramWebhookController extends Controller
     // HELPER LOGIKA FUNGSI REKAP ABSENSI
     // =========================================================================
 
-    private function getSubscriberStudent($chatId, TelegramService $telegramService)
-    {
-        $subscriber = TelegramSubscriber::where('chat_id', (string)$chatId)
-            ->where('approval_status', 'approved')
-            ->where('is_active', true)
-            ->first();
+    // private function getSubscriberStudent($chatId, TelegramService $telegramService)
+    // {
+    //     $subscriber = TelegramSubscriber::where('chat_id', (string)$chatId)
+    //         ->where('approval_status', 'approved')
+    //         ->where('is_active', true)
+    //         ->first();
 
-        if (!$subscriber || !$subscriber->student_id) {
-            $telegramService->sendMessageWithRemoveKeyboard(
-                $chatId, 
-                "⚠️ *Akun Anda belum terverifikasi.*\n\nKetik `/start` untuk mendaftar dan menghubungkan akun dengan data siswa."
-            );
-            return null;
-        }
+    //     if (!$subscriber || !$subscriber->student_id) {
+    //         $telegramService->sendMessageWithRemoveKeyboard(
+    //             $chatId, 
+    //             "⚠️ *Akun Anda belum terverifikasi.*\n\nKetik `/start` untuk mendaftar dan menghubungkan akun dengan data siswa."
+    //         );
+    //         return null;
+    //     }
 
-        return Student::with('classroom')->find($subscriber->student_id);
-    }
+    //     return Student::with('classroom')->find($subscriber->student_id);
+    // }
 
-    private function sendRekapMenu($chatId, TelegramService $telegramService)
-    {
-        $student = $this->getSubscriberStudent($chatId, $telegramService);
-        if (!$student) return;
+    // private function sendRekapMenu($chatId, TelegramService $telegramService)
+    // {
+    //     $student = $this->getSubscriberStudent($chatId, $telegramService);
+    //     if (!$student) return;
 
-        $className = optional($student->classroom)->name ?? '-';
+    //     $className = optional($student->classroom)->name ?? '-';
 
-        $text = "📊 *MENU PILIHAN REKAP ABSENSI*\n\n" .
-                "👤 Siswa: *{$student->name}*\n" .
-                "🏫 Kelas: *{$className}*\n\n" .
-                "Silakan pilih jenis rekapitulasi presensi yang ingin ditayangkan di bawah ini:";
+    //     $text = "📊 *MENU PILIHAN REKAP ABSENSI*\n\n" .
+    //             "👤 Siswa: *{$student->name}*\n" .
+    //             "🏫 Kelas: *{$className}*\n\n" .
+    //             "Silakan pilih jenis rekapitulasi presensi yang ingin ditayangkan di bawah ini:";
 
-        $keyboard = [
-            [
-                ['text' => '🚪 Presensi Gerbang', 'callback_data' => 'rekap_gerbang'],
-                ['text' => '📚 Presensi Kelas', 'callback_data' => 'rekap_pembelajaran']
-            ],
-            [
-                ['text' => '🕌 Presensi Sholat', 'callback_data' => 'rekap_sholat']
-            ]
-        ];
+    //     $keyboard = [
+    //         [
+    //             ['text' => '🚪 Presensi Gerbang', 'callback_data' => 'rekap_gerbang'],
+    //             ['text' => '📚 Presensi Kelas', 'callback_data' => 'rekap_pembelajaran']
+    //         ],
+    //         [
+    //             ['text' => '🕌 Presensi Sholat', 'callback_data' => 'rekap_sholat']
+    //         ]
+    //     ];
 
-        $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
-    }
+    //     $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
+    // }
+
+    // private function sendRekapGerbang($chatId, TelegramService $telegramService)
+    // {
+    //     $student = $this->getSubscriberStudent($chatId, $telegramService);
+    //     if (!$student) return;
+
+    //     // Query dari tabel daily_attendances
+    //     $logs = DB::table('daily_attendances')
+    //         ->where('student_id', $student->id)
+    //         ->orderBy('date', 'desc')
+    //         ->limit(7)
+    //         ->get();
+
+    //     $text = "🚪 *REKAP PRESENSI GERBANG (7 HARI TERAKHIR)*\n\n" .
+    //             "👤 Siswa: *{$student->name}*\n" .
+    //             "🏫 Kelas: *" . (optional($student->classroom)->name ?? '-') . "*\n" .
+    //             "--------------------------------------\n";
+
+    //     if ($logs->isEmpty()) {
+    //         $text .= "_\nBelum ada catatan presensi gerbang._";
+    //     } else {
+    //         foreach ($logs as $log) {
+    //             $dateFormatted = date('d/m/Y', strtotime($log->date));
+    //             $masuk = $log->arrival_time ? substr($log->arrival_time, 0, 5) : '-';
+    //             $pulang = $log->departure_time ? substr($log->departure_time, 0, 5) : '-';
+    //             $status = strtoupper($log->status ?? 'HADIR');
+
+    //             $text .= "📅 *{$dateFormatted}* [{$status}]\n" .
+    //                      " ├ Datang : `{$masuk}` WIB\n" .
+    //                      " └ Pulang : `{$pulang}` WIB\n\n";
+    //         }
+    //     }
+
+    //     $text .= "--- *SMKN 1 Bukittinggi* ---";
+    //     $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+    // }
+
+    // private function sendRekapPembelajaran($chatId, TelegramService $telegramService)
+    // {
+    //     $student = $this->getSubscriberStudent($chatId, $telegramService);
+    //     if (!$student) return;
+
+    //     // Query dari tabel attendances
+    //     $logs = DB::table('attendances')
+    //         ->where('student_id', $student->id)
+    //         ->orderBy('date', 'desc')
+    //         ->limit(7)
+    //         ->get();
+
+    //     $text = "📚 *REKAP PRESENSI PEMBELAJARAN (7 TERAKHIR)*\n\n" .
+    //             "👤 Siswa: *{$student->name}*\n" .
+    //             "🏫 Kelas: *" . (optional($student->classroom)->name ?? '-') . "*\n" .
+    //             "--------------------------------------\n";
+
+    //     if ($logs->isEmpty()) {
+    //         $text .= "_\nBelum ada catatan presensi pembelajaran kelas._";
+    //     } else {
+    //         foreach ($logs as $log) {
+    //             $dateFormatted = date('d/m/Y', strtotime($log->date));
+    //             $masuk = $log->check_in_time ? substr($log->check_in_time, 0, 5) : '-';
+    //             $status = strtoupper($log->status ?? 'HADIR');
+
+    //             $text .= "📅 *{$dateFormatted}* | Jam: `{$masuk}` WIB\n" .
+    //                      " └ Status: *{$status}*\n\n";
+    //         }
+    //     }
+
+    //     $text .= "--- *SMKN 1 Bukittinggi* ---";
+    //     $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+    // }
+
+    // private function sendRekapSholat($chatId, TelegramService $telegramService)
+    // {
+    //     $student = $this->getSubscriberStudent($chatId, $telegramService);
+    //     if (!$student) return;
+
+    //     // Query dari tabel prayer_attendances
+    //     $logs = DB::table('prayer_attendances')
+    //         ->where('student_id', $student->id)
+    //         ->orderBy('date', 'desc')
+    //         ->limit(7)
+    //         ->get();
+
+    //     $text = "🕌 *REKAP PRESENSI IBADAH SHOLAT (7 TERAKHIR)*\n\n" .
+    //             "👤 Siswa: *{$student->name}*\n" .
+    //             "🏫 Kelas: *" . (optional($student->classroom)->name ?? '-') . "*\n" .
+    //             "--------------------------------------\n";
+
+    //     if ($logs->isEmpty()) {
+    //         $text .= "_\nBelum ada catatan presensi sholat._";
+    //     } else {
+    //         foreach ($logs as $log) {
+    //             $dateFormatted = date('d/m/Y', strtotime($log->date));
+    //             $sholat = ucfirst($log->prayer_name ?? 'Sholat');
+    //             $masuk  = $log->check_in_time ? substr($log->check_in_time, 0, 5) : '-';
+    //             $status = strtoupper($log->status ?? 'HADIR');
+
+    //             $text .= "📅 *{$dateFormatted}* ({$sholat})\n" .
+    //                      " ├ Waktu  : `{$masuk}` WIB\n" .
+    //                      " └ Status : *{$status}*\n\n";
+    //         }
+    //     }
+
+    //     $text .= "--- *SMKN 1 Bukittinggi* ---";
+    //     $telegramService->sendMessageWithRemoveKeyboard($chatId, $text);
+    // }
 
     private function sendRekapGerbang($chatId, TelegramService $telegramService)
     {
@@ -431,7 +537,18 @@ class TelegramWebhookController extends Controller
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
                 $masuk = $log->arrival_time ? substr($log->arrival_time, 0, 5) : '-';
                 $pulang = $log->departure_time ? substr($log->departure_time, 0, 5) : '-';
-                $status = strtoupper($log->status ?? 'HADIR');
+
+                // LOGIKA PENENTUAN STATUS ALFA / TANPA KETERANGAN
+                $rawStatus = strtolower(trim($log->status ?? ''));
+                if (empty($rawStatus) || in_array($rawStatus, ['alfa', 'alpha', 'a', 'tanpa keterangan'])) {
+                    $status = '❌ ALFA (Tanpa Keterangan)';
+                } elseif (in_array($rawStatus, ['izin', 'i'])) {
+                    $status = 'ℹ️ IZIN';
+                } elseif (in_array($rawStatus, ['sakit', 's'])) {
+                    $status = '🏥 SAKIT';
+                } else {
+                    $status = '✅ ' . strtoupper($rawStatus);
+                }
 
                 $text .= "📅 *{$dateFormatted}* [{$status}]\n" .
                          " ├ Datang : `{$masuk}` WIB\n" .
@@ -466,7 +583,18 @@ class TelegramWebhookController extends Controller
             foreach ($logs as $log) {
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
                 $masuk = $log->check_in_time ? substr($log->check_in_time, 0, 5) : '-';
-                $status = strtoupper($log->status ?? 'HADIR');
+
+                // LOGIKA PENENTUAN STATUS ALFA / TANPA KETERANGAN
+                $rawStatus = strtolower(trim($log->status ?? ''));
+                if (empty($rawStatus) || in_array($rawStatus, ['alfa', 'alpha', 'a', 'tanpa keterangan'])) {
+                    $status = '❌ ALFA (Tanpa Keterangan)';
+                } elseif (in_array($rawStatus, ['izin', 'i'])) {
+                    $status = 'ℹ️ IZIN';
+                } elseif (in_array($rawStatus, ['sakit', 's'])) {
+                    $status = '🏥 SAKIT';
+                } else {
+                    $status = '✅ ' . strtoupper($rawStatus);
+                }
 
                 $text .= "📅 *{$dateFormatted}* | Jam: `{$masuk}` WIB\n" .
                          " └ Status: *{$status}*\n\n";
@@ -501,7 +629,18 @@ class TelegramWebhookController extends Controller
                 $dateFormatted = date('d/m/Y', strtotime($log->date));
                 $sholat = ucfirst($log->prayer_name ?? 'Sholat');
                 $masuk  = $log->check_in_time ? substr($log->check_in_time, 0, 5) : '-';
-                $status = strtoupper($log->status ?? 'HADIR');
+
+                // LOGIKA PENENTUAN STATUS ALFA / TANPA KETERANGAN
+                $rawStatus = strtolower(trim($log->status ?? ''));
+                if (empty($rawStatus) || in_array($rawStatus, ['alfa', 'alpha', 'a', 'tanpa keterangan'])) {
+                    $status = '❌ ALFA (Tanpa Keterangan)';
+                } elseif (in_array($rawStatus, ['izin', 'i'])) {
+                    $status = 'ℹ️ IZIN';
+                } elseif (in_array($rawStatus, ['sakit', 's'])) {
+                    $status = '🏥 SAKIT';
+                } else {
+                    $status = '✅ ' . strtoupper($rawStatus);
+                }
 
                 $text .= "📅 *{$dateFormatted}* ({$sholat})\n" .
                          " ├ Waktu  : `{$masuk}` WIB\n" .
