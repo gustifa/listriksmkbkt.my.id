@@ -24,6 +24,14 @@
         padding: 12px;
         font-size: 0.85rem;
     }
+    .classroom-list-box { 
+        max-height: 220px; 
+        overflow-y: auto; 
+        border: 1px solid #dee2e6; 
+        border-radius: 6px; 
+        padding: 10px; 
+        background: #fff; 
+    }
 </style>
 
 @section('title', 'Laporan Mingguan Terpadu')
@@ -53,18 +61,26 @@
 
                     <form id="recap-form" action="{{ route('combined.recap.preview') }}" method="GET" target="_blank">
                         
+                        <!-- WADAH CHECKBOX CENTANG KELAS -->
                         <div class="mb-3">
-                            <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas <span class="text-danger">*</span></label>
-                            <select name="classroom_id" id="classroom_id" class="form-select" required>
-                                <option value="">-- Pilih Kelas --</option>
-                                <option value="all" style="font-weight: bold; color: #0d6efd;">📦 Semua Kelas (Export ZIP Paket)</option>
-                                <option disabled>------------------------------------</option>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-semibold mb-0">Pilih Kelas <span class="text-danger">*</span></label>
+                                <div>
+                                    <button type="button" id="btn-select-all" class="btn btn-sm btn-outline-primary py-0 px-2 small">Pilih Semua</button>
+                                </div>
+                            </div>
+
+                            <div class="classroom-list-box">
                                 @foreach($classrooms as $classroom)
-                                    <option value="{{ $classroom->id }}" {{ request('classroom_id') == $classroom->id ? 'selected' : '' }}>
-                                        {{ $classroom->name }} ({{ $classroom->major->name ?? 'Umum' }})
-                                    </option>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input cls-checkbox" type="checkbox" name="classroom_ids[]" value="{{ $classroom->id }}" id="cls_{{ $classroom->id }}">
+                                        <label class="form-check-label" for="cls_{{ $classroom->id }}">
+                                            <strong>{{ $classroom->name }}</strong> <span class="text-muted">({{ $classroom->major->name ?? 'Umum' }})</span>
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
+                            <small id="selection-hint" class="text-muted mt-1 d-block">Centang 1 kelas untuk Pratinjau, atau centang beberapa kelas untuk Download ZIP Batch[cite: 8].</small>
                         </div>
 
                         <div class="mb-4">
@@ -74,8 +90,8 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" id="btn-submit" class="btn btn-primary py-2 fw-bold">
-                                <i class="bi bi-eye-fill me-1"></i> Pratinjau Laporan Terpadu
+                            <button type="submit" id="btn-submit" class="btn btn-secondary py-2 fw-bold" disabled>
+                                Pilih Kelas Terlebih Dahulu
                             </button>
                         </div>
 
@@ -88,22 +104,56 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const selectClass = document.getElementById('classroom_id');
+        const checkboxes = document.querySelectorAll('.cls-checkbox');
+        const btnSelectAll = document.getElementById('btn-select-all');
         const btnSubmit = document.getElementById('btn-submit');
         const recapForm = document.getElementById('recap-form');
 
-        selectClass.addEventListener('change', function () {
-            if (this.value === 'all') {
-                btnSubmit.className = 'btn btn-success py-2 fw-bold';
-                btnSubmit.innerHTML = '<i class="bi bi-file-earmark-zip-fill me-1"></i> Download ZIP Semua Kelas';
-                recapForm.action = "{{ route('combined.recap.pdf') }}";
-                recapForm.removeAttribute('target');
-            } else {
+        function updateFormState() {
+            const checkedBoxes = document.querySelectorAll('.cls-checkbox:checked');
+            const checkedCount = checkedBoxes.length;
+
+            if (checkedCount === 0) {
+                btnSubmit.disabled = true;
+                btnSubmit.className = 'btn btn-secondary py-2 fw-bold';
+                btnSubmit.innerHTML = 'Pilih Kelas Terlebih Dahulu';
+            } else if (checkedCount === 1) {
+                btnSubmit.disabled = false;
                 btnSubmit.className = 'btn btn-primary py-2 fw-bold';
                 btnSubmit.innerHTML = '<i class="bi bi-eye-fill me-1"></i> Pratinjau Laporan Terpadu';
+                
+                let singleInput = recapForm.querySelector('input[name="classroom_id"]');
+                if (!singleInput) {
+                    singleInput = document.createElement('input');
+                    singleInput.type = 'hidden';
+                    singleInput.name = 'classroom_id';
+                    recapForm.appendChild(singleInput);
+                }
+                singleInput.value = checkedBoxes[0].value;
+
                 recapForm.action = "{{ route('combined.recap.preview') }}";
                 recapForm.setAttribute('target', '_blank');
+            } else {
+                btnSubmit.disabled = false;
+                btnSubmit.className = 'btn btn-success py-2 fw-bold';
+                btnSubmit.innerHTML = '<i class="bi bi-file-earmark-zip-fill me-1"></i> Download Paket ZIP (' + checkedCount + ' Kelas)';
+                
+                const singleInput = recapForm.querySelector('input[name="classroom_id"]');
+                if (singleInput) singleInput.remove();
+
+                recapForm.action = "{{ route('combined.recap.pdf') }}";
+                recapForm.removeAttribute('target');
             }
+        }
+
+        checkboxes.forEach(cb => cb.addEventListener('change', updateFormState));
+
+        let allSelected = false;
+        btnSelectAll.addEventListener('click', function () {
+            allSelected = !allSelected;
+            checkboxes.forEach(cb => cb.checked = allSelected);
+            btnSelectAll.textContent = allSelected ? 'Batal Semua' : 'Pilih Semua';
+            updateFormState();
         });
     });
 </script>
