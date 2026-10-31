@@ -32,9 +32,7 @@ class TelegramWebhookController extends Controller
         try {
             $update = $request->all();
 
-            // =========================================================================
             // 1. HANDLE CALLBACK QUERY (TOMBOL INLINE REKAP & APPROVAL)
-            // =========================================================================
             if (isset($update['callback_query'])) {
                 $approvalService->handleCallback($update['callback_query'], $telegramService, $studentService);
                 return response()->json(['status' => 'ok']);
@@ -50,9 +48,7 @@ class TelegramWebhookController extends Controller
             $groupLink = $setting?->telegram_admin_group_link 
                 ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
-            // =========================================================================
-            // 2. HANDLE BAGIKAN KONTAK (REGISTRASI GURU, SISWA, ORANG TUA)
-            // =========================================================================
+            // 2. HANDLE BAGIKAN KONTAK
             if (isset($message['contact'])) {
                 $registrationService->handleContact($message, $chatId, $groupLink, $telegramService);
                 return response()->json(['status' => 'ok']);
@@ -61,9 +57,7 @@ class TelegramWebhookController extends Controller
             $text      = trim($message['text'] ?? '');
             $lowerText = strtolower($text);
 
-            // =========================================================================
             // 3. HANDLE COMMAND BATAL / STOP / UNSUBSCRIBE
-            // =========================================================================
             if (in_array($lowerText, ['/batal', 'batal', '/batal_izin', 'stop', '/stop'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
                 $telegramService->sendMessage($chatId, "❌ *Proses pengajuan/interaksi telah dihentikan.*");
@@ -89,16 +83,14 @@ class TelegramWebhookController extends Controller
             }
 
             // =========================================================================
-            // 4. HANDLE COMMAND PERINTAH GURU (QUERY FLEKSIBEL TERHADAP USER_TYPE & TEACHER_ID)
+            // 4. HANDLE COMMAND PERINTAH GURU (QUERY FLEKSIBEL & PASTI ADA RESPON)
             // =========================================================================
-            if (in_array($lowerText, ['/jadwal', 'jadwal'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where(function($q) {
-                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
-                })->first();
+            $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+            })->first();
 
-                if ($subscriber && $subscriber->teacher_id) {
+            if (in_array($lowerText, ['/jadwal', 'jadwal'])) {
+                if ($subscriber && !empty($subscriber->teacher_id)) {
                     $teacherService->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/jadwal` khusus untuk akun Guru yang telah terdaftar.");
@@ -107,13 +99,7 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/walas', 'walas'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where(function($q) {
-                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
-                })->first();
-
-                if ($subscriber && $subscriber->teacher_id) {
+                if ($subscriber && !empty($subscriber->teacher_id)) {
                     $teacherService->sendRekapWalas($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/walas` khusus untuk akun Wali Kelas.");
@@ -122,13 +108,7 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/kabeng', 'kabeng'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where(function($q) {
-                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
-                })->first();
-
-                if ($subscriber && $subscriber->teacher_id) {
+                if ($subscriber && !empty($subscriber->teacher_id)) {
                     $teacherService->sendRekapKabeng($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/kabeng` khusus untuk Kepala Bengkel.");
@@ -137,13 +117,7 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/proka', 'proka'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where(function($q) {
-                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
-                })->first();
-
-                if ($subscriber && $subscriber->teacher_id) {
+                if ($subscriber && !empty($subscriber->teacher_id)) {
                     $teacherService->sendRekapProka($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/proka` khusus untuk Ketua Program Keahlian.");
@@ -152,13 +126,7 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/bk', 'bk'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where(function($q) {
-                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
-                })->first();
-
-                if ($subscriber && $subscriber->teacher_id) {
+                if ($subscriber && !empty($subscriber->teacher_id)) {
                     $teacherService->sendRekapBK($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/bk` khusus untuk Guru BK.");
@@ -166,15 +134,12 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // =========================================================================
             // 5. HANDLE COMMAND PERINTAH SISWA / ORANG TUA
-            // =========================================================================
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
                 $studentService->handleIzinCommand($chatId, $lowerText, $telegramService);
                 return response()->json(['status' => 'ok']);
             }
 
-            // Pengecekan multi-step percakapan pengajuan izin
             $permitSession = Cache::get("telegram_permit_step_{$chatId}");
             if ($permitSession) {
                 $studentService->handlePermitConversation($chatId, $message, $permitSession, $telegramService);
@@ -206,9 +171,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // =========================================================================
             // 6. HANDLE COMMAND /start & /daftar
-            // =========================================================================
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)
@@ -216,8 +179,6 @@ class TelegramWebhookController extends Controller
                 })->first();
 
                 if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
-                    
-                    // PRIORITAS 1: GURU / PEGAWAI
                     if ($subscriber->user_type === 'teacher' || !empty($subscriber->teacher_id)) {
                         $teacher = Teacher::find($subscriber->teacher_id);
                         $teacherName = $teacher ? $teacher->name : $subscriber->parent_name;
@@ -238,7 +199,6 @@ class TelegramWebhookController extends Controller
                         return response()->json(['status' => 'ok']);
                     }
 
-                    // PRIORITAS 2: SISWA ATAU ORANG TUA
                     $student     = Student::with('classroom')->find($subscriber->student_id);
                     $studentName = $student ? $student->name : '-';
                     $className   = $student && $student->classroom ? $student->classroom->name : '-';
@@ -277,9 +237,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // =========================================================================
             // 7. HANDLE COMMAND /help
-            // =========================================================================
             if ($lowerText === '/help') {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
@@ -312,9 +270,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // =========================================================================
             // 8. HANDLE INPUT NISN/NIS PENDING SISWA
-            // =========================================================================
             $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                 $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
             })->first();
