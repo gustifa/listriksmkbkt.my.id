@@ -276,7 +276,7 @@ class DashboardGuruController extends Controller
         ];
 
         // --- TAMBAHAN LINK TELEGRAM ---
-        $botUsername = 'NamaBotTelegramAnda_bot'; // Ganti dengan username bot Anda (tanpa @)
+        $botUsername = 'listrikbk_bot'; // Ganti dengan username bot Anda (tanpa @)
         $telegramLink = $teacher ? "https://t.me/{$botUsername}?start=link_{$teacher->id}" : '#';
 
         return view('guru.teacher_dashboard.index', compact(
