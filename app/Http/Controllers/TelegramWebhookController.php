@@ -170,13 +170,13 @@ class TelegramWebhookController extends Controller
 
             // B. COMMAND /izin ATAU /sakit (INISIASI PENGAJUAN)
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)
-                    ->where('approval_status', 'approved')
-                    ->where('is_active', true)
-                    ->first();
+                // Reset cache state lama jika tersangkut
+                Cache::forget("telegram_permit_step_{$chatId}");
 
-                if (!$subscriber || !$subscriber->student_id) {
-                    $telegramService->sendMessage($chatId, "⚠️ *Akses Ditolak!* Akun Telegram Anda belum terverifikasi atau belum dihubungkan dengan data siswa.\n\nKetik `/start` untuk mendaftar.", 'info', 'Akses Ditolak');
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+
+                if (!$subscriber || $subscriber->approval_status !== 'approved' || !$subscriber->is_active) {
+                    $telegramService->sendMessage($chatId, "⚠️ *Akses Ditolak!* Akun Telegram Anda belum terverifikasi atau belum disetujui Admin.\n\nKetik `/start` untuk mendaftar.", 'info', 'Akses Ditolak');
                     return response()->json(['status' => 'ok']);
                 }
 
@@ -198,7 +198,7 @@ class TelegramWebhookController extends Controller
                 $jenisText = strtoupper($type);
                 $prompt = "📝 *FORM PENGAJUAN " . $jenisText . "*\n\n" .
                           "👤 Siswa: *{$student->name}*\n\n" .
-                          "Silakan ketikkan *alasan/keterangan lengkap* mengapa siswa tidak dapat hadir hari ini.\n" .
+                          "Silakan ketikkan *alasan/keterangan lengkap* mengapa siswa tidak dapat hadir hari ini.\n\n" .
                           "_(Ketik `/batal` untuk membatalkan)_";
 
                 $telegramService->sendMessage($chatId, $prompt, 'info', 'Pengajuan Izin');
@@ -210,26 +210,26 @@ class TelegramWebhookController extends Controller
 
             if ($permitSession) {
                 $student = Student::find($permitSession['student_id']);
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
                 if ($student) {
                     // STEP 1: Menerima Teks Alasan
                     if ($permitSession['step'] === 'WAITING_REASON' && !empty($text) && !str_starts_with($text, '/')) {
-                        $reasonText = $permitSession['type'] === 'sakit' ? '[SAKIT] ' . $text : '[IZIN] ' . $text;
-                        $permitSession['reason'] = $reasonText;
+                        $permitSession['reason'] = $text;
 
                         if ($permitSession['type'] === 'sakit') {
                             $permitSession['step'] = 'WAITING_PHOTO';
                             Cache::put("telegram_permit_step_{$chatId}", $permitSession, now()->addMinutes(10));
 
                             $prompt = "📸 *UNGGAH SURAT DOKTER / KETERANGAN SAKIT*\n\n" .
-                                      "Silakan *kirimkan foto surat dokter* Anda ke chat ini.\n" .
+                                      "Silakan *kirimkan foto surat dokter* Anda ke chat ini.\n\n" .
                                       "_(Jika tidak ada foto surat dokter, ketik *'tanpa surat'* untuk melanjutkan)_";
 
                             $telegramService->sendMessage($chatId, $prompt, 'info', 'Upload Surat');
                             return response()->json(['status' => 'ok']);
                         } else {
                             // Jika Izin biasa, langsung simpan ke DB
-                            $this->saveIzinToDatabase($student, $permitSession['reason'], $subscriber->phone_number ?? $student->phone, $chatId, $telegramService);
+                            $this->saveIzinToDatabase($student, 'izin', $permitSession['reason'], null, $subscriber->phone_number ?? $student->phone, $chatId, $telegramService);
                             Cache::forget("telegram_permit_step_{$chatId}");
                             return response()->json(['status' => 'ok']);
                         }
@@ -237,16 +237,16 @@ class TelegramWebhookController extends Controller
 
                     // STEP 2: Menerima Foto / Konfirmasi Tanpa Surat (Khusus Sakit)
                     if ($permitSession['step'] === 'WAITING_PHOTO') {
+                        $filePath = null;
+
                         if ($photo) {
-                            // Kirim konfirmasi foto diterima
-                            $this->saveIzinToDatabase($student, $permitSession['reason'] . ' (Dengan Foto Lampiran Telegram)', $subscriber->phone_number ?? $student->phone, $chatId, $telegramService);
-                            Cache::forget("telegram_permit_step_{$chatId}");
-                            return response()->json(['status' => 'ok']);
-                        } elseif (strtolower($text) === 'tanpa surat' || !empty($text)) {
-                            $this->saveIzinToDatabase($student, $permitSession['reason'] . ' (Tanpa Surat Dokter)', $subscriber->phone_number ?? $student->phone, $chatId, $telegramService);
-                            Cache::forget("telegram_permit_step_{$chatId}");
-                            return response()->json(['status' => 'ok']);
+                            $fileId = end($photo)['file_id'];
+                            $filePath = $this->downloadTelegramFile($fileId, $student->nis ?? 'bot');
                         }
+
+                        $this->saveIzinToDatabase($student, 'sakit', $permitSession['reason'], $filePath, $subscriber->phone_number ?? $student->phone, $chatId, $telegramService);
+                        Cache::forget("telegram_permit_step_{$chatId}");
+                        return response()->json(['status' => 'ok']);
                     }
                 }
             }
@@ -466,7 +466,7 @@ class TelegramWebhookController extends Controller
     // HELPER PENGAJUAN IZIN / SAKIT KE DATABASE
     // =========================================================================
 
-    private function saveIzinToDatabase(Student $student, string $reason, ?string $phone, string $chatId, TelegramService $telegramService): void
+    private function saveIzinToDatabase(Student $student, string $type, string $reason, ?string $filePath, ?string $phone, string $chatId, TelegramService $telegramService): void
     {
         $today = Carbon::today()->format('Y-m-d');
 
@@ -480,19 +480,24 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        // Simpan ke tabel 'izin_siswas' sesuai skema database
+        // Simpan ke tabel 'izin_siswas'
         IzinSiswa::create([
-            'id'         => (string) Str::uuid(),
-            'student_id' => $student->id,
-            'date'       => $today,
-            'reason'     => $reason,
-            'status'     => 'pending', // Pending verifikasi Wali Kelas / BK
-            'wa_number'  => $phone ?? $student->phone,
+            'id'               => (string) Str::uuid(),
+            'student_id'       => $student->id,
+            'type'             => $type,
+            'date'             => $today,
+            'end_date'         => $today,
+            'reason'           => $reason,
+            'status'           => 'pending',
+            'attachment_path'  => $filePath,
+            'wa_number'        => $phone ?? $student->phone,
+            'telegram_chat_id' => $chatId,
         ]);
 
         $className = optional($student->classroom)->name ?? '-';
+        $jenisText = strtoupper($type);
 
-        $replyMsg = "✅ *PENGAJUAN BERHASIL DIKIRIM!*\n\n" .
+        $replyMsg = "✅ *PENGAJUAN {$jenisText} BERHASIL DIKIRIM!*\n\n" .
                     "👤 Nama Siswa : *{$student->name}*\n" .
                     "🏫 Kelas : *{$className}*\n" .
                     "📅 Tanggal : *{$today}*\n" .
@@ -501,6 +506,33 @@ class TelegramWebhookController extends Controller
                     "_Sistem akan mengirimkan pesan otomatis setelah pengajuan disetujui oleh Wali Kelas / BK._";
 
         $telegramService->sendMessage($chatId, $replyMsg, 'info', 'Pengajuan Izin');
+    }
+
+    // Download Foto Surat Dokter dari Server Telegram API dan Simpan ke public/storage/surat_sakit/
+    private function downloadTelegramFile(string $fileId, string $nis): ?string
+    {
+        try {
+            $token = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+            if (empty($token)) return null;
+            
+            $res = Http::get("https://api.telegram.org/bot{$token}/getFile?file_id={$fileId}");
+            if (!$res->successful()) return null;
+
+            $filePathOnTelegram = $res->json('result.file_path');
+            $fileContent = Http::get("https://api.telegram.org/file/bot{$token}/{$filePathOnTelegram}")->body();
+
+            // Diselaraskan dengan folder 'surat_sakit' yang ada di public/storage
+            $folder = 'surat_sakit/' . date('Y-m-d');
+            $filename = "surat_telegram_{$nis}_" . time() . ".jpg";
+            $fullPath = "{$folder}/{$filename}";
+
+            Storage::disk('public')->put($fullPath, $fileContent);
+
+            return $fullPath;
+        } catch (\Exception $e) {
+            Log::error("Download Telegram File Error: " . $e->getMessage());
+            return null;
+        }
     }
 
     // =========================================================================
