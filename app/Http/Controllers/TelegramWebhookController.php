@@ -205,7 +205,6 @@ class TelegramWebhookController extends Controller
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
 
-                // Menggunakan helper teruji yang sama persis dengan /gerbang
                 $student = $this->getSubscriberStudent($chatId, $telegramService);
                 if (!$student) {
                     return response()->json(['status' => 'ok']);
@@ -253,7 +252,6 @@ class TelegramWebhookController extends Controller
                             $telegramService->sendMessage($chatId, $prompt, 'info', 'Upload Surat');
                             return response()->json(['status' => 'ok']);
                         } else {
-                            // Ambil nomor WA dari data siswa secara aman
                             $phone = $student->phone ?? $student->student_phone;
                             $this->saveIzinToDatabase($student, 'izin', $permitSession['reason'], null, $phone, $chatId, $telegramService);
                             Cache::forget("telegram_permit_step_{$chatId}");
@@ -544,7 +542,7 @@ class TelegramWebhookController extends Controller
         // 2. Balas ke Pemohon dengan tombol Batal
         $telegramService->sendMessageWithInlineKeyboard($chatId, $replyMsg, $userKeyboard);
 
-        // 3. Kirim Notifikasi Interaktif ke Grup Admin / Walas / BK / Kabeng / Proka (Terpisah per kelas jika ada)
+        // 3. Kirim Notifikasi Interaktif ke Grup Admin / Walas / BK / Kabeng / Proka
         $this->notifyIzinToApprovers($izin, $student, $telegramService);
     }
 
@@ -672,8 +670,13 @@ class TelegramWebhookController extends Controller
         [$action, $izinId] = explode('_', $data);
         $izin = IzinSiswa::find($izinId);
 
+        // JIKA DATA TIDAK DITEMUKAN (SUDAH DIBATALKAN PEMOHON / DIHAPUS DULUAN)
         if (!$izin) {
-            $telegramService->answerCallbackQuery($callbackId, "Data pengajuan izin tidak ditemukan.", true);
+            $adminReply = "⚠️ *PENGAJUAN TIDAK TERSEDIA*\n\n" .
+                          "Pengajuan izin/sakit ini sudah dibatalkan/dihapus oleh pemohon atau telah diproses sebelumnya.";
+            
+            $telegramService->editMessageText($adminChat, $messageId, $adminReply);
+            $telegramService->answerCallbackQuery($callbackId, "Pengajuan izin ini sudah dibatalkan atau dihapus oleh pemohon.", true);
             return;
         }
 
@@ -753,7 +756,6 @@ class TelegramWebhookController extends Controller
             $filePathOnTelegram = $res->json('result.file_path');
             $fileContent = Http::get("https://api.telegram.org/file/bot{$token}/{$filePathOnTelegram}")->body();
 
-            // Diselaraskan dengan folder 'surat_sakit' yang ada di public/storage
             $folder = 'surat_sakit/' . date('Y-m-d');
             $filename = "surat_telegram_{$nis}_" . time() . ".jpg";
             $fullPath = "{$folder}/{$filename}";
