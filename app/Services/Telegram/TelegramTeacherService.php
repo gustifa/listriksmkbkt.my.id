@@ -23,7 +23,7 @@ class TelegramTeacherService
         try {
             $teacher = Teacher::find($teacherId);
             if (!$teacher) {
-                $telegramService->sendMessage($chatId, "⚠️ Data Guru Anda tidak ditemukan di database.");
+                $telegramService->sendMessage($chatId, "⚠️ Data Guru Anda tidak ditemukan di database sekolah.");
                 return;
             }
 
@@ -40,7 +40,7 @@ class TelegramTeacherService
             $dayEnglish = Carbon::now()->format('l');
             $todayIndo  = $daysMap[$dayEnglish] ?? 'Senin';
 
-            // Query dengan ilike / strtolower agar match hari tidak sensitif huruf besar/kecil
+            // Query jadwal mengajar berdasarkan teacher_id dan nama hari
             $schedules = Schedule::with(['classroom', 'subject'])
                 ->where('teacher_id', $teacherId)
                 ->where(function($q) use ($todayIndo) {
@@ -56,11 +56,11 @@ class TelegramTeacherService
                     "--------------------------------------\n";
 
             if ($schedules->isEmpty()) {
-                $text .= "_\nTidak ada jadwal mengajar untuk hari {$todayIndo} (Hari Libur / Tidak ada jam kelas)._\n";
+                $text .= "_\nTidak ada jadwal mengajar untuk hari {$todayIndo} (Hari Libur / Tidak Ada Jam Mengajar)._\n";
             } else {
                 foreach ($schedules as $s) {
-                    $jamMasuk   = substr($s->start_time, 0, 5);
-                    $jamSelesai = substr($s->end_time, 0, 5);
+                    $jamMasuk   = $s->start_time ? substr($s->start_time, 0, 5) : '-';
+                    $jamSelesai = $s->end_time ? substr($s->end_time, 0, 5) : '-';
                     $kelas      = optional($s->classroom)->name ?? '-';
                     $mapel      = optional($s->subject)->name ?? '-';
 
@@ -73,61 +73,13 @@ class TelegramTeacherService
             $telegramService->sendMessage($chatId, $text);
 
         } catch (\Exception $e) {
-            Log::error("Error sendJadwalGuru: " . $e->getMessage());
+            Log::error("Error sendJadwalGuru: " . $e->getMessage() . " File: " . $e->getFile() . ":" . $e->getLine());
             $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil data jadwal mengajar.");
         }
     }
 
     /**
-     * 2. Menampilkan Rekapitulasi Program Keahlian (/proka)
-     */
-    public function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
-    {
-        try {
-            $program = Program::where('program_teacher_id', $teacherId)->first();
-
-            if (!$program) {
-                // Fallback: Jika ID belum diset di teacher_id, ambil program pertama sebagai fallback
-                $program = Program::first();
-            }
-
-            if (!$program) {
-                $telegramService->sendMessage($chatId, "⚠️ ID Guru Anda belum dihubungkan sebagai Ketua Program Keahlian di data Program.");
-                return;
-            }
-
-            $today = Carbon::today()->format('Y-m-d');
-            $majorIds = Major::where('program_id', $program->id)->pluck('id');
-
-            $totalSiswa = Student::whereHas('classroom', function($q) use ($majorIds) {
-                $q->whereIn('major_id', $majorIds);
-            })->count();
-
-            $totalHadir = DB::table('daily_attendances')
-                ->join('students', 'daily_attendances.student_id', '=', 'students.id')
-                ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
-                ->whereIn('classrooms.major_id', $majorIds)
-                ->whereDate('daily_attendances.date', $today)
-                ->count();
-
-            $persentase = $totalSiswa > 0 ? round(($totalHadir / $totalSiswa) * 100, 1) : 0;
-
-            $text = "📊 *REKAPITULASI PROGRAM KEAHLIAN*\n\n" .
-                    "🎯 Program : *{$program->name}* (`{$program->code}`)\n" .
-                    "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
-                    "👥 Total Siswa Program : *{$totalSiswa} Siswa*\n" .
-                    "✅ Total Hadir Hari Ini : *{$totalHadir} ({$persentase}%)*\n";
-
-            $telegramService->sendMessage($chatId, $text);
-
-        } catch (\Exception $e) {
-            Log::error("Error sendRekapProka: " . $e->getMessage());
-            $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil data rekap program keahlian.");
-        }
-    }
-
-    /**
-     * 3. Menampilkan Rekapitulasi Kelas Bimbingan Wali Kelas (/walas)
+     * 2. Menampilkan Rekapitulasi Kelas Bimbingan Wali Kelas (/walas)
      */
     public function sendRekapWalas(string $chatId, $teacherId, TelegramService $telegramService): void
     {
@@ -180,7 +132,7 @@ class TelegramTeacherService
     }
 
     /**
-     * 4. Menampilkan Rekapitulasi Konsentrasi Keahlian / Bengkel (/kabeng)
+     * 3. Menampilkan Rekapitulasi Konsentrasi Keahlian / Bengkel (/kabeng)
      */
     public function sendRekapKabeng(string $chatId, $teacherId, TelegramService $telegramService): void
     {
@@ -227,6 +179,49 @@ class TelegramTeacherService
         } catch (\Exception $e) {
             Log::error("Error sendRekapKabeng: " . $e->getMessage());
             $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil data rekap kabeng.");
+        }
+    }
+
+    /**
+     * 4. Menampilkan Rekapitulasi Program Keahlian (/proka)
+     */
+    public function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        try {
+            $program = Program::where('program_teacher_id', $teacherId)->first() ?? Program::first();
+
+            if (!$program) {
+                $telegramService->sendMessage($chatId, "⚠️ ID Guru Anda belum dihubungkan sebagai Ketua Program Keahlian di data Program.");
+                return;
+            }
+
+            $today = Carbon::today()->format('Y-m-d');
+            $majorIds = Major::where('program_id', $program->id)->pluck('id');
+
+            $totalSiswa = Student::whereHas('classroom', function($q) use ($majorIds) {
+                $q->whereIn('major_id', $majorIds);
+            })->count();
+
+            $totalHadir = DB::table('daily_attendances')
+                ->join('students', 'daily_attendances.student_id', '=', 'students.id')
+                ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+                ->whereIn('classrooms.major_id', $majorIds)
+                ->whereDate('daily_attendances.date', $today)
+                ->count();
+
+            $persentase = $totalSiswa > 0 ? round(($totalHadir / $totalSiswa) * 100, 1) : 0;
+
+            $text = "📊 *REKAPITULASI PROGRAM KEAHLIAN*\n\n" .
+                    "🎯 Program : *{$program->name}* (`{$program->code}`)\n" .
+                    "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
+                    "👥 Total Siswa Program : *{$totalSiswa} Siswa*\n" .
+                    "✅ Total Hadir Hari Ini : *{$totalHadir} ({$persentase}%)*\n";
+
+            $telegramService->sendMessage($chatId, $text);
+
+        } catch (\Exception $e) {
+            Log::error("Error sendRekapProka: " . $e->getMessage());
+            $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil data rekap program keahlian.");
         }
     }
 
