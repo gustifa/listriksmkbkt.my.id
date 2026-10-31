@@ -551,6 +551,44 @@ class TelegramWebhookController extends Controller
     /**
      * Mengirimkan Notifikasi Pengajuan Izin Baru ke Grup Telegram Kelas / Admin dengan Tombol Approve/Reject
      */
+    // private function notifyIzinToApprovers(IzinSiswa $izin, Student $student, TelegramService $telegramService): void
+    // {
+    //     $setting = AttendanceSetting::first();
+
+    //     // 1. Cek Chat ID spesifik di level Kelas (Classroom)
+    //     $classroomGroupChatId = optional($student->classroom)->telegram_chat_id;
+
+    //     // 2. Fallback: Jika grup kelas kosong, gunakan Chat ID Admin dari DB/env
+    //     $approverChatId = !empty($classroomGroupChatId) 
+    //         ? $classroomGroupChatId 
+    //         : ($setting?->telegram_admin_chat_id ?? config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID')));
+
+    //     if (empty($approverChatId)) return;
+
+    //     $className = optional($student->classroom)->name ?? '-';
+    //     $jenisText = strtoupper($izin->type ?? 'IZIN');
+
+    //     $text = "📩 *PENGAJUAN " . $jenisText . " SISWA BARU*\n\n" .
+    //             "👤 Nama Siswa : *{$student->name}*\n" .
+    //             "🏫 Kelas : *{$className}*\n" .
+    //             "📅 Tanggal : *{$izin->date}*\n" .
+    //             "📝 Alasan : _{$izin->reason}_\n" .
+    //             "⏳ Status : *PENDING VERIFIKASI*\n\n" .
+    //             "Mohon Wali Kelas, BK, Proka, Kabeng, atau Admin untuk memverifikasi pengajuan ini:";
+
+    //     $keyboard = [
+    //         [
+    //             ['text' => '✅ Setujui (Approve)', 'callback_data' => "appizin_{$izin->id}"],
+    //             ['text' => '❌ Tolak / Batalkan', 'callback_data' => "rejizin_{$izin->id}"]
+    //         ]
+    //     ];
+
+    //     $telegramService->sendMessageWithInlineKeyboard($approverChatId, $text, $keyboard);
+    // }
+
+    /**
+     * Mengirimkan Notifikasi Pengajuan Izin Baru (beserta Foto Surat jika ada) ke Grup Telegram Kelas / Admin
+     */
     private function notifyIzinToApprovers(IzinSiswa $izin, Student $student, TelegramService $telegramService): void
     {
         $setting = AttendanceSetting::first();
@@ -577,13 +615,37 @@ class TelegramWebhookController extends Controller
                 "Mohon Wali Kelas, BK, Proka, Kabeng, atau Admin untuk memverifikasi pengajuan ini:";
 
         $keyboard = [
-            [
-                ['text' => '✅ Setujui (Approve)', 'callback_data' => "appizin_{$izin->id}"],
-                ['text' => '❌ Tolak / Batalkan', 'callback_data' => "rejizin_{$izin->id}"]
+            'inline_keyboard' => [
+                [
+                    ['text' => '✅ Setujui (Approve)', 'callback_data' => "appizin_{$izin->id}"],
+                    ['text' => '❌ Tolak / Batalkan', 'callback_data' => "rejizin_{$izin->id}"]
+                ]
             ]
         ];
 
-        $telegramService->sendMessageWithInlineKeyboard($approverChatId, $text, $keyboard);
+        // 3. JIKA ADA LAMPIRAN SURAT SAKIT, KIRIM PESAN FOTO KE GRUP
+        if (!empty($izin->attachment_path) && Storage::disk('public')->exists($izin->attachment_path)) {
+            $token   = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+            $baseUrl = "https://api.telegram.org/bot{$token}/";
+            $fullPath = Storage::disk('public')->path($izin->attachment_path);
+
+            try {
+                Http::attach(
+                    'photo', file_get_contents($fullPath), basename($fullPath)
+                )->post($baseUrl . 'sendPhoto', [
+                    'chat_id'      => $approverChatId,
+                    'caption'      => $text,
+                    'parse_mode'   => 'Markdown',
+                    'reply_markup' => json_encode($keyboard)
+                ]);
+                return;
+            } catch (\Exception $e) {
+                Log::error("Gagal kirim foto surat ke grup: " . $e->getMessage());
+            }
+        }
+
+        // 4. JIKA TANPA SURAT, KIRIM PESAN TEKS BIASA
+        $telegramService->sendMessageWithInlineKeyboard($approverChatId, $text, $keyboard['inline_keyboard']);
     }
 
     /**
