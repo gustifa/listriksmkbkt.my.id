@@ -180,8 +180,47 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // 6. HANDLE COMMAND /start & /daftar
+            // 6. HANDLE COMMAND /start & /daftar (DENGAN DUKUNGAN DEEP LINKING TAUTAN WEB)
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
+                $parts = explode(' ', $text);
+                
+                // Jika diakses via tombol "Tautkan ke Telegram" dari Dashboard Web
+                if (isset($parts[1]) && str_starts_with($parts[1], 'link_')) {
+                    $teacherId = str_replace('link_', '', $parts[1]);
+                    $teacher = Teacher::find($teacherId);
+
+                    if ($teacher) {
+                        TelegramSubscriber::updateOrCreate(
+                            ['chat_id' => $chatId],
+                            [
+                                'teacher_id'      => $teacher->id,
+                                'student_id'      => null,
+                                'parent_name'     => $teacher->name,
+                                'phone_number'    => $teacher->phone ?? '-',
+                                'username'        => $update['message']['from']['username'] ?? null,
+                                'user_type'       => 'teacher',
+                                'is_active'       => true,
+                                'approval_status' => 'approved',
+                                'subscribed_at'   => now(),
+                            ]
+                        );
+
+                        $reply = "✅ *Berhasil Menautkan Akun!*\n\n" .
+                                 "Akun Telegram Anda sukses terhubung sebagai Guru: *{$teacher->name}*.\n\n" .
+                                 "📌 *Menu Perintah Guru:*\n" .
+                                 "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
+                                 "🔹 `/jadwal_minggu` : Jadwal Mengajar Seminggu Penuh\n" .
+                                 "🔹 `/walas` : Rekapitulasi Presensi Walas\n" .
+                                 "🔹 `/kabeng` : Rekapitulasi Bengkel / Konsentrasi\n" .
+                                 "🔹 `/proka` : Rekapitulasi Program Keahlian\n" .
+                                 "🔹 `/bk` : Daftar Terlambat Guru BK";
+
+                        $keyboard = [[['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]]];
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
+                        return response()->json(['status' => 'ok']);
+                    }
+                }
+
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)
                       ->orWhere('chat_id', (int)$chatId);

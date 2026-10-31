@@ -1,292 +1,318 @@
+@section('title', 'Dashboard Guru')
+
 <x-app-layout>
-    <!-- CSRF Token Meta untuk AJAX -->
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <!-- CDN Bootstrap Icons & SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <div class="container-fluid py-4">
-        <div class="card shadow border-0">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-file-earmark-check me-2"></i> Kelola Approval Izin & Sakit Siswa</h5>
+    <div class="page-content container-fluid px-3 px-md-4">
+        
+        <!-- Header Sambutan Responsif -->
+        <div class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h4 class="mb-1 fw-bold text-primary">
+                    <i class="fas fa-chalkboard-teacher me-2"></i> Ruang Guru
+                </h4>
+                <p class="text-muted mb-0">Selamat Datang, <strong>{{ $teacher->name }}</strong> (NIP: {{ $teacher->nip ?? '-' }})</p>
             </div>
-            <div class="card-body">
+            <div>
+                <span class="badge bg-primary text-white p-2 fs-6">
+                    <i class="fas fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}
+                </span>
+            </div>
+        </div>
 
-                <!-- Filter -->
-                <form method="GET" action="{{ route('admin.izin.index') }}" class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <select name="type" class="form-select" onchange="this.form.submit()">
-                            <option value="">-- Semua Jenis --</option>
-                            <option value="izin" {{ request('type') == 'izin' ? 'selected' : '' }}>Izin</option>
-                            <option value="sakit" {{ request('type') == 'sakit' ? 'selected' : '' }}>Sakit</option>
-                        </select>
+        <!-- KARTU TAUTKAN AKUN TELEGRAM -->
+        <div class="card border-0 shadow-sm rounded-3 mb-4 bg-light-subtle border-start border-4 border-info">
+            <div class="card-body p-3 p-md-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-info bg-opacity-10 text-info p-3 rounded-circle fs-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                        <i class="fab fa-telegram-plane"></i>
                     </div>
-                    <div class="col-md-3">
-                        <select name="status" class="form-select" onchange="this.form.submit()">
-                            <option value="">-- Semua Status --</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                        </select>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark">Tautkan Akun Bot Telegram Guru</h6>
+                        <p class="text-muted small mb-0">Hubungkan akun Telegram Anda secara instan untuk mengakses perintah <code>/jadwal</code>, <code>/jadwal_minggu</code>, <code>/walas</code>, dan rekap lainnya.</p>
                     </div>
-                </form>
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Siswa / Kelas</th>
-                                <th>Jenis</th>
-                                <th>Tanggal</th>
-                                <th>Alasan</th>
-                                <th>Status</th>
-                                <th>Lampiran</th>
-                                <th class="text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($izinList as $item)
-                            <tr id="row-izin-{{ $item->id }}">
-                                <td>
-                                    <strong>{{ optional($item->student)->name ?? '-' }}</strong><br>
-                                    <small class="text-muted">{{ optional($item->student->classroom)->name ?? '-' }}</small>
-                                </td>
-                                <td>
-                                    <span class="badge {{ $item->type === 'sakit' ? 'bg-warning text-dark' : 'bg-info' }}">
-                                        {{ strtoupper($item->type) }}
-                                    </span>
-                                </td>
-                                <td>{{ \Carbon\Carbon::parse($item->date)->format('d/m/Y') }}</td>
-                                <td>{{ $item->reason }}</td>
-                                <td id="status-container-{{ $item->id }}">
-                                    @if($item->status === 'approved')
-                                        <span class="badge bg-success">Approved</span><br>
-                                        <small class="text-muted">oleh: {{ $item->approved_by ?? '-' }}</small>
-                                    @else
-                                        <span class="badge bg-secondary">Pending</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($item->attachment_path && Storage::disk('public')->exists($item->attachment_path))
-                                        <a href="{{ asset('storage/' . $item->attachment_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-image"></i> Lihat Foto
-                                        </a>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    <div class="d-flex justify-content-center align-items-center gap-1" id="action-container-{{ $item->id }}">
-                                        {{-- Tombol Setujui (Approve) --}}
-                                        @if($item->status === 'pending')
-                                            <button type="button" onclick="handleApprove('{{ $item->id }}')" class="btn btn-sm btn-success d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Setujui Pengajuan">
-                                                <i class="bi bi-check-lg fs-6"></i>
-                                            </button>
-                                        @endif
-
-                                        {{-- Tombol Tolak / Batalkan --}}
-                                        @if($item->status === 'pending')
-                                            <button type="button" onclick="confirmReject('{{ $item->id }}')" class="btn btn-sm btn-warning text-white d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Tolak Pengajuan">
-                                                <i class="bi bi-x-lg fs-6"></i>
-                                            </button>
-                                        @endif
-
-                                        {{-- Tombol Hapus Permanen --}}
-                                        <button type="button" onclick="confirmDelete('{{ $item->id }}')" class="btn btn-sm btn-danger d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Hapus Permanen">
-                                            <i class="bi bi-trash fs-6"></i>
-                                        </button>
-
-                                        {{-- Tombol Cetak Surat --}}
-                                        @if($item->type === 'izin')
-                                            <a href="{{ route('admin.izin.cetak-surat', $item->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Cetak Surat Izin">
-                                                <i class="bi bi-printer fs-6"></i>
-                                            </a>
-                                        @else
-                                            <a href="{{ route('admin.izin.cetak-sakit', $item->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Cetak Keterangan Dokter">
-                                                <i class="bi bi-printer fs-6"></i>
-                                            </a>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr id="empty-row">
-                                <td colspan="7" class="text-center text-muted py-4">Belum ada pengajuan izin/sakit.</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
                 </div>
-
-                <div class="mt-3">
-                    {{ $izinList->links() }}
+                <div>
+                    <a href="{{ $telegramLink ?? '#' }}" target="_blank" class="btn btn-info text-white fw-semibold px-4 shadow-sm">
+                        <i class="fab fa-telegram-plane me-1"></i> Tautkan ke Telegram
+                    </a>
                 </div>
             </div>
         </div>
+
+        <!-- 1. STATISTIK RINGKAS (5 KARTU SEJAJAR RAPI) -->
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4">
+            
+            <!-- 1. Total Kelas -->
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-primary">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase fw-bold text-primary small mb-1" style="font-size: 11px;">Total Kelas</div>
+                                <h3 class="mb-0 fw-bold text-dark">{{ $totalClasses }}</h3>
+                            </div>
+                            <div class="p-2 rounded-3 text-primary d-flex align-items-center justify-content-center" style="background-color: rgba(13, 110, 253, 0.12);">
+                                <i class='bx bx-door-open fs-3'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Mapel Diampu -->
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-success">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase fw-bold text-success small mb-1" style="font-size: 11px;">Mapel Diampu</div>
+                                <h3 class="mb-0 fw-bold text-dark">{{ $totalSubjects }}</h3>
+                            </div>
+                            <div class="p-2 rounded-3 text-success d-flex align-items-center justify-content-center" style="background-color: rgba(25, 135, 84, 0.12);">
+                                <i class='bx bx-book-open fs-3'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Total Siswa -->
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-warning">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase fw-bold text-warning small mb-1" style="font-size: 11px;">Total Siswa</div>
+                                <h3 class="mb-0 fw-bold text-dark">{{ $totalStudents }}</h3>
+                            </div>
+                            <div class="p-2 rounded-3 text-warning d-flex align-items-center justify-content-center" style="background-color: rgba(255, 193, 7, 0.15);">
+                                <i class='bx bx-group fs-3'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Tugas Tambahan / Wali Kelas -->
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-info">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="overflow-hidden pe-1">
+                                <div class="text-uppercase fw-bold text-info small mb-1 text-truncate" style="font-size: 11px;">
+                                    {{ $additionalRole['title'] ?? 'Wali Kelas' }}
+                                </div>
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 13px;" title="{{ $additionalRole['value'] ?? 'Bukan Wali' }}">
+                                    {{ $additionalRole['value'] ?? 'Bukan Wali' }}
+                                </div>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill mt-1" style="font-size: 10px;">
+                                    {{ $additionalRole['badge'] ?? 'Guru Pengampu' }}
+                                </span>
+                            </div>
+                            <div class="p-2 rounded-3 text-info flex-shrink-0 d-flex align-items-center justify-content-center" style="background-color: rgba(13, 202, 240, 0.15);">
+                                <i class='{{ $additionalRole["icon"] ?? "bx bx-user-pin" }} fs-3'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Bimbingan PKL -->
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-danger">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase fw-bold text-danger small mb-1" style="font-size: 11px;">Bimbingan PKL</div>
+                                <h3 class="mb-0 fw-bold text-dark">{{ $internshipStudentsCount }} <span class="fs-6 fw-normal text-muted">Siswa</span></h3>
+                            </div>
+                            <div class="p-2 rounded-3 text-danger d-flex align-items-center justify-content-center" style="background-color: rgba(220, 53, 69, 0.12);">
+                                <i class='bx bx-briefcase-alt-2 fs-3'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 2. JADWAL HARI INI & STATISTIK CHART -->
+        <div class="row g-3 mb-4">
+            <!-- Jadwal Mengajar Hari Ini -->
+            <div class="col-12 col-lg-5">
+                <div class="card border-0 shadow-sm rounded-3 h-100">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-primary"><i class="fas fa-clock me-2"></i>Jadwal Hari Ini</h6>
+                        <span class="badge bg-primary-subtle text-primary border">{{ count($todaySchedules) }} Sesi</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Jam</th>
+                                        <th>Kelas</th>
+                                        <th>Mapel</th>
+                                        <th class="text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($todaySchedules as $schedule)
+                                        <tr>
+                                            <td class="small fw-semibold text-nowrap">
+                                                {{ $schedule->start_time }} - {{ $schedule->end_time }}
+                                            </td>
+                                            <td class="fw-bold text-dark">{{ $schedule->classroom->name ?? '-' }}</td>
+                                            <td class="small">{{ $schedule->subject->name ?? '-' }}</td>
+                                            <td class="text-center">
+                                                <a href="{{ route('scan.index', $schedule->id) }}" class="btn btn-sm btn-primary py-0 px-2" title="Absensi Scan">
+                                                    <i class="fas fa-qrcode"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-4">
+                                                <i class="fas fa-coffee fa-2x mb-2 d-block opacity-50"></i>
+                                                Tidak ada jadwal mengajar hari ini.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grafik Kehadiran Siswa -->
+            <div class="col-12 col-lg-7">
+                <div class="card border-0 shadow-sm rounded-3 h-100">
+                    <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <h6 class="m-0 fw-bold text-primary"><i class="fas fa-chart-bar me-1"></i> Rekap Kehadiran Siswa</h6>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary active" onclick="updateChart('harian', this)">Harian</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="updateChart('mingguan', this)">Mingguan</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="updateChart('bulanan', this)">Bulanan</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="updateChart('semester', this)">Semester</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="teacherAttendanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. DAFTAR MAPPING KELAS & MAPEL YANG DIAMPU -->
+        <h5 class="fw-bold text-dark mb-3 ps-2 border-start border-4 border-primary">Semua Kelas & Mapel Anda</h5>
+        <div class="row g-3 mb-4">
+            @forelse($assignments as $schedule)
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card border-0 shadow-sm h-100 rounded-3 border-start border-4 border-primary hover-scale">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h5 class="fw-bold mb-0 text-dark">{{ $schedule->classroom->name ?? 'Kelas' }}</h5>
+                                    <span class="badge bg-secondary-subtle text-secondary border mt-1">
+                                        {{ $schedule->classroom->students->count() ?? 0 }} Siswa
+                                    </span>
+                                </div>
+                                <div class="bg-primary-subtle p-2 rounded-circle text-primary">
+                                    <i class="fas fa-book-open fa-lg"></i>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary fw-bold mt-2">{{ $schedule->subject->name ?? 'Mata Pelajaran' }}</h6>
+                            <p class="text-muted small mb-3">
+                                <i class="fas fa-code me-1"></i> Kode Mapel: {{ $schedule->subject->code ?? '-' }}
+                            </p>
+
+                            <hr class="my-2">
+
+                            <div class="d-grid gap-2 mt-3">
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle w-100 fw-semibold" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-user-check me-1"></i> Opsi Absensi
+                                    </button>
+                                    <ul class="dropdown-menu w-100 shadow">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('recap.learning', ['subject_id' => $schedule->subject_id, 'classroom_id' => $schedule->classroom_id]) }}">
+                                                <i class="fas fa-edit me-2 text-primary"></i> Input Absensi Manual
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('journal.index') }}">
+                                                <i class="fas fa-journal-whills me-2 text-success"></i> Isi Jurnal Mengajar
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="col-12">
+                    <div class="alert alert-warning text-center py-4 rounded-3 border-0 shadow-sm">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2 d-block opacity-50"></i>
+                        <h6 class="fw-bold">Belum Ada Kelas Diampu</h6>
+                        <p class="mb-0 small">Anda belum terhubung ke jadwal atau mapping mata pelajaran mana pun.</p>
+                    </div>
+                </div>
+            @endforelse
+        </div>
+
     </div>
 
-    <!-- SCRIPT AJAX & SWEETALERT2 INTEGRATION -->
+    <style>
+        .hover-scale { transition: transform 0.2s, box-shadow 0.2s; }
+        .hover-scale:hover { transform: translateY(-3px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1) !important; }
+    </style>
+
+    <!-- CHART.JS SCRIPT -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        document.addEventListener("DOMContentLoaded", function() {
+            const chartData = @json($chartData);
+            const ctx = document.getElementById("teacherAttendanceChart").getContext('2d');
+            const labels = ['Hadir', 'Terlambat', 'Izin', 'Sakit', 'Alpha'];
+            const colors = ['#1cc88a', '#f6c23e', '#36b9cc', '#4e73df', '#e74a3b']; 
 
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true
-        });
-
-        // 1. AJAX APPROVE IZIN
-        function handleApprove(id) {
-            Swal.fire({
-                title: 'Setujui Pengajuan?',
-                text: "Status izin akan diubah menjadi disetujui (Approved).",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#198754',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Ya, Setujui',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-
-                    fetch(`/admin/izin-siswa/${id}/approve`, {
-                        method: 'PATCH',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(async response => {
-                        const data = await response.json();
-                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal memproses persetujuan.');
-                        return data;
-                    })
-                    .then(data => {
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message || 'Pengajuan izin berhasil disetujui.'
-                        });
-
-                        document.getElementById(`status-container-${id}`).innerHTML = `
-                            <span class="badge bg-success">Approved</span><br>
-                            <small class="text-muted">oleh: ${data.approved_by || 'Admin'}</small>
-                        `;
-
-                        const actionContainer = document.getElementById(`action-container-${id}`);
-                        if (actionContainer) {
-                            const approveBtn = actionContainer.querySelector('.btn-success');
-                            const rejectBtn = actionContainer.querySelector('.btn-warning');
-                            if (approveBtn) approveBtn.remove();
-                            if (rejectBtn) rejectBtn.remove();
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire('Gagal!', error.message || 'Terjadi kendala saat menyetujui izin.', 'error');
-                    });
+            let myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Jumlah Siswa',
+                        data: chartData.harian,
+                        backgroundColor: colors,
+                        borderColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
                 }
             });
-        }
 
-        // 2. AJAX TOLAK / BATALKAN IZIN
-        function confirmReject(id) {
-            Swal.fire({
-                title: 'Tolak Pengajuan?',
-                text: "Pengajuan izin siswa ini akan ditolak dan dihapus dari sistem.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ffc107',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Ya, Tolak!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.showLoading();
+            window.updateChart = function(period, btn) {
+                document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
 
-                    fetch(`/admin/izin-siswa/${id}/reject`, {
-                        method: 'PATCH',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(async response => {
-                        const data = await response.json();
-                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal menolak pengajuan.');
-                        return data;
-                    })
-                    .then(data => {
-                        Toast.fire({
-                            icon: 'warning',
-                            title: data.message || 'Pengajuan berhasil ditolak & dihapus.'
-                        });
-                        removeRowWithAnimation(id);
-                    })
-                    .catch(error => {
-                        Swal.fire('Gagal!', error.message || 'Terjadi kendala saat menolak pengajuan.', 'error');
-                    });
+                if (chartData[period]) {
+                    myChart.data.datasets[0].data = chartData[period];
+                    myChart.update();
                 }
-            });
-        }
-
-        // 3. AJAX HAPUS PERMANEN
-        function confirmDelete(id) {
-            Swal.fire({
-                title: 'Hapus Permanen?',
-                text: "Data pengajuan izin siswa beserta lampirannya akan dihapus secara permanen!",
-                icon: 'error',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Ya, Hapus!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-
-                    fetch(`/admin/izin-siswa/${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(async response => {
-                        const data = await response.json();
-                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal menghapus data.');
-                        return data;
-                    })
-                    .then(data => {
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message || 'Data pengajuan izin berhasil dihapus.'
-                        });
-                        removeRowWithAnimation(id);
-                    })
-                    .catch(error => {
-                        Swal.fire('Gagal!', error.message || 'Terjadi kesalahan saat menghapus data.', 'error');
-                    });
-                }
-            });
-        }
-
-        // Helper Animasi Hapus Baris Tabel
-        function removeRowWithAnimation(id) {
-            const row = document.getElementById(`row-izin-${id}`);
-            if (row) {
-                row.style.transition = 'all 0.4s ease';
-                row.style.opacity = '0';
-                row.style.transform = 'translateX(20px)';
-                setTimeout(() => row.remove(), 400);
             }
-        }
+        });
     </script>
 </x-app-layout>

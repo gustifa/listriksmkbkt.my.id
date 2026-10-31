@@ -275,6 +275,10 @@ class DashboardGuruController extends Controller
             'tahunan'  => $this->formatChartData($getAttendanceStats($now->copy()->startOfYear(), $now->copy()->endOfYear())),
         ];
 
+        // --- TAMBAHAN LINK TELEGRAM ---
+        $botUsername = 'NamaBotTelegramAnda_bot'; // Ganti dengan username bot Anda (tanpa @)
+        $telegramLink = $teacher ? "https://t.me/{$botUsername}?start=link_{$teacher->id}" : '#';
+
         return view('guru.teacher_dashboard.index', compact(
             'teacher', 
             'assignments', 
@@ -288,6 +292,7 @@ class DashboardGuruController extends Controller
             'totalStudents',
             'todayPresence', 
             'chartData'
+            'telegramLink' // <-- Kirim variabel link ke view
         ));
     }
 
