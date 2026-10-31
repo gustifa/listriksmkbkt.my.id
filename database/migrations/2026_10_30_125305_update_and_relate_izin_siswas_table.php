@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('izin_siswas', function (Blueprint $table) {
             // 1. Tambah Kolom 'type' (sakit/izin)
             if (!Schema::hasColumn('izin_siswas', 'type')) {
-                $table->string('type', 50)->default('izin')->after('student_id');
+                $table->string('type', 50)->default('izin')->nullable()->after('student_id');
             }
 
             // 2. Tambah Kolom 'end_date'
@@ -37,8 +37,7 @@ return new class extends Migration
             }
         });
 
-        // 5. Tambahkan Foreign Key secara terpisah dengan pengecekan try-catch 
-        // agar tidak membentur error 'Duplicate Object' di PostgreSQL
+        // 5. Tambahkan Foreign Key Relationship secara terpisah
         try {
             Schema::table('izin_siswas', function (Blueprint $table) {
                 $table->foreign('student_id')
@@ -48,7 +47,7 @@ return new class extends Migration
                       ->onUpdate('cascade');
             });
         } catch (\Exception $e) {
-            // Abaikan jika foreign key sudah ada di PostgreSQL
+            // Abaikan jika foreign key sudah dipasang di PostgreSQL
         }
     }
 
@@ -62,13 +61,19 @@ return new class extends Migration
                 $table->dropForeign(['student_id']);
             } catch (\Exception $e) {}
 
-            $table->dropColumn([
-                'type',
-                'end_date',
-                'attachment_path',
-                'telegram_chat_id',
-                'approved_by'
-            ]);
+            // Hapus kolom hanya jika kolom tersebut terdeteksi ada
+            $columnsToDrop = [];
+            $cols = ['type', 'end_date', 'attachment_path', 'telegram_chat_id', 'approved_by'];
+
+            foreach ($cols as $col) {
+                if (Schema::hasColumn('izin_siswas', $col)) {
+                    $columnsToDrop[] = $col;
+                }
+            }
+
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 };
