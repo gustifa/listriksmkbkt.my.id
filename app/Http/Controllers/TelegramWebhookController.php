@@ -30,7 +30,7 @@ class TelegramWebhookController extends Controller
             $update = $request->all();
 
             // =========================================================================
-            // 1. HANDLE CALLBACK QUERY (APPROVAL IZIN, REKAP & ADMIN)
+            // 1. HANDLE CALLBACK QUERY (APPROVAL IZIN, PEMBATALAN, REKAP & ADMIN)
             // =========================================================================
             if (isset($update['callback_query'])) {
                 $callback = $update['callback_query'];
@@ -38,6 +38,8 @@ class TelegramWebhookController extends Controller
 
                 if (str_starts_with($data, 'rekap_')) {
                     $this->handleRekapCallback($callback, $telegramService);
+                } elseif (str_starts_with($data, 'cancel_user_izin_')) {
+                    $this->handleUserCancelIzinCallback($callback, $telegramService);
                 } elseif (str_starts_with($data, 'appizin_') || str_starts_with($data, 'rejizin_')) {
                     $this->handleIzinApprovalCallback($callback, $telegramService);
                 } else {
@@ -163,10 +165,34 @@ class TelegramWebhookController extends Controller
             $lowerText = strtolower($text);
             $photo     = $message['photo'] ?? null;
 
-            // A. COMMAND BATAL PROSES
-            if ($lowerText === '/batal') {
+            // A. COMMAND BATAL PROSES / BATALKAN PENGAJUAN PENDING
+            if (in_array($lowerText, ['/batal', 'batal', '/batal_izin'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
-                $telegramService->sendMessage($chatId, "❌ *Proses pengajuan izin/sakit telah dibatalkan.*", 'info', 'Pengajuan Batal');
+
+                $student = $this->getSubscriberStudent($chatId, $telegramService);
+
+                if ($student) {
+                    $today = Carbon::today()->format('Y-m-d');
+                    $pendingIzin = IzinSiswa::where('student_id', $student->id)
+                        ->whereDate('date', $today)
+                        ->where('status', 'pending')
+                        ->first();
+
+                    if ($pendingIzin) {
+                        $pendingIzin->delete();
+
+                        $telegramService->sendMessage(
+                            $chatId, 
+                            "🗑️ *Pengajuan Izin/Sakit Dibatalkan & Dihapus!*\n\nData pengajuan untuk siswa *{$student->name}* pada hari ini telah berhasil dihapus dari sistem database.", 
+                            'info', 
+                            'Pengajuan Dibatalkan'
+                        );
+
+                        return response()->json(['status' => 'ok']);
+                    }
+                }
+
+                $telegramService->sendMessage($chatId, "❌ *Proses pengajuan telah dibatalkan.*", 'info', 'Pengajuan Batal');
                 return response()->json(['status' => 'ok']);
             }
 
@@ -466,13 +492,15 @@ class TelegramWebhookController extends Controller
     {
         $today = Carbon::today()->format('Y-m-d');
 
-        // Cek jika siswa sudah mengajukan di tanggal yang sama
+        // Cek jika siswa sudah memiliki pengajuan aktif (pending / approved) pada hari ini
         $existing = IzinSiswa::where('student_id', $student->id)
             ->whereDate('date', $today)
+            ->whereIn('status', ['pending', 'approved'])
             ->first();
 
         if ($existing) {
-            $telegramService->sendMessage($chatId, "⚠️ *Pengajuan Ditolak!* Siswa atas nama *{$student->name}* sudah memiliki pengajuan izin/sakit pada hari ini ({$today}).", 'info', 'Sudah Ada Pengajuan');
+            $statusText = $existing->status === 'approved' ? 'DISETUJUI' : 'PENDING VERIFIKASI';
+            $telegramService->sendMessage($chatId, "⚠️ *Pengajuan Ditolak!* Siswa atas nama *{$student->name}* sudah memiliki pengajuan hari ini ({$today}) dengan status *{$statusText}*.", 'info', 'Sudah Ada Pengajuan');
             return;
         }
 
@@ -499,10 +527,17 @@ class TelegramWebhookController extends Controller
                     "📅 Tanggal : *{$today}*\n" .
                     "📝 Alasan : _{$reason}_\n" .
                     "⏳ Status : *PENDING* (Menunggu Verifikasi Walas/BK/Proka/Kabeng/Admin)\n\n" .
-                    "_Sistem akan mengirimkan pesan otomatis setelah pengajuan disetujui oleh pihak sekolah._";
+                    "_Jika terdapat kesalahan data, silakan tekan tombol di bawah ini untuk membatalkan:_";
 
-        // 2. Balas ke Pemohon
-        $telegramService->sendMessage($chatId, $replyMsg, 'info', 'Pengajuan Izin');
+        // Keyboard Inline Pembatalan untuk Pemohon
+        $userKeyboard = [
+            [
+                ['text' => '❌ Batalkan Pengajuan Saya', 'callback_data' => "cancel_user_izin_{$izin->id}"]
+            ]
+        ];
+
+        // 2. Balas ke Pemohon dengan tombol Batal
+        $telegramService->sendMessageWithInlineKeyboard($chatId, $replyMsg, $userKeyboard);
 
         // 3. Kirim Notifikasi Interaktif ke Grup Admin / Walas / BK / Kabeng / Proka
         $this->notifyIzinToApprovers($izin, $student, $telegramService);
@@ -535,6 +570,46 @@ class TelegramWebhookController extends Controller
         ];
 
         $telegramService->sendMessageWithInlineKeyboard($approverChatId, $text, $keyboard);
+    }
+
+    /**
+     * Handle Eksekusi Pembatalan Mandiri oleh Orang Tua / Siswa
+     */
+    private function handleUserCancelIzinCallback(array $callbackQuery, TelegramService $telegramService): void
+    {
+        $callbackId = $callbackQuery['id'];
+        $data       = $callbackQuery['data'];
+        $message    = $callbackQuery['message'];
+        $chatId     = (string) $message['chat']['id'];
+        $messageId  = $message['message_id'];
+
+        if (!str_contains($data, '_')) return;
+
+        $izinId = str_replace('cancel_user_izin_', '', $data);
+        $izin   = IzinSiswa::find($izinId);
+
+        if (!$izin) {
+            $telegramService->answerCallbackQuery($callbackId, "Data pengajuan izin sudah tidak ditemukan.", true);
+            return;
+        }
+
+        if ($izin->status !== 'pending') {
+            $statusText = strtoupper($izin->status);
+            $telegramService->answerCallbackQuery($callbackId, "Pengajuan tidak dapat dibatalkan karena sudah diproses (Status: {$statusText}).", true);
+            return;
+        }
+
+        $studentName = optional($izin->student)->name ?? 'Siswa';
+
+        // Hapus record dari database izin_siswas
+        $izin->delete();
+
+        // Edit pesan pada chat pemohon
+        $userReply = "🗑️ *PENGAJUAN DIHAPUS / DIBATALKAN*\n\n" .
+                      "Pengajuan izin/sakit untuk *{$studentName}* pada tanggal *{$izin->date}* telah berhasil Anda batalkan dan dihapus dari sistem.";
+
+        $telegramService->editMessageText($chatId, $messageId, $userReply);
+        $telegramService->answerCallbackQuery($callbackId, "Pengajuan izin berhasil dibatalkan dan dihapus.");
     }
 
     /**
@@ -591,35 +666,34 @@ class TelegramWebhookController extends Controller
             // 3. Kirim Notifikasi Balasan ke Pemohon (Orang Tua / Siswa)
             if (!empty($izin->telegram_chat_id)) {
                 $userMsg = "🎉 *PENGAJUAN " . strtoupper($izin->type) . " DISETUJUI!*\n\n" .
-                           "Pengajuan izin/sakit untuk siswa *{$studentName}* pada tanggal *{$izin->date}* telah *DISETUJUI & DIVERIFIKASI* oleh pihak sekolah.\n\n" .
+                           "Pengajuan izin/sakit untuk siswa *{$studentName}* pada tanggal *{$izin->date}* telah *DISETUJU & DIVERIFIKASI* oleh pihak sekolah.\n\n" .
                            "Terima kasih telah memberikan konfirmasi ketidakhadiran.";
                 $telegramService->sendMessage($izin->telegram_chat_id, $userMsg, 'info', 'Persetujuan Izin');
             }
 
         } elseif ($action === 'rejizin') {
-            // 1. Update Status DB menjadi Rejected
-            $izin->update([
-                'status'      => 'rejected',
-                'approved_by' => $approver,
-                'approved_at' => now(),
-            ]);
+            // 1. Hapus Record dari Database agar Siswa Bisa Mengajukan Ulang
+            $typeText = strtoupper($izin->type);
+            $izinDate = $izin->date;
+            $userChat = $izin->telegram_chat_id;
+
+            $izin->delete();
 
             // 2. Edit Pesan di Grup Admin/Guru
-            $adminReply = "❌ *PENGAJUAN " . strtoupper($izin->type) . " DITOLAK / DIBATALKAN*\n\n" .
+            $adminReply = "🗑️ *PENGAJUAN " . $typeText . " DIBATALKAN & DIHAPUS*\n\n" .
                           "👤 Siswa : *{$studentName}* ({$className})\n" .
-                          "📅 Tanggal : *{$izin->date}*\n" .
-                          "📝 Alasan : _{$izin->reason}_\n" .
+                          "📅 Tanggal : *{$izinDate}*\n" .
                           "👨‍🏫 Dibatalkan Oleh : *{$approver}*";
 
             $telegramService->editMessageText($adminChat, $messageId, $adminReply);
-            $telegramService->answerCallbackQuery($callbackId, "Pengajuan izin ditolak.");
+            $telegramService->answerCallbackQuery($callbackId, "Pengajuan izin berhasil dibatalkan dan dihapus.");
 
             // 3. Kirim Notifikasi Balasan ke Pemohon
-            if (!empty($izin->telegram_chat_id)) {
-                $userMsg = "❌ *PENGAJUAN " . strtoupper($izin->type) . " DITOLAK / DIBATALKAN*\n\n" .
-                           "Pengajuan izin/sakit untuk siswa *{$studentName}* pada tanggal *{$izin->date}* tidak disetujui oleh pihak sekolah.\n\n" .
-                           "Silakan hubungi Wali Kelas / BK untuk informasi lebih lanjut.";
-                $telegramService->sendMessage($izin->telegram_chat_id, $userMsg, 'info', 'Izin Ditolak');
+            if (!empty($userChat)) {
+                $userMsg = "❌ *PENGAJUAN " . $typeText . " DIBATALKAN / DIHAPUS*\n\n" .
+                           "Pengajuan izin/sakit untuk siswa *{$studentName}* pada tanggal *{$izinDate}* telah dibatalkan oleh pihak sekolah.\n\n" .
+                           "Catatan pengajuan telah dihapus dari database. Anda dapat melakukan pengajuan ulang jika terdapat kekeliruan.";
+                $telegramService->sendMessage($userChat, $userMsg, 'info', 'Izin Dibatalkan');
             }
         }
     }
