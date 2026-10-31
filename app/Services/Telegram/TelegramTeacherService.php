@@ -14,6 +14,9 @@ use Carbon\Carbon;
 
 class TelegramTeacherService
 {
+    /**
+     * 1. Menampilkan Jadwal Mengajar Guru Hari Ini (/jadwal)
+     */
     public function sendJadwalGuru(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         $teacher = Teacher::find($teacherId);
@@ -53,6 +56,9 @@ class TelegramTeacherService
         $telegramService->sendMessage($chatId, $text);
     }
 
+    /**
+     * 2. Menampilkan Rekapitulasi Kelas Bimbingan Wali Kelas (/walas)
+     */
     public function sendRekapWalas(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         $classrooms = Classroom::where('homeroom_teacher_id', $teacherId)->get();
@@ -97,6 +103,9 @@ class TelegramTeacherService
         $telegramService->sendMessage($chatId, $text);
     }
 
+    /**
+     * 3. Menampilkan Rekapitulasi Konsentrasi Keahlian / Bengkel (/kabeng)
+     */
     public function sendRekapKabeng(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         $major = Major::where('workshop_teacher_id', $teacherId)->first() ?? Major::first();
@@ -139,6 +148,9 @@ class TelegramTeacherService
         $telegramService->sendMessage($chatId, $text);
     }
 
+    /**
+     * 4. Menampilkan Rekapitulasi Program Keahlian (/proka)
+     */
     public function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         $program = Program::where('program_teacher_id', $teacherId)->first();
@@ -173,6 +185,9 @@ class TelegramTeacherService
         $telegramService->sendMessage($chatId, $text);
     }
 
+    /**
+     * 5. Menampilkan Rekap Guru BK (/bk)
+     */
     public function sendRekapBK(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         $today = Carbon::today()->format('Y-m-d');

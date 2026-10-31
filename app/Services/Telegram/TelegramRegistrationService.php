@@ -24,8 +24,9 @@ class TelegramRegistrationService
 
         // CEK 0: JIKA AKUN INI SUDAH TERDAFTAR SEBAGAI GURU SEBELUMNYA
         $existingSub = TelegramSubscriber::where('chat_id', $chatId)->first();
-        if ($existingSub && $existingSub->user_type === 'teacher' && $existingSub->teacher_id) {
+        if ($existingSub && ($existingSub->user_type === 'teacher' || !empty($existingSub->teacher_id))) {
             $existingSub->update([
+                'user_type'    => 'teacher',
                 'phone_number' => (string) $cleanPhone,
                 'username'     => $username,
                 'is_active'    => true,
