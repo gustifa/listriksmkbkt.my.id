@@ -179,7 +179,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/izin-siswa/{id}/cetak-surat', [IzinApprovalController::class, 'cetakSuratIzin'])->name('admin.izin.cetak-surat');
     Route::get('/admin/izin-siswa/{id}/cetak-dokumen', [IzinApprovalController::class, 'cetakSuratSakit'])->name('admin.izin.cetak-sakit');
     // Fitur Hapus Permanen Izin Siswa
-    Route::delete('/admin//izin-siswa/{id}', [IzinApprovalController::class, 'destroy'])->name('admin.izin.destroy');
+    Route::delete('/admin/izin-siswa/{id}', [IzinApprovalController::class, 'destroy'])->name('admin.izin.destroy');
     Route::get('/attendances/weekly-recap/filter', [AttendanceRecapController::class, 'index'])->name('attendances.filter');
     Route::get('/attendances/get-students/{classroomId}', [AttendanceRecapController::class, 'getStudentsByClassroom']);
     
