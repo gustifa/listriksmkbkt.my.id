@@ -170,22 +170,60 @@ class TelegramWebhookController extends Controller
 
             // B. COMMAND /izin ATAU /sakit (INISIASI PENGAJUAN)
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
-                // Reset cache state lama jika tersangkut
+                // Clear session cache lama jika ada state tersangkut
                 Cache::forget("telegram_permit_step_{$chatId}");
 
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+                // Query pencarian subscriber fleksibel (dukung format string & integer chat_id)
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)
+                      ->orWhere('chat_id', (int)$chatId);
+                })->first();
 
-                if (!$subscriber || $subscriber->approval_status !== 'approved' || !$subscriber->is_active) {
-                    $telegramService->sendMessage($chatId, "⚠️ *Akses Ditolak!* Akun Telegram Anda belum terverifikasi atau belum disetujui Admin.\n\nKetik `/start` untuk mendaftar.", 'info', 'Akses Ditolak');
+                // 1. Peringatan jika belum mendaftar kontak Telegram
+                if (!$subscriber) {
+                    $telegramService->sendMessage(
+                        $chatId, 
+                        "⚠️ *Akun Telegram Belum Terdaftar!*\n\nNomor Telegram Anda belum terdaftar di sistem SISFO.\nSilakan ketik `/start` lalu tekan tombol *'📱 Bagikan Nomor Kontak Saya'* untuk mendaftar.", 
+                        'info', 
+                        'Pendaftaran Dibutuhkan'
+                    );
                     return response()->json(['status' => 'ok']);
                 }
 
+                // 2. Peringatan jika status pendaftaran masih pending / belum di-approve
+                if ($subscriber->approval_status !== 'approved' || !$subscriber->is_active) {
+                    $statusText = strtoupper($subscriber->approval_status ?? 'PENDING');
+                    $telegramService->sendMessage(
+                        $chatId, 
+                        "⏳ *Pendaftaran Belum Disetujui Admin*\n\nStatus pendaftaran Anda saat ini: *{$statusText}*.\nMohon tunggu konfirmasi verifikasi dari Admin SISFO sebelum dapat mengajukan izin/sakit.", 
+                        'info', 
+                        'Akses Ditolak'
+                    );
+                    return response()->json(['status' => 'ok']);
+                }
+
+                // 3. Cari data siswa terhubung
                 $student = Student::find($subscriber->student_id);
+
+                if (!$student && !empty($subscriber->phone_number)) {
+                    // Fallback pencarian siswa dari nomor HP jika student_id di subscriber belum terhubung
+                    $lastDigits = strlen($subscriber->phone_number) >= 9 ? substr($subscriber->phone_number, -9) : $subscriber->phone_number;
+                    $student = Student::where('phone', 'like', '%' . $lastDigits)
+                        ->orWhere('student_phone', 'like', '%' . $lastDigits)
+                        ->first();
+                }
+
                 if (!$student) {
-                    $telegramService->sendMessage($chatId, "❌ Data siswa tidak ditemukan di sistem.", 'info', 'Error');
+                    $telegramService->sendMessage(
+                        $chatId, 
+                        "❌ *Data Siswa Tidak Ditemukan*\n\nAkun Telegram Anda terdaftar tetapi belum terhubung ke data siswa di sistem database.", 
+                        'info', 
+                        'Error Data Siswa'
+                    );
                     return response()->json(['status' => 'ok']);
                 }
 
+                // 4. Inisiasi Formulir Pengajuan
                 $type = str_contains($lowerText, 'sakit') ? 'sakit' : 'izin';
 
                 // Simpan State Conversational ke Cache selama 10 Menit
@@ -197,7 +235,8 @@ class TelegramWebhookController extends Controller
 
                 $jenisText = strtoupper($type);
                 $prompt = "📝 *FORM PENGAJUAN " . $jenisText . "*\n\n" .
-                          "👤 Siswa: *{$student->name}*\n\n" .
+                          "👤 Siswa: *{$student->name}*\n" .
+                          "🏫 Kelas: *" . (optional($student->classroom)->name ?? '-') . "*\n\n" .
                           "Silakan ketikkan *alasan/keterangan lengkap* mengapa siswa tidak dapat hadir hari ini.\n\n" .
                           "_(Ketik `/batal` untuk membatalkan)_";
 
@@ -541,7 +580,10 @@ class TelegramWebhookController extends Controller
 
     private function getSubscriberStudent($chatId, TelegramService $telegramService)
     {
-        $subscriber = TelegramSubscriber::where('chat_id', (string)$chatId)
+        $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                $q->where('chat_id', (string)$chatId)
+                  ->orWhere('chat_id', (int)$chatId);
+            })
             ->where('approval_status', 'approved')
             ->where('is_active', true)
             ->first();
