@@ -784,6 +784,84 @@ class DailyAttendanceController extends Controller
 //     }
 // }
 
+// private function sendNotification($student, $type, $time, $status = '', $photoPath = null)
+// {
+//     // 1. Ambil Pengaturan dari Database
+//     $setting = AttendanceSetting::first();
+//     $settingsKV = Setting::pluck('value', 'key')->toArray();
+//     $inf_app = $settingsKV['inf_app'] ?? 'Sistem Sekolah';
+    
+//     // Opsi Fitur Admin
+//     $isSendPhoto = $setting ? (bool) ($setting->send_photo_telegram ?? true) : true;
+//     $learningMode = $setting ? ($setting->learning_mode ?? 'PTM') : 'PTM'; // PTM atau PJJ
+    
+//     // Tentukan Label Mode Pembelajaran untuk Judul Pesan
+//     $modeLabel = ($learningMode === 'PJJ') ? '(PJJ)' : '(GERBANG)';
+
+//     $kelas = $student->classroom ? $student->classroom->name : '-';
+//     $hariTanggal = \Carbon\Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY');
+
+//     $msg = '';
+
+//     // 2. Buat Format Pesan Sesuai Mode (PTM / PJJ)
+//     if ($type == 'datang') {
+//         $msg = "*LAPORAN KEDATANGAN {$modeLabel}*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'pulang') {
+//         $msg = "*LAPORAN KEPULANGAN {$modeLabel}*\n\n" .
+//                "Yth. Orang Tua/Wali,\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *PULANG SEKOLAH*\n\n" .
+//                "_{$inf_app}_";
+//     } elseif ($type == 'manual') {
+//         $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+//                "👤 Nama: *{$student->name}*\n" .
+//                "🏫 Kelas: {$kelas}\n" .
+//                "📅 Hari/Tgl: {$hariTanggal}\n" .
+//                "⏰ Jam: {$time} WIB\n" .
+//                "📝 Status: *" . strtoupper($status) . "*\n" .
+//                "Ket: Data diinput manual oleh petugas.\n\n" .
+//                "_{$inf_app}_";
+//     }
+
+//     if (empty($msg)) return;
+
+//     // 3. Kirim WA (Queue Job)
+//     if (!empty($student->phone)) {
+//         SendWhatsappJob::dispatch($student->phone, $msg);
+//     }
+
+//     // 4. Kirim Telegram via TelegramService
+//     $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+//                     ->where('is_active', true)
+//                     ->first();
+
+//     $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+//     if ($chatId) {
+//         $telegramService = app(TelegramService::class);
+//         $title = ($type === 'pulang') 
+//             ? "Laporan Kepulangan Siswa {$modeLabel}" 
+//             : "Laporan Kedatangan Siswa {$modeLabel}";
+
+//         // CEK OPSI ADMIN: Kirim foto HANYA jika fitur kirim foto diaktifkan ($isSendPhoto == true) DAN file foto ada
+//         if ($isSendPhoto && !empty($photoPath)) {
+//             $telegramService->sendPhoto($chatId, $photoPath, $msg, 'absensi', $title);
+//         } else {
+//             $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+//         }
+//     }
+// }
+
 private function sendNotification($student, $type, $time, $status = '', $photoPath = null)
 {
     // 1. Ambil Pengaturan dari Database
@@ -791,21 +869,21 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
     $settingsKV = Setting::pluck('value', 'key')->toArray();
     $inf_app = $settingsKV['inf_app'] ?? 'Sistem Sekolah';
     
-    // Opsi Fitur Admin
+    // Opsi Fitur Admin dari Database
     $isSendPhoto = $setting ? (bool) ($setting->send_photo_telegram ?? true) : true;
-    $learningMode = $setting ? ($setting->learning_mode ?? 'PTM') : 'PTM'; // PTM atau PJJ
-    
-    // Tentukan Label Mode Pembelajaran untuk Judul Pesan
-    $modeLabel = ($learningMode === 'PJJ') ? '(PJJ)' : '(GERBANG)';
+    $learningMode = $setting ? ($setting->learning_mode ?? 'PTM') : 'PTM';
+    $enableTelegram = $setting ? (bool) ($setting->enable_telegram_notification ?? true) : true;
+    $enableWA = $setting ? (bool) ($setting->enable_wa_notification ?? true) : true;
 
+    $modeLabel = ($learningMode === 'PJJ') ? '(PJJ)' : '(GERBANG)';
     $kelas = $student->classroom ? $student->classroom->name : '-';
     $hariTanggal = \Carbon\Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY');
 
     $msg = '';
 
-    // 2. Buat Format Pesan Sesuai Mode (PTM / PJJ)
+    // 2. Buat Format Pesan Sesuai Tipe
     if ($type == 'datang') {
-        $msg = "*LAPORAN KEDATANGAN {$modeLabel}*\n\n" .
+        $msg = "🚪 *LAPORAN KEDATANGAN {$modeLabel}*\n\n" .
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
@@ -814,7 +892,7 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
                "📝 Status: *" . strtoupper($status) . "*\n\n" .
                "_{$inf_app}_";
     } elseif ($type == 'pulang') {
-        $msg = "*LAPORAN KEPULANGAN {$modeLabel}*\n\n" .
+        $msg = "🚪 *LAPORAN KEPULANGAN {$modeLabel}*\n\n" .
                "Yth. Orang Tua/Wali,\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
@@ -823,7 +901,7 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
                "📝 Status: *PULANG SEKOLAH*\n\n" .
                "_{$inf_app}_";
     } elseif ($type == 'manual') {
-        $msg = "*LAPORAN PRESENSI (MANUAL)*\n\n" .
+        $msg = "📝 *LAPORAN PRESENSI (MANUAL)*\n\n" .
                "👤 Nama: *{$student->name}*\n" .
                "🏫 Kelas: {$kelas}\n" .
                "📅 Hari/Tgl: {$hariTanggal}\n" .
@@ -835,29 +913,30 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
 
     if (empty($msg)) return;
 
-    // 3. Kirim WA (Queue Job)
-    if (!empty($student->phone)) {
+    // 3. Kirim WA jika diaktifkan di Setting
+    if ($enableWA && !empty($student->phone)) {
         SendWhatsappJob::dispatch($student->phone, $msg);
     }
 
-    // 4. Kirim Telegram via TelegramService
-    $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
-                    ->where('is_active', true)
-                    ->first();
+    // 4. Kirim Telegram jika diaktifkan di Setting
+    if ($enableTelegram) {
+        $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+                        ->where('is_active', true)
+                        ->first();
 
-    $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+        $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
 
-    if ($chatId) {
-        $telegramService = app(TelegramService::class);
-        $title = ($type === 'pulang') 
-            ? "Laporan Kepulangan Siswa {$modeLabel}" 
-            : "Laporan Kedatangan Siswa {$modeLabel}";
+        if ($chatId) {
+            $telegramService = app(TelegramService::class);
+            $title = ($type === 'pulang') 
+                ? "Laporan Kepulangan Siswa {$modeLabel}" 
+                : "Laporan Kedatangan Siswa {$modeLabel}";
 
-        // CEK OPSI ADMIN: Kirim foto HANYA jika fitur kirim foto diaktifkan ($isSendPhoto == true) DAN file foto ada
-        if ($isSendPhoto && !empty($photoPath)) {
-            $telegramService->sendPhoto($chatId, $photoPath, $msg, 'absensi', $title);
-        } else {
-            $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+            if ($isSendPhoto && !empty($photoPath)) {
+                $telegramService->sendPhoto($chatId, $photoPath, $msg, 'absensi', $title);
+            } else {
+                $telegramService->sendMessage($chatId, $msg, 'absensi', $title);
+            }
         }
     }
 }
@@ -1830,50 +1909,259 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
     //     ]);
     // }
 
+    // public function store(Request $request)
+    // {
+    //     // --- VALIDASI HARI LIBUR (MINGGU & KALENDER MERAH) ---
+    //     $holidayCheck = $this->isHoliday(Carbon::today());
+    //     if ($holidayCheck['is_holiday']) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Absensi Ditolak! ' . $holidayCheck['reason']
+    //         ], 400);
+    //     }
+
+    //     $request->validate([
+    //         'nis'   => 'required',
+    //         'image' => 'nullable|string', // Validasi input gambar base64
+    //     ]);
+
+    //     // --- VALIDASI TAHUN PELAJARAN / SEMESTER AKTIF ---
+    //     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+
+    //     if (!$activeAcademicYear) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Transaksi ditolak! Belum ada Tahun Pelajaran / Semester yang diaktifkan oleh Admin.'
+    //         ], 400);
+    //     }
+
+    //     // 1. Cari Siswa
+    //     $student = Student::with('classroom')->where('nis', $request->nis)->first();
+    //     if (!$student) {
+    //         return response()->json(['status' => 'error', 'message' => 'Siswa tidak ditemukan!'], 404);
+    //     }
+
+    //     $date = date('Y-m-d');
+    //     $time = date('H:i:s'); // Format waktu standar H:i:s
+
+    //     // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+    //     $approvedLeave = IzinSiswa::where('student_id', $student->id)
+    //         ->where('status', 'approved', 'pending')
+    //         ->where(function ($q) use ($date) {
+    //             $q->whereDate('date', $date)
+    //               ->orWhere(function ($q2) use ($date) {
+    //                   $q2->whereNotNull('end_date')
+    //                      ->whereDate('date', '<=', $date)
+    //                      ->whereDate('end_date', '>=', $date);
+    //               });
+    //         })
+    //         ->first();
+
+    //     if ($approvedLeave) {
+    //         $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => "Absensi Gerbang Ditolak! Siswa {$student->name} tercatat status {$statusLabel} (Disetujui)."
+    //         ], 400);
+    //     }
+
+
+    //     // Tambahkan setelah pencarian $student
+    //     $activePermitOut = StudentPermit::where('student_id', $student->id)
+    //         ->whereDate('date', $date)
+    //         ->where('status', 'active')
+    //         ->first();
+
+    //     if ($activePermitOut) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => "Absensi Ditolak! Siswa {$student->name} tercatat sedang IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason}). Harap selesaikan izin terlebih dahulu."
+    //         ], 400);
+    //     }
+
+    //     // 2. Cek Data Absensi Hari Ini
+    //     $attendance = DailyAttendance::where('student_id', $student->id)
+    //                     ->where('date', $date)
+    //                     ->first();
+
+    //     // 3. AMBIL PENGATURAN DARI DATABASE
+    //     $setting = AttendanceSetting::first();
+
+    //     // Fallback value jika database setting kosong
+    //     $jamMulaiScan      = $setting ? $setting->start_check_in_time : '06:00:00';
+    //     $batasTerlambat    = $setting ? $setting->late_limit_time : '07:00:00';
+    //     $batasBolehPulang  = $setting ? $setting->early_departure_time : '10:00:00';
+
+    //     // --- VALIDASI AWAL: JAM BUKA SCAN ---
+    //     if ($time < $jamMulaiScan) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => "Absensi belum dibuka. Dimulai pukul " . substr($jamMulaiScan, 0, 5)
+    //         ], 400);
+    //     }
+
+    //     // ==========================================================
+    //     // SKENARIO PULANG (CHECK-OUT)
+    //     // ==========================================================
+    //     if ($attendance) {
+    //         // Jika jam pulang sudah terisi, tolak scan
+    //         if ($attendance->departure_time) {
+    //             return response()->json(['status' => 'error', 'message' => "Siswa {$student->name} sudah absen pulang hari ini!"], 400);
+    //         }
+
+    //         // Validasi Jam Pulang
+    //         if ($time < $batasBolehPulang) {
+    //             return response()->json([
+    //                 'status'  => 'error',
+    //                 'message' => "Belum waktunya pulang! Dibuka pukul " . substr($batasBolehPulang, 0, 5)
+    //             ], 400);
+    //         }
+
+    //         // SIMPAN FOTO PULANG
+    //         $photoPath = $this->saveImage($request->image, $student->nis, 'out', $date);
+
+    //         // Update Data
+    //         $attendance->update([
+    //             'departure_time' => $time,
+    //             'photo_out'      => $photoPath, // Simpan path foto
+    //             'updated_at'     => now()
+    //         ]);
+
+    //         $this->sendNotification($student, 'pulang', $time);
+
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'type'    => 'CHECK_OUT',
+    //             'message' => 'Hati-hati di jalan! (Absen Pulang)',
+    //             'student' => $student,
+    //             'time'    => $time
+    //         ]);
+    //     }
+
+    //     // ==========================================================
+    //     // SKENARIO DATANG (CHECK-IN)
+    //     // ==========================================================
+
+    //     // Gunakan Carbon::parse agar perbandingan waktu akurat
+    //     $nowTime   = \Carbon\Carbon::parse($time);
+    //     $lateLimit = \Carbon\Carbon::parse($batasTerlambat);
+    //     $isLate    = $nowTime->greaterThan($lateLimit);
+    //     $statusDB  = $isLate ? 'terlambat' : 'hadir';
+
+    //     // SIMPAN FOTO DATANG
+    //     $photoPath = $this->saveImage($request->image, $student->nis, 'in', $date);
+
+    //     DailyAttendance::create([
+    //         'id'               => (string) \Illuminate\Support\Str::uuid(),
+    //         'student_id'       => $student->id,
+    //         'academic_year_id' => $activeAcademicYear->id,
+    //         'date'             => $date,
+    //         'arrival_time'     => $time,
+    //         'status'           => $statusDB,
+    //         'photo_in'         => $photoPath,
+    //         'recorded_by'      => 'Scanner Gate'
+    //     ]);
+
+    //     // ==========================================================
+    //     // OTOMATISASI PENCATATAN PELANGGARAN TERLAMBAT (DINAMIS)
+    //     // ==========================================================
+    //     if ($isLate) {
+    //         $violationType = $this->getViolationTypeByKeywords(['terlambat', 'lambat', 'late']);
+
+    //         if ($violationType) {
+    //             \App\Models\StudentViolation::firstOrCreate(
+    //                 [
+    //                     'student_id'        => $student->id,
+    //                     'date'              => $date,
+    //                     'violation_type_id' => $violationType->id,
+    //                 ],
+    //                 [
+    //                     'id'          => (string) \Illuminate\Support\Str::uuid(),
+    //                     'note'        => 'Terlambat absensi gate/scanner pukul ' . $time,
+    //                     'reported_by' => null, // null untuk otomatisasi sistem
+    //                     'is_synced'   => false,
+    //                 ]
+    //             );
+    //         }
+    //     }
+
+    //     $this->sendNotification($student, 'datang', $time, $statusDB);
+
+    //     $message = $isLate
+    //         ? "Anda Terlambat! Batas jam " . substr($batasTerlambat, 0, 5)
+    //         : "Selamat Datang! (Absen Masuk)";
+
+    //     return response()->json([
+    //         'status'            => 'success',
+    //         'type'              => 'CHECK_IN',
+    //         'attendance_status' => $isLate ? 'late' : 'present',
+    //         'message'           => $message,
+    //         'student'           => $student,
+    //         'time'              => $time
+    //     ]);
+    // }
+
     public function store(Request $request)
     {
-        // --- VALIDASI HARI LIBUR (MINGGU & KALENDER MERAH) ---
+        // --- VALIDASI HARI LIBUR ---
         $holidayCheck = $this->isHoliday(Carbon::today());
         if ($holidayCheck['is_holiday']) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Absensi Ditolak! ' . $holidayCheck['reason']
-            ], 400);
+                'message' => 'Absensi Mapel Ditolak! ' . $holidayCheck['reason']
+            ]);
         }
 
         $request->validate([
-            'nis'   => 'required',
-            'image' => 'nullable|string', // Validasi input gambar base64
+            'nis' => 'required',
+            'schedule_id' => 'required|exists:schedules,id'
         ]);
 
-        // --- VALIDASI TAHUN PELAJARAN / SEMESTER AKTIF ---
-        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
-
-        if (!$activeAcademicYear) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Transaksi ditolak! Belum ada Tahun Pelajaran / Semester yang diaktifkan oleh Admin.'
-            ], 400);
-        }
+        $user = Auth::user();
+        $teacher = Teacher::where('user_id', $user->id)->first();
 
         // 1. Cari Siswa
         $student = Student::with('classroom')->where('nis', $request->nis)->first();
+
         if (!$student) {
-            return response()->json(['status' => 'error', 'message' => 'Siswa tidak ditemukan!'], 404);
+            return response()->json(['status' => 'error', 'message' => 'Data Siswa tidak ditemukan!']);
         }
 
-        $date = date('Y-m-d');
-        $time = date('H:i:s'); // Format waktu standar H:i:s
+        // 2. Cari Jadwal
+        $schedule = Schedule::with(['classroom', 'subject'])->find($request->schedule_id);
 
-        // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+        if (!$schedule) {
+            return response()->json(['status' => 'error', 'message' => 'Jadwal tidak valid!']);
+        }
+
+        $today = Carbon::today();
+
+        // Cek Izin Keluar Kelas
+        $activePermitOut = StudentPermit::where('student_id', $student->id)
+            ->whereDate('date', $today)
+            ->where('status', 'active')
+            ->first();
+
+        if ($activePermitOut) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Mapel Ditolak! Siswa {$student->name} sedang dalam status IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason})."
+            ]);
+        }
+
+        // =================================================================
+        // VALIDASI 1: CEK KEHADIRAN GERBANG (DailyAttendance)
+        // =================================================================
+
+        // --- CEK DISAPPROVED / APPROVED IZIN ATAU SAKIT ---
         $approvedLeave = IzinSiswa::where('student_id', $student->id)
-            ->where('status', 'approved', 'pending')
-            ->where(function ($q) use ($date) {
-                $q->whereDate('date', $date)
-                  ->orWhere(function ($q2) use ($date) {
+            ->where('status', 'approved')
+            ->where(function ($q) use ($today) {
+                $q->whereDate('date', $today)
+                  ->orWhere(function ($q2) use ($today) {
                       $q2->whereNotNull('end_date')
-                         ->whereDate('date', '<=', $date)
-                         ->whereDate('end_date', '>=', $date);
+                         ->whereDate('date', '<=', $today)
+                         ->whereDate('end_date', '>=', $today);
                   });
             })
             ->first();
@@ -1882,143 +2170,167 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
             $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
             return response()->json([
                 'status'  => 'error',
-                'message' => "Absensi Gerbang Ditolak! Siswa {$student->name} tercatat status {$statusLabel} (Disetujui)."
-            ], 400);
+                'message' => "Absensi Mapel Ditolak! Siswa {$student->name} tercatat berstatus {$statusLabel} (Disetujui)."
+            ]);
         }
 
+        $dailyLog = DailyAttendance::where('student_id', $student->id)
+                    ->whereDate('date', $today)
+                    ->first();
 
-        // Tambahkan setelah pencarian $student
-        $activePermitOut = StudentPermit::where('student_id', $student->id)
-            ->whereDate('date', $date)
-            ->where('status', 'active')
-            ->first();
-
-        if ($activePermitOut) {
+        // A. Cek apakah sudah absen masuk gerbang?
+        if (!$dailyLog || empty($dailyLog->arrival_time)) {
             return response()->json([
-                'status'  => 'error',
-                'message' => "Absensi Ditolak! Siswa {$student->name} tercatat sedang IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason}). Harap selesaikan izin terlebih dahulu."
-            ], 400);
+                'status' => 'error',
+                'message' => "Anda belum melakukan Scan Masuk di Gerbang Sekolah!"
+            ]);
         }
 
-        // 2. Cek Data Absensi Hari Ini
-        $attendance = DailyAttendance::where('student_id', $student->id)
-                        ->where('date', $date)
-                        ->first();
-
-        // 3. AMBIL PENGATURAN DARI DATABASE
-        $setting = AttendanceSetting::first();
-
-        // Fallback value jika database setting kosong
-        $jamMulaiScan      = $setting ? $setting->start_check_in_time : '06:00:00';
-        $batasTerlambat    = $setting ? $setting->late_limit_time : '07:00:00';
-        $batasBolehPulang  = $setting ? $setting->early_departure_time : '10:00:00';
-
-        // --- VALIDASI AWAL: JAM BUKA SCAN ---
-        if ($time < $jamMulaiScan) {
+        // B. Cek apakah sudah absen pulang?
+        if (!empty($dailyLog->departure_time)) {
             return response()->json([
-                'status'  => 'error',
-                'message' => "Absensi belum dibuka. Dimulai pukul " . substr($jamMulaiScan, 0, 5)
-            ], 400);
+                'status' => 'error',
+                'message' => "Anda tercatat sudah Pulang, tidak bisa masuk kelas!"
+            ]);
         }
 
-        // ==========================================================
-        // SKENARIO PULANG (CHECK-OUT)
-        // ==========================================================
-        if ($attendance) {
-            // Jika jam pulang sudah terisi, tolak scan
-            if ($attendance->departure_time) {
-                return response()->json(['status' => 'error', 'message' => "Siswa {$student->name} sudah absen pulang hari ini!"], 400);
-            }
+        // Sebelum Diupdate 31102026
 
-            // Validasi Jam Pulang
-            if ($time < $batasBolehPulang) {
+        // =========================================================
+        // VALIDASI HARI DAN JAM (WAKTU JADWAL)
+        // =========================================================
+
+        $now = Carbon::now();
+
+        $daysMap = [
+            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+        ];
+        $currentDayEnglish = $now->format('l');
+        $currentDayIndo = $daysMap[$currentDayEnglish];
+
+        if (strtolower($schedule->day) !== strtolower($currentDayIndo)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Jadwal Salah! Ini jadwal hari {$schedule->day}, sekarang hari {$currentDayIndo}."
+            ]);
+        }
+
+        $startTime = Carbon::parse($schedule->start_time);
+        $endTime = Carbon::parse($schedule->end_time);
+
+        if ($now->lessThan($startTime)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Belum Waktunya! Absen dibuka pukul " . $startTime->format('H:i')
+            ]);
+        }
+
+        if ($now->greaterThan($endTime)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Waktu Habis! Jam pelajaran berakhir pukul " . $endTime->format('H:i')
+            ]);
+        }
+
+        // VALIDASI KELAS
+        if ($student->classroom_id !== $schedule->classroom_id) {
+            $kelasSiswa = $student->classroom->name ?? 'Tanpa Kelas';
+            $kelasJadwal = $schedule->classroom->name ?? 'Tanpa Kelas';
+            return response()->json([
+                'status' => 'error',
+                'message' => "SALAH KELAS! Siswa {$student->name} ({$kelasSiswa}) tidak ada di jadwal ini."
+            ]);
+        }
+
+        // VALIDASI KEPEMILIKAN JADWAL
+        if ($user->jenis_user !== 'admin') {
+            if (!$teacher || $schedule->teacher_id !== $teacher->id) {
                 return response()->json([
-                    'status'  => 'error',
-                    'message' => "Belum waktunya pulang! Dibuka pukul " . substr($batasBolehPulang, 0, 5)
-                ], 400);
+                    'status' => 'error',
+                    'message' => 'Security Alert: Anda tidak berhak mengabsen di jadwal guru lain!'
+                ]);
             }
+        }
 
-            // SIMPAN FOTO PULANG
-            $photoPath = $this->saveImage($request->image, $student->nis, 'out', $date);
+        // VALIDASI DUPLIKASI
+        $existing = Attendance::where('student_id', $student->id)
+                    ->where('schedule_id', $schedule->id)
+                    ->whereDate('date', $today)
+                    ->first();
 
-            // Update Data
-            $attendance->update([
-                'departure_time' => $time,
-                'photo_out'      => $photoPath, // Simpan path foto
-                'updated_at'     => now()
-            ]);
-
-            $this->sendNotification($student, 'pulang', $time);
-
+        if ($existing) {
             return response()->json([
-                'status'  => 'success',
-                'type'    => 'CHECK_OUT',
-                'message' => 'Hati-hati di jalan! (Absen Pulang)',
-                'student' => $student,
-                'time'    => $time
+                'status' => 'warning',
+                'message' => "Siswa {$student->name} SUDAH ABSEN sebelumnya!"
             ]);
         }
 
-        // ==========================================================
-        // SKENARIO DATANG (CHECK-IN)
-        // ==========================================================
+        // LOGIKA STATUS KEHADIRAN
+        $status = 'hadir';
+        $jamMasuk = Carbon::parse($schedule->start_time);
 
-        // Gunakan Carbon::parse agar perbandingan waktu akurat
-        $nowTime   = \Carbon\Carbon::parse($time);
-        $lateLimit = \Carbon\Carbon::parse($batasTerlambat);
-        $isLate    = $nowTime->greaterThan($lateLimit);
-        $statusDB  = $isLate ? 'terlambat' : 'hadir';
+        if ($now->greaterThan($jamMasuk->addMinutes(15))) {
+            $status = 'terlambat';
+        }
 
-        // SIMPAN FOTO DATANG
-        $photoPath = $this->saveImage($request->image, $student->nis, 'in', $date);
-
-        DailyAttendance::create([
-            'id'               => (string) \Illuminate\Support\Str::uuid(),
-            'student_id'       => $student->id,
-            'academic_year_id' => $activeAcademicYear->id,
-            'date'             => $date,
-            'arrival_time'     => $time,
-            'status'           => $statusDB,
-            'photo_in'         => $photoPath,
-            'recorded_by'      => 'Scanner Gate'
+        // SIMPAN DATA PRESENSI PEMBELAJARAN
+        Attendance::create([
+            'student_id'   => $student->id,
+            'schedule_id'  => $schedule->id,
+            'subject_id'   => $schedule->subject_id,
+            'date'         => $today->format('Y-m-d'),
+            'check_in_time'=> $now->format('H:i:s'),
+            'status'       => $status,
         ]);
 
-        // ==========================================================
-        // OTOMATISASI PENCATATAN PELANGGARAN TERLAMBAT (DINAMIS)
-        // ==========================================================
-        if ($isLate) {
-            $violationType = $this->getViolationTypeByKeywords(['terlambat', 'lambat', 'late']);
+        // =========================================================
+        // PENGIRIMAN NOTIFIKASI VIA OPSI ATTENDANCE SETTINGS
+        // =========================================================
+        $setting = \App\Models\AttendanceSetting::first();
+        $enableTelegram = $setting ? (bool) ($setting->enable_telegram_notification ?? true) : true;
+        $enableWA = $setting ? (bool) ($setting->enable_wa_notification ?? true) : true;
 
-            if ($violationType) {
-                \App\Models\StudentViolation::firstOrCreate(
-                    [
-                        'student_id'        => $student->id,
-                        'date'              => $date,
-                        'violation_type_id' => $violationType->id,
-                    ],
-                    [
-                        'id'          => (string) \Illuminate\Support\Str::uuid(),
-                        'note'        => 'Terlambat absensi gate/scanner pukul ' . $time,
-                        'reported_by' => null, // null untuk otomatisasi sistem
-                        'is_synced'   => false,
-                    ]
-                );
+        $mapel = $schedule->subject->name ?? '-';
+        $waktu = $now->format('H:i');
+        $statText = ($status == 'hadir') ? 'HADIR TEPAT WAKTU' : 'TERLAMBAT';
+
+        $message = "📚 *LAPORAN KEHADIRAN MAPEL*\n\n" .
+                   "Siswa: *{$student->name}*\n" .
+                   "Kelas: *" . ($student->classroom->name ?? '-') . "*\n" .
+                   "Mapel: *{$mapel}*\n" .
+                   "Waktu: {$waktu} WIB\n" .
+                   "Status: *{$statText}*\n\n" .
+                   "_Sistem Absensi Sekolah_";
+
+        // 1. Kirim WA jika diaktifkan di DB
+        if ($enableWA && !empty($student->phone)) {
+            try {
+                SendWhatsappJob::dispatch($student->phone, $message);
+            } catch (\Exception $e) {
+                Log::warning("Gagal dispatch WA Job Mapel: " . $e->getMessage());
             }
         }
 
-        $this->sendNotification($student, 'datang', $time, $statusDB);
+        // 2. Kirim Telegram jika diaktifkan di DB
+        if ($enableTelegram) {
+            $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+                            ->where('is_active', true)
+                            ->first();
 
-        $message = $isLate
-            ? "Anda Terlambat! Batas jam " . substr($batasTerlambat, 0, 5)
-            : "Selamat Datang! (Absen Masuk)";
+            $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+            if ($chatId) {
+                $telegramService = app(\App\Services\TelegramService::class);
+                $telegramService->sendMessage($chatId, $message, 'absensi', 'Absensi Pembelajaran');
+            }
+        }
 
         return response()->json([
-            'status'            => 'success',
-            'type'              => 'CHECK_IN',
-            'attendance_status' => $isLate ? 'late' : 'present',
-            'message'           => $message,
-            'student'           => $student,
-            'time'              => $time
+            'status'  => 'success',
+            'message' => 'Absensi Pembelajaran ' . $mapel . ' Berhasil Dicatat',
+            'student' => $student->name,
+            'nis'     => $student->nis
         ]);
     }
 

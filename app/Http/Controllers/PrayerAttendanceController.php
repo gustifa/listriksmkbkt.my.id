@@ -102,6 +102,142 @@ class PrayerAttendanceController extends Controller
         ));
     }
 
+    // Sebelum diupdate 31102016
+
+    // public function store(Request $request)
+    // {
+    //     $student = Auth::user()->student;
+
+    //     if (!$student) {
+    //         return response()->json([
+    //             'message' => 'Data profil siswa tidak ditemukan!'
+    //         ], 422);
+    //     }
+
+    //     $today = Carbon::now()->toDateString();
+    //     $status = $request->input('status', 'hadir');
+
+    //     // ------------------------------------------------------------------
+    //     // LOGIKA KHUSUS SISWA PEREMPUAN BERHALANGAN (UDZUR SYAR'I)
+    //     // ------------------------------------------------------------------
+    //     if ($status === 'berhalangan') {
+    //         if (strtoupper($student->gender) !== 'P') {
+    //             return response()->json([
+    //                 'message' => 'Status berhalangan hanya berlaku untuk siswa perempuan.'
+    //             ], 403);
+    //         }
+
+    //         $alreadyDone = PrayerAttendance::where('student_id', $student->id)
+    //             ->where('date', $today)
+    //             ->where('prayer_name', $request->prayer_name)
+    //             ->exists();
+
+    //         if ($alreadyDone) {
+    //             return response()->json([
+    //                 'message' => "Anda sudah mencatat status ibadah {$request->prayer_name} hari ini."
+    //             ], 422);
+    //         }
+
+    //         PrayerAttendance::create([
+    //             'student_id'     => $student->id,
+    //             'date'           => $today,
+    //             'prayer_name'    => $request->prayer_name,
+    //             'check_in_time'  => Carbon::now()->toTimeString(),
+    //             'status'         => 'berhalangan',
+    //             'photo_evidence' => null,
+    //             'notes'          => 'Berhalangan (Halangan Syar\'i)',
+    //             'latitude'       => $request->input('latitude'),
+    //             'longitude'      => $request->input('longitude'),
+    //             'location_type'  => 'rumah',
+    //         ]);
+
+    //         return response()->json([
+    //             'message' => "Status berhalangan untuk sholat {$request->prayer_name} berhasil dicatat."
+    //         ]);
+    //     }
+
+    //     // ------------------------------------------------------------------
+    //     // LOGIKA STANDAR ABSENSI SHOLAT (STATUS: HADIR)
+    //     // ------------------------------------------------------------------
+    //     $validated = $request->validate([
+    //         'prayer_name'    => 'required|string',
+    //         'latitude'       => 'required|numeric',
+    //         'longitude'      => 'required|numeric',
+    //         'photo_evidence' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+    //     ], [
+    //         'prayer_name.required' => 'Nama sholat wajib dipilih.',
+    //         'latitude.required'    => 'Koordinat GPS (Latitude) tidak terdeteksi.',
+    //         'longitude.required'   => 'Koordinat GPS (Longitude) tidak terdeteksi.',
+    //         'photo_evidence.image' => 'Berkas bukti harus berupa gambar/foto.',
+    //         'photo_evidence.mimes' => 'Format foto harus berupa JPG, JPEG, atau PNG.',
+    //         'photo_evidence.max'   => 'Ukuran foto terlalu besar! Maksimal ukuran file foto adalah 2 MB.',
+    //     ]);
+
+    //     $alreadyDone = PrayerAttendance::where('student_id', $student->id)
+    //         ->where('date', $today)
+    //         ->where('prayer_name', $validated['prayer_name'])
+    //         ->exists();
+
+    //     if ($alreadyDone) {
+    //         return response()->json([
+    //             'message' => "Anda sudah mencatat ibadah {$validated['prayer_name']} hari ini."
+    //         ], 422);
+    //     }
+
+    //     $schoolMosque = PrayerLocation::first();
+    //     $isMustAtMasjid = $this->isMustAtMasjid($schoolMosque, $validated['prayer_name']);
+
+    //     // Validasi Kebijakan per Waktu Sholat
+    //     if ($isMustAtMasjid) {
+    //         $distance = $this->calculateDistance(
+    //             $validated['latitude'],
+    //             $validated['longitude'],
+    //             $schoolMosque->latitude,
+    //             $schoolMosque->longitude
+    //         );
+
+    //         if ($distance > $schoolMosque->radius_meters) {
+    //             return response()->json([
+    //                 'message' => "Gagal! Sholat {$validated['prayer_name']} WAJIB dilaksanakan di Masjid Sekolah. Jarak Anda ({$distance}m) melebihi radius maksimal ({$schoolMosque->radius_meters}m)."
+    //             ], 422);
+    //         }
+
+    //         $locationNote = 'Masjid Sekolah';
+    //     } else {
+    //         $locationNote = 'Sholat di Rumah / PJJ';
+
+    //         if (!$request->hasFile('photo_evidence')) {
+    //             return response()->json([
+    //                 'message' => "Wajib mengunggah foto bukti sholat jika dilaksanakan dari rumah."
+    //             ], 422);
+    //         }
+    //     }
+
+    //     // Simpan Berkas Foto
+    //     $photoPath = null;
+    //     if ($request->hasFile('photo_evidence')) {
+    //         $photoPath = $request->file('photo_evidence')->store('prayer_photos', 'public');
+    //     }
+
+    //     // Simpan Transaksi
+    //     PrayerAttendance::create([
+    //         'student_id'     => $student->id,
+    //         'date'           => $today,
+    //         'prayer_name'    => $validated['prayer_name'],
+    //         'check_in_time'  => Carbon::now()->toTimeString(),
+    //         'status'         => 'hadir',
+    //         'photo_evidence' => $photoPath,
+    //         'notes'          => $locationNote,
+    //         'latitude'       => $validated['latitude'],
+    //         'longitude'      => $validated['longitude'],
+    //         'location_type'  => $isMustAtMasjid ? 'masjid' : 'rumah',
+    //     ]);
+
+    //     return response()->json([
+    //         'message' => "Berhasil mencatat ibadah {$validated['prayer_name']}!"
+    //     ]);
+    // }
+
     public function store(Request $request)
     {
         $student = Auth::user()->student;
@@ -114,6 +250,11 @@ class PrayerAttendanceController extends Controller
 
         $today = Carbon::now()->toDateString();
         $status = $request->input('status', 'hadir');
+
+        // Ambil Pengaturan dari Database
+        $setting = \App\Models\AttendanceSetting::first();
+        $enableTelegram = $setting ? (bool) ($setting->enable_telegram_notification ?? true) : true;
+        $enableWA = $setting ? (bool) ($setting->enable_wa_notification ?? true) : true;
 
         // ------------------------------------------------------------------
         // LOGIKA KHUSUS SISWA PEREMPUAN BERHALANGAN (UDZUR SYAR'I)
@@ -148,6 +289,34 @@ class PrayerAttendanceController extends Controller
                 'longitude'      => $request->input('longitude'),
                 'location_type'  => 'rumah',
             ]);
+
+            $prayerFormatted = ucfirst($request->prayer_name);
+            $msgBerhalangan = "🕌 *LAPORAN PRESENSI IBADAH SHOLAT*\n\n" .
+                               "Siswa: *{$student->name}*\n" .
+                               "Sholat: *{$prayerFormatted}*\n" .
+                               "Waktu: " . Carbon::now()->format('H:i') . " WIB\n" .
+                               "Status: *BERHALANGAN (UDZUR SYAR'I)*\n\n" .
+                               "_Sistem Presensi Sholat SISFO_";
+
+            // Kirim Notifikasi Telegram (Jika Aktif)
+            if ($enableTelegram) {
+                $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+                                ->where('is_active', true)
+                                ->first();
+                $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+                if ($chatId) {
+                    $telegramService = app(\App\Services\TelegramService::class);
+                    $telegramService->sendMessage($chatId, $msgBerhalangan, 'absensi', "Presensi Sholat {$prayerFormatted}");
+                }
+            }
+
+            // Kirim Notifikasi WA (Jika Aktif)
+            if ($enableWA && !empty($student->phone)) {
+                try {
+                    \App\Jobs\SendWhatsappJob::dispatch($student->phone, $msgBerhalangan);
+                } catch (\Exception $e) {}
+            }
 
             return response()->json([
                 'message' => "Status berhalangan untuk sholat {$request->prayer_name} berhasil dicatat."
@@ -230,6 +399,44 @@ class PrayerAttendanceController extends Controller
             'longitude'      => $validated['longitude'],
             'location_type'  => $isMustAtMasjid ? 'masjid' : 'rumah',
         ]);
+
+        // =========================================================
+        // PENGIRIMAN NOTIFIKASI ABSENSI SHOLAT
+        // =========================================================
+        $prayerNameFormatted = ucfirst($validated['prayer_name']);
+        $msgSholat = "🕌 *LAPORAN PRESENSI IBADAH SHOLAT*\n\n" .
+                     "Siswa: *{$student->name}*\n" .
+                     "Sholat: *{$prayerNameFormatted}*\n" .
+                     "Waktu: " . Carbon::now()->format('H:i') . " WIB\n" .
+                     "Status: *HADIR*\n" .
+                     "Lokasi: *{$locationNote}*\n\n" .
+                     "_Sistem Presensi Sholat SISFO_";
+
+        // 1. Kirim Telegram jika diaktifkan di DB
+        if ($enableTelegram) {
+            $subscriber = \App\Models\TelegramSubscriber::where('student_id', $student->id)
+                            ->where('is_active', true)
+                            ->first();
+            $chatId = $subscriber ? $subscriber->chat_id : $student->telegram_chat_id;
+
+            if ($chatId) {
+                $telegramService = app(\App\Services\TelegramService::class);
+                
+                // Kirim Foto Bukti jika ada file foto dari rumah
+                if (!empty($photoPath)) {
+                    $telegramService->sendPhoto($chatId, $photoPath, $msgSholat, 'absensi', "Presensi Sholat {$prayerNameFormatted}");
+                } else {
+                    $telegramService->sendMessage($chatId, $msgSholat, 'absensi', "Presensi Sholat {$prayerNameFormatted}");
+                }
+            }
+        }
+
+        // 2. Kirim WA jika diaktifkan di DB
+        if ($enableWA && !empty($student->phone)) {
+            try {
+                \App\Jobs\SendWhatsappJob::dispatch($student->phone, $msgSholat);
+            } catch (\Exception $e) {}
+        }
 
         return response()->json([
             'message' => "Berhasil mencatat ibadah {$validated['prayer_name']}!"
