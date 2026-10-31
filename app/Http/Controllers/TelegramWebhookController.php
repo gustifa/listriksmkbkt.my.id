@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\Classroom;
+use App\Models\Major;
+use App\Models\Schedule;
 use App\Models\IzinSiswa;
 use App\Services\TelegramService;
 use App\Models\TelegramSubscriber;
@@ -62,7 +66,7 @@ class TelegramWebhookController extends Controller
                 ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
             // =========================================================================
-            // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
+            // 2. HANDLE BAGIKAN KONTAK (VERIFIKASI SISWA, ORANG TUA, & GURU)
             // =========================================================================
             if (isset($message['contact'])) {
                 try {
@@ -77,6 +81,46 @@ class TelegramWebhookController extends Controller
 
                     $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
+                    // A. CEK JIKA KONTAK TERDAFTAR SEBAGAI GURU / PEGAWAI
+                    $teacher = Teacher::where('phone', 'like', '%' . $lastDigits)->first();
+
+                    if ($teacher) {
+                        TelegramSubscriber::updateOrCreate(
+                            ['chat_id' => $chatId],
+                            [
+                                'teacher_id'      => $teacher->id,
+                                'student_id'      => null,
+                                'parent_name'     => $teacher->name,
+                                'phone_number'    => (string) $cleanPhone,
+                                'username'        => $username,
+                                'user_type'       => 'teacher',
+                                'is_active'       => true,
+                                'approval_status' => 'approved',
+                                'subscribed_at'   => now()->format('Y-m-d H:i:s'),
+                            ]
+                        );
+
+                        $reply = "👨‍🏫 *Selamat Datang, Bapak/Ibu Guru!*\n\n" .
+                                 "Akun Telegram Anda berhasil terverifikasi sebagai *{$teacher->name}*.\n\n" .
+                                 "📌 *Menu Perintah Guru & Tugas Tambahan:*\n" .
+                                 "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
+                                 "🔹 `/walas` : Rekapitulasi Presensi Kelas Bimbingan (Khusus Walas)\n" .
+                                 "🔹 `/kabeng` : Rekap Presensi Konsentrasi Keahlian / Bengkel (Khusus Kabeng)\n" .
+                                 "🔹 `/proka` : Rekapitulasi Program Keahlian (Khusus Proka)\n" .
+                                 "🔹 `/bk` : Daftar Siswa Terlambat Hari Ini (Khusus Guru BK)\n" .
+                                 "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
+
+                        $keyboard = [
+                            [
+                                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                            ]
+                        ];
+
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
+                        return response()->json(['status' => 'ok']);
+                    }
+
+                    // B. CEK JIKA KONTAK TERDAFTAR SEBAGAI SISWA ATAU ORANG TUA
                     $studentByParent  = Student::where('phone', 'like', '%' . $lastDigits)->first();
                     $studentByStudent = Student::where('student_phone', 'like', '%' . $lastDigits)->first();
 
@@ -102,6 +146,7 @@ class TelegramWebhookController extends Controller
                             ['chat_id' => $chatId],
                             [
                                 'student_id'      => $student->id,
+                                'teacher_id'      => null,
                                 'parent_name'     => (string) $parentName,
                                 'phone_number'    => (string) $cleanPhone,
                                 'username'        => $username,
@@ -141,6 +186,7 @@ class TelegramWebhookController extends Controller
                             ['chat_id' => $chatId],
                             [
                                 'student_id'      => null,
+                                'teacher_id'      => null,
                                 'parent_name'     => (string) $parentName,
                                 'phone_number'    => (string) $cleanPhone,
                                 'username'        => $username,
@@ -171,7 +217,7 @@ class TelegramWebhookController extends Controller
             $lowerText = strtolower($text);
             $photo     = $message['photo'] ?? null;
 
-            // A. COMMAND BATAL PROSES / STOP (DIPRIORITASKAN PALING ATAS)
+            // A. COMMAND BATAL PROSES / STOP
             if (in_array($lowerText, ['/batal', 'batal', '/batal_izin', 'stop', '/stop', 'batal!'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
 
@@ -231,7 +277,72 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // C. COMMAND /izin ATAU /sakit
+            // C. COMMAND JADWAL MENGAJAR GURU (/jadwal)
+            if (in_array($lowerText, ['/jadwal', 'jadwal', '/jadwal_mengajar'])) {
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/jadwal` khusus untuk akun Guru yang telah terdaftar.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                $this->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // D. COMMAND REKAP WALI KELAS (/walas)
+            if (in_array($lowerText, ['/walas', 'walas', '/rekap_walas'])) {
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/walas` khusus untuk akun Wali Kelas.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                $this->sendRekapWalas($chatId, $subscriber->teacher_id, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // E. COMMAND REKAP KEPALA BENGKEL / KABENG (/kabeng)
+            if (in_array($lowerText, ['/kabeng', 'kabeng', '/rekap_bengkel'])) {
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/kabeng` khusus untuk Kepala Bengkel / Konsentrasi Keahlian.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                $this->sendRekapKabeng($chatId, $subscriber->teacher_id, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // F. COMMAND REKAP KETUA PROGRAM KEAHLIAN (/proka)
+            if (in_array($lowerText, ['/proka', 'proka'])) {
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/proka` khusus untuk Ketua Program Keahlian.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                $this->sendRekapProka($chatId, $subscriber->teacher_id, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // G. COMMAND REKAP GURU BK (/bk)
+            if (in_array($lowerText, ['/bk', 'bk', '/terlambat_bk'])) {
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/bk` khusus untuk Guru BK.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                $this->sendRekapBK($chatId, $subscriber->teacher_id, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // H. COMMAND /izin ATAU /sakit
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
 
@@ -259,14 +370,13 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // D. PROSES MULTI-STEP CONVERSATION PENGAJUAN IZIN/SAKIT
+            // I. PROSES MULTI-STEP CONVERSATION PENGAJUAN IZIN/SAKIT
             $permitSession = Cache::get("telegram_permit_step_{$chatId}");
 
             if ($permitSession) {
                 $student = Student::find($permitSession['student_id']);
 
                 if ($student) {
-                    // STEP 1: Menerima Teks Alasan
                     if ($permitSession['step'] === 'WAITING_REASON' && !empty($text) && !str_starts_with($text, '/')) {
                         $permitSession['reason'] = $text;
 
@@ -288,7 +398,6 @@ class TelegramWebhookController extends Controller
                         }
                     }
 
-                    // STEP 2: Menerima Foto / Konfirmasi Tanpa Surat
                     if ($permitSession['step'] === 'WAITING_PHOTO') {
                         $filePath = null;
 
@@ -305,7 +414,7 @@ class TelegramWebhookController extends Controller
                 }
             }
 
-            // E. COMMAND PERINTAH REKAP
+            // J. COMMAND PERINTAH REKAP SISWA
             if (in_array($lowerText, ['/rekap', '/menu', 'rekap', 'menu'])) {
                 $this->sendRekapMenu($chatId, $telegramService);
                 return response()->json(['status' => 'ok']);
@@ -331,7 +440,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // F. PERINTAH /start ATAU /daftar
+            // K. PERINTAH /start ATAU /daftar
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
 
                 if (preg_match('/^\/start\s+student_([a-f0-9\-]+)$/i', $text, $matches)) {
@@ -346,6 +455,7 @@ class TelegramWebhookController extends Controller
                                 ['chat_id' => $chatId],
                                 [
                                     'student_id'      => $student->id,
+                                    'teacher_id'      => null,
                                     'parent_name'     => $student->name,
                                     'user_type'       => 'student',
                                     'is_active'       => false,
@@ -383,6 +493,7 @@ class TelegramWebhookController extends Controller
                             ['chat_id' => $chatId],
                             [
                                 'student_id'      => $student->id,
+                                'teacher_id'      => null,
                                 'parent_name'     => $studentName,
                                 'phone_number'    => $student->student_phone ?? ($subscriber->phone_number ?? null),
                                 'username'        => $username,
@@ -420,24 +531,37 @@ class TelegramWebhookController extends Controller
                 $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
                 if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
-                    $student     = Student::find($subscriber->student_id);
-                    $studentName = $student ? $student->name : '-';
-                    $className   = $student && $student->classroom ? $student->classroom->name : '-';
-                    $roleLabel   = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
+                    if ($subscriber->user_type === 'teacher' && $subscriber->teacher_id) {
+                        $teacher = Teacher::find($subscriber->teacher_id);
+                        $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
+                                 "👤 Peran: *Guru / Pegawai*\n" .
+                                 "👨‍🏫 Nama: *{$teacher?->name}*\n\n" .
+                                 "📌 *Menu Perintah Guru:*\n" .
+                                 "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
+                                 "🔹 `/walas` : Rekapitulasi Presensi Walas\n" .
+                                 "🔹 `/kabeng` : Rekapitulasi Bengkel / Konsentrasi\n" .
+                                 "🔹 `/proka` : Rekapitulasi Program Keahlian\n" .
+                                 "🔹 `/bk` : Daftar Terlambat Guru BK\n" .
+                                 "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
+                    } else {
+                        $student     = Student::find($subscriber->student_id);
+                        $studentName = $student ? $student->name : '-';
+                        $className   = $student && $student->classroom ? $student->classroom->name : '-';
+                        $roleLabel   = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
 
-                    $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
-                             "👤 Peran: *{$roleLabel}*\n" .
-                             "🎯 Siswa Terhubung: *{$studentName}*\n" .
-                             "🏫 Kelas: *{$className}*\n\n" .
-                             "📌 *Layanan Fitur Bot:*\n" .
-                             "🔹 `/izin` : Form Pengajuan Izin / Sakit\n" .
-                             "🔹 `/rekap` : Menu Rekap Interaktif\n" .
-                             "🔹 `/gerbang` : Rekap Presensi Gerbang\n" .
-                             "🔹 `/pembelajaran` : Rekap Presensi Kelas\n" .
-                             "🔹 `/sholat` : Rekap Presensi Sholat\n" .
-                             "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
-                             "🔹 `/unsubscribe` : Berhenti Berlangganan Bot\n\n" .
-                             "Ketik `stop` jika ingin membatalkan interaksi.";
+                        $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
+                                 "👤 Peran: *{$roleLabel}*\n" .
+                                 "🎯 Siswa Terhubung: *{$studentName}*\n" .
+                                 "🏫 Kelas: *{$className}*\n\n" .
+                                 "📌 *Layanan Fitur Bot:*\n" .
+                                 "🔹 `/izin` : Form Pengajuan Izin / Sakit\n" .
+                                 "🔹 `/rekap` : Menu Rekap Interaktif\n" .
+                                 "🔹 `/gerbang` : Rekap Presensi Gerbang\n" .
+                                 "🔹 `/pembelajaran` : Rekap Presensi Kelas\n" .
+                                 "🔹 `/sholat` : Rekap Presensi Sholat\n" .
+                                 "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
+                                 "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
+                    }
 
                     $keyboard = [
                         [
@@ -457,26 +581,40 @@ class TelegramWebhookController extends Controller
                 }
 
                 $prompt = "🤖 *SELAMAT DATANG DI BOT SISFO Listrik SMKN 1 BUKITTINGGI*\n\n" .
-                          "Bot ini menyediakan layanan pengajuan izin/sakit serta informasi rekapitulasi absensi gerbang, kelas, dan sholat.\n\n" .
+                          "Bot ini menyediakan layanan absensi dan notifikasi untuk Siswa, Orang Tua, serta Guru/Pegawai.\n\n" .
                           "Silakan tekan tombol *'📱 Bagikan Nomor Kontak Saya'* di bawah untuk mendaftar.";
                 
                 $telegramService->sendContactButton($chatId, $prompt);
                 return response()->json(['status' => 'ok']);
             }
 
-            // G. COMMAND /help
+            // L. COMMAND /help
             if ($lowerText === '/help') {
-                $reply = "ℹ️ *BANTUAN BOT SISFO*\n\n" .
-                         "📌 *Perintah Utama:*\n" .
-                         "• `/izin` : Pengajuan Izin / Sakit Tidak Masuk\n" .
-                         "• `/rekap` : Tampilkan menu rekap lengkap\n" .
-                         "• `/gerbang` : Cek absensi di gerbang sekolah\n" .
-                         "• `/pembelajaran` : Cek absensi di jam kelas\n" .
-                         "• `/sholat` : Cek absensi ibadah sholat\n" .
-                         "• `/semua` : Tampilkan rekap semua presensi\n" .
-                         "• `/unsubscribe` : Berhenti berlangganan bot\n" .
-                         "• `stop` / `/batal` : Batal pengajuan/interaksi\n\n" .
-                         "Butuh bantuan lebih lanjut? Bergabunglah dengan Grup Admin kami:";
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+
+                if ($subscriber && $subscriber->user_type === 'teacher') {
+                    $reply = "ℹ️ *BANTUAN BOT SISFO (GURU & PEGAWAI)*\n\n" .
+                             "📌 *Perintah Guru:*\n" .
+                             "• `/jadwal` : Cek jadwal mengajar hari ini\n" .
+                             "• `/walas` : Rekap presensi gerbang kelas bimbingan\n" .
+                             "• `/kabeng` : Rekap presensi di bengkel/jurusan\n" .
+                             "• `/proka` : Rekap kehadiran program keahlian\n" .
+                             "• `/bk` : Daftar siswa terlambat hari ini\n" .
+                             "• `/unsubscribe` : Berhenti berlangganan bot\n\n" .
+                             "Grup koordinasi Admin:";
+                } else {
+                    $reply = "ℹ️ *BANTUAN BOT SISFO*\n\n" .
+                             "📌 *Perintah Utama:*\n" .
+                             "• `/izin` : Pengajuan Izin / Sakit Tidak Masuk\n" .
+                             "• `/rekap` : Tampilkan menu rekap lengkap\n" .
+                             "• `/gerbang` : Cek absensi di gerbang sekolah\n" .
+                             "• `/pembelajaran` : Cek absensi di jam kelas\n" .
+                             "• `/sholat` : Cek absensi ibadah sholat\n" .
+                             "• `/semua` : Tampilkan rekap semua presensi\n" .
+                             "• `/unsubscribe` : Berhenti berlangganan bot\n" .
+                             "• `stop` / `/batal` : Batal pengajuan/interaksi\n\n" .
+                             "Butuh bantuan lebih lanjut? Bergabunglah dengan Grup Admin kami:";
+                }
 
                 $keyboard = [
                     [
@@ -488,10 +626,10 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // H. HANDLE INPUT NISN/NIS PENDING
+            // M. HANDLE INPUT NISN/NIS PENDING SISWA
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
-            if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !empty($text)) {
+            if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !$subscriber->teacher_id && !empty($text)) {
                 $student = Student::where('nisn', $text)->orWhere('nis', $text)->first();
 
                 if (!$student) {
@@ -522,6 +660,201 @@ class TelegramWebhookController extends Controller
 
         return response()->json(['status' => 'ok']);
     }
+
+    // =========================================================================
+    // HELPER LOGIKA FUNGSI PERAN GURU & TUGAS TAMBAHAN
+    // =========================================================================
+
+    private function sendJadwalGuru(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        $teacher = Teacher::find($teacherId);
+        if (!$teacher) return;
+
+        $daysMap = [
+            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+        ];
+        $todayIndo = $daysMap[Carbon::now()->format('l')];
+
+        $schedules = Schedule::with(['classroom', 'subject'])
+            ->where('teacher_id', $teacherId)
+            ->where('day', $todayIndo)
+            ->orderBy('start_time', 'asc')
+            ->get();
+
+        $text = "📖 *JADWAL MENGAJAR HARI INI ({$todayIndo})*\n\n" .
+                "👨‍🏫 Guru: *{$teacher->name}*\n" .
+                "--------------------------------------\n";
+
+        if ($schedules->isEmpty()) {
+            $text .= "_\nTidak ada jadwal mengajar untuk hari {$todayIndo}._\n";
+        } else {
+            foreach ($schedules as $s) {
+                $jamMasuk   = substr($s->start_time, 0, 5);
+                $jamSelesai = substr($s->end_time, 0, 5);
+                $kelas      = optional($s->classroom)->name ?? '-';
+                $mapel      = optional($s->subject)->name ?? '-';
+
+                $text .= "⏰ *{$jamMasuk} - {$jamSelesai} WIB*\n" .
+                         " ├ 🏫 Kelas : *{$kelas}*\n" .
+                         " └ 📚 Mapel : {$mapel}\n\n";
+            }
+        }
+
+        $telegramService->sendMessage($chatId, $text);
+    }
+
+    private function sendRekapWalas(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        $classroom = Classroom::where('homeroom_teacher_id', $teacherId)->first();
+
+        if (!$classroom) {
+            $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Wali Kelas di sistem SISFO.");
+            return;
+        }
+
+        $today = Carbon::today()->format('Y-m-d');
+        $studentsCount = Student::where('classroom_id', $classroom->id)->count();
+
+        $attendances = DB::table('daily_attendances')
+            ->join('students', 'daily_attendances.student_id', '=', 'students.id')
+            ->where('students.classroom_id', $classroom->id)
+            ->whereDate('daily_attendances.date', $today)
+            ->select('daily_attendances.status', DB::raw('count(*) as total'))
+            ->groupBy('daily_attendances.status')
+            ->pluck('total', 'status')
+            ->toArray();
+
+        $hadir     = $attendances['hadir'] ?? 0;
+        $terlambat = $attendances['terlambat'] ?? 0;
+        $izin      = $attendances['izin'] ?? 0;
+        $sakit     = $attendances['sakit'] ?? 0;
+        $alfa      = $studentsCount - ($hadir + $terlambat + $izin + $sakit);
+
+        $text = "🏫 *REKAP PRESENSI GERBANG (WALI KELAS)*\n\n" .
+                "📌 Kelas : *{$classroom->name}*\n" .
+                "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
+                "👥 Total Siswa : *{$studentsCount} Siswa*\n" .
+                "--------------------------------------\n" .
+                "✅ Hadir : `{$hadir}`\n" .
+                "⚠️ Terlambat : `{$terlambat}`\n" .
+                "ℹ️ Izin : `{$izin}`\n" .
+                "🏥 Sakit : `{$sakit}`\n" .
+                "❌ Belum Scan/Alfa : `{$alfa}`\n\n" .
+                "--- *Listrik SMKN 1 Bukittinggi* ---";
+
+        $telegramService->sendMessage($chatId, $text);
+    }
+
+    private function sendRekapKabeng(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        $major = Major::where('workshop_teacher_id', $teacherId)->first();
+
+        if (!$major) {
+            $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Kepala Bengkel / Kepala Konsentrasi Keahlian.");
+            return;
+        }
+
+        $today = Carbon::today()->format('Y-m-d');
+
+        $rekapKelas = DB::table('daily_attendances')
+            ->join('students', 'daily_attendances.student_id', '=', 'students.id')
+            ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+            ->where('classrooms.major_id', $major->id)
+            ->whereDate('daily_attendances.date', $today)
+            ->select(
+                'classrooms.name as nama_kelas',
+                DB::raw('count(daily_attendances.arrival_time) as total_datang'),
+                DB::raw('count(daily_attendances.departure_time) as total_pulang')
+            )
+            ->groupBy('classrooms.id', 'classrooms.name')
+            ->get();
+
+        $text = "🛠️ *REKAP PRESENSI KONSENTRASI KEAHLIAN*\n\n" .
+                "🏭 Bengkel / Jurusan : *{$major->name}*\n" .
+                "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
+                "======================================\n\n";
+
+        if ($rekapKelas->isEmpty()) {
+            $text .= "_Belum ada data kehadiran siswa di bengkel hari ini._\n";
+        } else {
+            foreach ($rekapKelas as $rk) {
+                $text .= "🏫 *{$rk->nama_kelas}*\n" .
+                         " ├ Hadir Datang : `{$rk->total_datang}` Siswa\n" .
+                         " └ Sudah Pulang : `{$rk->total_pulang}` Siswa\n\n";
+            }
+        }
+
+        $telegramService->sendMessage($chatId, $text);
+    }
+
+    private function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        $major = Major::where('program_head_teacher_id', $teacherId)->first();
+
+        if (!$major) {
+            $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Ketua Program Keahlian (Proka).");
+            return;
+        }
+
+        $today = Carbon::today()->format('Y-m-d');
+
+        $totalSiswa = Student::whereHas('classroom', function($q) use ($major) {
+            $q->where('major_id', $major->id);
+        })->count();
+
+        $totalHadir = DB::table('daily_attendances')
+            ->join('students', 'daily_attendances.student_id', '=', 'students.id')
+            ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+            ->where('classrooms.major_id', $major->id)
+            ->whereDate('daily_attendances.date', $today)
+            ->count();
+
+        $persentase = $totalSiswa > 0 ? round(($totalHadir / $totalSiswa) * 100, 1) : 0;
+
+        $text = "📊 *REKAPITULASI PROGRAM KEAHLIAN*\n\n" .
+                "🎯 Program : *{$major->name}*\n" .
+                "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
+                "👥 Total Siswa Program : *{$totalSiswa}*\n" .
+                "✅ Hadir Hari Ini : *{$totalHadir} ({$persentase}%)*\n";
+
+        $telegramService->sendMessage($chatId, $text);
+    }
+
+    private function sendRekapBK(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        $today = Carbon::today()->format('Y-m-d');
+
+        $lateStudents = DB::table('daily_attendances')
+            ->join('students', 'daily_attendances.student_id', '=', 'students.id')
+            ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+            ->whereDate('daily_attendances.date', $today)
+            ->where('daily_attendances.status', 'terlambat')
+            ->select('students.name', 'classrooms.name as nama_kelas', 'daily_attendances.arrival_time')
+            ->orderBy('daily_attendances.arrival_time', 'asc')
+            ->limit(15)
+            ->get();
+
+        $text = "📋 *DAFTAR SISWA TERLAMBAT HARI INI (GURU BK)*\n\n" .
+                "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
+                "--------------------------------------\n";
+
+        if ($lateStudents->isEmpty()) {
+            $text .= "_\nTidak ada siswa terlambat hari ini._\n";
+        } else {
+            foreach ($lateStudents as $ls) {
+                $jam = substr($ls->arrival_time, 0, 5);
+                $text .= "⚠️ *{$ls->name}* ({$ls->nama_kelas})\n" .
+                         " └ Jam Datang: `{$jam}` WIB\n\n";
+            }
+        }
+
+        $telegramService->sendMessage($chatId, $text);
+    }
+
+    // =========================================================================
+    // METHOD LAINNYA (DITERUSKAN TANPA PERUBAHAN)
+    // =========================================================================
 
     private function saveIzinToDatabase(Student $student, string $type, string $reason, ?string $filePath, ?string $phone, string $chatId, TelegramService $telegramService): void
     {
@@ -784,10 +1117,6 @@ class TelegramWebhookController extends Controller
             return null;
         }
     }
-
-    // =========================================================================
-    // HELPER LOGIKA FUNGSI REKAP ABSENSI
-    // =========================================================================
 
     private function getSubscriberStudent($chatId, TelegramService $telegramService)
     {
