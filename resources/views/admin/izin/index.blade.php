@@ -129,7 +129,6 @@
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        // Toast Notification Helper
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -152,40 +151,42 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.showLoading();
-                    
+
                     fetch(`/admin/izin-siswa/${id}/approve`, {
                         method: 'PATCH',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Gagal memproses permintaan.');
-                        return response.json().catch(() => ({ status: true }));
+                    .then(async response => {
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal memproses persetujuan.');
+                        return data;
                     })
                     .then(data => {
                         Toast.fire({
                             icon: 'success',
-                            title: 'Pengajuan izin berhasil disetujui.'
+                            title: data.message || 'Pengajuan izin berhasil disetujui.'
                         });
 
-                        // Update tampilan badge status secara fleksibel tanpa reload
                         document.getElementById(`status-container-${id}`).innerHTML = `
                             <span class="badge bg-success">Approved</span><br>
                             <small class="text-muted">oleh: ${data.approved_by || 'Admin'}</small>
                         `;
 
-                        // Sembunyikan tombol approve & reject
                         const actionContainer = document.getElementById(`action-container-${id}`);
-                        const approveBtn = actionContainer.querySelector('.btn-success');
-                        const rejectBtn = actionContainer.querySelector('.btn-warning');
-                        if (approveBtn) approveBtn.remove();
-                        if (rejectBtn) rejectBtn.remove();
+                        if (actionContainer) {
+                            const approveBtn = actionContainer.querySelector('.btn-success');
+                            const rejectBtn = actionContainer.querySelector('.btn-warning');
+                            if (approveBtn) approveBtn.remove();
+                            if (rejectBtn) rejectBtn.remove();
+                        }
                     })
                     .catch(error => {
-                        Swal.fire('Gagal!', 'Terjadi kendala saat menyetujui izin.', 'error');
+                        Swal.fire('Gagal!', error.message || 'Terjadi kendala saat menyetujui izin.', 'error');
                     });
                 }
             });
@@ -210,23 +211,25 @@
                         method: 'PATCH',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Gagal memproses permintaan.');
-                        return response.json().catch(() => ({ status: true }));
+                    .then(async response => {
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal menolak pengajuan.');
+                        return data;
                     })
-                    .then(() => {
+                    .then(data => {
                         Toast.fire({
                             icon: 'warning',
-                            title: 'Pengajuan berhasil ditolak & dihapus.'
+                            title: data.message || 'Pengajuan berhasil ditolak & dihapus.'
                         });
                         removeRowWithAnimation(id);
                     })
                     .catch(error => {
-                        Swal.fire('Gagal!', 'Terjadi kendala saat menolak pengajuan.', 'error');
+                        Swal.fire('Gagal!', error.message || 'Terjadi kendala saat menolak pengajuan.', 'error');
                     });
                 }
             });
@@ -251,23 +254,25 @@
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Gagal menghapus data.');
-                        return response.json().catch(() => ({ status: true }));
+                    .then(async response => {
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Gagal menghapus data.');
+                        return data;
                     })
-                    .then(() => {
+                    .then(data => {
                         Toast.fire({
                             icon: 'success',
-                            title: 'Data pengajuan izin berhasil dihapus.'
+                            title: data.message || 'Data pengajuan izin berhasil dihapus.'
                         });
                         removeRowWithAnimation(id);
                     })
                     .catch(error => {
-                        Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus data.', 'error');
+                        Swal.fire('Gagal!', error.message || 'Terjadi kesalahan saat menghapus data.', 'error');
                     });
                 }
             });
