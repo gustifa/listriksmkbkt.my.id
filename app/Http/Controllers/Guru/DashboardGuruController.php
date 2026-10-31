@@ -275,6 +275,10 @@ class DashboardGuruController extends Controller
             'tahunan'  => $this->formatChartData($getAttendanceStats($now->copy()->startOfYear(), $now->copy()->endOfYear())),
         ];
 
+        // --- CEK STATUS KONEKSI TELEGRAM ---
+        $telegramSubscriber = \App\Models\TelegramSubscriber::where('teacher_id', $teacher->id)->first();
+        $isTelegramConnected = $telegramSubscriber ? true : false;
+
         // --- TAMBAHAN LINK TELEGRAM ---
         $botUsername = 'listrikbk_bot'; // Ganti dengan username bot Anda (tanpa @)
         $telegramLink = $teacher ? "https://t.me/{$botUsername}?start=link_{$teacher->id}" : '#';
@@ -293,6 +297,8 @@ class DashboardGuruController extends Controller
             'todayPresence', 
             'chartData',
             'telegramLink' // <-- Kirim variabel link ke view
+            'isTelegramConnected',
+            'telegramSubscriber'
         ));
     }
 

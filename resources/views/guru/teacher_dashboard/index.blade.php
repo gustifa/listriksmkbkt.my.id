@@ -18,25 +18,68 @@
             </div>
         </div>
 
-        <!-- KARTU TAUTKAN AKUN TELEGRAM -->
-        <div class="card border-0 shadow-sm rounded-3 mb-4 bg-light-subtle border-start border-4 border-info">
+        <!-- KARTU STATUS & TAUTKAN AKUN TELEGRAM -->
+        <div class="card border-0 shadow-sm rounded-3 mb-4 {{ ($isTelegramConnected ?? false) ? 'bg-success-subtle border-start border-4 border-success' : 'bg-light-subtle border-start border-4 border-info' }}">
             <div class="card-body p-3 p-md-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-info bg-opacity-10 text-info p-3 rounded-circle fs-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                    <div class="{{ ($isTelegramConnected ?? false) ? 'bg-success text-white' : 'bg-info bg-opacity-10 text-info' }} p-3 rounded-circle fs-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
                         <i class="fab fa-telegram-plane"></i>
                     </div>
                     <div>
-                        <h6 class="fw-bold mb-1 text-dark">Tautkan Akun Bot Telegram Guru</h6>
-                        <p class="text-muted small mb-0">Hubungkan akun Telegram Anda secara instan untuk mengakses perintah <code>/jadwal</code>, <code>/jadwal_minggu</code>, <code>/walas</code>, dan rekap lainnya.</p>
+                        @if($isTelegramConnected ?? false)
+                            <h6 class="fw-bold mb-1 text-success d-flex align-items-center gap-2">
+                                <i class="fas fa-check-circle"></i> Akun Telegram Terhubung
+                            </h6>
+                            <p class="text-muted small mb-0">
+                                Akun Anda terhubung dengan Chat ID: <code>{{ $telegramSubscriber->chat_id }}</code>. Anda dapat menggunakan perintah <code>/jadwal</code>, <code>/jadwal_minggu</code>, <code>/walas</code>, dll di bot.
+                            </p>
+                        @else
+                            <h6 class="fw-bold mb-1 text-dark">Tautkan Akun Bot Telegram Guru</h6>
+                            <p class="text-muted small mb-0">Hubungkan akun Telegram Anda secara instan untuk mengakses perintah <code>/jadwal</code>, <code>/jadwal_minggu</code>, <code>/walas</code>, dan rekap lainnya.</p>
+                        @endif
                     </div>
                 </div>
                 <div>
-                    <a href="{{ $telegramLink ?? '#' }}" target="_blank" class="btn btn-info text-white fw-semibold px-4 shadow-sm">
-                        <i class="fab fa-telegram-plane me-1"></i> Tautkan ke Telegram
-                    </a>
+                    @if($isTelegramConnected ?? false)
+                        <!-- Tombol Putuskan Hubungan -->
+                        <button type="button" class="btn btn-outline-danger fw-semibold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#disconnectTelegramModal">
+                            <i class="fas fa-unlink me-1"></i> Putuskan Hubungan
+                        </button>
+                    @else
+                        <!-- Tombol Tautkan -->
+                        <a href="{{ $telegramLink ?? '#' }}" target="_blank" class="btn btn-info text-white fw-semibold px-4 shadow-sm">
+                            <i class="fab fa-telegram-plane me-1"></i> Tautkan ke Telegram
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
+
+        <!-- MODAL KONFIRMASI PUTUSKAN TELEGRAM -->
+        @if($isTelegramConnected ?? false)
+        <div class="modal fade" id="disconnectTelegramModal" tabindex="-1" aria-labelledby="disconnectTelegramModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="disconnectTelegramModalLabel"><i class="fas fa-exclamation-triangle me-2"></i> Konfirmasi Putuskan Telegram</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <i class="fab fa-telegram fa-3x text-danger mb-3"></i>
+                        <h5 class="fw-bold text-dark">Yakin ingin memutuskan Telegram?</h5>
+                        <p class="text-muted small mb-0">Anda tidak akan dapat lagi mengakses perintah bot khusus guru dari akun Telegram Anda sampai Anda menautkannya kembali.</p>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Batal</button>
+                        <form action="{{ route('guru.telegram.disconnect') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-danger btn-sm px-3">Ya, Putuskan</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- 1. STATISTIK RINGKAS (5 KARTU SEJAJAR RAPI) -->
         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4">
