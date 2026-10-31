@@ -7,6 +7,7 @@ use App\Models\IzinSiswa;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class IzinApprovalController extends Controller
 {
@@ -36,7 +37,7 @@ class IzinApprovalController extends Controller
     public function approve(Request $request, $id, TelegramService $telegram)
     {
         $izin = IzinSiswa::findOrFail($id);
-        $approverName = Auth::user()->name ?? 'Admin SISFO';
+        $approverName = Auth::user()->name ?? 'Petugas Sekolah';
 
         $izin->update([
             'status'      => 'approved',
@@ -44,7 +45,6 @@ class IzinApprovalController extends Controller
             'approved_at' => now(),
         ]);
 
-        // Notifikasi ke Telegram Siswa / Orang Tua jika terhubung
         if ($izin->telegram_chat_id) {
             $studentName = optional($izin->student)->name ?? 'Siswa';
             $typeText    = strtoupper($izin->type);
@@ -62,22 +62,53 @@ class IzinApprovalController extends Controller
     public function reject(Request $request, $id, TelegramService $telegram)
     {
         $izin = IzinSiswa::findOrFail($id);
-        $approverName = Auth::user()->name ?? 'Admin SISFO';
+        $approverName = Auth::user()->name ?? 'Petugas Sekolah';
         $userChat     = $izin->telegram_chat_id;
         $studentName  = optional($izin->student)->name ?? 'Siswa';
         $typeText     = strtoupper($izin->type);
         $date         = $izin->date;
 
-        // Notifikasi ke Telegram Siswa
         if ($userChat) {
             $msg = "❌ *PENGAJUAN {$typeText} DIBATALKAN / DITOLAK*\n\n" .
                    "Pengajuan untuk *{$studentName}* pada tanggal *{$date}* telah dibatalkan oleh *{$approverName}*. Catatan telah dihapus dari sistem.";
             $telegram->sendMessage($userChat, $msg);
         }
 
+        // Hapus file lampiran surat jika ada
+        if ($izin->attachment_path && Storage::disk('public')->exists($izin->attachment_path)) {
+            Storage::disk('public')->delete($izin->attachment_path);
+        }
+
         $izin->delete();
 
         return redirect()->back()->with('success', 'Pengajuan izin berhasil dibatalkan dan dihapus.');
+    }
+
+    /**
+     * Hapus Data Pengajuan Izin Siswa secara Permanen (Delete Direct)
+     */
+    public function destroy($id, TelegramService $telegram)
+    {
+        $izin = IzinSiswa::findOrFail($id);
+        $userChat    = $izin->telegram_chat_id;
+        $studentName = optional($izin->student)->name ?? 'Siswa';
+        $date        = $izin->date;
+
+        // Hapus file lampiran foto jika ada di storage
+        if ($izin->attachment_path && Storage::disk('public')->exists($izin->attachment_path)) {
+            Storage::disk('public')->delete($izin->attachment_path);
+        }
+
+        // Notifikasi opsional ke Telegram pemohon
+        if ($userChat) {
+            $msg = "🗑️ *DATA PENGAJUAN DIHAPUS*\n\n" .
+                   "Data pengajuan izin/sakit untuk *{$studentName}* pada tanggal *{$date}* telah dihapus oleh Petugas/Admin Sekolah.";
+            $telegram->sendMessage($userChat, $msg);
+        }
+
+        $izin->delete();
+
+        return redirect()->back()->with('success', 'Data pengajuan izin siswa berhasil dihapus secara permanen.');
     }
 
     /**
