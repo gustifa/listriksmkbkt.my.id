@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Classroom;
 use App\Models\Major;
+use App\Models\Program;
 use App\Models\Schedule;
 use App\Models\IzinSiswa;
 use App\Services\TelegramService;
@@ -81,7 +82,39 @@ class TelegramWebhookController extends Controller
 
                     $lastDigits = strlen($cleanPhone) >= 9 ? substr($cleanPhone, -9) : $cleanPhone;
 
-                    // A. CEK JIKA KONTAK TERDAFTAR SEBAGAI GURU / PEGAWAI
+                    // CEK 0: JIKA AKUN INI SUDAH TERDAFTAR SEBAGAI GURU SEBELUMNYA, PERTAHANKAN PERAN GURU
+                    $existingSub = TelegramSubscriber::where('chat_id', $chatId)->first();
+                    if ($existingSub && $existingSub->user_type === 'teacher' && $existingSub->teacher_id) {
+                        $existingSub->update([
+                            'phone_number' => (string) $cleanPhone,
+                            'username'     => $username,
+                            'is_active'    => true,
+                        ]);
+
+                        $teacher = Teacher::find($existingSub->teacher_id);
+                        $teacherName = $teacher ? $teacher->name : $parentName;
+
+                        $reply = "👨‍🏫 *Selamat Datang Kembali, Bapak/Ibu Guru!*\n\n" .
+                                 "Akun Telegram Anda tetap terverifikasi sebagai Guru (*{$teacherName}*).\n\n" .
+                                 "📌 *Menu Perintah Guru & Tugas Tambahan:*\n" .
+                                 "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
+                                 "🔹 `/walas` : Rekapitulasi Presensi Kelas Bimbingan (Khusus Walas)\n" .
+                                 "🔹 `/kabeng` : Rekap Presensi Konsentrasi Keahlian / Bengkel (Khusus Kabeng)\n" .
+                                 "🔹 `/proka` : Rekapitulasi Program Keahlian (Khusus Proka)\n" .
+                                 "🔹 `/bk` : Daftar Siswa Terlambat Hari Ini (Khusus Guru BK)\n" .
+                                 "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
+
+                        $keyboard = [
+                            [
+                                ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
+                            ]
+                        ];
+
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
+                        return response()->json(['status' => 'ok']);
+                    }
+
+                    // A. CEK JIKA KONTAK TERDAFTAR SEBAGAI GURU / PEGAWAI DI DATABASE
                     $teacher = Teacher::where('phone', 'like', '%' . $lastDigits)->first();
 
                     if ($teacher) {
@@ -665,195 +698,8 @@ class TelegramWebhookController extends Controller
     // HELPER LOGIKA FUNGSI PERAN GURU & TUGAS TAMBAHAN
     // =========================================================================
 
-    // private function sendJadwalGuru(string $chatId, $teacherId, TelegramService $telegramService): void
-    // {
-    //     $teacher = Teacher::find($teacherId);
-    //     if (!$teacher) return;
-
-    //     $daysMap = [
-    //         'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
-    //         'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
-    //     ];
-    //     $todayIndo = $daysMap[Carbon::now()->format('l')];
-
-    //     $schedules = Schedule::with(['classroom', 'subject'])
-    //         ->where('teacher_id', $teacherId)
-    //         ->where('day', $todayIndo)
-    //         ->orderBy('start_time', 'asc')
-    //         ->get();
-
-    //     $text = "📖 *JADWAL MENGAJAR HARI INI ({$todayIndo})*\n\n" .
-    //             "👨‍🏫 Guru: *{$teacher->name}*\n" .
-    //             "--------------------------------------\n";
-
-    //     if ($schedules->isEmpty()) {
-    //         $text .= "_\nTidak ada jadwal mengajar untuk hari {$todayIndo}._\n";
-    //     } else {
-    //         foreach ($schedules as $s) {
-    //             $jamMasuk   = substr($s->start_time, 0, 5);
-    //             $jamSelesai = substr($s->end_time, 0, 5);
-    //             $kelas      = optional($s->classroom)->name ?? '-';
-    //             $mapel      = optional($s->subject)->name ?? '-';
-
-    //             $text .= "⏰ *{$jamMasuk} - {$jamSelesai} WIB*\n" .
-    //                      " ├ 🏫 Kelas : *{$kelas}*\n" .
-    //                      " └ 📚 Mapel : {$mapel}\n\n";
-    //         }
-    //     }
-
-    //     $telegramService->sendMessage($chatId, $text);
-    // }
-
-    // private function sendRekapWalas(string $chatId, $teacherId, TelegramService $telegramService): void
-    // {
-    //     $classroom = Classroom::where('homeroom_teacher_id', $teacherId)->first();
-
-    //     if (!$classroom) {
-    //         $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Wali Kelas di sistem SISFO.");
-    //         return;
-    //     }
-
-    //     $today = Carbon::today()->format('Y-m-d');
-    //     $studentsCount = Student::where('classroom_id', $classroom->id)->count();
-
-    //     $attendances = DB::table('daily_attendances')
-    //         ->join('students', 'daily_attendances.student_id', '=', 'students.id')
-    //         ->where('students.classroom_id', $classroom->id)
-    //         ->whereDate('daily_attendances.date', $today)
-    //         ->select('daily_attendances.status', DB::raw('count(*) as total'))
-    //         ->groupBy('daily_attendances.status')
-    //         ->pluck('total', 'status')
-    //         ->toArray();
-
-    //     $hadir     = $attendances['hadir'] ?? 0;
-    //     $terlambat = $attendances['terlambat'] ?? 0;
-    //     $izin      = $attendances['izin'] ?? 0;
-    //     $sakit     = $attendances['sakit'] ?? 0;
-    //     $alfa      = $studentsCount - ($hadir + $terlambat + $izin + $sakit);
-
-    //     $text = "🏫 *REKAP PRESENSI GERBANG (WALI KELAS)*\n\n" .
-    //             "📌 Kelas : *{$classroom->name}*\n" .
-    //             "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
-    //             "👥 Total Siswa : *{$studentsCount} Siswa*\n" .
-    //             "--------------------------------------\n" .
-    //             "✅ Hadir : `{$hadir}`\n" .
-    //             "⚠️ Terlambat : `{$terlambat}`\n" .
-    //             "ℹ️ Izin : `{$izin}`\n" .
-    //             "🏥 Sakit : `{$sakit}`\n" .
-    //             "❌ Belum Scan/Alfa : `{$alfa}`\n\n" .
-    //             "--- *Listrik SMKN 1 Bukittinggi* ---";
-
-    //     $telegramService->sendMessage($chatId, $text);
-    // }
-
-    // private function sendRekapKabeng(string $chatId, $teacherId, TelegramService $telegramService): void
-    // {
-    //     $major = Major::where('workshop_teacher_id', $teacherId)->first();
-
-    //     if (!$major) {
-    //         $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Kepala Bengkel / Kepala Konsentrasi Keahlian.");
-    //         return;
-    //     }
-
-    //     $today = Carbon::today()->format('Y-m-d');
-
-    //     $rekapKelas = DB::table('daily_attendances')
-    //         ->join('students', 'daily_attendances.student_id', '=', 'students.id')
-    //         ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
-    //         ->where('classrooms.major_id', $major->id)
-    //         ->whereDate('daily_attendances.date', $today)
-    //         ->select(
-    //             'classrooms.name as nama_kelas',
-    //             DB::raw('count(daily_attendances.arrival_time) as total_datang'),
-    //             DB::raw('count(daily_attendances.departure_time) as total_pulang')
-    //         )
-    //         ->groupBy('classrooms.id', 'classrooms.name')
-    //         ->get();
-
-    //     $text = "🛠️ *REKAP PRESENSI KONSENTRASI KEAHLIAN*\n\n" .
-    //             "🏭 Bengkel / Jurusan : *{$major->name}*\n" .
-    //             "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
-    //             "======================================\n\n";
-
-    //     if ($rekapKelas->isEmpty()) {
-    //         $text .= "_Belum ada data kehadiran siswa di bengkel hari ini._\n";
-    //     } else {
-    //         foreach ($rekapKelas as $rk) {
-    //             $text .= "🏫 *{$rk->nama_kelas}*\n" .
-    //                      " ├ Hadir Datang : `{$rk->total_datang}` Siswa\n" .
-    //                      " └ Sudah Pulang : `{$rk->total_pulang}` Siswa\n\n";
-    //         }
-    //     }
-
-    //     $telegramService->sendMessage($chatId, $text);
-    // }
-
-    // private function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
-    // {
-    //     $major = Major::where('program_head_teacher_id', $teacherId)->first();
-
-    //     if (!$major) {
-    //         $telegramService->sendMessage($chatId, "⚠️ Anda tidak tercatat sebagai Ketua Program Keahlian (Proka).");
-    //         return;
-    //     }
-
-    //     $today = Carbon::today()->format('Y-m-d');
-
-    //     $totalSiswa = Student::whereHas('classroom', function($q) use ($major) {
-    //         $q->where('major_id', $major->id);
-    //     })->count();
-
-    //     $totalHadir = DB::table('daily_attendances')
-    //         ->join('students', 'daily_attendances.student_id', '=', 'students.id')
-    //         ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
-    //         ->where('classrooms.major_id', $major->id)
-    //         ->whereDate('daily_attendances.date', $today)
-    //         ->count();
-
-    //     $persentase = $totalSiswa > 0 ? round(($totalHadir / $totalSiswa) * 100, 1) : 0;
-
-    //     $text = "📊 *REKAPITULASI PROGRAM KEAHLIAN*\n\n" .
-    //             "🎯 Program : *{$major->name}*\n" .
-    //             "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
-    //             "👥 Total Siswa Program : *{$totalSiswa}*\n" .
-    //             "✅ Hadir Hari Ini : *{$totalHadir} ({$persentase}%)*\n";
-
-    //     $telegramService->sendMessage($chatId, $text);
-    // }
-
-    // private function sendRekapBK(string $chatId, $teacherId, TelegramService $telegramService): void
-    // {
-    //     $today = Carbon::today()->format('Y-m-d');
-
-    //     $lateStudents = DB::table('daily_attendances')
-    //         ->join('students', 'daily_attendances.student_id', '=', 'students.id')
-    //         ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
-    //         ->whereDate('daily_attendances.date', $today)
-    //         ->where('daily_attendances.status', 'terlambat')
-    //         ->select('students.name', 'classrooms.name as nama_kelas', 'daily_attendances.arrival_time')
-    //         ->orderBy('daily_attendances.arrival_time', 'asc')
-    //         ->limit(15)
-    //         ->get();
-
-    //     $text = "📋 *DAFTAR SISWA TERLAMBAT HARI INI (GURU BK)*\n\n" .
-    //             "📅 Tanggal : *" . date('d/m/Y') . "*\n" .
-    //             "--------------------------------------\n";
-
-    //     if ($lateStudents->isEmpty()) {
-    //         $text .= "_\nTidak ada siswa terlambat hari ini._\n";
-    //     } else {
-    //         foreach ($lateStudents as $ls) {
-    //             $jam = substr($ls->arrival_time, 0, 5);
-    //             $text .= "⚠️ *{$ls->name}* ({$ls->nama_kelas})\n" .
-    //                      " └ Jam Datang: `{$jam}` WIB\n\n";
-    //         }
-    //     }
-
-    //     $telegramService->sendMessage($chatId, $text);
-    // }
-
     /**
-     * 1. Menampilkan Jadwal Mengajar Guru Hari Ini
+     * 1. Menampilkan Jadwal Mengajar Guru Hari Ini (/jadwal)
      */
     private function sendJadwalGuru(string $chatId, $teacherId, TelegramService $telegramService): void
     {
@@ -999,7 +845,7 @@ class TelegramWebhookController extends Controller
     private function sendRekapProka(string $chatId, $teacherId, TelegramService $telegramService): void
     {
         // Cari Program Keahlian menggunakan relasi program_teacher_id sesuai Program.php
-        $program = \App\Models\Program::where('program_teacher_id', $teacherId)->first();
+        $program = Program::where('program_teacher_id', $teacherId)->first();
 
         if (!$program) {
             $telegramService->sendMessage($chatId, "⚠️ ID Guru Anda belum dihubungkan sebagai Ketua Program Keahlian di data Program.");
@@ -1030,7 +876,7 @@ class TelegramWebhookController extends Controller
                 "👥 Total Siswa Program : *{$totalSiswa} Siswa*\n" .
                 "✅ Total Hadir Hari Ini : *{$totalHadir} ({$persentase}%)*\n";
 
-        $telegramService->sendMessage($chatId, $text);
+        $telegramService->sendMessageWithInlineKeyboard($chatId, $text, []);
     }
 
     /**
@@ -1076,7 +922,7 @@ class TelegramWebhookController extends Controller
     }
 
     // =========================================================================
-    // METHOD LAINNYA (DITERUSKAN TANPA PERUBAHAN)
+    // METHOD LAINNYA (PENGAJUAN IZIN, REKAP SISWA, APPROVAL & CALLBACK)
     // =========================================================================
 
     private function saveIzinToDatabase(Student $student, string $type, string $reason, ?string $filePath, ?string $phone, string $chatId, TelegramService $telegramService): void
