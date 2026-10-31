@@ -89,12 +89,14 @@ class TelegramWebhookController extends Controller
             }
 
             // =========================================================================
-            // 4. HANDLE COMMAND PERINTAH GURU
+            // 4. HANDLE COMMAND PERINTAH GURU (QUERY FLEKSIBEL TERHADAP USER_TYPE & TEACHER_ID)
             // =========================================================================
             if (in_array($lowerText, ['/jadwal', 'jadwal'])) {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where('user_type', 'teacher')->first();
+                })->where(function($q) {
+                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
+                })->first();
 
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
@@ -107,7 +109,9 @@ class TelegramWebhookController extends Controller
             if (in_array($lowerText, ['/walas', 'walas'])) {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where('user_type', 'teacher')->first();
+                })->where(function($q) {
+                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
+                })->first();
 
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapWalas($chatId, $subscriber->teacher_id, $telegramService);
@@ -120,7 +124,9 @@ class TelegramWebhookController extends Controller
             if (in_array($lowerText, ['/kabeng', 'kabeng'])) {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where('user_type', 'teacher')->first();
+                })->where(function($q) {
+                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
+                })->first();
 
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapKabeng($chatId, $subscriber->teacher_id, $telegramService);
@@ -133,7 +139,9 @@ class TelegramWebhookController extends Controller
             if (in_array($lowerText, ['/proka', 'proka'])) {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where('user_type', 'teacher')->first();
+                })->where(function($q) {
+                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
+                })->first();
 
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapProka($chatId, $subscriber->teacher_id, $telegramService);
@@ -146,7 +154,9 @@ class TelegramWebhookController extends Controller
             if (in_array($lowerText, ['/bk', 'bk'])) {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                     $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->where('user_type', 'teacher')->first();
+                })->where(function($q) {
+                    $q->where('user_type', 'teacher')->orWhereNotNull('teacher_id');
+                })->first();
 
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapBK($chatId, $subscriber->teacher_id, $telegramService);
@@ -197,7 +207,7 @@ class TelegramWebhookController extends Controller
             }
 
             // =========================================================================
-            // 6. HANDLE COMMAND /start & /daftar (DIPERBARUI PERUTAN PERAN)
+            // 6. HANDLE COMMAND /start & /daftar
             // =========================================================================
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
                 $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
