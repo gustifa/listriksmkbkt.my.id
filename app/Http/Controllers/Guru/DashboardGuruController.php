@@ -298,7 +298,7 @@ class DashboardGuruController extends Controller
             'chartData',
             'telegramLink' // <-- Kirim variabel link ke view
             'isTelegramConnected',
-            'telegramSubscriber'
+            'telegramSubscriber',
         ));
     }
 
