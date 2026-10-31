@@ -158,6 +158,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa/Abolisi</a></li>
                         <li><a href="{{ route('laporan.daya_tampung') }}"><i class='bx bx-radio-circle'></i>Usulan Daya Tampung</a></li>
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
+                        <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Izin Siswa</a></li>
                     </ul>
                 </li>
             @endhasanyrole

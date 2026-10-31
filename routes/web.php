@@ -120,6 +120,7 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\UserRoleManagementController;
 
 use App\Http\Controllers\Admin\SyncDashboardController;
+use App\Http\Controllers\Admin\IzinApprovalController;
 
 use App\Http\Controllers\Student\InternshipStudentController;
 use App\Http\Controllers\Student\InternshipAttendanceController;
@@ -169,6 +170,14 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    Route::get('/admin/izin-siswa', [IzinApprovalController::class, 'index'])->name('admin.izin.index');
+    Route::patch('/admin/izin-siswa/{id}/approve', [IzinApprovalController::class, 'approve'])->name('admin.izin.approve');
+    Route::patch('/admin/izin-siswa/{id}/reject', [IzinApprovalController::class, 'reject'])->name('admin.izin.reject');
+
+    // Cetak Surat
+    Route::get('/admin/izin-siswa/{id}/cetak-surat', [IzinApprovalController::class, 'cetakSuratIzin'])->name('admin.izin.cetak-surat');
+    Route::get('/admin/izin-siswa/{id}/cetak-dokumen', [IzinApprovalController::class, 'cetakSuratSakit'])->name('admin.izin.cetak-sakit');
 
     Route::get('/attendances/weekly-recap/filter', [AttendanceRecapController::class, 'index'])->name('attendances.filter');
     Route::get('/attendances/get-students/{classroomId}', [AttendanceRecapController::class, 'getStudentsByClassroom']);
