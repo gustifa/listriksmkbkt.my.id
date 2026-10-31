@@ -72,7 +72,10 @@ class TelegramWebhookController extends Controller
 
             if (in_array($lowerText, ['/unsubscribe', 'unsubscribe', '/keluar', 'keluar', '/berhenti'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->first();
+
                 if ($subscriber) {
                     if ($subscriber->student_id) {
                         try { Student::where('id', $subscriber->student_id)->update(['telegram_chat_id' => null]); } catch (\Exception $ex) {}
@@ -89,7 +92,10 @@ class TelegramWebhookController extends Controller
             // 4. HANDLE COMMAND PERINTAH GURU
             // =========================================================================
             if (in_array($lowerText, ['/jadwal', 'jadwal'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->where('user_type', 'teacher')->first();
+
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
@@ -99,7 +105,10 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/walas', 'walas'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->where('user_type', 'teacher')->first();
+
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapWalas($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
@@ -109,7 +118,10 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/kabeng', 'kabeng'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->where('user_type', 'teacher')->first();
+
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapKabeng($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
@@ -119,7 +131,10 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/proka', 'proka'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->where('user_type', 'teacher')->first();
+
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapProka($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
@@ -129,7 +144,10 @@ class TelegramWebhookController extends Controller
             }
 
             if (in_array($lowerText, ['/bk', 'bk'])) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->where('user_type', 'teacher')->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->where('user_type', 'teacher')->first();
+
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendRekapBK($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
@@ -179,43 +197,55 @@ class TelegramWebhookController extends Controller
             }
 
             // =========================================================================
-            // 6. HANDLE COMMAND /start & /daftar (YANG SEBELUMNYA HILANG)
+            // 6. HANDLE COMMAND /start & /daftar (DIPERBARUI PERUTAN PERAN)
             // =========================================================================
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)
+                      ->orWhere('chat_id', (int)$chatId);
+                })->first();
 
                 if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
-                    if ($subscriber->user_type === 'teacher' && $subscriber->teacher_id) {
+                    
+                    // PRIORITAS 1: GURU / PEGAWAI
+                    if ($subscriber->user_type === 'teacher' || !empty($subscriber->teacher_id)) {
                         $teacher = Teacher::find($subscriber->teacher_id);
+                        $teacherName = $teacher ? $teacher->name : $subscriber->parent_name;
+
                         $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
                                  "👤 Peran: *Guru / Pegawai*\n" .
-                                 "👨‍🏫 Nama: *{$teacher?->name}*\n\n" .
-                                 "📌 *Menu Perintah Guru:*\n" .
+                                 "👨‍🏫 Nama: *{$teacherName}*\n\n" .
+                                 "📌 *Menu Perintah Guru & Tugas Tambahan:*\n" .
                                  "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
                                  "🔹 `/walas` : Rekapitulasi Presensi Walas\n" .
                                  "🔹 `/kabeng` : Rekapitulasi Bengkel / Konsentrasi\n" .
                                  "🔹 `/proka` : Rekapitulasi Program Keahlian\n" .
                                  "🔹 `/bk` : Daftar Terlambat Guru BK\n" .
                                  "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
-                    } else {
-                        $student     = Student::find($subscriber->student_id);
-                        $studentName = $student ? $student->name : '-';
-                        $className   = $student && $student->classroom ? $student->classroom->name : '-';
-                        $roleLabel   = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
 
-                        $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
-                                 "👤 Peran: *{$roleLabel}*\n" .
-                                 "🎯 Siswa Terhubung: *{$studentName}*\n" .
-                                 "🏫 Kelas: *{$className}*\n\n" .
-                                 "📌 *Layanan Fitur Bot:*\n" .
-                                 "🔹 `/izin` : Form Pengajuan Izin / Sakit\n" .
-                                 "🔹 `/rekap` : Menu Rekap Interaktif\n" .
-                                 "🔹 `/gerbang` : Rekap Presensi Gerbang\n" .
-                                 "🔹 `/pembelajaran` : Rekap Presensi Kelas\n" .
-                                 "🔹 `/sholat` : Rekap Presensi Sholat\n" .
-                                 "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
-                                 "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
+                        $keyboard = [[['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]]];
+                        $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
+                        return response()->json(['status' => 'ok']);
                     }
+
+                    // PRIORITAS 2: SISWA ATAU ORANG TUA
+                    $student     = Student::with('classroom')->find($subscriber->student_id);
+                    $studentName = $student ? $student->name : '-';
+                    $className   = $student && $student->classroom ? $student->classroom->name : '-';
+                    $roleLabel   = ($subscriber->user_type ?? 'parent') === 'student' ? 'Siswa' : 'Orang Tua/Wali';
+
+                    $reply = "✅ *Akun Anda Sudah Terdaftar & Aktif!*\n\n" .
+                             "👤 Peran: *{$roleLabel}*\n" .
+                             "🎯 Siswa Terhubung: *{$studentName}*\n" .
+                             "🏫 Kelas: *{$className}*\n\n" .
+                             "📌 *Layanan Fitur Bot:*\n" .
+                             "🔹 `/izin` : Form Pengajuan Izin / Sakit\n" .
+                             "🔹 `/rekap` : Menu Rekap Interaktif\n" .
+                             "🔹 `/gerbang` : Rekap Presensi Gerbang\n" .
+                             "🔹 `/pembelajaran` : Rekap Presensi Kelas\n" .
+                             "🔹 `/sholat` : Rekap Presensi Sholat\n" .
+                             "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
+                             "🔹 `/unsubscribe` : Berhenti Berlangganan Bot";
 
                     $keyboard = [[['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]]];
                     $telegramService->sendMessageWithInlineKeyboard($chatId, $reply, $keyboard);
@@ -241,9 +271,11 @@ class TelegramWebhookController extends Controller
             // 7. HANDLE COMMAND /help
             // =========================================================================
             if ($lowerText === '/help') {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->first();
 
-                if ($subscriber && $subscriber->user_type === 'teacher') {
+                if ($subscriber && ($subscriber->user_type === 'teacher' || !empty($subscriber->teacher_id))) {
                     $reply = "ℹ️ *BANTUAN BOT SISFO (GURU & PEGAWAI)*\n\n" .
                              "📌 *Perintah Guru:*\n" .
                              "• `/jadwal` : Cek jadwal mengajar hari ini\n" .
@@ -273,7 +305,10 @@ class TelegramWebhookController extends Controller
             // =========================================================================
             // 8. HANDLE INPUT NISN/NIS PENDING SISWA
             // =========================================================================
-            $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+            $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+            })->first();
+
             if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !$subscriber->teacher_id && !empty($text)) {
                 $student = Student::where('nisn', $text)->orWhere('nis', $text)->first();
 
