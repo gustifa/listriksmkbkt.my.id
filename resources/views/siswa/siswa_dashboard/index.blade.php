@@ -19,6 +19,10 @@
                     <button type="button" class="btn btn-secondary text-white fw-bold rounded-pill shadow-sm px-3 btn-sm" disabled title="Kamu sudah mengajukan presensi/izin hari ini">
                         <i class="fas fa-check-circle me-1"></i> Sudah Mengajukan Hari Ini
                     </button>
+                @elseif($todayIzin)
+                     <button type="button" class="btn btn-secondary text-white fw-bold rounded-pill shadow-sm px-3 btn-sm" disabled title="Kamu sudah mengajukan presensi/izin hari ini">
+                        <i class="fas fa-check-circle me-1"></i> Sudah Mengajukan Hari Ini
+                    </button>
                 @else
                     <button type="button" class="btn btn-warning text-dark fw-bold rounded-pill shadow-sm px-3 btn-sm" data-bs-toggle="modal" data-bs-target="#modalPermit">
                         <i class="fas fa-notes-medical me-1"></i> Ajukan Izin / Sakit
@@ -88,8 +92,10 @@
                             <div>
                                 <div class="text-xs fw-bold text-primary text-uppercase mb-1">Presensi Hari Ini</div>
                                 <div class="h5 mb-0 fw-bold text-dark">
-                                    @if($todayAttendance)
+                                    @if($todayAttendance) 
                                         <span class="badge bg-success">{{ ucfirst($todayAttendance->status) }}</span>
+                                    @elseif($todayIzin)
+                                        <span class="badge bg-success">{{ ucfirst($todayIzin->status) }}</span> <span class="badge bg-warning">{{ ucfirst($todayIzin->type) }}</span>
                                     @else
                                         <span class="badge bg-secondary">Belum Absen</span>
                                     @endif
@@ -675,61 +681,86 @@
     </div>
 
     <!-- MODAL FORM AJUKAN IZIN / SAKIT -->
-    <div class="modal fade" id="modalPermit" tabindex="-1" aria-labelledby="modalPermitLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 shadow">
-                <div class="modal-header bg-primary text-white rounded-top-4">
-                    <h5 class="modal-title fw-bold" id="modalPermitLabel">
-                        <i class="fas fa-file-medical me-2"></i> Form Pengajuan Izin / Sakit
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="{{ route('student.permit.store') }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Kategori Pengajuan <span class="text-danger">*</span></label>
-                            <select name="status" id="permit_status" class="form-select rounded-3" required>
-                                <option value="">-- Pilih Jenis Pengajuan --</option>
-                                <option value="sakit">Sakit</option>
-                                <option value="izin">Izin</option>
-                            </select>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Dari Tanggal <span class="text-danger">*</span></label>
-                                <input type="date" name="start_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Sampai Tanggal <span class="text-danger">*</span></label>
-                                <input type="date" name="end_date" class="form-control rounded-3" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}" required>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Alasan / Keterangan <span class="text-danger">*</span></label>
-                            <textarea name="reason" class="form-control rounded-3" rows="3" placeholder="Tuliskan alasan tidak dapat hadir..." required></textarea>
-                        </div>
-
-                        <div class="mb-3" id="fileUploadContainer" style="display: none;">
-                            <label class="form-label fw-bold text-dark">
-                                Surat Keterangan Dokter / Sakit <span class="text-danger">*</span>
-                            </label>
-                            <input type="file" name="medical_certificate" id="medical_certificate" class="form-control rounded-3" accept=".pdf,.jpg,.jpeg,.png">
-                            <small class="text-muted d-block mt-1">
-                                <i class="fas fa-info-circle me-1"></i> Format: PDF, JPG, JPEG, PNG (Maksimal 2MB).
-                            </small>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light rounded-bottom-4">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4">Kirim Pengajuan</button>
-                    </div>
-                </form>
+<div class="modal fade" id="modalPermit" tabindex="-1" aria-labelledby="modalPermitLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="modalPermitLabel">
+                    <i class="fas fa-file-medical me-2"></i> Form Pengajuan Izin / Sakit
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form action="{{ route('student.permit.store') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body p-4">
+                    <!-- Kategori Pengajuan -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kategori Pengajuan <span class="text-danger">*</span></label>
+                        <select name="status" id="permit_status" class="form-select rounded-3 @error('status') is-invalid @enderror" required>
+                            <option value="">-- Pilih Jenis Pengajuan --</option>
+                            <option value="sakit" {{ old('status') == 'sakit' ? 'selected' : '' }}>Sakit</option>
+                            <option value="izin" {{ old('status') == 'izin' ? 'selected' : '' }}>Izin</option>
+                        </select>
+                        @error('status')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- Tanggal Mulai & Selesai -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Dari Tanggal <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="start_date" class="form-control rounded-3 @error('start_date') is-invalid @enderror" 
+                                   value="{{ old('start_date', date('Y-m-d')) }}" min="{{ date('Y-m-d') }}" required
+                                   onchange="document.getElementById('end_date').min = this.value; if(document.getElementById('end_date').value < this.value) document.getElementById('end_date').value = this.value;">
+                            @error('start_date')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Sampai Tanggal <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="end_date" class="form-control rounded-3 @error('end_date') is-invalid @enderror" 
+                                   value="{{ old('end_date', date('Y-m-d')) }}" min="{{ date('Y-m-d') }}" required>
+                            @error('end_date')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Alasan / Keterangan -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Alasan / Keterangan <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control rounded-3 @error('reason') is-invalid @enderror" 
+                                  rows="3" placeholder="Tuliskan alasan tidak dapat hadir..." required>{{ old('reason') }}</textarea>
+                        @error('reason')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- Upload File Surat Dokter -->
+                    <div class="mb-3" id="fileUploadContainer" style="display: none;">
+                        <label class="form-label fw-bold text-dark">
+                            Surat Keterangan Dokter / Sakit <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" name="medical_certificate" id="medical_certificate" 
+                               class="form-control rounded-3 @error('medical_certificate') is-invalid @enderror" 
+                               accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-info-circle me-1"></i> Format: PDF, JPG, JPEG, PNG (Maksimal 2MB).
+                        </small>
+                        @error('medical_certificate')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Kirim Pengajuan</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
     <!-- MODAL DETAIL SHOLAT -->
     <div class="modal fade" id="modalDetailSholat" tabindex="-1" aria-hidden="true">
@@ -1059,22 +1090,30 @@
             });
 
             // 4. TOGGLE INPUT FILE SURAT SAKIT
-            const permitStatusSelect = document.getElementById('permit_status');
-            const fileContainer = document.getElementById('fileUploadContainer');
-            const fileInput = document.getElementById('medical_certificate');
+          
+                const permitStatusSelect = document.getElementById('permit_status');
+                const fileContainer = document.getElementById('fileUploadContainer');
+                const fileInput = document.getElementById('medical_certificate');
 
-            if (permitStatusSelect) {
-                permitStatusSelect.addEventListener('change', function () {
-                    if (this.value === 'sakit') {
-                        fileContainer.style.display = 'block';
-                        fileInput.setAttribute('required', 'required');
-                    } else {
-                        fileContainer.style.display = 'none';
-                        fileInput.removeAttribute('required');
-                        fileInput.value = '';
+                if (permitStatusSelect && fileContainer && fileInput) {
+                    function toggleFileInput() {
+                        if (permitStatusSelect.value === 'sakit') {
+                            fileContainer.style.display = 'block';
+                            fileInput.setAttribute('required', 'required');
+                        } else {
+                            fileContainer.style.display = 'none';
+                            fileInput.removeAttribute('required');
+                            fileInput.value = '';
+                        }
                     }
-                });
-            }
+
+                    // 1. Jalankan saat ada perubahan nilai dropdown
+                    permitStatusSelect.addEventListener('change', toggleFileInput);
+
+                    // 2. Jalankan langsung saat halaman/modal selesai dimuat (untuk mendukung old value Laravel)
+                    toggleFileInput();
+                }
+        
         });
     </script>
 

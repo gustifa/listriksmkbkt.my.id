@@ -16,6 +16,9 @@ use App\Models\PrayerAttendance;
 use App\Models\Holiday; // <-- Import Model Holiday
 use App\Services\TelegramService;
 use App\Models\TelegramSubscriber;
+use App\Models\IzinSiswa;
+use Illuminate\Support\Str;
+
 
 class DashboardStudentController extends Controller
 {
@@ -79,6 +82,11 @@ class DashboardStudentController extends Controller
 
         // 1. Kehadiran Hari Ini (Absensi Gerbang/Harian)
         $todayAttendance = DailyAttendance::where('student_id', $student->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        // 1. Kehadiran Hari Ini (Absensi Gerbang/Harian)
+        $todayIzin = IzinSiswa::where('student_id', $student->id)
             ->whereDate('date', $today)
             ->first();
 
@@ -238,7 +246,8 @@ class DashboardStudentController extends Controller
             'timelines',
             'prayerHistory',
             'gateHistory',
-            'telegramSubscriber'
+            'telegramSubscriber',
+            'todayIzin'
         ));
     }
 
@@ -429,11 +438,79 @@ class DashboardStudentController extends Controller
     //     return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
     // }
 
-    public function storeLeavePermit(Request $request)
+//     public function storeLeavePermit(Request $request)
+// {
+//     $request->validate([
+//         'status'              => 'required|in:sakit,izin',
+//         'start_date'          => 'required|date|after_or_equal:today', // Minimal hari ini, tidak bisa tanggal lampau
+//         'end_date'            => 'required|date|after_or_equal:start_date',
+//         'reason'              => 'required|string|max:500',
+//         'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
+//     ], [
+//         'status.required'                 => 'Jenis pengajuan wajib dipilih.',
+//         'start_date.required'             => 'Tanggal mulai wajib diisi.',
+//         'start_date.after_or_equal'       => 'Pengajuan tidak bisa dibuat untuk tanggal sebelum hari ini.',
+//         'end_date.required'               => 'Tanggal selesai wajib diisi.',
+//         'end_date.after_or_equal'         => 'Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.',
+//         'reason.required'                 => 'Alasan/keterangan wajib diisi.',
+//         'medical_certificate.required_if' => 'Surat keterangan sakit wajib diunggah!',
+//         'medical_certificate.mimes'       => 'Format surat harus berupa PDF, JPG, JPEG, atau PNG.',
+//         'medical_certificate.max'         => 'Ukuran file maksimal 2MB.',
+//     ]);
+
+//     $student = Student::where('user_id', Auth::id())->firstOrFail();
+
+//     // Upload berkas jika status 'sakit'
+//     $filePath = null;
+//     if ($request->hasFile('medical_certificate')) {
+//         $file = $request->file('medical_certificate');
+//         $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+//         $filePath = $file->storeAs('surat_sakit', $filename, 'public');
+//     }
+
+//     // Loop tanggal dari start_date hingga end_date
+//     $startDate = Carbon::parse($request->start_date);
+//     $endDate   = Carbon::parse($request->end_date);
+
+//     $insertedCount = 0;
+//     for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
+//         $currentDateStr = $date->toDateString();
+
+//         // Lewati jika tanggal jatuh di Hari Minggu
+//         if ($date->isSunday()) {
+//             continue;
+//         }
+
+//         // Cek jika siswa sudah memiliki catatan absensi/pengajuan di tanggal tersebut
+//         $existing = DailyAttendance::where('student_id', $student->id)
+//             ->whereDate('date', $currentDateStr)
+//             ->exists();
+
+//         if (!$existing) {
+//             DailyAttendance::create([
+//                 'student_id'  => $student->id,
+//                 'date'        => $currentDateStr,
+//                 'status'      => $request->status,
+//                 'notes'       => $request->reason,
+//                 'attachment'  => $filePath,
+//                 'recorded_by' => Auth::user()->name . ' (Siswa)',
+//             ]);
+//             $insertedCount++;
+//         }
+//     }
+
+//     if ($insertedCount === 0) {
+//         return redirect()->back()->with('error', 'Pengajuan gagal. Tanggal yang dipilih sudah memiliki catatan presensi/izin!');
+//     }
+
+//     return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
+// }
+
+public function storeLeavePermit(Request $request)
 {
     $request->validate([
         'status'              => 'required|in:sakit,izin',
-        'start_date'          => 'required|date|after_or_equal:today', // Minimal hari ini, tidak bisa tanggal lampau
+        'start_date'          => 'required|date|after_or_equal:today',
         'end_date'            => 'required|date|after_or_equal:start_date',
         'reason'              => 'required|string|max:500',
         'medical_certificate' => 'required_if:status,sakit|file|mimes:pdf,jpg,jpeg,png|max:2048',
@@ -451,50 +528,47 @@ class DashboardStudentController extends Controller
 
     $student = Student::where('user_id', Auth::id())->firstOrFail();
 
-    // Upload berkas jika status 'sakit'
+    // 1. Cek Duplikasi Pengajuan pada Rentang Tanggal yang Sama (Mencegah Double Submit)
+    $existingLeave = IzinSiswa::where('student_id', $student->id)
+        ->where(function ($query) use ($request) {
+            $query->whereBetween('date', [$request->start_date, $request->end_date])
+                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                  ->orWhere(function ($q) use ($request) {
+                      $q->where('date', '<=', $request->start_date)
+                        ->where('end_date', '>=', $request->end_date);
+                  });
+        })
+        ->exists();
+
+    if ($existingLeave) {
+        return redirect()->back()->with('error', 'Gagal mengajukan! Anda sudah memiliki pengajuan izin/sakit yang aktif di rentang tanggal tersebut.');
+    }
+
+    // 2. Upload Berkas Lampiran jika ada
     $filePath = null;
     if ($request->hasFile('medical_certificate')) {
         $file = $request->file('medical_certificate');
-        $filename = 'surat_sakit_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $filePath = $file->storeAs('surat_sakit', $filename, 'public');
+        $filename = 'surat_' . $request->status . '_' . ($student->nis ?? $student->id) . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $filePath = $file->storeAs('surat_izin', $filename, 'public');
     }
 
-    // Loop tanggal dari start_date hingga end_date
-    $startDate = Carbon::parse($request->start_date);
-    $endDate   = Carbon::parse($request->end_date);
+    // 3. Simpan ke Tabel 'izin_siswas'
+    IzinSiswa::create([
+        'id'               => (string) Str::uuid(),
+        'student_id'       => $student->id,
+        'type'             => $request->status, // sakit / izin
+        'date'             => $request->start_date,
+        'end_date'         => $request->end_date,
+        'reason'           => $request->reason,
+        'status'           => 'pending', // Menunggu persetujuan Wali Kelas / BK
+        'attachment_path'  => $filePath,
+        'wa_number'        => $student->phone,
+        'telegram_chat_id' => $student->telegram_chat_id,
+    ]);
 
-    $insertedCount = 0;
-    for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
-        $currentDateStr = $date->toDateString();
+    $totalDays = Carbon::parse($request->start_date)->diffInDays(Carbon::parse($request->end_date)) + 1;
 
-        // Lewati jika tanggal jatuh di Hari Minggu
-        if ($date->isSunday()) {
-            continue;
-        }
-
-        // Cek jika siswa sudah memiliki catatan absensi/pengajuan di tanggal tersebut
-        $existing = DailyAttendance::where('student_id', $student->id)
-            ->whereDate('date', $currentDateStr)
-            ->exists();
-
-        if (!$existing) {
-            DailyAttendance::create([
-                'student_id'  => $student->id,
-                'date'        => $currentDateStr,
-                'status'      => $request->status,
-                'notes'       => $request->reason,
-                'attachment'  => $filePath,
-                'recorded_by' => Auth::user()->name . ' (Siswa)',
-            ]);
-            $insertedCount++;
-        }
-    }
-
-    if ($insertedCount === 0) {
-        return redirect()->back()->with('error', 'Pengajuan gagal. Tanggal yang dipilih sudah memiliki catatan presensi/izin!');
-    }
-
-    return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $insertedCount . ' hari!');
+    return redirect()->back()->with('success', 'Pengajuan ' . ucfirst($request->status) . ' berhasil dikirim untuk ' . $totalDays . ' hari! Silakan menunggu konfirmasi.');
 }
 
 

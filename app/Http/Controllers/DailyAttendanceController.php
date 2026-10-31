@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Jobs\SendTelegramJob; // Tambahkan import Job Telegram
 use App\Services\TelegramService; // Pastikan import di bagian atas file
 use App\Models\IzinSiswa;
+use App\Models\StudentPermit;
 
 
 class DailyAttendanceController extends Controller
@@ -1866,7 +1867,7 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
 
         // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
         $approvedLeave = IzinSiswa::where('student_id', $student->id)
-            ->where('status', 'approved')
+            ->where('status', 'approved', 'pending')
             ->where(function ($q) use ($date) {
                 $q->whereDate('date', $date)
                   ->orWhere(function ($q2) use ($date) {
@@ -1882,6 +1883,20 @@ private function sendNotification($student, $type, $time, $status = '', $photoPa
             return response()->json([
                 'status'  => 'error',
                 'message' => "Absensi Gerbang Ditolak! Siswa {$student->name} tercatat status {$statusLabel} (Disetujui)."
+            ], 400);
+        }
+
+
+        // Tambahkan setelah pencarian $student
+        $activePermitOut = StudentPermit::where('student_id', $student->id)
+            ->whereDate('date', $date)
+            ->where('status', 'active')
+            ->first();
+
+        if ($activePermitOut) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Ditolak! Siswa {$student->name} tercatat sedang IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason}). Harap selesaikan izin terlebih dahulu."
             ], 400);
         }
 
@@ -2731,9 +2746,31 @@ public function studentScanView()
         $date = date('Y-m-d');
         $time = date('H:i:s');
 
-        // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
-        $approvedLeave = IzinSiswa::where('student_id', $student->id)
-            ->where('status', 'approved')
+        // // --- CEK DISAPROVED / APPROVED IZIN ATAU SAKIT ---
+        // $approvedLeave = IzinSiswa::where('student_id', $student->id)
+        //     ->where('status', 'approved', 'pending')
+        //     ->where(function ($q) use ($date) {
+        //         $q->whereDate('date', $date)
+        //           ->orWhere(function ($q2) use ($date) {
+        //               $q2->whereNotNull('end_date')
+        //                  ->whereDate('date', '<=', $date)
+        //                  ->whereDate('end_date', '>=', $date);
+        //           });
+        //     })
+        //     ->first();
+
+        // if ($approvedLeave) {
+        //     $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+        //     return response()->json([
+        //         'status'  => 'error',
+        //         'message' => "Absensi HP Ditolak! Anda tercatat berstatus {$statusLabel} yang telah disetujui."
+        //     ], 400);
+        // }
+        // // ------------------------------------------------
+
+        // --- CEK PENGAJUAN IZIN/SAKIT (APPROVED ATAU PENDING) ---
+        $existingLeave = IzinSiswa::where('student_id', $student->id)
+            ->whereIn('status', ['approved', 'pending']) // Tambahkan 'pending' di sini
             ->where(function ($q) use ($date) {
                 $q->whereDate('date', $date)
                   ->orWhere(function ($q2) use ($date) {
@@ -2744,14 +2781,29 @@ public function studentScanView()
             })
             ->first();
 
-        if ($approvedLeave) {
-            $statusLabel = strtoupper($approvedLeave->type ?? 'IZIN');
+        if ($existingLeave) {
+            $statusLabel = strtoupper($existingLeave->type ?? 'IZIN');
+            $ketStatus   = $existingLeave->status === 'pending' ? 'Menunggu Persetujuan' : 'Disetujui';
+
             return response()->json([
                 'status'  => 'error',
-                'message' => "Absensi HP Ditolak! Anda tercatat berstatus {$statusLabel} yang telah disetujui."
+                'message' => "Absensi HP Ditolak! Anda telah mengajukan status {$statusLabel} ({$ketStatus})."
             ], 400);
         }
-        // ------------------------------------------------
+        // --------------------------------------------------------
+
+        // Tambahkan setelah pencarian $student
+        $activePermitOut = StudentPermit::where('student_id', $student->id)
+            ->whereDate('date', $date)
+            ->where('status', 'active')
+            ->first();
+
+        if ($activePermitOut) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Ditolak! Siswa {$student->name} tercatat sedang IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason}). Harap selesaikan izin terlebih dahulu."
+            ], 400);
+        }
 
         // 6. Pengaturan Waktu Masuk/Pulang
         $jamMulaiScan     = $setting ? $setting->start_check_in_time : '06:00:00';

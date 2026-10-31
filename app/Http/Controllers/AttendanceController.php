@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http; // <--- WAJIB IMPORT HTTP CLIENT
 use App\Jobs\SendWhatsappJob; // <--- WAJIB IMPORT JOB
 use App\Models\IzinSiswa;
+use App\Models\StudentPermit;
 
 class AttendanceController extends Controller
 {
@@ -114,6 +115,19 @@ class AttendanceController extends Controller
 
         if (!$schedule) {
             return response()->json(['status' => 'error', 'message' => 'Jadwal tidak valid!']);
+        }
+
+        // Tambahkan setelah pencarian $student
+        $activePermitOut = StudentPermit::where('student_id', $student->id)
+            ->whereDate('date', $today)
+            ->where('status', 'active')
+            ->first();
+
+        if ($activePermitOut) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Absensi Mapel Ditolak! Siswa {$student->name} sedang dalam status IZIN KELUAR KELAS (Alasan: {$activePermitOut->reason})."
+            ]);
         }
 
         // =================================================================
