@@ -83,7 +83,7 @@ class TelegramWebhookController extends Controller
             }
 
             // =========================================================================
-            // 4. HANDLE COMMAND PERINTAH GURU (LOGIKA DIPERBAIKI)
+            // 4. HANDLE COMMAND PERINTAH GURU
             // =========================================================================
             $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
                 $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
@@ -94,6 +94,15 @@ class TelegramWebhookController extends Controller
                     $teacherService->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
                 } else {
                     $telegramService->sendMessage($chatId, "⚠️ Perintah `/jadwal` khusus untuk akun Guru yang telah terdaftar.");
+                }
+                return response()->json(['status' => 'ok']);
+            }
+
+            if (in_array($lowerText, ['/jadwal_minggu', '/jadwalminggu', 'jadwal minggu', '/jadwal_pekanan'])) {
+                if ($subscriber && $subscriber->teacher_id) {
+                    $teacherService->sendJadwalMingguan($chatId, $subscriber->teacher_id, $telegramService);
+                } else {
+                    $telegramService->sendMessage($chatId, "⚠️ Perintah `/jadwal_minggu` khusus untuk akun Guru yang telah terdaftar.");
                 }
                 return response()->json(['status' => 'ok']);
             }
@@ -188,6 +197,7 @@ class TelegramWebhookController extends Controller
                                  "👨‍🏫 Nama: *{$teacherName}*\n\n" .
                                  "📌 *Menu Perintah Guru & Tugas Tambahan:*\n" .
                                  "🔹 `/jadwal` : Jadwal Mengajar Hari Ini\n" .
+                                 "🔹 `/jadwal_minggu` : Jadwal Mengajar Seminggu\n" .
                                  "🔹 `/walas` : Rekapitulasi Presensi Walas\n" .
                                  "🔹 `/kabeng` : Rekapitulasi Bengkel / Konsentrasi\n" .
                                  "🔹 `/proka` : Rekapitulasi Program Keahlian\n" .
@@ -247,6 +257,7 @@ class TelegramWebhookController extends Controller
                     $reply = "ℹ️ *BANTUAN BOT SISFO (GURU & PEGAWAI)*\n\n" .
                              "📌 *Perintah Guru:*\n" .
                              "• `/jadwal` : Cek jadwal mengajar hari ini\n" .
+                             "• `/jadwal_minggu` : Cek jadwal mengajar seminggu penuh\n" .
                              "• `/walas` : Rekap presensi gerbang kelas bimbingan\n" .
                              "• `/kabeng` : Rekap presensi di bengkel/jurusan\n" .
                              "• `/proka` : Rekap kehadiran program keahlian\n" .

@@ -270,4 +270,71 @@ class TelegramTeacherService
             $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil data rekap BK.");
         }
     }
+
+    /**
+     * Menampilkan Jadwal Mengajar Guru Satu Minggu Penuh (/jadwal_minggu)
+     */
+    public function sendJadwalMingguan(string $chatId, $teacherId, TelegramService $telegramService): void
+    {
+        try {
+            $teacher = Teacher::find($teacherId);
+            if (!$teacher) {
+                $telegramService->sendMessage($chatId, "⚠️ Data Guru Anda tidak ditemukan di database.");
+                return;
+            }
+
+            // Urutan hari kerja sekolah
+            $daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+            $schedules = Schedule::with(['classroom', 'subject'])
+                ->where('teacher_id', $teacherId)
+                ->orderBy('start_time', 'asc')
+                ->get();
+
+            if ($schedules->isEmpty()) {
+                $telegramService->sendMessage($chatId, "📖 *JADWAL MENGAJAR MINGGUAN*\n\n👨‍🏫 Guru: *{$teacher->name}*\n--------------------------------------\n_\nBelum ada data jadwal mengajar yang terdaftar untuk Anda._");
+                return;
+            }
+
+            // Kelompokkan jadwal berdasarkan hari
+            $groupedSchedules = $schedules->groupBy(function($item) {
+                return ucfirst(strtolower(trim($item->day)));
+            });
+
+            $text = "📅 *JADWAL MENGAJAR SEMINGGU*\n\n" .
+                    "👨‍🏫 Guru: *{$teacher->name}*\n" .
+                    "======================================\n\n";
+
+            $hasSchedule = false;
+
+            foreach ($daysOrder as $day) {
+                if (isset($groupedSchedules[$day]) && $groupedSchedules[$day]->isNotEmpty()) {
+                    $hasSchedule = true;
+                    $text .= "📌 *HARI " . strtoupper($day) . "*\n";
+
+                    foreach ($groupedSchedules[$day] as $s) {
+                        $jamMasuk   = $s->start_time ? substr($s->start_time, 0, 5) : '-';
+                        $jamSelesai = $s->end_time ? substr($s->end_time, 0, 5) : '-';
+                        $kelas      = optional($s->classroom)->name ?? '-';
+                        $mapel      = optional($s->subject)->name ?? '-';
+
+                        $text .= " ├ ⏰ `{$jamMasuk} - {$jamSelesai}` WIB\n" .
+                                 " ├ 🏫 Kelas: *{$kelas}*\n" .
+                                 " └ 📚 Mapel: {$mapel}\n\n";
+                    }
+                }
+            }
+
+            if (!$hasSchedule) {
+                $text .= "_\nTidak ada jadwal mengajar dari Senin sampai Sabtu._\n";
+            }
+
+            $text .= "--- *SISFO SMKN 1 Bukittinggi* ---";
+            $telegramService->sendMessage($chatId, $text);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Error sendJadwalMingguan: " . $e->getMessage());
+            $telegramService->sendMessage($chatId, "⚠️ Terjadi kesalahan saat mengambil jadwal mingguan.");
+        }
+    }
 }
