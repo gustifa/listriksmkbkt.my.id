@@ -324,4 +324,19 @@ class DashboardGuruController extends Controller
             ($data['alpha'] ?? 0) + ($data['alpa'] ?? 0),
         ];
     }
+
+    /**
+     * Memutuskan tautan akun Telegram guru.
+     */
+    public function disconnectTelegram(Request $request)
+    {
+        $user = Auth::user();
+        $teacher = Teacher::where('user_id', $user->id)->first();
+
+        if ($teacher) {
+            \App\Models\TelegramSubscriber::where('teacher_id', $teacher->id)->delete();
+        }
+
+        return back()->with('success', 'Akun Telegram berhasil diputuskan dari sistem.');
+    }
 }

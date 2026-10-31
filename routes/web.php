@@ -328,6 +328,7 @@ Route::middleware(['auth', 'role:guru|admin|super_admin'])->group(function () {
     Route::get('/print-card-siswa/{id}', [StudentAreaController::class, 'printSingle'])->name('print.siswa.single');
 
     Route::get('/guru/dashboard', [DashboardGuruController::class, 'index'])->name('teacher.dashboard');
+    Route::post('/guru/telegram/disconnect', [DashboardGuruController::class, 'disconnectTelegram'])->name('guru.telegram.disconnect');
     Route::get('/guru/industri/lokasi', [IndustryGuruController::class, 'index'])->name('teacher.industries.locations');
     Route::put('/industries/{id}/location', [IndustryGuruController::class, 'update'])->name('teacher.industries.update_location');
 
