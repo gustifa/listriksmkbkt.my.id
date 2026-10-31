@@ -125,7 +125,8 @@ class TelegramWebhookController extends Controller
                                 "🔹 `/gerbang` : Rekap Kehadiran Gerbang\n" .
                                 "🔹 `/pembelajaran` : Rekap Jam Belajar\n" .
                                 "🔹 `/sholat` : Rekap Ibadah Sholat\n" .
-                                "🔹 `/semua` : Rekap Semua Jenis Presensi\n\n" .
+                                "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
+                                "🔹 `/unsubscribe` : Berhenti Berlangganan Bot\n\n" .
                                 "Silakan klik tombol di bawah untuk bergabung ke Grup Telegram Admin SISFO:";
 
                         $keyboard = [
@@ -201,7 +202,36 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // B. COMMAND /izin ATAU /sakit
+            // B. COMMAND BERHENTI BERLANGGANAN (UNSUBSCRIBE / KELUAR BOT)
+            if (in_array($lowerText, ['/unsubscribe', 'unsubscribe', '/keluar', 'keluar', '/berhenti', 'berhenti'])) {
+                Cache::forget("telegram_permit_step_{$chatId}");
+
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
+
+                if ($subscriber) {
+                    if ($subscriber->student_id) {
+                        try {
+                            Student::where('id', $subscriber->student_id)->update(['telegram_chat_id' => null]);
+                        } catch (\Exception $ex) {
+                            Log::warning("Gagal reset telegram_chat_id di student: " . $ex->getMessage());
+                        }
+                    }
+
+                    $subscriber->delete();
+
+                    $reply = "👋 *Berhasil Berhenti Berlangganan!*\n\n" .
+                             "Akun Telegram Anda telah dilepas dari sistem SISFO SMKN 1 Bukittinggi dan tidak akan menerima notifikasi absensi lagi.\n\n" .
+                             "Jika ingin mendaftar kembali di kemudian hari, silakan ketik `/start`.";
+
+                    $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                } else {
+                    $telegramService->sendMessage($chatId, "⚠️ *Akun Telegram Anda belum terdaftar dalam sistem langganan SISFO.*");
+                }
+
+                return response()->json(['status' => 'ok']);
+            }
+
+            // C. COMMAND /izin ATAU /sakit
             if (in_array($lowerText, ['/izin', 'izin', '/sakit', 'sakit'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
 
@@ -229,7 +259,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // C. PROSES MULTI-STEP CONVERSATION PENGAJUAN IZIN/SAKIT
+            // D. PROSES MULTI-STEP CONVERSATION PENGAJUAN IZIN/SAKIT
             $permitSession = Cache::get("telegram_permit_step_{$chatId}");
 
             if ($permitSession) {
@@ -275,7 +305,7 @@ class TelegramWebhookController extends Controller
                 }
             }
 
-            // D. COMMAND PERINTAH REKAP
+            // E. COMMAND PERINTAH REKAP
             if (in_array($lowerText, ['/rekap', '/menu', 'rekap', 'menu'])) {
                 $this->sendRekapMenu($chatId, $telegramService);
                 return response()->json(['status' => 'ok']);
@@ -301,7 +331,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // E. PERINTAH /start ATAU /daftar
+            // F. PERINTAH /start ATAU /daftar
             if (str_starts_with($lowerText, '/start') || $lowerText === '/daftar') {
 
                 if (preg_match('/^\/start\s+student_([a-f0-9\-]+)$/i', $text, $matches)) {
@@ -373,7 +403,8 @@ class TelegramWebhookController extends Controller
                                  "📌 *Gunakan perintah bot berikut:*\n" .
                                  "🔹 `/izin` : Ajukan Izin / Sakit\n" .
                                  "🔹 `/rekap` : Cek Riwayat Absensi\n" .
-                                 "🔹 `/semua` : Rekap Semua Jenis Presensi";
+                                 "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
+                                 "🔹 `/unsubscribe` : Berhenti Berlangganan";
 
                         $keyboard = [
                             [
@@ -404,7 +435,8 @@ class TelegramWebhookController extends Controller
                              "🔹 `/gerbang` : Rekap Presensi Gerbang\n" .
                              "🔹 `/pembelajaran` : Rekap Presensi Kelas\n" .
                              "🔹 `/sholat` : Rekap Presensi Sholat\n" .
-                             "🔹 `/semua` : Rekap Semua Jenis Presensi\n\n" .
+                             "🔹 `/semua` : Rekap Semua Jenis Presensi\n" .
+                             "🔹 `/unsubscribe` : Berhenti Berlangganan Bot\n\n" .
                              "Ketik `stop` jika ingin membatalkan interaksi.";
 
                     $keyboard = [
@@ -432,7 +464,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // F. COMMAND /help
+            // G. COMMAND /help
             if ($lowerText === '/help') {
                 $reply = "ℹ️ *BANTUAN BOT SISFO*\n\n" .
                          "📌 *Perintah Utama:*\n" .
@@ -442,6 +474,7 @@ class TelegramWebhookController extends Controller
                          "• `/pembelajaran` : Cek absensi di jam kelas\n" .
                          "• `/sholat` : Cek absensi ibadah sholat\n" .
                          "• `/semua` : Tampilkan rekap semua presensi\n" .
+                         "• `/unsubscribe` : Berhenti berlangganan bot\n" .
                          "• `stop` / `/batal` : Batal pengajuan/interaksi\n\n" .
                          "Butuh bantuan lebih lanjut? Bergabunglah dengan Grup Admin kami:";
 
@@ -455,7 +488,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // G. HANDLE INPUT NISN/NIS PENDING
+            // H. HANDLE INPUT NISN/NIS PENDING
             $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
             if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !empty($text)) {
@@ -969,9 +1002,6 @@ class TelegramWebhookController extends Controller
         $telegramService->sendMessageWithInlineKeyboard($chatId, $text, $keyboard);
     }
 
-    /**
-     * Menampilkan Rekap Gabungan (Gerbang, Pembelajaran & Sholat)
-     */
     private function sendRekapSemua($chatId, TelegramService $telegramService)
     {
         $student = $this->getSubscriberStudent($chatId, $telegramService);
