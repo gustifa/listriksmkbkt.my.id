@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\IzinSiswa;
 use App\Services\TelegramService;
 use App\Models\TelegramSubscriber;
+use App\Models\AttendanceSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -55,7 +56,11 @@ class TelegramWebhookController extends Controller
 
             $chatId  = (string) $update['message']['chat']['id'];
             $message = $update['message'];
-            $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+
+            // Ambil link group dinamis dari DB atau fallback ke config/env
+            $setting   = AttendanceSetting::first();
+            $groupLink = $setting?->telegram_admin_group_link 
+                ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
             // =========================================================================
             // 2. HANDLE BAGIKAN KONTAK (TEKAN TOMBOL SHARE CONTACT)
@@ -539,16 +544,25 @@ class TelegramWebhookController extends Controller
         // 2. Balas ke Pemohon dengan tombol Batal
         $telegramService->sendMessageWithInlineKeyboard($chatId, $replyMsg, $userKeyboard);
 
-        // 3. Kirim Notifikasi Interaktif ke Grup Admin / Walas / BK / Kabeng / Proka
+        // 3. Kirim Notifikasi Interaktif ke Grup Admin / Walas / BK / Kabeng / Proka (Terpisah per kelas jika ada)
         $this->notifyIzinToApprovers($izin, $student, $telegramService);
     }
 
     /**
-     * Mengirimkan Notifikasi Pengajuan Izin Baru ke Grup Telegram Petugas Sekolah dengan Tombol Approve/Reject
+     * Mengirimkan Notifikasi Pengajuan Izin Baru ke Grup Telegram Kelas / Admin dengan Tombol Approve/Reject
      */
     private function notifyIzinToApprovers(IzinSiswa $izin, Student $student, TelegramService $telegramService): void
     {
-        $approverChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
+        $setting = AttendanceSetting::first();
+
+        // 1. Cek Chat ID spesifik di level Kelas (Classroom)
+        $classroomGroupChatId = optional($student->classroom)->telegram_chat_id;
+
+        // 2. Fallback: Jika grup kelas kosong, gunakan Chat ID Admin dari DB/env
+        $approverChatId = !empty($classroomGroupChatId) 
+            ? $classroomGroupChatId 
+            : ($setting?->telegram_admin_chat_id ?? config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID')));
+
         if (empty($approverChatId)) return;
 
         $className = optional($student->classroom)->name ?? '-';
@@ -818,7 +832,10 @@ class TelegramWebhookController extends Controller
 
         $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
-        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $setting   = AttendanceSetting::first();
+        $groupLink = $setting?->telegram_admin_group_link 
+            ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+
         $keyboard = [
             [
                 ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
@@ -869,7 +886,10 @@ class TelegramWebhookController extends Controller
 
         $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
-        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $setting   = AttendanceSetting::first();
+        $groupLink = $setting?->telegram_admin_group_link 
+            ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+
         $keyboard = [
             [
                 ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
@@ -922,7 +942,10 @@ class TelegramWebhookController extends Controller
 
         $text .= "--- *Listrik SMKN 1 Bukittinggi* ---";
 
-        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $setting   = AttendanceSetting::first();
+        $groupLink = $setting?->telegram_admin_group_link 
+            ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+
         $keyboard = [
             [
                 ['text' => '👥 Gabung Grup Telegram Admin', 'url' => $groupLink]
@@ -948,7 +971,10 @@ class TelegramWebhookController extends Controller
 
     private function notifyAdminGroup(TelegramSubscriber $subscriber, Student $student, TelegramService $telegramService): void
     {
-        $adminGroupChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
+        $setting          = AttendanceSetting::first();
+        $adminGroupChatId = $setting?->telegram_admin_chat_id 
+            ?? config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
+
         if (empty($adminGroupChatId)) return;
 
         $className = optional($student->classroom)->name ?? '-';
@@ -989,8 +1015,10 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $student = Student::find($subscriber->student_id);
-        $groupLink = config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
+        $student   = Student::find($subscriber->student_id);
+        $setting   = AttendanceSetting::first();
+        $groupLink = $setting?->telegram_admin_group_link 
+            ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
         if ($action === 'approve') {
             $subscriber->update([

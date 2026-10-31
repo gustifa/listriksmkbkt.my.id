@@ -1,5 +1,5 @@
 @section('title')
-   Pengaturan Jam Masuk, Pulang & Geofencing
+   Pengaturan Jam Masuk, Pulang, Geofencing & Notifikasi
 @endsection
 <x-app-layout>
     <!-- CSS Leaflet Maps -->
@@ -13,7 +13,7 @@
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0 p-0">
                         <li class="breadcrumb-item"><a href="{{url('/admin/dashboard')}}"><i class="bx bx-home-alt"></i></a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Jadwal & Geofencing</li>
+                        <li class="breadcrumb-item active" aria-current="page">Jadwal, Geofencing & Notifikasi</li>
                     </ol>
                 </nav>
             </div>
@@ -24,7 +24,7 @@
             <div class="col-md-12">
                 <div class="card shadow border-0">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> Pengaturan Jam Operasional & Titik Lokasi Absensi</h5>
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> Pengaturan Jam Operasional, Lokasi & Notifikasi</h5>
                     </div>
                     <div class="card-body">
 
@@ -66,8 +66,34 @@
 
                                 <hr class="my-4">
 
-                                {{-- SEKSI 2: FITUR TELEGRAM & MODE BELAJAR --}}
-                                <h6 class="text-primary fw-bold mb-3"><i class="fab fa-telegram me-2"></i> Pengaturan Notifikasi Telegram & Mode Belajar</h6>
+                                {{-- SEKSI 2: FITUR TELEGRAM, WA & MODE BELAJAR --}}
+                                <h6 class="text-primary fw-bold mb-3"><i class="fab fa-telegram me-2"></i> Pengaturan Notifikasi Telegram & WhatsApp</h6>
+                                
+                                <!-- SAKELAR (TOGGLE) ON/OFF NOTIFIKASI -->
+                                <div class="row mb-3 bg-light p-3 rounded border mx-0">
+                                    <div class="col-md-6 mb-2 mb-md-0">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enable_telegram_notification" name="enable_telegram_notification" value="1"
+                                                {{ ($setting->enable_telegram_notification ?? true) ? 'checked' : '' }} style="transform: scale(1.2); cursor: pointer;">
+                                            <label class="form-check-label fw-bold text-dark ms-2 cursor-pointer" for="enable_telegram_notification">
+                                                🤖 Aktifkan Notifikasi Telegram
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Jika dimatikan, seluruh pengiriman pesan & laporan otomatis ke Telegram dihentikan.</small>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enable_wa_notification" name="enable_wa_notification" value="1"
+                                                {{ ($setting->enable_wa_notification ?? true) ? 'checked' : '' }} style="transform: scale(1.2); cursor: pointer;">
+                                            <label class="form-check-label fw-bold text-dark ms-2 cursor-pointer" for="enable_wa_notification">
+                                                💬 Aktifkan Notifikasi WhatsApp
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Jika dimatikan, pesan broadcast dan notifikasi presensi ke WhatsApp dihentikan.</small>
+                                    </div>
+                                </div>
+
                                 <div class="row mb-2">
                                     <div class="mb-3 col-md-6 form-group">
                                         <label class="form-label fw-bold">Lampiran Foto Wajah di Telegram</label>
@@ -79,7 +105,7 @@
                                                 ❌ Tidak (Kirim Pesan Teks Laporan Saja)
                                             </option>
                                         </select>
-                                        <div class="form-text">Jika diaktifkan, notifikasi Telegram ke orang tua akan menyertakan foto hasil scan siswa.</div>
+                                        <div class="form-text">Sertakan foto hasil scan siswa pada pesan Telegram.</div>
                                     </div>
 
                                     <div class="mb-3 col-md-6 form-group">
@@ -93,6 +119,37 @@
                                             </option>
                                         </select>
                                         <div class="form-text">Memperbarui judul laporan notifikasi menjadi <strong>(GERBANG)</strong> atau <strong>(PJJ)</strong>.</div>
+                                    </div>
+                                </div>
+
+                                <!-- PARAMETER BOT TELEGRAM DINAMIS -->
+                                <div class="row bg-light p-3 rounded border mx-0 mt-2">
+                                    <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-key me-2"></i> Parameter Akses Telegram Bot</h6>
+                                    
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Telegram Bot Token</label>
+                                        <input type="text" name="telegram_bot_token" class="form-control"
+                                            value="{{ $setting->telegram_bot_token ?? '' }}" placeholder="Contoh: 8420994424:AAEU728v0p...">
+                                        <div class="form-text">Kosongkan jika ingin menggunakan token default dari `.env`.</div>
+                                    </div>
+
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Telegram Admin Group Chat ID</label>
+                                        <input type="text" name="telegram_admin_chat_id" class="form-control"
+                                            value="{{ $setting->telegram_admin_chat_id ?? '' }}" placeholder="Contoh: -1003906615619">
+                                        <div class="form-text">ID Grup Telegram Admin/Guru untuk menerima pengajuan izin.</div>
+                                    </div>
+
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Telegram Bot Username</label>
+                                        <input type="text" name="telegram_bot_username" class="form-control"
+                                            value="{{ $setting->telegram_bot_username ?? '' }}" placeholder="Contoh: listrikbk_bot">
+                                    </div>
+
+                                    <div class="mb-3 col-md-6 form-group">
+                                        <label class="form-label fw-bold">Link Group Telegram Admin</label>
+                                        <input type="text" name="telegram_admin_group_link" class="form-control"
+                                            value="{{ $setting->telegram_admin_group_link ?? '' }}" placeholder="Contoh: https://t.me/+p_yx7_McCC5jN2U1">
                                     </div>
                                 </div>
 

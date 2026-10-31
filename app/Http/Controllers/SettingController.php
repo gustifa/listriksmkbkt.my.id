@@ -26,7 +26,6 @@ class SettingController extends Controller
     public function update(Request $request)
     {
         // 1. Validasi Input
-        // 1. Validasi Input
         $request->validate([
             // Data Sekolah & Logo
             'school_name'     => 'required|string|max:255',
@@ -56,7 +55,7 @@ class SettingController extends Controller
             'signature_nip'   => 'nullable|string',
             'info_aplikasi'   => 'nullable|string',
 
-            // Fitur Titik Lokasi / Geofencing (TAMBAHKAN INI)
+            // Fitur Titik Lokasi / Geofencing
             'school_latitude'  => 'nullable|numeric',
             'school_longitude' => 'nullable|numeric',
             'school_radius'    => 'nullable|integer|min:10',
@@ -114,125 +113,52 @@ class SettingController extends Controller
     }
 
     /**
-     * Proses Simpan / Update Jam Operasional Absensi
+     * Proses Simpan / Update Jam Operasional Absensi, Geofencing & Notifikasi
      */
-    // public function updateAttendance(Request $request)
-    // {
-    //     $request->validate([
-    //         'start_check_in_time'  => 'required',
-    //         'late_limit_time'       => 'required|after:start_check_in_time',
-    //         'early_departure_time' => 'required',
-    //     ]);
+    public function updateAttendance(Request $request)
+    {
+        // 1. Validasi Input
+        $request->validate([
+            'start_check_in_time'       => 'required',
+            'late_limit_time'            => 'required|after:start_check_in_time',
+            'early_departure_time'      => 'required',
+            'auto_absent_time'          => 'required',
+            'latitude'                  => 'required|numeric',
+            'longitude'                 => 'required|numeric',
+            'radius_meters'             => 'required|integer|min:10',
+            'send_photo_telegram'       => 'required|in:0,1',
+            'learning_mode'             => 'required|in:PTM,PJJ',
+            'telegram_bot_token'        => 'nullable|string',
+            'telegram_admin_chat_id'    => 'nullable|string',
+            'telegram_bot_username'     => 'nullable|string',
+            'telegram_admin_group_link' => 'nullable|string',
+        ]);
 
-    //     $data = $request->only([
-    //         'start_check_in_time',
-    //         'late_limit_time',
-    //         'early_departure_time',
-    //     ]);
+        // 2. Ambil data inputan teks & seleksi
+        $data = $request->only([
+            'start_check_in_time',
+            'late_limit_time',
+            'early_departure_time',
+            'auto_absent_time',
+            'latitude',
+            'longitude',
+            'radius_meters',
+            'send_photo_telegram',
+            'learning_mode',
+            'telegram_bot_token',
+            'telegram_admin_chat_id',
+            'telegram_bot_username',
+            'telegram_admin_group_link',
+        ]);
 
-    //     AttendanceSetting::updateOrCreate(['id' => 1], $data);
+        // 3. Process Checkbox / Switch Toggles (1 jika dicentang, 0 jika tidak)
+        $data['is_geofence_active']          = $request->has('is_geofence_active') ? 1 : 0;
+        $data['enable_telegram_notification'] = $request->has('enable_telegram_notification') ? 1 : 0;
+        $data['enable_wa_notification']       = $request->has('enable_wa_notification') ? 1 : 0;
 
-    //     return back()->with('success', 'Jam operasional absensi berhasil diperbarui!');
-    // }
+        // 4. Simpan atau Update ke ID 1
+        AttendanceSetting::updateOrCreate(['id' => 1], $data);
 
-//     public function updateAttendance(Request $request)
-// {
-//     // 1. Validasi Input Jam & Geofencing
-//     $request->validate([
-//         'start_check_in_time'  => 'required',
-//         'late_limit_time'       => 'required|after:start_check_in_time',
-//         'early_departure_time' => 'required',
-//         'latitude'             => 'required|numeric',
-//         'longitude'            => 'required|numeric',
-//         'radius_meters'        => 'required|integer|min:10',
-//     ]);
-
-//     // 2. Ambil data yang akan disimpan
-//     $data = $request->only([
-//         'start_check_in_time',
-//         'late_limit_time',
-//         'early_departure_time',
-//         'latitude',
-//         'longitude',
-//         'radius_meters',
-//     ]);
-
-//     // Set 1 jika checkbox dicentang (PTM), atau 0 jika tidak dicentang (PJJ)
-//     $data['is_geofence_active'] = $request->has('is_geofence_active') ? 1 : 0;
-
-//     // 3. Simpan atau Update ke ID 1
-//     AttendanceSetting::updateOrCreate(['id' => 1], $data);
-
-//     return back()->with('success', 'Jam operasional & lokasi geofencing absensi berhasil diperbarui!');
-// }
-
-// public function updateAttendance(Request $request)
-// {
-//     // 1. Validasi Input Jam, Otomatisasi Alpa & Geofencing
-//     $request->validate([
-//         'start_check_in_time'  => 'required',
-//         'late_limit_time'       => 'required|after:start_check_in_time',
-//         'early_departure_time' => 'required',
-//         'auto_absent_time'     => 'required', // <--- Field jam eksekusi alpa
-//         'latitude'             => 'required|numeric',
-//         'longitude'            => 'required|numeric',
-//         'radius_meters'        => 'required|integer|min:10',
-//     ]);
-
-//     // 2. Ambil data yang akan disimpan
-//     $data = $request->only([
-//         'start_check_in_time',
-//         'late_limit_time',
-//         'early_departure_time',
-//         'auto_absent_time', // <--- Dimasukkan ke array $data
-//         'latitude',
-//         'longitude',
-//         'radius_meters',
-//     ]);
-
-//     // Set 1 jika checkbox dicentang (PTM), atau 0 jika tidak dicentang (PJJ)
-//     $data['is_geofence_active'] = $request->has('is_geofence_active') ? 1 : 0;
-
-//     // 3. Simpan atau Update ke ID 1
-//     AttendanceSetting::updateOrCreate(['id' => 1], $data);
-
-//     return back()->with('success', 'Jam operasional, otomatisasi alpa & lokasi geofencing absensi berhasil diperbarui!');
-// }
-
-public function updateAttendance(Request $request)
-{
-    // 1. Validasi Input
-    $request->validate([
-        'start_check_in_time'  => 'required',
-        'late_limit_time'       => 'required|after:start_check_in_time',
-        'early_departure_time' => 'required',
-        'auto_absent_time'     => 'required',
-        'latitude'             => 'required|numeric',
-        'longitude'            => 'required|numeric',
-        'radius_meters'        => 'required|integer|min:10',
-        'send_photo_telegram'  => 'required|in:0,1',
-        'learning_mode'        => 'required|in:PTM,PJJ',
-    ]);
-
-    // 2. Ambil data yang akan disimpan
-    $data = $request->only([
-        'start_check_in_time',
-        'late_limit_time',
-        'early_departure_time',
-        'auto_absent_time',
-        'latitude',
-        'longitude',
-        'radius_meters',
-        'send_photo_telegram',
-        'learning_mode',
-    ]);
-
-    // Checkbox Geofencing Status
-    $data['is_geofence_active'] = $request->has('is_geofence_active') ? 1 : 0;
-
-    // 3. Simpan atau Update ke ID 1
-    AttendanceSetting::updateOrCreate(['id' => 1], $data);
-
-    return back()->with('success', 'Pengaturan jam operasional, geofencing & notifikasi Telegram berhasil diperbarui!');
-}
+        return back()->with('success', 'Pengaturan jam operasional, geofencing & notifikasi Telegram/WA berhasil diperbarui!');
+    }
 }
