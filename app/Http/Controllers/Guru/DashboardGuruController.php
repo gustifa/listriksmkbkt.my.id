@@ -296,9 +296,9 @@ class DashboardGuruController extends Controller
             'totalStudents',
             'todayPresence', 
             'chartData',
-            'telegramLink' // <-- Kirim variabel link ke view
+            'telegramLink', // <-- Kirim variabel link ke view
             'isTelegramConnected',
-            'telegramSubscriber',
+            'telegramSubscriber'
         ));
     }
 
