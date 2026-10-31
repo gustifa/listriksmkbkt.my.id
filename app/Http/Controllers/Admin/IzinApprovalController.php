@@ -34,27 +34,57 @@ class IzinApprovalController extends Controller
     /**
      * Setujui Pengajuan Izin / Sakit
      */
+    // public function approve(Request $request, $id, TelegramService $telegram)
+    // {
+    //     $izin = IzinSiswa::findOrFail($id);
+    //     $approverName = Auth::user()->name ?? 'Petugas Sekolah';
+
+    //     $izin->update([
+    //         'status'      => 'approved',
+    //         'approved_by' => $approverName,
+    //         'approved_at' => now(),
+    //     ]);
+
+    //     if ($izin->telegram_chat_id) {
+    //         $studentName = optional($izin->student)->name ?? 'Siswa';
+    //         $typeText    = strtoupper($izin->type);
+    //         $msg = "🎉 *PENGAJUAN {$typeText} DISETUJUI!*\n\n" .
+    //                "Pengajuan untuk *{$studentName}* pada tanggal *{$izin->date}* telah disetujui oleh *{$approverName}*.";
+    //         $telegram->sendMessage($izin->telegram_chat_id, $msg);
+    //     }
+
+    //     return redirect()->back()->with('success', 'Pengajuan izin berhasil disetujui.');
+    // }
+
     public function approve(Request $request, $id, TelegramService $telegram)
-    {
-        $izin = IzinSiswa::findOrFail($id);
-        $approverName = Auth::user()->name ?? 'Petugas Sekolah';
+{
+    $izin = IzinSiswa::findOrFail($id);
+    $approverName = Auth::user()->name ?? 'Petugas Sekolah';
 
-        $izin->update([
-            'status'      => 'approved',
-            'approved_by' => $approverName,
-            'approved_at' => now(),
-        ]);
+    $izin->update([
+        'status'      => 'approved',
+        'approved_by' => $approverName,
+        'approved_at' => now(),
+    ]);
 
-        if ($izin->telegram_chat_id) {
-            $studentName = optional($izin->student)->name ?? 'Siswa';
-            $typeText    = strtoupper($izin->type);
-            $msg = "🎉 *PENGAJUAN {$typeText} DISETUJUI!*\n\n" .
-                   "Pengajuan untuk *{$studentName}* pada tanggal *{$izin->date}* telah disetujui oleh *{$approverName}*.";
-            $telegram->sendMessage($izin->telegram_chat_id, $msg);
-        }
-
-        return redirect()->back()->with('success', 'Pengajuan izin berhasil disetujui.');
+    if ($izin->telegram_chat_id) {
+        $studentName = optional($izin->student)->name ?? 'Siswa';
+        $typeText    = strtoupper($izin->type);
+        $msg = "🎉 *PENGAJUAN {$typeText} DISETUJUI!*\n\n" .
+               "Pengajuan untuk *{$studentName}* pada tanggal *{$izin->date}* telah disetujui oleh *{$approverName}*.";
+        $telegram->sendMessage($izin->telegram_chat_id, $msg);
     }
+
+    if ($request->wantsJson()) {
+        return response()->json([
+            'status'      => true,
+            'message'     => 'Pengajuan izin berhasil disetujui.',
+            'approved_by' => $approverName
+        ]);
+    }
+
+    return redirect()->back()->with('success', 'Pengajuan izin berhasil disetujui.');
+}
 
     /**
      * Tolak / Batalkan Pengajuan Izin
