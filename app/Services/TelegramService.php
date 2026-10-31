@@ -8,6 +8,7 @@ use App\Models\AttendanceSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class TelegramService
 {
@@ -30,20 +31,30 @@ class TelegramService
             return false;
         }
 
-        $subscriber = TelegramSubscriber::where('chat_id', (string) $chatId)->first();
+        $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+            $q->where('chat_id', (string) $chatId)
+              ->orWhere('chat_id', (int) $chatId);
+        })->first();
+
         $recipientName = $subscriber ? $subscriber->parent_name : 'Orang Tua / Pengguna';
         $logTitle = $title ?? ($type === 'absensi' ? 'Notifikasi Presensi' : 'Notifikasi Bot');
 
-        // Record log (Status: Pending)
-        $log = TelegramNotification::create([
-            'telegram_subscriber_id' => $subscriber?->id,
-            'recipient_name'         => $recipientName,
-            'chat_id'                => (string) $chatId,
-            'title'                  => $logTitle,
-            'message'                => $text,
-            'type'                   => $type,
-            'status'                 => 'pending',
-        ]);
+        // Aman dari Crash: Buat log di dalam try-catch agar kegagalan DB tidak menghentikan bot
+        $log = null;
+        try {
+            $log = TelegramNotification::create([
+                'id'                     => (string) Str::uuid(),
+                'telegram_subscriber_id' => $subscriber ? (string) $subscriber->id : null,
+                'recipient_name'         => (string) $recipientName,
+                'chat_id'                => (string) $chatId,
+                'title'                  => (string) $logTitle,
+                'message'                => (string) $text,
+                'type'                   => (string) $type,
+                'status'                 => 'pending',
+            ]);
+        } catch (\Exception $exLog) {
+            Log::warning("Telegram Log Create Warning: " . $exLog->getMessage());
+        }
 
         try {
             $response = Http::post($this->baseUrl . 'sendMessage', [
@@ -55,10 +66,12 @@ class TelegramService
             if ($response->successful()) {
                 Log::info("Telegram SUKSES terkirim ke Chat ID: {$chatId}");
 
-                $log->update([
-                    'status'  => 'success',
-                    'sent_at' => now(),
-                ]);
+                if ($log) {
+                    $log->update([
+                        'status'  => 'success',
+                        'sent_at' => now(),
+                    ]);
+                }
 
                 return true;
             }
@@ -66,20 +79,24 @@ class TelegramService
             $errorResponseBody = $response->body();
             Log::error("Telegram GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $errorResponseBody);
 
-            $log->update([
-                'status'    => 'failed',
-                'error_log' => $errorResponseBody,
-            ]);
+            if ($log) {
+                $log->update([
+                    'status'    => 'failed',
+                    'error_log' => $errorResponseBody,
+                ]);
+            }
 
             return false;
 
         } catch (\Exception $e) {
             Log::error("Telegram ERROR ke {$chatId}: " . $e->getMessage());
 
-            $log->update([
-                'status'    => 'failed',
-                'error_log' => $e->getMessage(),
-            ]);
+            if ($log) {
+                $log->update([
+                    'status'    => 'failed',
+                    'error_log' => $e->getMessage(),
+                ]);
+            }
 
             return false;
         }
@@ -104,20 +121,29 @@ class TelegramService
             return $this->sendMessage($chatId, $caption, $type, $title);
         }
 
-        $subscriber = TelegramSubscriber::where('chat_id', (string) $chatId)->first();
+        $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+            $q->where('chat_id', (string) $chatId)
+              ->orWhere('chat_id', (int) $chatId);
+        })->first();
+
         $recipientName = $subscriber ? $subscriber->parent_name : 'Orang Tua / Pengguna';
         $logTitle = $title ?? ($type === 'absensi' ? 'Notifikasi Presensi (Wajah)' : 'Notifikasi Gambar');
 
-        // Record log (Status: Pending)
-        $log = TelegramNotification::create([
-            'telegram_subscriber_id' => $subscriber?->id,
-            'recipient_name'         => $recipientName,
-            'chat_id'                => (string) $chatId,
-            'title'                  => $logTitle,
-            'message'                => $caption,
-            'type'                   => $type,
-            'status'                 => 'pending',
-        ]);
+        $log = null;
+        try {
+            $log = TelegramNotification::create([
+                'id'                     => (string) Str::uuid(),
+                'telegram_subscriber_id' => $subscriber ? (string) $subscriber->id : null,
+                'recipient_name'         => (string) $recipientName,
+                'chat_id'                => (string) $chatId,
+                'title'                  => (string) $logTitle,
+                'message'                => (string) $caption,
+                'type'                   => (string) $type,
+                'status'                 => 'pending',
+            ]);
+        } catch (\Exception $exLog) {
+            Log::warning("Telegram Photo Log Create Warning: " . $exLog->getMessage());
+        }
 
         try {
             $fullPath = Storage::disk('public')->path($photoPath);
@@ -125,7 +151,9 @@ class TelegramService
             // Jika file fisik tidak ditemukan di storage, fallback kirim pesan teks
             if (!file_exists($fullPath)) {
                 Log::warning("Telegram Photo Warning: File {$fullPath} tidak ditemukan, mengirim pesan teks saja.");
-                $log->delete(); // Hapus log pending sementara agar tidak duplikat
+                if ($log) {
+                    $log->delete();
+                }
                 return $this->sendMessage($chatId, $caption, $type, $title);
             }
 
@@ -140,10 +168,12 @@ class TelegramService
             if ($response->successful()) {
                 Log::info("Telegram Foto SUKSES terkirim ke Chat ID: {$chatId}");
 
-                $log->update([
-                    'status'  => 'success',
-                    'sent_at' => now(),
-                ]);
+                if ($log) {
+                    $log->update([
+                        'status'  => 'success',
+                        'sent_at' => now(),
+                    ]);
+                }
 
                 return true;
             }
@@ -151,20 +181,24 @@ class TelegramService
             $errorResponseBody = $response->body();
             Log::error("Telegram Foto GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $errorResponseBody);
 
-            $log->update([
-                'status'    => 'failed',
-                'error_log' => $errorResponseBody,
-            ]);
+            if ($log) {
+                $log->update([
+                    'status'    => 'failed',
+                    'error_log' => $errorResponseBody,
+                ]);
+            }
 
             return false;
 
         } catch (\Exception $e) {
             Log::error("Telegram Foto ERROR ke {$chatId}: " . $e->getMessage());
 
-            $log->update([
-                'status'    => 'failed',
-                'error_log' => $e->getMessage(),
-            ]);
+            if ($log) {
+                $log->update([
+                    'status'    => 'failed',
+                    'error_log' => $e->getMessage(),
+                ]);
+            }
 
             return false;
         }
