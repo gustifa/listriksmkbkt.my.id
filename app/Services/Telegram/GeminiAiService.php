@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Bulletproof Key Extraction)
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Hardened Key Isolation)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -469,11 +469,11 @@ class GeminiAiService
 
                 $rawKey = urldecode((string)$rawKey);
 
-                // 🌟 3. EKSTRAKSI KETAT: Cari hanya string API Key murni (AIzaSy... atau AQAb...)
+                // 🌟 3. EKSTRAKSI MANDIRI KETAT: Isolasi string Kunci API murni saja
                 if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQAb[a-zA-Z0-9_\-]{30,60})/', $rawKey, $matches)) {
                     $apiKey = $matches[1];
                 } else {
-                    // Fallback pembersihan total jika pola tidak cocok persis
+                    // Fallback pembersihan jika karakter depan bukan AIzaSy/AQAb
                     $cleanString = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $rawKey);
                     if (str_contains($cleanString, 'key=')) {
                         $parts = explode('key=', $cleanString);
@@ -491,7 +491,7 @@ class GeminiAiService
                     continue;
                 }
 
-                // 4. Susun Endpoint URL murni
+                // 4. Murni tempelkan Kunci API tanpa menyertakan URL luar dari DB
                 $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . trim($apiKey);
 
                 $response = Http::withoutVerifying()
@@ -531,8 +531,6 @@ class GeminiAiService
 
                     if (is_array($data)) {
                         return $data;
-                    } else {
-                        Log::warning("Gemini Vision: Gagal json_decode text: " . $cleanedJson);
                     }
                 } else {
                     Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Response: " . $response->body());
