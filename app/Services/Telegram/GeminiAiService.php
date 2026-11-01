@@ -253,4 +253,84 @@ class GeminiAiService
             return $validModels;
         });
     }
+
+    /**
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API
+     */
+    public function parseAttendanceImage(string $imagePath): ?array
+    {
+        $apiKeys = ApiKey::where('is_active', true)
+            ->where('provider', 'gemini')
+            ->orderBy('priority', 'asc')
+            ->get();
+
+        if ($apiKeys->isEmpty()) {
+            return null;
+        }
+
+        $fullPath = storage_path('app/public/' .$photoPath);
+        if (!file_exists($fullPath)) {
+            $fullPath = storage_path('app/' .$imagePath);
+        }
+
+        if (!file_exists($fullPath)) {
+            return null;
+        }
+
+        $base64Image = base64_encode(file_get_contents($fullPath));
+        $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
+
+        $prompt = "Analisis foto rekap kehadiran siswa ini. Ekstrak data kehadiran ke dalam format JSON murni TANPA MARKDOWN (tanpa ```json).\n" .
+                  "Format JSON yang wajib dikembalikan:\n" .
+                  "{\n" .
+                  "  \"date\": \"YYYY-MM-DD\", // tanggal pada dokumen, jika tidak ada gunakan null\n" .
+                  "  \"attendances\": [\n" .
+                  "    {\"student_name\": \"Nama Siswa 1\", \"status\": \"HADIR/IZIN/SAKIT/ALPHA\"},\n" .
+                  "    {\"student_name\": \"Nama Siswa 2\", \"status\": \"HADIR/IZIN/SAKIT/ALPHA\"}\n" .
+                  "  ]\n" .
+                  "}";
+
+        foreach ($apiKeys as $keyItem) {
+            try {
+                $apiKey = trim($keyItem->api_key);
+                $url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){$apiKey}";
+
+                $response = Http::withoutVerifying()
+                    ->timeout(15)
+                    ->withHeaders(['Content-Type' => 'application/json'])
+                    ->post($url, [
+                        'contents' => [
+                            [
+                                'parts' => [
+                                    ['text' => $prompt],
+                                    [
+                                        'inline_data' => [
+                                            'mime_type' => $mimeType,
+                                            'data'      => $base64Image
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'generationConfig' => [
+                            'temperature' => 0.1, // Respons sangat ketat & terstruktur
+                        ]
+                    ]);
+
+                if ($response->successful()) {
+                    $rawText = $response->json('candidates.0.content.parts.0.text');
+                    $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
+                    $data = json_decode($cleanedJson, true);
+
+                    if (is_array($data)) {
+                        return $data;
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Gemini Vision Parsing Exception: " . $e->getMessage());
+            }
+        }
+
+        return null;
+    }
 }

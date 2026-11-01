@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\TelegramAiController; // <-- Tambahkan di paling atas
+use App\Http\Controllers\TelegramAiController;
 use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -13,9 +13,12 @@ use App\Services\Telegram\TelegramTeacherService;
 use App\Services\Telegram\TelegramRegistrationService;
 use App\Services\Telegram\TelegramStudentService;
 use App\Services\Telegram\TelegramApprovalService;
+use App\Services\Telegram\GeminiAiService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Services\Telegram\GeminiAiService; // <-- Tambahkan di atas
+use Illuminate\Support\Facades\Storage;
 
 class TelegramWebhookController extends Controller
 {
@@ -26,7 +29,8 @@ class TelegramWebhookController extends Controller
         TelegramRegistrationService $registrationService,
         TelegramStudentService $studentService,
         TelegramApprovalService $approvalService,
-        TelegramAiController $aiController // <-- Injeksikan Controller AI di sini
+        TelegramAiController $aiController,
+        GeminiAiService $aiService
     ) {
         if ($request->isMethod('get')) {
             return response()->json(['status' => true, 'message' => 'Endpoint Webhook Telegram SISFO Aktif!']);
@@ -54,6 +58,92 @@ class TelegramWebhookController extends Controller
             // 2. HANDLE BAGIKAN KONTAK
             if (isset($message['contact'])) {
                 $registrationService->handleContact($message, $chatId, $groupLink, $telegramService);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // =========================================================================
+            // HANDLER FOTO MASUK (Proses Rekap Absensi via Gemini Vision OCR dari Guru)
+            // =========================================================================
+            if (isset($message['photo'])) {
+                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+                })->first();
+
+                // Fitur ini khusus untuk akun Guru terdaftar
+                if (!$subscriber || !$subscriber->teacher_id) {
+                    $telegramService->sendMessage($chatId, "⚠️ Fitur upload rekap kehadiran via foto hanya tersedia untuk akun Guru.");
+                    return response()->json(['status' => 'ok']);
+                }
+
+                // Ambil foto kualitas tertinggi dari Telegram
+                $photos = $message['photo'];
+                $highestResPhoto = end($photos);
+                $fileId = $highestResPhoto['file_id'];
+
+                // Download foto dari Telegram Server
+                $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+                $fileUrlResponse = Http::get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
+                
+                if ($fileUrlResponse->successful()) {
+                    $filePathOnTelegram = $fileUrlResponse->json('result.file_path');
+                    $imageContents = Http::get("https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}")->body();
+
+                    // Simpan sementara di storage
+                    $tempPath = "temp_rekap/" . uniqid() . ".jpg";
+                    Storage::disk('public')->put($tempPath, $imageContents);
+
+                    $telegramService->sendMessage($chatId, "🔍 *Sedang Menganalisis Foto Rekap...*\nMohon tunggu beberapa detik.");
+
+                    // Panggil Gemini Vision Parsing
+                    $parsedData = $aiService->parseAttendanceImage($tempPath);
+
+                    if (!$parsedData || empty($parsedData['attendances'])) {
+                        $telegramService->sendMessage($chatId, "❌ Gagal membaca data dari foto. Pastikan tulisan/tabel pada foto terlihat jelas dan terang.");
+                        return response()->json(['status' => 'ok']);
+                    }
+
+                    // Masukkan Hasil Parsing ke Database PostgreSQL
+                    $targetDate = $parsedData['date'] ?? date('Y-m-d');
+                    $successCount = 0;
+                    $teacherName = optional($subscriber->teacher)->name ?? 'Guru';
+
+                    foreach ($parsedData['attendances'] as $row) {
+                        $studentName = trim($row['student_name'] ?? '');
+                        $status = strtolower(trim($row['status'] ?? 'hadir'));
+
+                        if (!empty($studentName)) {
+                            // Cari data siswa di DB berdasarkan Kemiripan Nama (ILIKE PostgreSQL)
+                            $student = DB::table('students')
+                                ->where('name', 'ILIKE', "%{$studentName}%")
+                                ->first();
+
+                            if ($student) {
+                                DB::table('daily_attendances')->updateOrInsert(
+                                    [
+                                        'student_id' => $student->id,
+                                        'date'       => $targetDate,
+                                    ],
+                                    [
+                                        'status'      => $status,
+                                        'recorded_by' => 'Telegram Bot OCR (' . $teacherName . ')',
+                                        'updated_at'  => now(),
+                                        'created_at'  => now(),
+                                        'is_synced'   => true,
+                                    ]
+                                );
+                                $successCount++;
+                            }
+                        }
+                    }
+
+                    $telegramService->sendMessage(
+                        $chatId, 
+                        "✅ *Berhasil Menginput Rekap Presensi!*\n\n" .
+                        "📅 Tanggal: *{$targetDate}*\n" .
+                        "📊 Total Siswa Terinput: *{$successCount} Siswa*"
+                    );
+                }
+
                 return response()->json(['status' => 'ok']);
             }
 
@@ -351,19 +441,11 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // // =========================================================================
-            // // 9. FALLBACK KE TELEGRAM AI CONTROLLER (PESAN BEBAS)
-            // // =========================================================================
-            // if (!empty($text) && !str_starts_with($text, '/')) {
-            //     $aiController->handleAiResponse($chatId, $text);
-            //     return response()->json(['status' => 'ok']);
-            // }
             // =========================================================================
             // 9. HYBRID INTENT ROUTER & FALLBACK AI (DISINI TEMPATNYA)
-            // =======================================================================
-
+            // =========================================================================
             if (!empty($text) && !str_starts_with($text, '/')) {
-                $subscriber = \App\Models\TelegramSubscriber::where('chat_id', $chatId)->first();
+                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
 
                 // Jalankan Handler Hybrid
                 $aiController->handleHybridRequest($chatId, $text, $subscriber);
