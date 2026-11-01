@@ -22,7 +22,7 @@ class TelegramService
     }
 
     /**
-     * Kirim Pesan Teks via Telegram API & Simpan Log Monitoring
+     * Kirim Pesan Teks via Telegram API & Simpan Log Monitoring (Dengan Fallback Plain Text)
      */
     public function sendMessage($chatId, string $text, string $type = 'absensi', ?string $title = null): bool
     {
@@ -57,6 +57,7 @@ class TelegramService
         }
 
         try {
+            // 1. Coba kirim dengan Parse Mode Markdown
             $response = Http::post($this->baseUrl . 'sendMessage', [
                 'chat_id'    => $chatId,
                 'text'       => $text,
@@ -76,13 +77,35 @@ class TelegramService
                 return true;
             }
 
+            // 2. FALLBACK: Jika gagal parsing Markdown (misal unclosed entities 400), kirim sebagai Plain Text
             $errorResponseBody = $response->body();
-            Log::error("Telegram GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $errorResponseBody);
+            Log::warning("Telegram GAGAL parse Markdown ke Chat ID: {$chatId}. Mencoba kirim Plain Text... Log: " . $errorResponseBody);
+
+            $fallbackResponse = Http::post($this->baseUrl . 'sendMessage', [
+                'chat_id' => $chatId,
+                'text'    => $text, // Kirim tanpa parse_mode
+            ]);
+
+            if ($fallbackResponse->successful()) {
+                Log::info("Telegram SUKSES (Plain Text Fallback) terkirim ke Chat ID: {$chatId}");
+
+                if ($log) {
+                    $log->update([
+                        'status'  => 'success',
+                        'sent_at' => now(),
+                    ]);
+                }
+
+                return true;
+            }
+
+            $fallbackErrorBody = $fallbackResponse->body();
+            Log::error("Telegram GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $fallbackErrorBody);
 
             if ($log) {
                 $log->update([
                     'status'    => 'failed',
-                    'error_log' => $errorResponseBody,
+                    'error_log' => $fallbackErrorBody,
                 ]);
             }
 
@@ -103,7 +126,7 @@ class TelegramService
     }
 
     /**
-     * Kirim Pesan Foto dengan Caption via Telegram API & Simpan Log
+     * Kirim Pesan Foto dengan Caption via Telegram API & Simpan Log (Dengan Fallback Plain Text Caption)
      */
     public function sendPhoto($chatId, string $photoPath, string $caption = '', string $type = 'absensi', ?string $title = null): bool
     {
@@ -157,6 +180,7 @@ class TelegramService
                 return $this->sendMessage($chatId, $caption, $type, $title);
             }
 
+            // 1. Coba kirim foto dengan Caption Markdown
             $response = Http::attach(
                 'photo', file_get_contents($fullPath), basename($fullPath)
             )->post($this->baseUrl . 'sendPhoto', [
@@ -178,13 +202,37 @@ class TelegramService
                 return true;
             }
 
+            // 2. FALLBACK: Jika gagal parsing caption Markdown, kirim foto dengan Plain Text Caption
             $errorResponseBody = $response->body();
-            Log::error("Telegram Foto GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $errorResponseBody);
+            Log::warning("Telegram Foto GAGAL parse Markdown ke Chat ID: {$chatId}. Mencoba kirim dengan Plain Text Caption...");
+
+            $fallbackResponse = Http::attach(
+                'photo', file_get_contents($fullPath), basename($fullPath)
+            )->post($this->baseUrl . 'sendPhoto', [
+                'chat_id' => $chatId,
+                'caption' => $caption, // Tanpa parse_mode
+            ]);
+
+            if ($fallbackResponse->successful()) {
+                Log::info("Telegram Foto SUKSES (Plain Text Fallback) terkirim ke Chat ID: {$chatId}");
+
+                if ($log) {
+                    $log->update([
+                        'status'  => 'success',
+                        'sent_at' => now(),
+                    ]);
+                }
+
+                return true;
+            }
+
+            $fallbackErrorBody = $fallbackResponse->body();
+            Log::error("Telegram Foto GAGAL terkirim ke Chat ID: {$chatId}. Respon: " . $fallbackErrorBody);
 
             if ($log) {
                 $log->update([
                     'status'    => 'failed',
-                    'error_log' => $errorResponseBody,
+                    'error_log' => $fallbackErrorBody,
                 ]);
             }
 
