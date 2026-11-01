@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\Telegram\TelegramTeacherController;
 
 class TelegramWebhookController extends Controller
 {
@@ -478,76 +479,12 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // PADA BAGIAN PENANGANAN PESAN GAMBAR / FOTO
-            if (isset($message['photo'])) {
-                $chatId = (string) $message['chat']['id'];
-
-                // 1. Cek apakah pengirim terdaftar sebagai GURU
-                $teacherSub = TelegramSubscriber::where('chat_id', $chatId)->whereNotNull('teacher_id')->first();
-
-                if ($teacherSub) {
-                    // 🟢 JIKA GURU: Jalankan OCR Gemini AI untuk Parse Foto Rekap Kelas
-                    $telegramService->sendMessage($chatId, "🔍 *Sedang menganalisis foto rekap presensi...*");
-                    
-                    $imagePath = $this->downloadTelegramPhoto($message['photo']);
-                    $parsedData = $geminiService->parseAttendanceImage($imagePath);
-
-                    // ... (Logika simpan rekap kelas oleh Guru)
-                    return response()->json(['status' => 'ok']);
-                }
-
-                // 2. Cek apakah pengirim terdaftar sebagai SISWA
-                $studentSub = TelegramSubscriber::where('chat_id', $chatId)->whereNotNull('student_id')->first();
-
-                if ($studentSub) {
-                    // 🔵 JIKA SISWA: Minta/Proses Foto Selfie untuk Absen Mandiri Siswa
-                    $telegramService->sendMessage($chatId, "📸 *Foto selfie diterima!* Sekarang silakan kirimkan *Lokasi GPS (Share Location)* Anda untuk memverifikasi absensi.");
-                    
-                    // Simpan path foto selfie sementara di cache/session siswa untuk diverifikasi bersama lokasi
-                    Cache::put("selfie_student_{$studentSub->student_id}", $this->downloadTelegramPhoto($message['photo']), now()->addMinutes(10));
-                    
-                    return response()->json(['status' => 'ok']);
-                }
-
-                // 3. Jika Pengirim Belum Terdaftar
-                $telegramService->sendMessage($chatId, "⚠️ Akun Anda belum terhubung sebagai Guru maupun Siswa.");
-                return response()->json(['status' => 'ok']);
-            }
-            // PADA BAGIAN PENANGANAN PESAN GAMBAR / FOTO
-            if (isset($message['photo'])) {
-                $chatId = (string) $message['chat']['id'];
-
-                // 1. Cek apakah pengirim terdaftar sebagai GURU
-                $teacherSub = TelegramSubscriber::where('chat_id', $chatId)->whereNotNull('teacher_id')->first();
-
-                if ($teacherSub) {
-                    // 🟢 JIKA GURU: Jalankan OCR Gemini AI untuk Parse Foto Rekap Kelas
-                    $telegramService->sendMessage($chatId, "🔍 *Sedang menganalisis foto rekap presensi...*");
-                    
-                    $imagePath = $this->downloadTelegramPhoto($message['photo']);
-                    $parsedData = $geminiService->parseAttendanceImage($imagePath);
-
-                    // ... (Logika simpan rekap kelas oleh Guru)
-                    return response()->json(['status' => 'ok']);
-                }
-
-                // 2. Cek apakah pengirim terdaftar sebagai SISWA
-                $studentSub = TelegramSubscriber::where('chat_id', $chatId)->whereNotNull('student_id')->first();
-
-                if ($studentSub) {
-                    // 🔵 JIKA SISWA: Minta/Proses Foto Selfie untuk Absen Mandiri Siswa
-                    $telegramService->sendMessage($chatId, "📸 *Foto selfie diterima!* Sekarang silakan kirimkan *Lokasi GPS (Share Location)* Anda untuk memverifikasi absensi.");
-                    
-                    // Simpan path foto selfie sementara di cache/session siswa untuk diverifikasi bersama lokasi
-                    Cache::put("selfie_student_{$studentSub->student_id}", $this->downloadTelegramPhoto($message['photo']), now()->addMinutes(10));
-                    
-                    return response()->json(['status' => 'ok']);
-                }
-
-                // 3. Jika Pengirim Belum Terdaftar
-                $telegramService->sendMessage($chatId, "⚠️ Akun Anda belum terhubung sebagai Guru maupun Siswa.");
-                return response()->json(['status' => 'ok']);
-            }
+            // -----------------------------------------------------------------
+        // SKENARIO 1: Pengirim mengirim FOTO & Akun Terdaftar sebagai GURU
+        // -----------------------------------------------------------------
+        if (isset($message['photo']) && $subscriber && $subscriber->teacher_id) {
+            return $this->teacherController->handlePhotoUpload($message, $subscriber);
+        }
 
         } catch (\Exception $e) {
             Log::error("Telegram Webhook Exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
