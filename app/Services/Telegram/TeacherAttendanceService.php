@@ -47,26 +47,23 @@ class TeacherAttendanceService
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
             
-            // Extract pure API key (hapus key=, markdown, dan URL encoding)
+            // Isolasi murni karakter API Key
             $rawKey = (string) $keyItem->api_key;
             if (str_contains($rawKey, 'key=')) {
                 $parts = explode('key=', $rawKey);
                 $rawKey = end($parts);
             }
             
-            // Hanya ambil karakter alfanumerik, dash, dan underscore
+            // Ekstrak hanya karakter alfanumerik, strip, dan underscore (buang [, ], (, ), %, dll)
             $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
 
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
-                // Penggabungan string murni tanpa interpolasi markdown
-                $baseUrl1 = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)';
-                $baseUrl2 = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)';
-
+                // Gunakan sprintf untuk menjamin URL murni tanpa artifact markdown
                 $endpoints = [
-                    $baseUrl1 . $pureKey,
-                    $baseUrl2 . $pureKey,
+                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s)', $pureKey),
+                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s)', $pureKey),
                 ];
 
                 foreach ($endpoints as $url) {
