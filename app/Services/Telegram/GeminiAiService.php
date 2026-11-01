@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (With Detailed Debug Logging)
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Bulletproof Key Extraction)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -455,9 +455,10 @@ class GeminiAiService
 
         foreach ($apiKeys as $keyItem) {
             try {
+                // 1. Ambil data mentah dari DB
                 $rawKey = $keyItem->api_key;
 
-                // 1. Dekripsi jika berupa encrypted string Laravel (eyJ...)
+                // 2. Dekripsi jika berupa encrypted string Laravel (eyJ...)
                 if (is_string($rawKey) && str_starts_with($rawKey, 'eyJ')) {
                     try {
                         $rawKey = \Illuminate\Support\Facades\Crypt::decryptString($rawKey);
@@ -468,14 +469,19 @@ class GeminiAiService
 
                 $rawKey = urldecode((string)$rawKey);
 
-                // 2. Ekstrak Kunci API Murni
+                // 🌟 3. EKSTRAKSI KETAT: Cari hanya string API Key murni (AIzaSy... atau AQAb...)
                 if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQAb[a-zA-Z0-9_\-]{30,60})/', $rawKey, $matches)) {
                     $apiKey = $matches[1];
                 } else {
+                    // Fallback pembersihan total jika pola tidak cocok persis
                     $cleanString = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $rawKey);
                     if (str_contains($cleanString, 'key=')) {
                         $parts = explode('key=', $cleanString);
                         $cleanString = end($parts);
+                    }
+                    if (str_contains($cleanString, 'http')) {
+                        $slashParts = explode('/', $cleanString);
+                        $cleanString = end($slashParts);
                     }
                     $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $cleanString);
                 }
@@ -485,6 +491,7 @@ class GeminiAiService
                     continue;
                 }
 
+                // 4. Susun Endpoint URL murni
                 $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . trim($apiKey);
 
                 $response = Http::withoutVerifying()
@@ -517,8 +524,6 @@ class GeminiAiService
 
                 if ($response->successful()) {
                     $rawText = $response->json('candidates.0.content.parts.0.text');
-                    
-                    // LOG DEBUG: Simpan hasil mentah dari Gemini ke storage/logs/laravel.log
                     Log::info("Gemini Vision RAW Output: " . $rawText);
 
                     $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
@@ -530,7 +535,7 @@ class GeminiAiService
                         Log::warning("Gemini Vision: Gagal json_decode text: " . $cleanedJson);
                     }
                 } else {
-                    Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Body: " . $response->body());
+                    Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Response: " . $response->body());
                 }
             } catch (\Exception $e) {
                 Log::error("Gemini Vision Parsing Exception [{$keyItem->label_name}]: " . $e->getMessage());
