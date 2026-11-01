@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\Log;
 class TeacherAttendanceService
 {
     /**
-     * Memproses Foto Rekap Presensi Khusus Guru (Vision OCR)
+     * Memproses Foto Dokumen Rekap Presensi Guru (Vision OCR)
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Cek keberadaan file fisik gambar di berbagai direktori storage
+        // 1. Validasi keberadaan file fisik dokumen foto di storage
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -25,24 +25,25 @@ class TeacherAttendanceService
         }
 
         if (!file_exists($fullPath)) {
-            Log::error("Teacher OCR: File tidak ditemukan di path: {$fullPath}");
+            Log::error("Teacher Attendance OCR: File dokumen foto tidak ditemukan di path: {$fullPath}");
             return null;
         }
 
         $base64Image = base64_encode(file_get_contents($fullPath));
         $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
 
-        $prompt = "Analisis foto rekap presensi kelas ini secara teliti.\n" .
+        // 2. Prompt khusus untuk OCR dokumen rekap absensi guru
+        $prompt = "Analisis foto dokumen rekap presensi guru/kelas ini secara teliti.\n" .
                   "Ekstrak data kehadiran siswa ke format JSON murni TANPA MARKDOWN / TANPA ```json.\n\n" .
-                  "Format JSON:\n" .
+                  "Format JSON yang wajib dikembalikan:\n" .
                   "{\n" .
                   "  \"date\": \"YYYY-MM-DD\",\n" .
                   "  \"attendances\": [\n" .
-                  "    {\"student_name\": \"Nama Lengkap\", \"nis\": \"12345\", \"status\": \"hadir/izin/sakit/alpha\"}\n" .
+                  "    {\"student_name\": \"Nama Lengkap Siswa\", \"nis\": \"Nomor Induk\", \"status\": \"hadir/izin/sakit/alpha\"}\n" .
                   "  ]\n" .
                   "}";
 
-        // 2. Ambil Kunci API Gemini langsung dari database secara murni
+        // 3. Ambil Kunci API Gemini murni dari database
         $apiKeys = ApiKey::where('is_active', true)
             ->where(function($q) {
                 $q->where('provider', 'ILIKE', '%gemini%')
@@ -52,17 +53,15 @@ class TeacherAttendanceService
             ->get();
 
         if ($apiKeys->isEmpty()) {
-            Log::error("Teacher OCR: Tidak ada Kunci API Gemini aktif di database.");
+            Log::error("Teacher Attendance OCR: Tidak ada Kunci API Gemini aktif di database.");
             return null;
         }
 
         foreach ($apiKeys as $keyItem) {
-            // Karena sudah dihapus enkripsinya di database, ambil nilai string murninya
             $pureKey = trim((string) $keyItem->api_key);
 
             if (empty($pureKey)) continue;
 
-            // Endpoint resmi Gemini 
             $endpoints = [
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
@@ -71,7 +70,7 @@ class TeacherAttendanceService
             foreach ($endpoints as $url) {
                 try {
                     $response = Http::withoutVerifying()
-                        ->timeout(30)
+                        ->timeout(45) // Ditingkatkan sedikit untuk proses OCR dokumen
                         ->retry(2, 500)
                         ->post($url, [
                             'contents' => [
@@ -91,14 +90,14 @@ class TeacherAttendanceService
                         $data = json_decode($cleanedJson, true);
 
                         if (is_array($data)) {
-                            Log::info("SUKSES OCR Presensi Guru [Database Key: {$keyItem->label_name}]");
+                            Log::info("SUKSES OCR Dokumen Presensi Guru [Key: {$keyItem->label_name}]");
                             return $data;
                         }
                     } else {
                         Log::warning("Gemini Vision HTTP Failed [{$keyItem->label_name}] | Status: " . $response->status());
                     }
                 } catch (\Exception $e) {
-                    Log::error("Exception OCR Guru [{$keyItem->label_name}]: " . $e->getMessage());
+                    Log::error("Exception OCR Dokumen Guru [{$keyItem->label_name}]: " . $e->getMessage());
                 }
             }
         }
