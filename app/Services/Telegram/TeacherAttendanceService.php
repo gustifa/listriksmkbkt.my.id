@@ -13,7 +13,6 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Validasi keberadaan file fisik dokumen foto di storage
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -32,7 +31,6 @@ class TeacherAttendanceService
         $base64Image = base64_encode(file_get_contents($fullPath));
         $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
 
-        // 2. Prompt khusus untuk OCR dokumen rekap absensi guru
         $prompt = "Analisis foto dokumen rekap presensi guru/kelas ini secara teliti.\n" .
                   "Ekstrak data kehadiran siswa ke format JSON murni TANPA MARKDOWN / TANPA ```json.\n\n" .
                   "Format JSON yang wajib dikembalikan:\n" .
@@ -43,7 +41,6 @@ class TeacherAttendanceService
                   "  ]\n" .
                   "}";
 
-        // 3. Ambil Kunci API Gemini murni dari database
         $apiKeys = ApiKey::where('is_active', true)
             ->where(function($q) {
                 $q->where('provider', 'ILIKE', '%gemini%')
@@ -58,10 +55,24 @@ class TeacherAttendanceService
         }
 
         foreach ($apiKeys as $keyItem) {
-            $pureKey = trim((string) $keyItem->api_key);
+            $raw = (string) $keyItem->api_key;
+            
+            // Pembersihan agresif untuk menghilangkan sisa Markdown link, kurung, dan spasi
+            $clean = preg_replace('/\[.*?\]\(.*?\)/', '', $raw);
+            $clean = preg_replace('/https?:\/\/[^\s]+/', '', $clean);
+            $pureKey = trim(str_replace([
+                ']', ')', '[', '(', ' ', '"', "'", 
+                '%5B', '%5D', '%5b', '%5d', '%28', '%29'
+            ], '', $clean));
+
+            if (str_contains($pureKey, 'key=')) {
+                $parts = explode('key=', $pureKey);
+                $pureKey = trim(end($parts));
+            }
 
             if (empty($pureKey)) continue;
 
+            // Membangun URL secara eksplisit dan terisolasi dari variabel luar
             $endpoints = [
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
@@ -70,7 +81,7 @@ class TeacherAttendanceService
             foreach ($endpoints as $url) {
                 try {
                     $response = Http::withoutVerifying()
-                        ->timeout(45) // Ditingkatkan sedikit untuk proses OCR dokumen
+                        ->timeout(45)
                         ->retry(2, 500)
                         ->post($url, [
                             'contents' => [
@@ -90,14 +101,14 @@ class TeacherAttendanceService
                         $data = json_decode($cleanedJson, true);
 
                         if (is_array($data)) {
-                            Log::info("SUKSES OCR Dokumen Presensi Guru [Key: {$keyItem->label_name}]");
+                            Log::info("SUKSES OCR Dokumen Presensi Guru [Key ID: {$keyItem->id}]");
                             return $data;
                         }
                     } else {
-                        Log::warning("Gemini Vision HTTP Failed [{$keyItem->label_name}] | Status: " . $response->status());
+                        Log::warning("Gemini Vision HTTP Failed [Key ID: {$keyItem->id}] | Status: " . $response->status());
                     }
                 } catch (\Exception $e) {
-                    Log::error("Exception OCR Dokumen Guru [{$keyItem->label_name}]: " . $e->getMessage());
+                    Log::error("Exception OCR Dokumen Guru [Key ID: {$keyItem->id}]: " . $e->getMessage());
                 }
             }
         }
