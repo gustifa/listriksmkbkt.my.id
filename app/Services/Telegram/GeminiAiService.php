@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Bulletproof Key Extractor)
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (With Detailed Debug Logging)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -443,22 +443,21 @@ class GeminiAiService
         $base64Image = base64_encode(file_get_contents($fullPath));
         $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
 
-        $prompt = "Analisis foto rekap kehadiran siswa ini. Ekstrak data kehadiran ke dalam format JSON murni TANPA MARKDOWN (tanpa ```json).\n" .
-                  "Format JSON yang wajib dikembalikan:\n" .
+        $prompt = "Analisis foto rekap kehadiran siswa ini secara teliti.\n" .
+                  "Ekstrak data kehadiran ke dalam format JSON murni TANPA MARKDOWN / TANPA TANDA BINTANG / TANPA ```json.\n\n" .
+                  "Aturan JSON:\n" .
                   "{\n" .
-                  "  \"date\": \"YYYY-MM-DD\", // tanggal pada dokumen, jika tidak ada gunakan null\n" .
+                  "  \"date\": \"YYYY-MM-DD\", // tanggal pada dokumen/foto, jika tidak ada gunakan null\n" .
                   "  \"attendances\": [\n" .
-                  "    {\"student_name\": \"Nama Siswa 1\", \"status\": \"HADIR/IZIN/SAKIT/ALPHA\"},\n" .
-                  "    {\"student_name\": \"Nama Siswa 2\", \"status\": \"HADIR/IZIN/SAKIT/ALPHA\"}\n" .
+                  "    {\"student_name\": \"Nama Lengkap Siswa\", \"nis\": \"12345\", \"status\": \"hadir/izin/sakit/alpha\"}\n" .
                   "  ]\n" .
                   "}";
 
         foreach ($apiKeys as $keyItem) {
             try {
-                // 1. Ambil data mentah dari DB
                 $rawKey = $keyItem->api_key;
 
-                // 2. Dekripsi jika berupa encrypted string Laravel (eyJ...)
+                // 1. Dekripsi jika berupa encrypted string Laravel (eyJ...)
                 if (is_string($rawKey) && str_starts_with($rawKey, 'eyJ')) {
                     try {
                         $rawKey = \Illuminate\Support\Facades\Crypt::decryptString($rawKey);
@@ -469,12 +468,10 @@ class GeminiAiService
 
                 $rawKey = urldecode((string)$rawKey);
 
-                // 🌟 3. EKSTRAKSI EKSTREM: Cari kunci Google AI (diawali AIzaSy... / AQAb...)
-                // Hanya ambil karakter alfanumerik, dash, dan underscore
+                // 2. Ekstrak Kunci API Murni
                 if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQAb[a-zA-Z0-9_\-]{30,60})/', $rawKey, $matches)) {
                     $apiKey = $matches[1];
                 } else {
-                    // Fallback: Jika tidak cocok dengan pola awal, ambil kata paling akhir setelah tanda hubung/sama dengan/slash
                     $cleanString = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $rawKey);
                     if (str_contains($cleanString, 'key=')) {
                         $parts = explode('key=', $cleanString);
@@ -488,7 +485,6 @@ class GeminiAiService
                     continue;
                 }
 
-                // 4. Susun Endpoint URL murni
                 $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . trim($apiKey);
 
                 $response = Http::withoutVerifying()
@@ -521,14 +517,20 @@ class GeminiAiService
 
                 if ($response->successful()) {
                     $rawText = $response->json('candidates.0.content.parts.0.text');
+                    
+                    // LOG DEBUG: Simpan hasil mentah dari Gemini ke storage/logs/laravel.log
+                    Log::info("Gemini Vision RAW Output: " . $rawText);
+
                     $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
                     $data = json_decode($cleanedJson, true);
 
                     if (is_array($data)) {
                         return $data;
+                    } else {
+                        Log::warning("Gemini Vision: Gagal json_decode text: " . $cleanedJson);
                     }
                 } else {
-                    Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Response: " . $response->body());
+                    Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Body: " . $response->body());
                 }
             } catch (\Exception $e) {
                 Log::error("Gemini Vision Parsing Exception [{$keyItem->label_name}]: " . $e->getMessage());
