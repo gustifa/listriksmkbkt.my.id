@@ -10,13 +10,13 @@ use Illuminate\Support\Facades\Crypt;
 class ApiKeySettingController extends Controller
 {
     /**
-     * Helper Private untuk Ekstraksi API Key Murni
+     * Helper Private untuk Ekstraksi API Key Murni (Sanitasi Hulu)
      */
     private function sanitizeAndEncryptKey(string $rawKey): string
     {
         $clean = trim(urldecode($rawKey));
 
-        // 1. Ambil bagian setelah 'key=' jika terikut URL
+        // 1. Ambil bagian setelah 'key=' jika terikut URL lengkap
         if (str_contains($clean, 'key=')) {
             $parts = explode('key=', $clean);
             $clean = end($parts);
@@ -54,7 +54,7 @@ class ApiKeySettingController extends Controller
         // Sanitasi key murni dari input form
         $pureEncryptedKey = $this->sanitizeAndEncryptKey($request->api_key);
 
-        ApiKey::create([
+        $apiKey = ApiKey::create([
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
             'api_key'    => $pureEncryptedKey,
@@ -62,9 +62,40 @@ class ApiKeySettingController extends Controller
             'is_active'  => $request->has('is_active') ? true : false,
         ]);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil ditambahkan!',
+                'data'    => $apiKey
+            ]);
+        }
+
         return back()->with('success', 'API Key AI berhasil ditambahkan!');
     }
 
+    /**
+     * Endpoint AJAX untuk Mengambil Data ke Modal Edit
+     */
+    public function edit($id)
+    {
+        $apiKey = ApiKey::findOrFail($id);
+
+        // Dekripsi API Key agar tampil sebagai plain text di dalam form modal
+        try {
+            $apiKey->api_key_plain = Crypt::decryptString($apiKey->api_key);
+        } catch (\Exception $e) {
+            $apiKey->api_key_plain = $apiKey->api_key;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data'   => $apiKey
+        ]);
+    }
+
+    /**
+     * Update Data via Modal AJAX / Form
+     */
     public function update(Request $request, $id)
     {
         $apiKey = ApiKey::findOrFail($id);
@@ -79,7 +110,7 @@ class ApiKeySettingController extends Controller
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
             'priority'   => $request->priority,
-            'is_active'  => $request->has('is_active') ? true : false,
+            'is_active'  => $request->has('is_active') || $request->is_active == '1' || $request->is_active == 'true' ? true : false,
         ];
 
         // Jika kolom API Key diisi saat update, lakukan sanitasi & enkripsi ulang
@@ -89,6 +120,14 @@ class ApiKeySettingController extends Controller
 
         $apiKey->update($data);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil diperbarui!',
+                'data'    => $apiKey
+            ]);
+        }
+
         return back()->with('success', 'API Key AI berhasil diperbarui!');
     }
 
@@ -96,6 +135,13 @@ class ApiKeySettingController extends Controller
     {
         $apiKey = ApiKey::findOrFail($id);
         $apiKey->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil dihapus!'
+            ]);
+        }
 
         return back()->with('success', 'API Key AI berhasil dihapus!');
     }
