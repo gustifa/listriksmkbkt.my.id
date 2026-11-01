@@ -28,7 +28,7 @@
                                 <th>Provider</th>
                                 <th>API Key</th>
                                 <th class="text-center">Status</th>
-                                <th class="text-center">Aksi</th>
+                                <th class="text-center" style="width: 120px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -44,7 +44,7 @@
                                         <span class="badge bg-info text-white text-uppercase">{{ $key->provider }}</span>
                                     </td>
                                     <td>
-                                        <code class="text-muted">AIzaSy...{{ substr($key->api_key, -5) }}</code>
+                                        <code class="text-muted">••••••••{{ substr($key->api_key, -6) }}</code>
                                     </td>
                                     <td class="text-center">
                                         <form action="{{ route('admin.api-keys.toggle', $key->id) }}" method="POST">
@@ -56,13 +56,21 @@
                                         </form>
                                     </td>
                                     <td class="text-center">
-                                        <form action="{{ route('admin.api-keys.destroy', $key->id) }}" method="POST" onsubmit="return confirm('Yakin hapus API key ini?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="fas fa-trash"></i>
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <!-- Tombol Edit Modal AJAX -->
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="editApiKey({{ $key->id }})" title="Edit API Key">
+                                                <i class="fas fa-edit"></i>
                                             </button>
-                                        </form>
+
+                                            <!-- Tombol Hapus -->
+                                            <form action="{{ route('admin.api-keys.destroy', $key->id) }}" method="POST" onsubmit="return confirm('Yakin hapus API key ini?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus API Key">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -101,12 +109,11 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">API Key</label>
-                            <input type="password" name="api_key" class="form-control" placeholder="Tempelkan API Key dari Google AI Studio" required>
+                            <input type="password" name="api_key" class="form-control" placeholder="Tempelkan API Key dari Google AI Studio" required autocomplete="off">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Urutan Prioritas</label>
                             <input type="number" name="priority" class="form-control" value="{{ count($apiKeys) + 1 }}" min="1" required>
-                            <small class="text-muted">Urutan 1 dipanggil pertama kali. Jika limit, dilanjutkan ke urutan 2, dst.</small>
                         </div>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
@@ -121,4 +128,82 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL EDIT API KEY (AJAX) -->
+    <div class="modal fade" id="editApiKeyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form id="editApiKeyForm" method="POST">
+                    @csrf
+                    @method('PUT')
+                    
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> Edit API Key AI</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Provider AI</label>
+                            <select name="provider" id="edit_provider" class="form-select" required>
+                                <option value="gemini">Google Gemini AI</option>
+                                <option value="groq">Groq AI (Llama 3)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Label / Nama Pembeda</label>
+                            <input type="text" name="label_name" id="edit_label_name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">API Key</label>
+                            <input type="text" name="api_key" id="edit_api_key" class="form-control" placeholder="Kosongkan jika tidak diubah" autocomplete="off">
+                            <small class="text-muted">Kunci terdekripsi otomatis muncul di sini saat edit.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Urutan Prioritas</label>
+                            <input type="number" name="priority" id="edit_priority" class="form-control" min="1" required>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active" value="1">
+                            <label class="form-check-label fw-semibold" for="edit_is_active">Status Aktif</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning text-dark fw-bold">Perbarui API Key</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT AJAX FETCH UNTUK MODAL EDIT -->
+    <script>
+        function editApiKey(id) {
+            fetch(`/admin/settings/api-keys/${id}/edit`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(res => {
+                if (res.status && res.data) {
+                    const data = res.data;
+                    document.getElementById('edit_provider').value = data.provider;
+                    document.getElementById('edit_label_name').value = data.label_name;
+                    document.getElementById('edit_api_key').value = data.api_key_plain || '';
+                    document.getElementById('edit_priority').value = data.priority;
+                    document.getElementById('edit_is_active').checked = Boolean(data.is_active);
+
+                    document.getElementById('editApiKeyForm').action = `/admin/settings/api-keys/${data.id}`;
+
+                    const editModal = new bootstrap.Modal(document.getElementById('editApiKeyModal'));
+                    editModal.show();
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching data API Key:', err);
+            });
+        }
+    </script>
 </x-app-layout>

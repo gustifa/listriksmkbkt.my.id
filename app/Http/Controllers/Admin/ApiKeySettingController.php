@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Crypt;
 class ApiKeySettingController extends Controller
 {
     /**
-     * Helper Private untuk Ekstraksi API Key Murni
+     * Helper Private untuk Ekstraksi API Key Murni (Mendukung AQ.Ab..., AIzaSy..., gsk_...)
      */
     private function sanitizeAndEncryptKey(string $rawKey): string
     {
@@ -22,17 +22,16 @@ class ApiKeySettingController extends Controller
             $clean = end($parts);
         }
 
-        // 2. Buang semua kurung siku, kurung biasa, spasi, dan quote
+        // 2. Buang kurung siku, kurung biasa, spasi, dan quote
         $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
 
-        // 3. Ekstrak string kunci murni saja (AIzaSy... / AQAb... / gsk_...)
-        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQAb[a-zA-Z0-9_\-]{30,60}|gsk_[a-zA-Z0-9_\-]{30,60})/', $clean, $matches)) {
+        // 3. Ekstrak string kunci murni (RegEx diperbaiki mendukung karakter titik '.')
+        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQ\.[a-zA-Z0-9_\-]{30,70}|AQAb[a-zA-Z0-9_\-]{30,70}|gsk_[a-zA-Z0-9_\-]{30,70})/', $clean, $matches)) {
             $pureKey = $matches[1];
         } else {
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $clean);
+            $pureKey = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
         }
 
-        // Enkripsi key murni sebelum disimpan ke DB
         return Crypt::encryptString($pureKey);
     }
 
@@ -51,10 +50,9 @@ class ApiKeySettingController extends Controller
             'priority'   => 'required|integer|min:1',
         ]);
 
-        // Sanitasi key murni dari input form
         $pureEncryptedKey = $this->sanitizeAndEncryptKey($request->api_key);
 
-        ApiKey::create([
+        $apiKey = ApiKey::create([
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
             'api_key'    => $pureEncryptedKey,
@@ -62,7 +60,34 @@ class ApiKeySettingController extends Controller
             'is_active'  => $request->has('is_active') ? true : false,
         ]);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil ditambahkan!',
+                'data'    => $apiKey
+            ]);
+        }
+
         return back()->with('success', 'API Key AI berhasil ditambahkan!');
+    }
+
+    /**
+     * Endpoint AJAX untuk mengambil data ke Modal Edit
+     */
+    public function edit($id)
+    {
+        $apiKey = ApiKey::findOrFail($id);
+
+        try {
+            $apiKey->api_key_plain = Crypt::decryptString($apiKey->api_key);
+        } catch (\Exception $e) {
+            $apiKey->api_key_plain = $apiKey->api_key;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data'   => $apiKey
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -79,15 +104,22 @@ class ApiKeySettingController extends Controller
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
             'priority'   => $request->priority,
-            'is_active'  => $request->has('is_active') ? true : false,
+            'is_active'  => $request->has('is_active') || $request->is_active == '1' || $request->is_active == 'true' ? true : false,
         ];
 
-        // Jika kolom API Key diisi saat update, lakukan sanitasi & enkripsi ulang
         if ($request->filled('api_key')) {
             $data['api_key'] = $this->sanitizeAndEncryptKey($request->api_key);
         }
 
         $apiKey->update($data);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil diperbarui!',
+                'data'    => $apiKey
+            ]);
+        }
 
         return back()->with('success', 'API Key AI berhasil diperbarui!');
     }
@@ -96,6 +128,13 @@ class ApiKeySettingController extends Controller
     {
         $apiKey = ApiKey::findOrFail($id);
         $apiKey->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'API Key AI berhasil dihapus!'
+            ]);
+        }
 
         return back()->with('success', 'API Key AI berhasil dihapus!');
     }
