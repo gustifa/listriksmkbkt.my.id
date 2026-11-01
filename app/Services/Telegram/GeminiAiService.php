@@ -213,4 +213,94 @@ class GeminiAiService
 
         return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
     }
+
+    /**
+     * Parsing Presensi Guru (OCR Vision) dari Foto Rekap Presensi
+     */
+    public function parseAttendanceImage(string $imagePath): ?array
+    {
+        // 1. Dapatkan Path Lengkap Gambar
+        $fullPath = storage_path('app/public/' .$imagePath);
+        if (!file_exists($fullPath)) {
+            $fullPath = storage_path('app/' .$imagePath);
+        }
+
+        if (!file_exists($fullPath)) {
+            Log::error("AI Vision: File gambar tidak ditemukan di path: {$fullPath}");
+            return null;
+        }
+
+        $base64Image = base64_encode(file_get_contents($fullPath));
+        $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
+
+        $prompt = "Analisis foto rekap presensi ini secara teliti.\n" .
+                  "Ekstrak data kehadiran siswa ke format JSON murni TANPA MARKDOWN / TANPA ```json.\n\n" .
+                  "Format JSON:\n" .
+                  "{\n" .
+                  "  \"date\": \"YYYY-MM-DD\",\n" .
+                  "  \"attendances\": [\n" .
+                  "    {\"student_name\": \"Nama Lengkap Siswa\", \"nis\": \"12345\", \"status\": \"hadir/izin/sakit/alpha\"}\n" .
+                  "  ]\n" .
+                  "}";
+
+        $apiKeys = ApiKey::where('is_active', true)->orderBy('priority', 'asc')->get();
+
+        foreach ($apiKeys as $keyItem) {
+            $provider = strtolower(trim($keyItem->provider));
+            $pureKey  = $this->extractPureKey($keyItem->api_key);
+            if (empty($pureKey)) continue;
+
+            if ($provider === 'gemini') {
+                // Endpoint Gemini Vision Resmi
+                $endpoints = [
+                    "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){$pureKey}",
+                    "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=){$pureKey}",
+                ];
+
+                foreach ($endpoints as $url) {
+                    try {
+                        $response = Http::withoutVerifying()
+                            ->timeout(15) // Timeout 15 detik agar tidak mengambang
+                            ->post($url, [
+                                'contents' => [
+                                    [
+                                        'parts' => [
+                                            ['text' => $prompt],
+                                            ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64Image]]
+                                        ]
+                                    ]
+                                ],
+                                'generationConfig' => ['temperature' => 0.1]
+                            ]);
+
+                        if ($response->successful()) {
+                            $rawText = $response->json('candidates.0.content.parts.0.text');
+                            $data = $this->cleanAndParseJson($rawText);
+                            if ($data) {
+                                Log::info("SUKSES Gemini Vision [{$keyItem->label_name}]");
+                                return $data;
+                            }
+                        } else {
+                            Log::warning("Gemini Vision Failed [{$keyItem->label_name}] | Status: " . $response->status());
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Exception Gemini Vision [{$keyItem->label_name}]: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Helper Pembersih & Parser Response JSON
+     */
+    private function cleanAndParseJson(?string $rawText): ?array
+    {
+        if (empty($rawText)) return null;
+        $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
+        $data = json_decode($cleanedJson, true);
+        return is_array($data) ? $data : null;
+    }
 }
