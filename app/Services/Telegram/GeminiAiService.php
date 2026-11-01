@@ -34,10 +34,10 @@ class GeminiAiService
                     continue;
                 }
 
-                // 1. PROVIDER GROQ (MODEL AKTIF TERBARU: llama-3.1-8b-instant)
+                // 1. PROVIDER GROQ (MODEL PASTI AKTIF: llama-3.1-8b-instant)
                 if ($provider === 'groq') {
                     $response = Http::withoutVerifying()
-                        ->timeout(12)
+                        ->timeout(10)
                         ->withOptions([
                             'curl' => [
                                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
@@ -53,21 +53,6 @@ class GeminiAiService
                             'max_tokens' => 500,
                         ]);
 
-                    // Fallback jika llama-3.1-8b-instant gagal, gunakan llama-3.3-70b-versatile
-                    if (!$response->successful()) {
-                        $response = Http::withoutVerifying()
-                            ->timeout(12)
-                            ->withToken($apiKey)
-                            ->post('https://api.groq.com/openai/v1/chat/completions', [
-                                'model' => 'llama-3.3-70b-versatile',
-                                'messages' => [
-                                    ['role' => 'system', 'content' => $systemInstruction],
-                                    ['role' => 'user', 'content' => $prompt]
-                                ],
-                                'max_tokens' => 500,
-                            ]);
-                    }
-
                     if ($response->successful()) {
                         $reply = $response->json('choices.0.message.content');
                         if (!empty($reply)) {
@@ -78,9 +63,10 @@ class GeminiAiService
                     Log::warning("Groq Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
                 }
 
-                // 2. PROVIDER GOOGLE GEMINI (MODEL STABIL: gemini-1.5-flash)
+                // 2. PROVIDER GOOGLE GEMINI (ENDPOINT DENGAN FULL MODEL PATH)
                 elseif ($provider === 'gemini') {
-                    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+                    // Penulisan endpoint v1beta resmi untuk model flash
+                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
 
                     $response = Http::withoutVerifying()
                         ->timeout(12)
