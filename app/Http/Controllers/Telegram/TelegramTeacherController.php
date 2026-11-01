@@ -73,19 +73,14 @@ class TelegramTeacherController extends Controller
 
    
     /**
-     * Unduh Foto dari Telegram Server dengan Timeout Terukur (30 Detik)
+     * Helper Unduh Foto dari Telegram Server dengan Token Murni
      */
     private function downloadPhotoFromTelegram(string $fileId): ?string
     {
         $botToken = $this->getPureBotToken();
         if (empty($botToken)) return null;
 
-        // Ditambahkan timeout 30 detik & retry 2 kali
-        $res = Http::withoutVerifying()
-            ->timeout(30)
-            ->retry(2, 500)
-            ->get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
-
+        $res = Http::withoutVerifying()->get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
         if (!$res->successful()) return null;
 
         $filePathOnTelegram = $res->json('result.file_path');
@@ -97,28 +92,24 @@ class TelegramTeacherController extends Controller
         $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
         $relativePath = 'presensi_guru/' . $fileName;
 
-        Storage::disk('public')->put($relativePath, $imageContent);
+        \Illuminate\Support\Facades\Storage::disk('public')->put($relativePath, $imageContent);
 
         return $relativePath;
     }
 
     /**
-     * Helper Kirim Balasan Telegram dengan Timeout Terukur (30 Detik)
+     * Helper Kirim Balasan Telegram dengan Token Murni
      */
     private function replyTelegram($chatId, string $text)
     {
         $botToken = $this->getPureBotToken();
         if (empty($botToken)) return false;
 
-        // Ditambahkan timeout 30 detik & retry 2 kali agar tidak cURL error 28
-        return Http::withoutVerifying()
-            ->timeout(30)
-            ->retry(2, 500)
-            ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id'    => $chatId,
-                'text'       => $text,
-                'parse_mode' => 'Markdown'
-            ]);
+        return Http::withoutVerifying()->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+            'chat_id'    => $chatId,
+            'text'       => $text,
+            'parse_mode' => 'Markdown'
+        ]);
     }
 
     /**
