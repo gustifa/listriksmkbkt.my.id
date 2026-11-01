@@ -15,24 +15,26 @@ class ApiKeySettingController extends Controller
     /**
      * Helper Private untuk Ekstraksi API Key Murni
      */
+    /**
+     * Helper Private untuk Ekstraksi API Key Murni
+     */
     private function sanitizeAndEncryptKey(string $rawKey): string
     {
         $clean = trim(urldecode($rawKey));
 
-        // 1. Ambil bagian setelah 'key=' jika pengirim menempelkan seluruh URL
+        // 1. Jika terikut URL markdown [https://...](https://...key=XXX), ambil bagian akhir key=
         if (str_contains($clean, 'key=')) {
             $parts = explode('key=', $clean);
             $clean = end($parts);
         }
 
-        // 2. Bersihkan karakter kurung siku / quote yang tidak disengaja
+        // 2. Buang seluruh karakter Markdown, kurung, dan encoding URL
         $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
 
-        // 3. Ambil string kunci murni tanpa membuang titik (.) maupun underscore (_)
+        // 3. Ekstrak hanya karakter kunci valid (mencakup AIzaSy, AQ.Ab, AQAb, gsk_)
         if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $clean, $matches)) {
             $pureKey = $matches[1];
         } else {
-            // Jaga agar karakter alfanumerik, underscore, dash, dan titik TETAP UTUH
             $pureKey = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
         }
 
