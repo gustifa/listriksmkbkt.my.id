@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Fail-Safe OCR)
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Safe Decryption)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -455,27 +455,33 @@ class GeminiAiService
 
         foreach ($apiKeys as $keyItem) {
             try {
-                $rawKey = trim($keyItem->api_key);
-                $rawKey = urldecode($rawKey); // Decode jika mengandung %5B / %5D
+                // 1. Ambil nilai key dari Model Eloquent
+                $rawKey = $keyItem->api_key;
 
-                // 🌟 BERSIHKAN TOTAL: Jika di database terisi URL, potong dan ambil hanya bagian stelah 'key=' terakhir
-                if (str_contains($rawKey, 'key=')) {
-                    $parts = explode('key=', $rawKey);
-                    $rawKey = end($parts);
+                // 2. Jika string diawali dengan 'eyJ' (Terenkripsi Laravel), lakukan dekripsi manual
+                if (is_string($rawKey) && str_starts_with($rawKey, 'eyJ')) {
+                    try {
+                        $rawKey = \Illuminate\Support\Facades\Crypt::decryptString($rawKey);
+                    } catch (\Exception $eCrypt) {
+                        Log::warning("Gemini Vision: Gagal mendekripsi API Key '{$keyItem->label_name}': " . $eCrypt->getMessage());
+                    }
                 }
 
-                // Buang semua karakter kurung siku, kurung biasa, dan spasi
-                $rawKey = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $rawKey);
+                $rawKey = trim(urldecode((string)$rawKey));
 
-                // Ambil hanya karakter alfanumerik, dash (-), dan underscore (_)
-                $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
+                // 3. Ekstrak hanya bagian API Key murni (diawali AIzaSy...)
+                if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33})/', $rawKey, $matches)) {
+                    $apiKey = $matches[1];
+                } else {
+                    $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
+                }
 
                 if (empty($apiKey)) {
-                    Log::warning("Gemini Vision: API Key kosong setelah disanitasi dari label '{$keyItem->label_name}'.");
+                    Log::warning("Gemini Vision: API Key kosong setelah proses ekstraksi dari label '{$keyItem->label_name}'.");
                     continue;
                 }
 
-                // Endpoint cURL murni
+                // 4. Panggil Endpoint Gemini Vision API dengan Key Murni
                 $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . $apiKey;
 
                 $response = Http::withoutVerifying()
