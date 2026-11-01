@@ -219,7 +219,6 @@ class GeminiAiService
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
-        // 1. Dapatkan Path Lengkap Gambar
         $fullPath = storage_path('app/public/' .$imagePath);
         if (!file_exists($fullPath)) {
             $fullPath = storage_path('app/' .$imagePath);
@@ -251,7 +250,7 @@ class GeminiAiService
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
-                // Endpoint Gemini Vision Resmi
+                // Endpoint Murni Tanpa Format Markdown/Kurung Siku
                 $endpoints = [
                     "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){$pureKey}",
                     "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=){$pureKey}",
@@ -260,7 +259,7 @@ class GeminiAiService
                 foreach ($endpoints as $url) {
                     try {
                         $response = Http::withoutVerifying()
-                            ->timeout(15) // Timeout 15 detik agar tidak mengambang
+                            ->timeout(20)
                             ->post($url, [
                                 'contents' => [
                                     [
@@ -291,16 +290,5 @@ class GeminiAiService
         }
 
         return null;
-    }
-
-    /**
-     * Helper Pembersih & Parser Response JSON
-     */
-    private function cleanAndParseJson(?string $rawText): ?array
-    {
-        if (empty($rawText)) return null;
-        $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
-        $data = json_decode($cleanedJson, true);
-        return is_array($data) ? $data : null;
     }
 }
