@@ -33,18 +33,18 @@ class ApiKey extends Model
     }
 
     // Mutator: Otomatis enkripsi API Key saat disimpan ke database
-    public function setApiKeyAttribute($value)
-    {
-        $this->attributes['api_key'] = Crypt::encryptString($value);
-    }
+    // public function setApiKeyAttribute($value)
+    // {
+    //     $this->attributes['api_key'] = Crypt::encryptString($value);
+    // }
 
     // Accessor: Otomatis dekripsi API Key saat dipanggil oleh sistem
-    public function getApiKeyAttribute($value)
-    {
-        try {
-            return Crypt::decryptString($value);
-        } catch (\Exception $e) {
-            return $value;
-        }
-    }
+    // public function getApiKeyAttribute($value)
+    // {
+    //     try {
+    //         return Crypt::decryptString($value);
+    //     } catch (\Exception $e) {
+    //         return $value;
+    //     }
+    // }
 }
