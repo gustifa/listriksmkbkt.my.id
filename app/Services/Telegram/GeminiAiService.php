@@ -36,8 +36,9 @@ class GeminiAiService
 
                 // 1. PROVIDER GROQ (SANGAT CEPAT & ANTI-BLOCK HOSTING)
                 if ($provider === 'groq') {
+                    // Menggunakan model 'llama3-8b-8192' yang terbukti aktif & stabil
                     $response = Http::withoutVerifying()
-                        ->timeout(12)
+                        ->timeout(10)
                         ->withOptions([
                             'curl' => [
                                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
@@ -45,13 +46,28 @@ class GeminiAiService
                         ])
                         ->withToken($apiKey)
                         ->post('https://api.groq.com/openai/v1/chat/completions', [
-                            'model' => 'llama-3.1-8b-instant',
+                            'model' => 'llama3-8b-8192',
                             'messages' => [
                                 ['role' => 'system', 'content' => $systemInstruction],
                                 ['role' => 'user', 'content' => $prompt]
                             ],
                             'max_tokens' => 500,
                         ]);
+
+                    // Fallback jika llama3-8b-8192 gagal, coba llama-3.3-70b-versatile
+                    if (!$response->successful() && $response->status() === 404) {
+                        $response = Http::withoutVerifying()
+                            ->timeout(10)
+                            ->withToken($apiKey)
+                            ->post('https://api.groq.com/openai/v1/chat/completions', [
+                                'model' => 'llama-3.3-70b-versatile',
+                                'messages' => [
+                                    ['role' => 'system', 'content' => $systemInstruction],
+                                    ['role' => 'user', 'content' => $prompt]
+                                ],
+                                'max_tokens' => 500,
+                            ]);
+                    }
 
                     if ($response->successful()) {
                         $reply = $response->json('choices.0.message.content');
@@ -60,7 +76,7 @@ class GeminiAiService
                         }
                     }
 
-                    Log::warning("Groq Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status());
+                    Log::warning("Groq Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
                 }
 
                 // 2. PROVIDER GOOGLE GEMINI (CADANGAN)
@@ -96,7 +112,7 @@ class GeminiAiService
                         }
                     }
 
-                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
+                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status());
                 }
 
             } catch (\Exception $e) {
