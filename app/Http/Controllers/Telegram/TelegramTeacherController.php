@@ -138,78 +138,78 @@ class TelegramTeacherController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    private function downloadPhotoFromTelegram(string $fileId): ?string
-{
-    $botToken = $this->getPureBotToken();
-    if (empty($botToken)) {
-        Log::error("Download Photo: Bot Token kosong.");
-        return null;
-    }
+//     private function downloadPhotoFromTelegram(string $fileId): ?string
+// {
+//     $botToken = $this->getPureBotToken();
+//     if (empty($botToken)) {
+//         Log::error("Download Photo: Bot Token kosong.");
+//         return null;
+//     }
 
-    // 1. Ambil informasi path file dari API Telegram
-    $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
+//     // 1. Ambil informasi path file dari API Telegram
+//     $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
 
-    $res = Http::withoutVerifying()->timeout(30)->retry(3, 1000)->get($url);
-    if (!$res->successful()) {
-        Log::error("Download Photo: Gagal mengambil file path dari Telegram. Status: " . $res->status());
-        return null;
-    }
+//     $res = Http::withoutVerifying()->timeout(30)->retry(3, 1000)->get($url);
+//     if (!$res->successful()) {
+//         Log::error("Download Photo: Gagal mengambil file path dari Telegram. Status: " . $res->status());
+//         return null;
+//     }
 
-    $filePathOnTelegram = $res->json('result.file_path');
-    $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
+//     $filePathOnTelegram = $res->json('result.file_path');
+//     $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
 
-    // 2. Unduh isi file foto dengan timeout yang lebih panjang (60 detik)
-    $responseFile = Http::withoutVerifying()->timeout(60)->retry(3, 1000)->get($fileUrl);
+//     // 2. Unduh isi file foto dengan timeout yang lebih panjang (60 detik)
+//     $responseFile = Http::withoutVerifying()->timeout(60)->retry(3, 1000)->get($fileUrl);
     
-    if (!$responseFile->successful()) {
-        Log::error("Gagal mengunduh isi file foto dari URL Telegram: {$fileUrl} | Status: " . $responseFile->status());
-        return null;
+//     if (!$responseFile->successful()) {
+//         Log::error("Gagal mengunduh isi file foto dari URL Telegram: {$fileUrl} | Status: " . $responseFile->status());
+//         return null;
+//     }
+
+//     $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
+//     $relativePath = 'presensi_guru/' . $fileName;
+
+//     // 3. Pastikan folder storage publik tersedia
+//     if (!Storage::disk('public')->exists('presensi_guru')) {
+//         Storage::disk('public')->makeDirectory('presensi_guru');
+//     }
+
+//     // 4. Simpan file ke storage
+//     Storage::disk('public')->put($relativePath, $responseFile->body());
+
+//     // Verifikasi fisik apakah file benar-benar tersimpan
+//     $fullPath = storage_path('app/public/' . $relativePath);
+//     if (!file_exists($fullPath) || filesize($fullPath) === 0) {
+//         Log::error("Download Photo: File gagal disimpan atau ukuran file 0 byte di path: {$fullPath}");
+//         return null;
+//     }
+
+//     return $relativePath;
+// }
+
+    private function downloadPhotoFromTelegram(string $fileId): ?string
+    {
+        $botToken = $this->getPureBotToken();
+        if (empty($botToken)) return null;
+
+        $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
+
+        $res = Http::withoutVerifying()->timeout(30)->retry(2, 500)->get($url);
+        if (!$res->successful()) return null;
+
+        $filePathOnTelegram = $res->json('result.file_path');
+        $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
+
+        $imageContent = @file_get_contents($fileUrl);
+        if (!$imageContent) return null;
+
+        $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
+        $relativePath = 'presensi_guru/' . $fileName;
+
+        Storage::disk('public')->put($relativePath, $imageContent);
+
+        return $relativePath;
     }
-
-    $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
-    $relativePath = 'presensi_guru/' . $fileName;
-
-    // 3. Pastikan folder storage publik tersedia
-    if (!Storage::disk('public')->exists('presensi_guru')) {
-        Storage::disk('public')->makeDirectory('presensi_guru');
-    }
-
-    // 4. Simpan file ke storage
-    Storage::disk('public')->put($relativePath, $responseFile->body());
-
-    // Verifikasi fisik apakah file benar-benar tersimpan
-    $fullPath = storage_path('app/public/' . $relativePath);
-    if (!file_exists($fullPath) || filesize($fullPath) === 0) {
-        Log::error("Download Photo: File gagal disimpan atau ukuran file 0 byte di path: {$fullPath}");
-        return null;
-    }
-
-    return $relativePath;
-}
-
-    // private function downloadPhotoFromTelegram(string $fileId): ?string
-    // {
-    //     $botToken = $this->getPureBotToken();
-    //     if (empty($botToken)) return null;
-
-    //     $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
-
-    //     $res = Http::withoutVerifying()->timeout(30)->retry(2, 500)->get($url);
-    //     if (!$res->successful()) return null;
-
-    //     $filePathOnTelegram = $res->json('result.file_path');
-    //     $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
-
-    //     $imageContent = @file_get_contents($fileUrl);
-    //     if (!$imageContent) return null;
-
-    //     $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
-    //     $relativePath = 'presensi_guru/' . $fileName;
-
-    //     Storage::disk('public')->put($relativePath, $imageContent);
-
-    //     return $relativePath;
-    // }
 //     private function downloadPhotoFromTelegram(string $fileId): ?string
 // {
 //     $botToken = $this->getPureBotToken();
