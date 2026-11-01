@@ -23,6 +23,13 @@ use App\Http\Controllers\Telegram\TelegramTeacherController;
 
 class TelegramWebhookController extends Controller
 {
+    protected $teacherController;
+
+    public function __construct(TelegramTeacherController $teacherController)
+    {
+        $this->teacherController = $teacherController;
+    }
+
     public function handle(
         Request $request, 
         TelegramService $telegramService,
@@ -56,120 +63,27 @@ class TelegramWebhookController extends Controller
             $groupLink = $setting?->telegram_admin_group_link 
                 ?? config('services.telegram.admin_group_link', 'https://t.me/+p_yx7_McCC5jN2U1');
 
-            // 2. HANDLE BAGIKAN KONTAK
-            if (isset($message['contact'])) {
-                $registrationService->handleContact($message, $chatId, $groupLink, $telegramService);
+            // 🌟 AMBIL SUBSCRIBER TERLEBIH DAHULU UNTUK PENGECEKAN
+            $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
+                $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
+            })->first();
+
+            // =========================================================================
+            // 🌟 SKENARIO 1: HANDLER FOTO GURU (DILETAK DI PALING ATAS TERISOLASI)
+            // =========================================================================
+            if (isset($message['photo'])) {
+                if ($subscriber && $subscriber->teacher_id) {
+                    // Delegasikan ke TelegramTeacherController
+                    return $this->teacherController->handlePhotoUpload($message, $subscriber);
+                }
+
+                $telegramService->sendMessage($chatId, "⚠️ Fitur upload rekap kehadiran via foto hanya tersedia untuk akun Guru.");
                 return response()->json(['status' => 'ok']);
             }
 
-            // =========================================================================
-            // HANDLER FOTO MASUK (Proses Rekap Absensi via Gemini Vision OCR dari Guru)
-            // =========================================================================
-            if (isset($message['photo'])) {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->first();
-
-                // Fitur ini khusus untuk akun Guru terdaftar
-                if (!$subscriber || !$subscriber->teacher_id) {
-                    $telegramService->sendMessage($chatId, "⚠️ Fitur upload rekap kehadiran via foto hanya tersedia untuk akun Guru.");
-                    return response()->json(['status' => 'ok']);
-                }
-
-                // Ambil foto kualitas tertinggi dari Telegram
-                $photos = $message['photo'];
-                $highestResPhoto = end($photos);
-                $fileId = $highestResPhoto['file_id'];
-
-                // Download foto dari Telegram Server
-                $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
-                $fileUrlResponse = Http::get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
-                
-                if ($fileUrlResponse->successful()) {
-                    $filePathOnTelegram = $fileUrlResponse->json('result.file_path');
-                    $imageContents = Http::get("https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}")->body();
-
-                    // Simpan sementara di storage
-                    $tempPath = "temp_rekap/" . uniqid() . ".jpg";
-                    Storage::disk('public')->put($tempPath, $imageContents);
-
-                    $telegramService->sendMessage($chatId, "🔍 *Sedang Menganalisis Foto Rekap...*\nMohon tunggu beberapa detik.");
-
-                    // Panggil Gemini Vision Parsing
-                    $parsedData = $aiService->parseAttendanceImage($tempPath);
-
-                    if (!$parsedData || empty($parsedData['attendances'])) {
-                        $telegramService->sendMessage($chatId, "❌ Gagal membaca data dari foto. Pastikan tulisan/tabel pada foto terlihat jelas dan terang.");
-                        return response()->json(['status' => 'ok']);
-                    }
-
-                    // Masukkan Hasil Parsing ke Database PostgreSQL
-                    $targetDate = !empty($parsedData['date']) ? $parsedData['date'] : date('Y-m-d');
-                    $successCount = 0;
-                    $teacherName = optional($subscriber->teacher)->name ?? 'Guru';
-
-                    foreach ($parsedData['attendances'] as $row) {
-                        $studentName = trim($row['student_name'] ?? '');
-                        $studentNis  = trim($row['nis'] ?? '');
-                        $status      = strtolower(trim($row['status'] ?? 'hadir'));
-
-                        // Normalisasi fleksibel berbagai format tulisan status presensi
-                        if (in_array($status, ['h', 'hadir', 'v', '✓', 'check'])) {
-                            $status = 'hadir';
-                        } elseif (in_array($status, ['i', 'iz', 'izin', 'ijin'])) {
-                            $status = 'izin';
-                        } elseif (in_array($status, ['s', 'skt', 'sakit'])) {
-                            $status = 'sakit';
-                        } elseif (in_array($status, ['a', 'alp', 'alpha', 'alpa', 'tk'])) {
-                            $status = 'alpha';
-                        } else {
-                            $status = 'hadir';
-                        }
-
-                        // 1. Cari siswa berdasarkan NIS/NISN dahulu
-                        $student = null;
-                        if (!empty($studentNis)) {
-                            $student = DB::table('students')
-                                ->where('nis', $studentNis)
-                                ->orWhere('nisn', $studentNis)
-                                ->first();
-                        }
-
-                        // 2. Jika tidak ketemu NIS, cari berdasarkan NAMA (ILIKE PostgreSQL)
-                        if (!$student && !empty($studentName)) {
-                            $student = DB::table('students')
-                                ->where('name', 'ILIKE', "%{$studentName}%")
-                                ->first();
-                        }
-
-                        if ($student) {
-                            DB::table('daily_attendances')->updateOrInsert(
-                                [
-                                    'student_id' => $student->id,
-                                    'date'       => $targetDate,
-                                ],
-                                [
-                                    'status'      => $status,
-                                    'recorded_by' => 'Telegram Bot OCR (' . $teacherName . ')',
-                                    'updated_at'  => now(),
-                                    'created_at'  => now(),
-                                    'is_synced'   => true,
-                                ]
-                            );
-                            $successCount++;
-                        } else {
-                            Log::warning("OCR Student Not Found in DB: Nama={$studentName}, NIS={$studentNis}");
-                        }
-                    }
-
-                    $telegramService->sendMessage(
-                        $chatId, 
-                        "✅ *Berhasil Menginput Rekap Presensi!*\n\n" .
-                        "📅 Tanggal: *{$targetDate}*\n" .
-                        "📊 Total Siswa Terinput: *{$successCount} Siswa*"
-                    );
-                }
-
+            // 2. HANDLE BAGIKAN KONTAK
+            if (isset($message['contact'])) {
+                $registrationService->handleContact($message, $chatId, $groupLink, $telegramService);
                 return response()->json(['status' => 'ok']);
             }
 
@@ -185,9 +99,6 @@ class TelegramWebhookController extends Controller
 
             if (in_array($lowerText, ['/unsubscribe', 'unsubscribe', '/keluar', 'keluar', '/berhenti'])) {
                 Cache::forget("telegram_permit_step_{$chatId}");
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->first();
 
                 if ($subscriber) {
                     if ($subscriber->student_id) {
@@ -204,10 +115,6 @@ class TelegramWebhookController extends Controller
             // =========================================================================
             // 4. HANDLE COMMAND PERINTAH GURU
             // =========================================================================
-            $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-            })->first();
-
             if (in_array($lowerText, ['/jadwal', 'jadwal'])) {
                 if ($subscriber && $subscriber->teacher_id) {
                     $teacherService->sendJadwalGuru($chatId, $subscriber->teacher_id, $telegramService);
@@ -340,11 +247,6 @@ class TelegramWebhookController extends Controller
                     }
                 }
 
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)
-                      ->orWhere('chat_id', (int)$chatId);
-                })->first();
-
                 if ($subscriber && $subscriber->approval_status === 'approved' && $subscriber->is_active) {
                     if ($subscriber->user_type === 'teacher' || !empty($subscriber->teacher_id)) {
                         $teacher = Teacher::find($subscriber->teacher_id);
@@ -407,10 +309,6 @@ class TelegramWebhookController extends Controller
 
             // 7. HANDLE COMMAND /help
             if ($lowerText === '/help') {
-                $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                    $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-                })->first();
-
                 if ($subscriber && ($subscriber->user_type === 'teacher' || !empty($subscriber->teacher_id))) {
                     $reply = "ℹ️ *BANTUAN BOT SISFO (GURU & PEGAWAI)*\n\n" .
                              "📌 *Perintah Guru:*\n" .
@@ -440,10 +338,6 @@ class TelegramWebhookController extends Controller
             }
 
             // 8. HANDLE INPUT NISN/NIS PENDING SISWA
-            $subscriber = TelegramSubscriber::where(function($q) use ($chatId) {
-                $q->where('chat_id', (string)$chatId)->orWhere('chat_id', (int)$chatId);
-            })->first();
-
             if ($subscriber && $subscriber->approval_status === 'pending' && !$subscriber->student_id && !$subscriber->teacher_id && !empty($text)) {
                 $student = Student::where('nisn', $text)->orWhere('nis', $text)->first();
 
@@ -471,20 +365,10 @@ class TelegramWebhookController extends Controller
             // 9. HYBRID INTENT ROUTER & FALLBACK AI (DISINI TEMPATNYA)
             // =========================================================================
             if (!empty($text) && !str_starts_with($text, '/')) {
-                $subscriber = TelegramSubscriber::where('chat_id', $chatId)->first();
-
-                // Jalankan Handler Hybrid
+                // Jalankan Handler Hybrid AI
                 $aiController->handleHybridRequest($chatId, $text, $subscriber);
-                
                 return response()->json(['status' => 'ok']);
             }
-
-            // -----------------------------------------------------------------
-        // SKENARIO 1: Pengirim mengirim FOTO & Akun Terdaftar sebagai GURU
-        // -----------------------------------------------------------------
-        if (isset($message['photo']) && $subscriber && $subscriber->teacher_id) {
-            return $this->teacherController->handlePhotoUpload($message, $subscriber);
-        }
 
         } catch (\Exception $e) {
             Log::error("Telegram Webhook Exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
