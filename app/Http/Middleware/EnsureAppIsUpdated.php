@@ -20,11 +20,15 @@ class EnsureAppIsUpdated
     public function handle(Request $request, Closure $next): Response
     {
         // 1. KECUALIKAN RUTE KRUSIAL (Webhook Telegram, Livewire, API, & Halaman Peringatan Update)
-        if (
-            $request->routeIs('app.update_required') ||
-            $request->is('api/*', 'telegram/*', 'livewire/*', 'assets/*') ||
-            $request->expectsJson()
-        ) {
+        // if (
+        //     $request->routeIs('app.update_required') ||
+        //     $request->is('api/*', 'telegram/*', 'livewire/*', 'assets/*') ||
+        //     $request->expectsJson()
+        // ) {
+        //     return $next($request);
+        // }
+        // Biarkan request AJAX / JSON melintas tanpa redirect update
+        if ($request->expectsJson() || $request->ajax()) {
             return $next($request);
         }
 
