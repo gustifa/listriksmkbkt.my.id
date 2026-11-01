@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Crypt;
+// use Illuminate\Support\Facades\Crypt;
 
 class ApiKey extends Model
 {
     use HasFactory;
 
     protected $keyType = 'string';
-    public $incrementing = false;
+    public $incrementing = true;
 
     protected $fillable = [
         'provider',
@@ -22,15 +22,15 @@ class ApiKey extends Model
         'is_active',
     ];
 
-    protected static function boot()
-    {
-        parent::boot();
-        static::creating(function ($model) {
-            if (empty($model->id)) {
-                $model->id = (string) Str::uuid();
-            }
-        });
-    }
+    // protected static function boot()
+    // {
+    //     parent::boot();
+    //     static::creating(function ($model) {
+    //         if (empty($model->id)) {
+    //             $model->id = (string) Str::uuid();
+    //         }
+    //     });
+    // }
 
     // Mutator: Otomatis enkripsi API Key saat disimpan ke database
     // public function setApiKeyAttribute($value)
