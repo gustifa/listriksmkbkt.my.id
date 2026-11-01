@@ -426,6 +426,7 @@ class GeminiAiService
             ->get();
 
         if ($apiKeys->isEmpty()) {
+            Log::warning("Gemini Vision: Tidak ada API Key aktif untuk provider 'gemini'.");
             return null;
         }
 
@@ -454,13 +455,27 @@ class GeminiAiService
 
         foreach ($apiKeys as $keyItem) {
             try {
-                $apiKey = trim($keyItem->api_key);
+                // Sanitasi API Key: Ambil hanya karakter alfanumerik, strip, dan underscore
+                $rawKey = trim($keyItem->api_key);
                 
-                // PERBAIKAN: Format URL murni tanpa karakter kurung siku
-                $url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){$apiKey}";
+                // Jika di DB terisi URL lengkap, ekstrak hanya bagian key-nya
+                if (str_contains($rawKey, 'key=')) {
+                    $parts = explode('key=', $rawKey);
+                    $rawKey = end($parts);
+                }
+
+                // Bersihkan dari karakter [, ], ", ', spasial, dan URL encoding
+                $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', urldecode($rawKey));
+
+                if (empty($apiKey)) {
+                    continue;
+                }
+
+                // Susun URL endpoint murni
+                $url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . $apiKey;
 
                 $response = Http::withoutVerifying()
-                    ->timeout(15)
+                    ->timeout(20)
                     ->withOptions([
                         'curl' => [
                             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
