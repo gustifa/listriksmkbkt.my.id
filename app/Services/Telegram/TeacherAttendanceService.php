@@ -54,13 +54,12 @@ class TeacherAttendanceService
                 $rawKey = end($parts);
             }
             
-            // Ekstrak hanya karakter alfanumerik, strip, dan underscore (buang [, ], (, ), %, dll)
+            // Ekstrak hanya karakter alfanumerik, strip, dan underscore
             $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
 
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
-                // Gunakan sprintf untuk menjamin URL murni tanpa artifact markdown
                 $endpoints = [
                     sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s)', $pureKey),
                     sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s)', $pureKey),
@@ -69,7 +68,8 @@ class TeacherAttendanceService
                 foreach ($endpoints as $url) {
                     try {
                         $response = Http::withoutVerifying()
-                            ->timeout(20)
+                            ->timeout(30)
+                            ->retry(2, 500)
                             ->post($url, [
                                 'contents' => [
                                     [

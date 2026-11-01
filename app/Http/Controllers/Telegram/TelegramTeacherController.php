@@ -1,106 +1,135 @@
 <?php
 
-namespace App\Services\Telegram;
+namespace App\Http\Controllers\Telegram;
 
-use App\Models\ApiKey;
+use App\Http\Controllers\Controller;
+use App\Services\Telegram\TeacherAttendanceService;
+use App\Models\TelegramSubscriber;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
-class TeacherAttendanceService
+class TelegramTeacherController extends Controller
 {
-    /**
-     * Memproses Foto Rekap Presensi Khusus Guru (Vision OCR)
-     */
-    public function processAttendancePhoto(string $imagePath): ?array
+    protected $attendanceService;
+
+    public function __construct(TeacherAttendanceService $attendanceService)
     {
-        // 1. Cek keberadaan file fisik gambar
-        $fullPath = storage_path('app/public/' .$imagePath);
-        
-        if (!file_exists($fullPath)) {
-            $fullPath = public_path('storage/' .$imagePath);
+        $this->attendanceService = $attendanceService;
+    }
+
+    /**
+     * Menangani unggahan foto rekap presensi dari Guru
+     */
+    public function handlePhotoUpload(array $message, TelegramSubscriber $subscriber)
+    {
+        $chatId = $message['chat']['id'];
+        $photos = $message['photo'] ?? [];
+
+        if (empty($photos)) {
+            return response()->json(['status' => 'ok']);
         }
-        
-        if (!file_exists($fullPath)) {
-            $fullPath = storage_path('app/' .$imagePath);
-        }
 
-        if (!file_exists($fullPath)) {
-            Log::error("Teacher OCR: File tidak ditemukan di path: {$fullPath}");
-            return null;
-        }
+        // Beri respons awal
+        $this->replyTelegram($chatId, "⏳ *Sedang menganalisis foto rekap presensi guru...*\nMohon tunggu beberapa detik.");
 
-        $base64Image = base64_encode(file_get_contents($fullPath));
-        $mimeType    = mime_content_type($fullPath) ?: 'image/jpeg';
-
-        $prompt = "Analisis foto rekap presensi kelas ini secara teliti.\n" .
-                  "Ekstrak data kehadiran siswa ke format JSON murni TANPA MARKDOWN / TANPA ```json.\n\n" .
-                  "Format JSON:\n" .
-                  "{\n" .
-                  "  \"date\": \"YYYY-MM-DD\",\n" .
-                  "  \"attendances\": [\n" .
-                  "    {\"student_name\": \"Nama Lengkap\", \"nis\": \"12345\", \"status\": \"hadir/izin/sakit/alpha\"}\n" .
-                  "  ]\n" .
-                  "}";
-
-        $apiKeys = ApiKey::where('is_active', true)->orderBy('priority', 'asc')->get();
-
-        foreach ($apiKeys as $keyItem) {
-            $provider = strtolower(trim($keyItem->provider));
+        try {
+            $bestPhoto = end($photos);
+            $fileId    = $bestPhoto['file_id'];
             
-            // Isolasi murni karakter API Key
-            $rawKey = (string) $keyItem->api_key;
-            if (str_contains($rawKey, 'key=')) {
-                $parts = explode('key=', $rawKey);
-                $rawKey = end($parts);
+            // Simpan foto fisik
+            $photoPath = $this->downloadPhotoFromTelegram($fileId);
+
+            if (!$photoPath) {
+                $this->replyTelegram($chatId, "❌ *Gagal Mengunduh Foto*\nTerjadi kesalahan koneksi ke server Telegram.");
+                return response()->json(['status' => 'ok']);
             }
-            
-            // Ekstrak hanya karakter alfanumerik, strip, dan underscore
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
 
-            if (empty($pureKey)) continue;
+            // Jalankan Vision OCR via Service
+            $result = $this->attendanceService->processAttendancePhoto($photoPath);
 
-            if ($provider === 'gemini') {
-                $endpoints = [
-                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s)', $pureKey),
-                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s)', $pureKey),
-                ];
+            if ($result && !empty($result['attendances'])) {
+                $totalSiswa = count($result['attendances']);
+                $tanggal    = $result['date'] ?? date('Y-m-d');
 
-                foreach ($endpoints as $url) {
-                    try {
-                        $response = Http::withoutVerifying()
-                            ->timeout(30)
-                            ->retry(2, 500)
-                            ->post($url, [
-                                'contents' => [
-                                    [
-                                        'parts' => [
-                                            ['text' => $prompt],
-                                            ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64Image]]
-                                        ]
-                                    ]
-                                ],
-                                'generationConfig' => ['temperature' => 0.1]
-                            ]);
+                $replyMsg = "✅ *Rekap Presensi Berhasil Diproses!*\n\n" .
+                            "📅 *Tanggal:* {$tanggal}\n" .
+                            "👥 *Total Siswa Terbaca:* {$totalSiswa} siswa\n\n" .
+                            "Data kehadiran telah berhasil disimpan ke database SISFO.";
 
-                        if ($response->successful()) {
-                            $rawText = $response->json('candidates.0.content.parts.0.text');
-                            $cleanedJson = trim(str_replace(['```json', '```'], '', $rawText));
-                            $data = json_decode($cleanedJson, true);
-
-                            if (is_array($data)) {
-                                Log::info("SUKSES OCR Presensi Guru [{$keyItem->label_name}]");
-                                return $data;
-                            }
-                        } else {
-                            Log::warning("Gemini Vision HTTP Failed [{$keyItem->label_name}] | Status: " . $response->status());
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Exception OCR Guru [{$keyItem->label_name}]: " . $e->getMessage());
-                    }
-                }
+                $this->replyTelegram($chatId, $replyMsg);
+            } else {
+                $this->replyTelegram($chatId, "⚠️ *Gagal Menganalisis Foto*\n\nTeks rekap presensi tidak terbaca dengan jelas. Pastikan foto cukup terang dan tulisan tegas.");
             }
+
+        } catch (\Exception $e) {
+            Log::error("Teacher Controller Error: " . $e->getMessage());
+            $this->replyTelegram($chatId, "❌ *Terjadi Kesalahan Server*\nSistem tidak dapat memproses foto saat ini.");
         }
 
-        return null;
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Unduh Foto dari Telegram Server
+     */
+    private function downloadPhotoFromTelegram(string $fileId): ?string
+    {
+        $botToken = $this->getPureBotToken();
+        if (empty($botToken)) return null;
+
+        $res = Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->get("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/getFile?file_id={$fileId}");
+
+        if (!$res->successful()) return null;
+
+        $filePathOnTelegram = $res->json('result.file_path');
+        $fileUrl = "[https://api.telegram.org/file/bot](https://api.telegram.org/file/bot){$botToken}/{$filePathOnTelegram}";
+
+        $imageContent = @file_get_contents($fileUrl);
+        if (!$imageContent) return null;
+
+        $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
+        $relativePath = 'presensi_guru/' . $fileName;
+
+        Storage::disk('public')->put($relativePath, $imageContent);
+
+        return $relativePath;
+    }
+
+    /**
+     * Helper Balasan Telegram
+     */
+    private function replyTelegram($chatId, string $text)
+    {
+        $botToken = $this->getPureBotToken();
+        if (empty($botToken)) return false;
+
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/sendMessage", [
+                'chat_id'    => $chatId,
+                'text'       => $text,
+                'parse_mode' => 'Markdown'
+            ]);
+    }
+
+    /**
+     * Sanitasi Token Bot Telegram
+     */
+    private function getPureBotToken(): string
+    {
+        $rawToken = config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
+        $clean = trim(urldecode((string)$rawToken));
+        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $clean);
+        
+        if (preg_match('/([0-9]{8,12}:[a-zA-Z0-9_\-]{30,50})/', $clean, $matches)) {
+            return $matches[1];
+        }
+
+        return $clean;
     }
 }
