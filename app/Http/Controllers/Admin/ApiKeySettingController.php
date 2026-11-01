@@ -5,40 +5,31 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ApiKey;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 
 class ApiKeySettingController extends Controller
 {
     /**
-     * Helper Private untuk Ekstraksi API Key Murni (Mendukung AQ.Ab..., AIzaSy..., gsk_...)
+     * Sanitasi ketat untuk mengambil string API key murni saja (Tanpa Enkripsi)
      */
-    /**
-     * Helper Private untuk Ekstraksi API Key Murni
-     */
-    /**
-     * Helper Private untuk Ekstraksi API Key Murni
-     */
-    private function sanitizeAndEncryptKey(string $rawKey): string
+    private function sanitizeKey(string $rawKey): string
     {
         $clean = trim(urldecode($rawKey));
 
-        // 1. Jika terikut URL markdown [https://...](https://...key=XXX), ambil bagian akhir key=
+        // 1. Ambil bagian setelah 'key=' jika terikut URL
         if (str_contains($clean, 'key=')) {
             $parts = explode('key=', $clean);
             $clean = end($parts);
         }
 
-        // 2. Buang seluruh karakter Markdown, kurung, dan encoding URL
+        // 2. Buang karakter markdown, kurung siku, quote, dan spasi
         $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
 
-        // 3. Ekstrak hanya karakter kunci valid (mencakup AIzaSy, AQ.Ab, AQAb, gsk_)
+        // 3. Ekstrak string kunci murni (Mendukung AIzaSy..., AQ.Ab..., AQAb..., gsk_...)
         if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $clean, $matches)) {
-            $pureKey = $matches[1];
-        } else {
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
+            return $matches[1];
         }
 
-        return Crypt::encryptString($pureKey);
+        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
     }
 
     public function index()
@@ -56,44 +47,17 @@ class ApiKeySettingController extends Controller
             'priority'   => 'required|integer|min:1',
         ]);
 
-        $pureEncryptedKey = $this->sanitizeAndEncryptKey($request->api_key);
+        $pureKey = $this->sanitizeKey($request->api_key);
 
         $apiKey = ApiKey::create([
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
-            'api_key'    => $pureEncryptedKey,
+            'api_key'    => $pureKey, // Simpan Murni Plain-Text
             'priority'   => $request->priority,
             'is_active'  => $request->has('is_active') ? true : false,
         ]);
 
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'status'  => true,
-                'message' => 'API Key AI berhasil ditambahkan!',
-                'data'    => $apiKey
-            ]);
-        }
-
         return back()->with('success', 'API Key AI berhasil ditambahkan!');
-    }
-
-    /**
-     * Endpoint AJAX untuk mengambil data ke Modal Edit
-     */
-    public function edit($id)
-    {
-        $apiKey = ApiKey::findOrFail($id);
-
-        try {
-            $apiKey->api_key_plain = Crypt::decryptString($apiKey->api_key);
-        } catch (\Exception $e) {
-            $apiKey->api_key_plain = $apiKey->api_key;
-        }
-
-        return response()->json([
-            'status' => true,
-            'data'   => $apiKey
-        ]);
     }
 
     public function update(Request $request, $id)
@@ -110,22 +74,14 @@ class ApiKeySettingController extends Controller
             'provider'   => strtolower($request->provider),
             'label_name' => $request->label_name,
             'priority'   => $request->priority,
-            'is_active'  => $request->has('is_active') || $request->is_active == '1' || $request->is_active == 'true' ? true : false,
+            'is_active'  => $request->has('is_active') || $request->is_active == '1' ? true : false,
         ];
 
         if ($request->filled('api_key')) {
-            $data['api_key'] = $this->sanitizeAndEncryptKey($request->api_key);
+            $data['api_key'] = $this->sanitizeKey($request->api_key);
         }
 
         $apiKey->update($data);
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'status'  => true,
-                'message' => 'API Key AI berhasil diperbarui!',
-                'data'    => $apiKey
-            ]);
-        }
 
         return back()->with('success', 'API Key AI berhasil diperbarui!');
     }
@@ -135,42 +91,14 @@ class ApiKeySettingController extends Controller
         $apiKey = ApiKey::findOrFail($id);
         $apiKey->delete();
 
-        if (request()->ajax() || request()->wantsJson()) {
-            return response()->json([
-                'status'  => true,
-                'message' => 'API Key AI berhasil dihapus!'
-            ]);
-        }
-
         return back()->with('success', 'API Key AI berhasil dihapus!');
     }
 
-    /**
-     * Toggle Status Aktif / Nonaktif API Key
-     */
     public function toggleStatus($id)
     {
         $apiKey = ApiKey::findOrFail($id);
-        $apiKey->update([
-            'is_active' => !$apiKey->is_active
-        ]);
-
-        if (request()->ajax() || request()->wantsJson()) {
-            return response()->json([
-                'status'  => true,
-                'message' => 'Status API Key berhasil diperbarui!',
-                'data'    => $apiKey
-            ]);
-        }
+        $apiKey->update(['is_active' => !$apiKey->is_active]);
 
         return back()->with('success', 'Status API Key berhasil diperbarui!');
-    }
-
-    /**
-     * Alias method toggle jika route memanggil toggle()
-     */
-    public function toggle($id)
-    {
-        return $this->toggleStatus($id);
     }
 }

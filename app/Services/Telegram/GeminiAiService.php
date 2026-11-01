@@ -318,27 +318,26 @@ class GeminiAiService
     /**
      * Helper Ekstraksi Key Murni (Menjaga titik, dash, dan underscore)
      */
+    /**
+     * Helper Ekstraksi Key Murni tanpa Dekripsi Crypt (Plain-Text Direct Read)
+     */
     private function extractPureKey(string $rawKey): string
     {
-        if (is_string($rawKey) && str_starts_with($rawKey, 'eyJ')) {
-            try {
-                $rawKey = Crypt::decryptString($rawKey);
-            } catch (\Exception $e) {}
+        $clean = trim(urldecode((string)$rawKey));
+
+        // Buang jika ada sisa karakter markdown atau parameter key=
+        if (str_contains($clean, 'key=')) {
+            $parts = explode('key=', $clean);
+            $clean = end($parts);
         }
 
-        $rawKey = urldecode((string)$rawKey);
+        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
 
-        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $rawKey, $matches)) {
+        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $clean, $matches)) {
             return $matches[1];
         }
 
-        $cleanString = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $rawKey);
-        if (str_contains($cleanString, 'key=')) {
-            $parts = explode('key=', $cleanString);
-            $cleanString = end($parts);
-        }
-
-        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $cleanString);
+        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
     }
 
     /**
