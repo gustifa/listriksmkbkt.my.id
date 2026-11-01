@@ -13,7 +13,7 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Pengecekan lokasi fisik file gambar secara presisi
+        // 1. Pengecekan lokasi fisik file gambar yang akurat
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -48,19 +48,20 @@ class TeacherAttendanceService
             $provider = strtolower(trim($keyItem->provider));
             $pureKey  = trim(urldecode((string)$keyItem->api_key));
 
-            // Sanitasi Kunci API murni (bebas enkripsi & markdown)
+            // Extra Sanitasi: Hilangkan seluruh karakter markdown, kurung siku, dan awalan key=
             if (str_contains($pureKey, 'key=')) {
                 $parts = explode('key=', $pureKey);
                 $pureKey = end($parts);
             }
-            $pureKey = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $pureKey);
+            $pureKey = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $pureKey);
 
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
+                // Endpoint murni tanpa interpolasi markdown
                 $endpoints = [
-                    "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){$pureKey}",
-                    "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=){$pureKey}",
+                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
+                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
                 ];
 
                 foreach ($endpoints as $url) {
