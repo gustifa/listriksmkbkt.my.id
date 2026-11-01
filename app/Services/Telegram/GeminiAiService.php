@@ -37,7 +37,7 @@ class GeminiAiService
                 // 1. PROVIDER GOOGLE GEMINI
                 if ($provider === 'gemini') {
                     // Gunakan endpoint resmi v1beta gemini-1.5-flash
-                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={$apiKey}";
 
                     $response = Http::timeout(12)
                         ->withHeaders(['Content-Type' => 'application/json'])
