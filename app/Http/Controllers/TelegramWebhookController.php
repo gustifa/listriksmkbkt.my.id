@@ -351,11 +351,23 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
+            // // =========================================================================
+            // // 9. FALLBACK KE TELEGRAM AI CONTROLLER (PESAN BEBAS)
+            // // =========================================================================
+            // if (!empty($text) && !str_starts_with($text, '/')) {
+            //     $aiController->handleAiResponse($chatId, $text);
+            //     return response()->json(['status' => 'ok']);
+            // }
             // =========================================================================
-            // 9. FALLBACK KE TELEGRAM AI CONTROLLER (PESAN BEBAS)
-            // =========================================================================
+            // 9. HYBRID INTENT ROUTER & FALLBACK AI (DISINI TEMPATNYA)
+            // =======================================================================
+
             if (!empty($text) && !str_starts_with($text, '/')) {
-                $aiController->handleAiResponse($chatId, $text);
+                $subscriber = \App\Models\TelegramSubscriber::where('chat_id', $chatId)->first();
+
+                // Jalankan Handler Hybrid
+                $aiController->handleHybridRequest($chatId, $text, $subscriber);
+                
                 return response()->json(['status' => 'ok']);
             }
 
