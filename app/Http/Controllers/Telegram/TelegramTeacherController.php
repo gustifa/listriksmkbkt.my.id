@@ -71,38 +71,63 @@ class TelegramTeacherController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+   
     /**
-     * Unduh Foto dari Telegram Server ke Folder Public Storage
+     * Helper Unduh Foto dari Telegram Server dengan Token Murni
      */
     private function downloadPhotoFromTelegram(string $fileId): ?string
     {
-        $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));$res = Http::get("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/getFile?file_id={$fileId}");
+        $botToken = $this->getPureBotToken();
+        if (empty($botToken)) return null;
+
+        $res = Http::withoutVerifying()->get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
         if (!$res->successful()) return null;
 
-        $filePathOnTelegram = $res->json('result.file_path');$fileUrl = "[https://api.telegram.org/file/bot](https://api.telegram.org/file/bot){$botToken}/{$filePathOnTelegram}";
+        $filePathOnTelegram = $res->json('result.file_path');
+        $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
 
-        $imageContent = file_get_contents($fileUrl);
+        $imageContent = @file_get_contents($fileUrl);
         if (!$imageContent) return null;
 
         $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
-        $relativePath = 'presensi_guru/' .$fileName;
+        $relativePath = 'presensi_guru/' . $fileName;
 
-        // Menyimpan secara eksplisit ke disk public
-        Storage::disk('public')->put($relativePath,$imageContent);
+        \Illuminate\Support\Facades\Storage::disk('public')->put($relativePath, $imageContent);
 
         return $relativePath;
     }
 
     /**
-     * Helper Balasan Telegram
+     * Helper Kirim Balasan Telegram dengan Token Murni
      */
-    private function replyTelegram($chatId, string$text)
+    private function replyTelegram($chatId, string $text)
     {
-        $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
-        return Http::post("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/sendMessage", [
+        $botToken = $this->getPureBotToken();
+        if (empty($botToken)) return false;
+
+        return Http::withoutVerifying()->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
             'chat_id'    => $chatId,
             'text'       => $text,
             'parse_mode' => 'Markdown'
         ]);
+    }
+
+    /**
+     * Ekstraksi Token Bot Telegram Murni
+     */
+    private function getPureBotToken(): string
+    {
+        $rawToken = config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
+        $clean = trim(urldecode((string)$rawToken));
+        
+        // Buang karakter markdown/kurung siku jika terikut
+        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $clean);
+        
+        // Ambil token Telegram murni format angka:karakter (misal: 8420994424:AAHJ...)
+        if (preg_match('/([0-9]{8,12}:[a-zA-Z0-9_\-]{30,50})/', $clean, $matches)) {
+            return $matches[1];
+        }
+
+        return $clean;
     }
 }
