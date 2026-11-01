@@ -46,21 +46,24 @@ class TeacherAttendanceService
 
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
-            
-            // Ekstrak murni karakter API Key
-            $rawKey = (string) $keyItem->api_key;
+            $rawKey   = (string) $keyItem->api_key;
+
+            // ISOLASI KUNCI MURNI: Ambil hanya string setelah 'key=' atau buang tautan Markdown
             if (str_contains($rawKey, 'key=')) {
-                $parts = explode('key=', $rawKey);
+                $parts  = explode('key=', $rawKey);
                 $rawKey = end($parts);
             }
-            
-            // Ekstrak hanya karakter alfanumerik, strip, dan underscore
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
+
+            // Hapus semua kurung siku, kurung biasa, spasi, dan URL encoding
+            $cleanKey = trim(urldecode($rawKey));
+            $cleanKey = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $cleanKey);
+
+            // Ambil string API Key murni (karakter alfanumerik, dash, dan underscore saja)
+            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $cleanKey);
 
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
-                // Penggabungan string murni tanpa sprintf agar aman dari ArgumentCountError
                 $endpoints = [
                     '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
                     '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
