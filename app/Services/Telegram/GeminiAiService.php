@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Bulletproof OCR)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -455,27 +455,27 @@ class GeminiAiService
 
         foreach ($apiKeys as $keyItem) {
             try {
-                // Sanitasi API Key: Ambil hanya karakter alfanumerik, strip, dan underscore
                 $rawKey = trim($keyItem->api_key);
-                
-                // Jika di DB terisi URL lengkap, ekstrak hanya bagian key-nya
-                if (str_contains($rawKey, 'key=')) {
-                    $parts = explode('key=', $rawKey);
-                    $rawKey = end($parts);
+                $rawKey = urldecode($rawKey); // Decode jika mengandung %5B / %5D
+
+                // 🌟 TEKNIK JITU: Cari pola API Key resmi Google (diawali AIzaSy...)
+                if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33})/', $rawKey, $matches)) {
+                    $apiKey = $matches[1];
+                } else {
+                    // Fallback: buang semua karakter non-alfanumerik/dash/underscore
+                    $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
                 }
 
-                // Bersihkan dari karakter [, ], ", ', spasial, dan URL encoding
-                $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', urldecode($rawKey));
-
                 if (empty($apiKey)) {
+                    Log::warning("Gemini Vision: API Key kosong setelah disanitasi dari label '{$keyItem->label_name}'.");
                     continue;
                 }
 
-                // Susun URL endpoint murni
-                $url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . $apiKey;
+                // Endpoint cURL murni tanpa ada karakter sampah
+                $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . trim($apiKey);
 
                 $response = Http::withoutVerifying()
-                    ->timeout(20)
+                    ->timeout(25)
                     ->withOptions([
                         'curl' => [
                             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
@@ -483,7 +483,7 @@ class GeminiAiService
                         ]
                     ])
                     ->withHeaders(['Content-Type' => 'application/json'])
-                    ->post($url, [
+                    ->post($endpointUrl, [
                         'contents' => [
                             [
                                 'parts' => [
@@ -511,10 +511,10 @@ class GeminiAiService
                         return $data;
                     }
                 } else {
-                    Log::warning("Gemini Vision HTTP Gagal. Status: " . $response->status() . " Body: " . $response->body());
+                    Log::warning("Gemini Vision HTTP Gagal [{$keyItem->label_name}]. Status: " . $response->status() . " Response: " . $response->body());
                 }
             } catch (\Exception $e) {
-                Log::error("Gemini Vision Parsing Exception: " . $e->getMessage());
+                Log::error("Gemini Vision Parsing Exception [{$keyItem->label_name}]: " . $e->getMessage());
             }
         }
 
