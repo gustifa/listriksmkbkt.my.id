@@ -42,7 +42,7 @@ class TeacherAttendanceService
                   "  ]\n" .
                   "}";
 
-        // 2. Ambil Kunci API Gemini langsung dari database (tabel api_keys)
+        // 2. Ambil Kunci API Gemini langsung dari database secara murni
         $apiKeys = ApiKey::where('is_active', true)
             ->where(function($q) {
                 $q->where('provider', 'ILIKE', '%gemini%')
@@ -57,21 +57,12 @@ class TeacherAttendanceService
         }
 
         foreach ($apiKeys as $keyItem) {
-            $rawKey = trim((string) $keyItem->api_key);
-
-            // Sanitasi otomatis: Bersihkan jika tersisa format Markdown atau URL pembungkus di database
-            $cleanKey = preg_replace('/\[.*?\]\(.*?\)/', '', $rawKey);
-            $cleanKey = preg_replace('/https?:\/\/[^\s]+/', '', $cleanKey);
-            $pureKey  = trim(str_replace([']', ')', '[', '(', ' ', '"', "'", '%5B', '%5D', '%5b', '%5d'], '', $cleanKey));
-
-            if (str_contains($pureKey, 'key=')) {
-                $parts   = explode('key=', $pureKey);
-                $pureKey = trim(end($parts));
-            }
+            // Karena sudah dihapus enkripsinya di database, ambil nilai string murninya
+            $pureKey = trim((string) $keyItem->api_key);
 
             if (empty($pureKey)) continue;
 
-            // Endpoint murni 100% tanpa karakter pembungkus yang memicu cURL error 3
+            // Endpoint resmi Gemini 
             $endpoints = [
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
