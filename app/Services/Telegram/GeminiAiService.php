@@ -36,10 +36,15 @@ class GeminiAiService
 
                 // 1. PROVIDER GOOGLE GEMINI
                 if ($provider === 'gemini') {
-                    // Gunakan model gemini-3.8-flash sesuai petunjuk API Google
                     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={$apiKey}";
 
-                    $response = Http::timeout(12)
+                    $response = Http::timeout(15)
+                        ->withOptions([
+                            'curl' => [
+                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4, // Paksa IPv4 agar cURL cepat & tidak menggantung
+                                CURLOPT_SSL_VERIFYPEER => false,
+                            ]
+                        ])
                         ->withHeaders(['Content-Type' => 'application/json'])
                         ->post($url, [
                             'system_instruction' => [
@@ -54,25 +59,6 @@ class GeminiAiService
                             ]
                         ]);
 
-                    // Fallback ke endpoint v1 gemini-1.5-flash jika versi beta mengalami kendala
-                    if (!$response->successful() && $response->status() === 404) {
-                        $urlFallback = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
-                        $response = Http::timeout(12)
-                            ->withHeaders(['Content-Type' => 'application/json'])
-                            ->post($urlFallback, [
-                                'system_instruction' => [
-                                    'parts' => [['text' => $systemInstruction]]
-                                ],
-                                'contents' => [
-                                    ['parts' => [['text' => $prompt]]]
-                                ],
-                                'generationConfig' => [
-                                    'maxOutputTokens' => 500,
-                                    'temperature'     => 0.7,
-                                ]
-                            ]);
-                    }
-
                     if ($response->successful()) {
                         $reply = $response->json('candidates.0.content.parts.0.text');
                         if (!empty($reply)) {
@@ -85,7 +71,12 @@ class GeminiAiService
 
                 // 2. PROVIDER GROQ (JIKA ADA PROVIDER CADANGAN)
                 elseif ($provider === 'groq') {
-                    $response = Http::timeout(12)
+                    $response = Http::timeout(15)
+                        ->withOptions([
+                            'curl' => [
+                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                            ]
+                        ])
                         ->withToken($apiKey)
                         ->post('https://api.groq.com/openai/v1/chat/completions', [
                             'model' => 'llama-3.1-8b-instant',
