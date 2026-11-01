@@ -12,7 +12,7 @@ class GeminiAiService
     /**
      * Memanggil AI dengan Auto-Discovery Endpoint & Multi-Provider Fallback
      */
-    public function askAi(string $prompt): string
+    public function askAi(string $prompt, ?string $customSystemInstruction = null): string
     {
         $apiKeys = ApiKey::where('is_active', true)
             ->orderBy('priority', 'asc')
@@ -22,8 +22,19 @@ class GeminiAiService
             return "⚠️ *Asisten AI SISFO*\n\nLayanan AI belum dikonfigurasi. Silakan hubungi Admin untuk memasukkan API Key.";
         }
 
-        $systemInstruction = "Anda adalah Asisten Virtual cerdas & ramah untuk SISFO SMKN 1 Bukittinggi. " .
-                             "Jawablah pertanyaan pengguna secara sopan, jelas, singkat, dan relevan dengan lingkungan sekolah/pendidikan.";
+        // Tanggal & Hari Real-Time dari Server Laravel
+        $daysMap = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
+        $todayName = $daysMap[date('N')] ?? 'Senin';
+        $currentDateStr = $todayName . ', ' . date('d F Y');
+
+        // System Instruction Default yang Ketat
+        $systemInstruction = $customSystemInstruction ?? 
+            "Anda adalah Asisten Virtual Resmi SISFO SMKN 1 Bukittinggi.\n" .
+            "Hari/Tanggal Server Saat Ini: {$currentDateStr}.\n\n" .
+            "ATURAN MUTLAK:\n" .
+            "1. Langsung berikan jawaban akhir yang ramah, sopan, dan singkat.\n" .
+            "2. DILARANG KERAS menampilkan proses berpikir, draft, evaluasi, persona, atau catatan internal dalam bentuk apa pun.\n" .
+            "3. Jawab dalam Bahasa Indonesia yang alami.";
 
         foreach ($apiKeys as $keyItem) {
             try {
@@ -56,8 +67,8 @@ class GeminiAiService
                                     ['parts' => [['text' => $prompt]]]
                                 ],
                                 'generationConfig' => [
-                                    'maxOutputTokens' => 500,
-                                    'temperature'     => 0.7,
+                                    'maxOutputTokens' => 300,
+                                    'temperature'     => 0.2,
                                 ]
                             ]);
 
@@ -91,7 +102,8 @@ class GeminiAiService
                                     ['role' => 'system', 'content' => $systemInstruction],
                                     ['role' => 'user', 'content' => $prompt]
                                 ],
-                                'max_tokens' => 500,
+                                'temperature' => 0.2,
+                                'max_tokens'  => 300,
                             ]);
 
                         if ($response->successful()) {
@@ -111,6 +123,36 @@ class GeminiAiService
         }
 
         return "🤖 *Asisten AI SISFO*\n\nMaaf, seluruh kuota harian layanan AI sedang mencapai batas maksimal. Silakan coba beberapa saat lagi.";
+    }
+
+    /**
+     * Memanggil AI dengan Injeksikan Basic Context
+     */
+    public function askAiWithContext(string $prompt, ?\App\Models\TelegramSubscriber $subscriber = null): string
+    {
+        $daysMap = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
+        $todayName = $daysMap[date('N')] ?? 'Senin';
+        $currentDateStr = $todayName . ', ' . date('d F Y');
+
+        $userDataContext = "Pengguna: Pengunjung Umum.\n";
+
+        if ($subscriber) {
+            if ($subscriber->teacher_id && $subscriber->teacher) {
+                $userDataContext = "Identitas Pengguna: Guru bernama " . $subscriber->teacher->name . "\n";
+            } elseif ($subscriber->student_id && $subscriber->student) {
+                $userDataContext = "Identitas Pengguna: Siswa bernama " . $subscriber->student->name . " (Kelas " . object_get($subscriber->student, 'classroom.name', '-') . ")\n";
+            }
+        }
+
+        $systemInstruction = "Anda adalah Asisten Virtual Resmi SISFO SMKN 1 Bukittinggi.\n" .
+                             "Hari/Tanggal Server Saat Ini: {$currentDateStr}.\n" .
+                             $userDataContext . "\n" .
+                             "ATURAN MUTLAK:\n" .
+                             "1. LANGSUNG BERIKAN JAWABAN AKHIR kepada pengguna. DILARANG MENAMPILKAN PROSES BERPIKIR, DRAFT, ATAU EVALUASI PERSONA.\n" .
+                             "2. Jawab secara singkat, jelas, dan ramah dalam Bahasa Indonesia.\n" .
+                             "3. Jika ditanya tanggal/hari ini, jawablah berdasarkan Hari/Tanggal Server Saat Ini di atas.";
+
+        return $this->askAi($prompt, $systemInstruction);
     }
 
     /**
@@ -201,8 +243,8 @@ class GeminiAiService
             // Fallback default jika API ListModels Groq gagal
             if (empty($validModels)) {
                 $validModels = [
-                    'llama-3.3-70b-versatile',
                     'llama-3.1-8b-instant',
+                    'llama-3.3-70b-versatile',
                     'mixtral-8x7b-32768',
                     'gemma2-9b-it',
                 ];
