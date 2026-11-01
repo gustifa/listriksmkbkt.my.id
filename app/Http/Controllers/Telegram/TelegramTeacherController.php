@@ -30,14 +30,14 @@ class TelegramTeacherController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // Beri respons awal
+        // 1. Beri respons awal ke pengguna
         $this->replyTelegram($chatId, "⏳ *Sedang menganalisis foto rekap presensi guru...*\nMohon tunggu beberapa detik.");
 
         try {
             $bestPhoto = end($photos);
             $fileId    = $bestPhoto['file_id'];
             
-            // Simpan foto fisik
+            // Simpan foto fisik di public storage
             $photoPath = $this->downloadPhotoFromTelegram($fileId);
 
             if (!$photoPath) {
@@ -45,7 +45,7 @@ class TelegramTeacherController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // Jalankan Vision OCR via Service
+            // 2. Jalankan Vision OCR via Service
             $result = $this->attendanceService->processAttendancePhoto($photoPath);
 
             if ($result && !empty($result['attendances'])) {
@@ -71,22 +71,24 @@ class TelegramTeacherController extends Controller
     }
 
     /**
-     * Unduh Foto dari Telegram Server
+     * Unduh Foto dari Telegram Server dengan Endpoint Murni (Timeout 30s)
      */
     private function downloadPhotoFromTelegram(string $fileId): ?string
     {
         $botToken = $this->getPureBotToken();
         if (empty($botToken)) return null;
 
+        $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
+
         $res = Http::withoutVerifying()
             ->timeout(30)
             ->retry(2, 500)
-            ->get("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/getFile?file_id={$fileId}");
+            ->get($url);
 
         if (!$res->successful()) return null;
 
         $filePathOnTelegram = $res->json('result.file_path');
-        $fileUrl = "[https://api.telegram.org/file/bot](https://api.telegram.org/file/bot){$botToken}/{$filePathOnTelegram}";
+        $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePathOnTelegram}";
 
         $imageContent = @file_get_contents($fileUrl);
         if (!$imageContent) return null;
@@ -100,17 +102,19 @@ class TelegramTeacherController extends Controller
     }
 
     /**
-     * Helper Balasan Telegram
+     * Helper Balasan Telegram dengan Endpoint Murni (Timeout 30s)
      */
     private function replyTelegram($chatId, string $text)
     {
         $botToken = $this->getPureBotToken();
         if (empty($botToken)) return false;
 
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+
         return Http::withoutVerifying()
             ->timeout(30)
             ->retry(2, 500)
-            ->post("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/sendMessage", [
+            ->post($url, [
                 'chat_id'    => $chatId,
                 'text'       => $text,
                 'parse_mode' => 'Markdown'
@@ -118,14 +122,17 @@ class TelegramTeacherController extends Controller
     }
 
     /**
-     * Sanitasi Token Bot Telegram
+     * Isolasi Murni Kunci Token Bot Telegram (Bebas dari Kurung Siku / Markdown)
      */
     private function getPureBotToken(): string
     {
         $rawToken = config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
         $clean = trim(urldecode((string)$rawToken));
+        
+        // Buang seluruh karakter Markdown / Kurung Siku / Spasi jika terikut
         $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $clean);
         
+        // Ekstrak token murni format angka:karakter (Contoh: 8420994424:AAEU...)
         if (preg_match('/([0-9]{8,12}:[a-zA-Z0-9_\-]{30,50})/', $clean, $matches)) {
             return $matches[1];
         }
