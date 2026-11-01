@@ -118,6 +118,7 @@ use App\Http\Controllers\Admin\StudentAttendanceReportController;
 use App\Http\Controllers\Admin\AttendanceManageController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\UserRoleManagementController;
+use App\Http\Controllers\Admin\ApiKeySettingController;
 
 use App\Http\Controllers\Admin\SyncDashboardController;
 use App\Http\Controllers\Admin\IzinApprovalController;
@@ -170,6 +171,12 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    Route::get('/admin/settings/api-keys', [ApiKeySettingController::class, 'index'])->name('admin.api-keys.index');
+    Route::post('/admin/settings/api-keys', [ApiKeySettingController::class, 'store'])->name('admin.api-keys.store');
+    Route::put('/admin/settings/api-keys/{id}', [ApiKeySettingController::class, 'update'])->name('admin.api-keys.update');
+    Route::delete('/admin/settings/api-keys/{id}', [ApiKeySettingController::class, 'destroy'])->name('admin.api-keys.destroy');
+    Route::patch('/admin/settings/api-keys/{id}/toggle', [ApiKeySettingController::class, 'toggleStatus'])->name('admin.api-keys.toggle');
 
     Route::get('/admin/izin-siswa', [IzinApprovalController::class, 'index'])->name('admin.izin.index');
     Route::patch('/admin/izin-siswa/{id}/approve', [IzinApprovalController::class, 'approve'])->name('admin.izin.approve');

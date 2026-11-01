@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\TelegramAiController; // <-- Tambahkan di paling atas
 use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -14,6 +15,7 @@ use App\Services\Telegram\TelegramStudentService;
 use App\Services\Telegram\TelegramApprovalService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use App\Services\Telegram\GeminiAiService; // <-- Tambahkan di atas
 
 class TelegramWebhookController extends Controller
 {
@@ -23,7 +25,8 @@ class TelegramWebhookController extends Controller
         TelegramTeacherService $teacherService,
         TelegramRegistrationService $registrationService,
         TelegramStudentService $studentService,
-        TelegramApprovalService $approvalService
+        TelegramApprovalService $approvalService,
+        TelegramAiController $aiController // <-- Injeksikan Controller AI di sini
     ) {
         if ($request->isMethod('get')) {
             return response()->json(['status' => true, 'message' => 'Endpoint Webhook Telegram SISFO Aktif!']);
@@ -345,6 +348,14 @@ class TelegramWebhookController extends Controller
                          "Mohon tunggu konfirmasi persetujuan dari Admin.";
                 
                 $telegramService->sendMessageWithRemoveKeyboard($chatId, $reply);
+                return response()->json(['status' => 'ok']);
+            }
+
+            // =========================================================================
+            // 9. FALLBACK KE TELEGRAM AI CONTROLLER (PESAN BEBAS)
+            // =========================================================================
+            if (!empty($text) && !str_starts_with($text, '/')) {
+                $aiController->handleAiResponse($chatId, $text);
                 return response()->json(['status' => 'ok']);
             }
 
