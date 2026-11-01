@@ -178,7 +178,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/admin/settings/api-keys/{id}', [ApiKeySettingController::class, 'destroy'])->name('admin.api-keys.destroy');
     Route::patch('/admin/settings/api-keys/{id}/toggle', [ApiKeySettingController::class, 'toggleStatus'])->name('admin.api-keys.toggle');
     // 🌟 ROUTE EDIT AJAX (WAJIB ADA)
-    Route::get('/settings/api-keys/{id}/edit', [ApiKeySettingController::class, 'edit'])->name('api-keys.edit');
+    Route::get('/admin/settings/api-keys/{id}/edit', [ApiKeySettingController::class, 'edit'])->name('admin.api-keys.edit');
     Route::get('/admin/izin-siswa', [IzinApprovalController::class, 'index'])->name('admin.izin.index');
     Route::patch('/admin/izin-siswa/{id}/approve', [IzinApprovalController::class, 'approve'])->name('admin.izin.approve');
     Route::patch('/admin/izin-siswa/{id}/reject', [IzinApprovalController::class, 'reject'])->name('admin.izin.reject');
