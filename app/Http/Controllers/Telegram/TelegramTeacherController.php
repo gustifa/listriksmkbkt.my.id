@@ -7,6 +7,7 @@ use App\Services\Telegram\TeacherAttendanceService;
 use App\Models\TelegramSubscriber;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class TelegramTeacherController extends Controller
 {
@@ -14,91 +15,91 @@ class TelegramTeacherController extends Controller
 
     public function __construct(TeacherAttendanceService $attendanceService)
     {
-        $this->attendanceService = $attendanceService;
+        $this->attendanceService =$attendanceService;
     }
 
     /**
-     * Menangani khusus unggahan foto rekap presensi dari Guru
+     * Menangani unggahan foto rekap presensi dari Guru
      */
-    public function handlePhotoUpload(array $message, TelegramSubscriber $subscriber)
+    public function handlePhotoUpload(array $message, TelegramSubscriber$subscriber)
     {
-        $chatId = $message['chat']['id'];
-        $photos = $message['photo'] ?? [];
+        $chatId =$message['chat']['id'];
+        $photos =$message['photo'] ?? [];
 
         if (empty($photos)) {
-            return $this->replyTelegram($chatId, "⚠️ Foto tidak ditemukan.");
+            return response()->json(['status' => 'ok']);
         }
 
-        // 1. Beri respons cepat ke Telegram bahwa gambar sedang diproses
+        // 1. Kirim pesan notifikasi awal ke Telegram
         $this->replyTelegram($chatId, "⏳ *Sedang menganalisis foto rekap presensi guru...*\nMohon tunggu beberapa detik.");
 
         try {
-            // 2. Ambil file_id foto ukuran terbesar (elemen terakhir array)
+            // Ambil resolusi tertinggi
             $bestPhoto = end($photos);
-            $fileId    = $bestPhoto['file_id'];
-
-            // 3. Unduh foto dari server Telegram
+            $fileId    =$bestPhoto['file_id'];
+            
+            // Simpan foto secara fisik ke folder presensi_guru
             $photoPath = $this->downloadPhotoFromTelegram($fileId);
 
             if (!$photoPath) {
-                return $this->replyTelegram($chatId, "❌ *Gagal Mengunduh Foto*\nTerjadi kesalahan koneksi ke server Telegram.");
+                $this->replyTelegram($chatId, "❌ *Gagal Mengunduh Foto*\nTerjadi kesalahan koneksi ke server Telegram.");
+                return response()->json(['status' => 'ok']);
             }
 
-            // 4. Proses OCR Vision lewat TeacherAttendanceService
+            // 2. Jalankan Vision OCR
             $result = $this->attendanceService->processAttendancePhoto($photoPath);
 
-            // 5. Berikan balasan pasti (Sukses / Gagal) agar bot tidak menggantung
             if ($result && !empty($result['attendances'])) {
                 $totalSiswa = count($result['attendances']);
-                $tanggal    = $result['date'] ?? date('Y-m-d');
+                $tanggal    =$result['date'] ?? date('Y-m-d');
 
                 $replyMsg = "✅ *Rekap Presensi Berhasil Diproses!*\n\n" .
                             "📅 *Tanggal:* {$tanggal}\n" .
                             "👥 *Total Siswa Terbaca:* {$totalSiswa} siswa\n\n" .
                             "Data kehadiran telah berhasil disimpan ke database SISFO.";
 
-                return $this->replyTelegram($chatId, $replyMsg);
+                $this->replyTelegram($chatId,$replyMsg);
             } else {
-                return $this->replyTelegram($chatId, "⚠️ *Gagal Menganalisis Foto*\n\nTeks rekap presensi tidak terbaca dengan jelas oleh AI. Pastikan foto cukup terang dan tulisan tegas, lalu coba upload ulang.");
+                $this->replyTelegram($chatId, "⚠️ *Gagal Menganalisis Foto*\n\nTeks rekap presensi tidak terbaca dengan jelas. Pastikan foto cukup terang dan tulisan tegas.");
             }
 
         } catch (\Exception $e) {
             Log::error("Teacher Controller Error: " . $e->getMessage());
-            return $this->replyTelegram($chatId, "❌ *Terjadi Kesalahan Server*\nSistem tidak dapat memproses foto saat ini.");
+            $this->replyTelegram($chatId, "❌ *Terjadi Kesalahan Server*\nSistem tidak dapat memproses foto saat ini.");
         }
+
+        return response()->json(['status' => 'ok']);
     }
 
     /**
-     * Helper Unduh Foto dari Telegram API
+     * Unduh Foto dari Telegram Server ke Folder Public Storage
      */
     private function downloadPhotoFromTelegram(string $fileId): ?string
     {
-        $botToken = config('services.telegram.bot_token');
-
-        // Get file path from Telegram
-        $res = Http::get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
+        $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));$res = Http::get("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/getFile?file_id={$fileId}");
         if (!$res->successful()) return null;
 
-        $filePath = $res->json('result.file_path');
-        $fileUrl  = "https://api.telegram.org/file/bot{$botToken}/{$filePath}";
+        $filePathOnTelegram = $res->json('result.file_path');$fileUrl = "[https://api.telegram.org/file/bot](https://api.telegram.org/file/bot){$botToken}/{$filePathOnTelegram}";
 
-        // Save to local storage
         $imageContent = file_get_contents($fileUrl);
-        $fileName     = 'attendance_guru_' . time() . '.jpg';
-        $savePath     = 'public/presensi_guru/' . $fileName;
+        if (!$imageContent) return null;
 
-        \Illuminate\Support\Facades\Storage::put($savePath, $imageContent);
+        $fileName = 'attendance_guru_' . time() . '_' . uniqid() . '.jpg';
+        $relativePath = 'presensi_guru/' .$fileName;
 
-        return 'presensi_guru/' . $fileName;
+        // Menyimpan secara eksplisit ke disk public
+        Storage::disk('public')->put($relativePath,$imageContent);
+
+        return $relativePath;
     }
 
     /**
-     * Helper Kirim Balasan Telegram
+     * Helper Balasan Telegram
      */
-    private function replyTelegram($chatId, string $text)
+    private function replyTelegram($chatId, string$text)
     {
-        $botToken = config('services.telegram.bot_token');
-        return Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+        $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+        return Http::post("[https://api.telegram.org/bot](https://api.telegram.org/bot){$botToken}/sendMessage", [
             'chat_id'    => $chatId,
             'text'       => $text,
             'parse_mode' => 'Markdown'

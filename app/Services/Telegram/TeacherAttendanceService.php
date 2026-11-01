@@ -13,7 +13,7 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Cek keberadaan file di berbagai kemungkinan lokasi fisik Laravel
+        // 1. Pengecekan lokasi fisik file gambar secara presisi
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -25,7 +25,7 @@ class TeacherAttendanceService
         }
 
         if (!file_exists($fullPath)) {
-            Log::error("Teacher OCR: File tidak ditemukan di lokasi mana pun. Path dicari: {$fullPath}");
+            Log::error("Teacher OCR: File tidak ditemukan di seluruh path: {$fullPath}");
             return null;
         }
 
@@ -48,7 +48,7 @@ class TeacherAttendanceService
             $provider = strtolower(trim($keyItem->provider));
             $pureKey  = trim(urldecode((string)$keyItem->api_key));
 
-            // Sanitasi Kunci API murni tanpa enkripsi / format markdown
+            // Sanitasi Kunci API murni (bebas enkripsi & markdown)
             if (str_contains($pureKey, 'key=')) {
                 $parts = explode('key=', $pureKey);
                 $pureKey = end($parts);
