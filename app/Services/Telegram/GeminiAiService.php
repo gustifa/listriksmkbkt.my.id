@@ -36,8 +36,8 @@ class GeminiAiService
 
                 // 1. PROVIDER GOOGLE GEMINI
                 if ($provider === 'gemini') {
-                    // Endpoint v1 resmi dengan model gemini-1.5-flash / gemini-2.0-flash
-                    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+                    // Gunakan model gemini-3.8-flash sesuai petunjuk API Google
+                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={$apiKey}";
 
                     $response = Http::timeout(12)
                         ->withHeaders(['Content-Type' => 'application/json'])
@@ -54,9 +54,9 @@ class GeminiAiService
                             ]
                         ]);
 
-                    // Fallback jika v1 gagal, coba endpoint gemini-2.0-flash v1beta
+                    // Fallback ke endpoint v1 gemini-1.5-flash jika versi beta mengalami kendala
                     if (!$response->successful() && $response->status() === 404) {
-                        $urlFallback = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+                        $urlFallback = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
                         $response = Http::timeout(12)
                             ->withHeaders(['Content-Type' => 'application/json'])
                             ->post($urlFallback, [
