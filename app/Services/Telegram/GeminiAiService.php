@@ -284,6 +284,9 @@ class GeminiAiService
     /**
      * Helper Terpusat untuk Ekstraksi API Key Murni
      */
+    /**
+     * Helper Terpusat untuk Ekstraksi API Key Murni (Mendukung AQ.Ab..., AIzaSy..., gsk_...)
+     */
     private function extractPureKey(string $rawKey): string
     {
         if (is_string($rawKey) && str_starts_with($rawKey, 'eyJ')) {
@@ -294,7 +297,8 @@ class GeminiAiService
 
         $rawKey = urldecode((string)$rawKey);
 
-        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33}|AQAb[a-zA-Z0-9_\-]{30,60}|gsk_[a-zA-Z0-9_\-]{30,60})/', $rawKey, $matches)) {
+        // 🌟 Jaga agar karakter alfanumerik, dash (-), underscore (_), dan titik (.) TETAP UTUH
+        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $rawKey, $matches)) {
             return $matches[1];
         }
 
@@ -304,7 +308,7 @@ class GeminiAiService
             $cleanString = end($parts);
         }
 
-        return preg_replace('/[^a-zA-Z0-9_\-]/', '', $cleanString);
+        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $cleanString);
     }
 
     /**
