@@ -103,36 +103,55 @@ class TelegramWebhookController extends Controller
                     }
 
                     // Masukkan Hasil Parsing ke Database PostgreSQL
-                    $targetDate = $parsedData['date'] ?? date('Y-m-d');
+                    $targetDate = !empty($parsedData['date']) ? $parsedData['date'] : date('Y-m-d');
                     $successCount = 0;
                     $teacherName = optional($subscriber->teacher)->name ?? 'Guru';
 
                     foreach ($parsedData['attendances'] as $row) {
                         $studentName = trim($row['student_name'] ?? '');
-                        $status = strtolower(trim($row['status'] ?? 'hadir'));
+                        $studentNis  = trim($row['nis'] ?? '');
+                        $status      = strtolower(trim($row['status'] ?? 'hadir'));
 
-                        if (!empty($studentName)) {
-                            // Cari data siswa di DB berdasarkan Kemiripan Nama (ILIKE PostgreSQL)
+                        // Normalisasi status presensi
+                        if (in_array($status, ['h', 'hadir'])) $status = 'hadir';
+                        elseif (in_array($status, ['i', 'izin'])) $status = 'izin';
+                        elseif (in_array($status, ['s', 'sakit'])) $status = 'sakit';
+                        elseif (in_array($status, ['a', 'alpha', 'alpa'])) $status = 'alpha';
+                        else $status = 'hadir';
+
+                        // 1. Cari siswa berdasarkan NIS/NISN dahulu
+                        $student = null;
+                        if (!empty($studentNis)) {
+                            $student = DB::table('students')
+                                ->where('nis', $studentNis)
+                                ->orWhere('nisn', $studentNis)
+                                ->first();
+                        }
+
+                        // 2. Jika tidak ketemu NIS, cari berdasarkan NAMA (ILIKE PostgreSQL)
+                        if (!$student && !empty($studentName)) {
                             $student = DB::table('students')
                                 ->where('name', 'ILIKE', "%{$studentName}%")
                                 ->first();
+                        }
 
-                            if ($student) {
-                                DB::table('daily_attendances')->updateOrInsert(
-                                    [
-                                        'student_id' => $student->id,
-                                        'date'       => $targetDate,
-                                    ],
-                                    [
-                                        'status'      => $status,
-                                        'recorded_by' => 'Telegram Bot OCR (' . $teacherName . ')',
-                                        'updated_at'  => now(),
-                                        'created_at'  => now(),
-                                        'is_synced'   => true,
-                                    ]
-                                );
-                                $successCount++;
-                            }
+                        if ($student) {
+                            DB::table('daily_attendances')->updateOrInsert(
+                                [
+                                    'student_id' => $student->id,
+                                    'date'       => $targetDate,
+                                ],
+                                [
+                                    'status'      => $status,
+                                    'recorded_by' => 'Telegram Bot OCR (' . $teacherName . ')',
+                                    'updated_at'  => now(),
+                                    'created_at'  => now(),
+                                    'is_synced'   => true,
+                                ]
+                            );
+                            $successCount++;
+                        } else {
+                            Log::warning("OCR Student Not Found in DB: Nama={$studentName}, NIS={$studentNis}");
                         }
                     }
 
