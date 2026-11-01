@@ -13,7 +13,7 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Cek keberadaan file fisik gambar di beberapa kemungkinan lokasi path
+        // 1. Cek keberadaan file fisik gambar
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -48,13 +48,19 @@ class TeacherAttendanceService
             $provider = strtolower(trim($keyItem->provider));
             $rawKey   = trim((string) $keyItem->api_key);
 
-            // Sanitasi Otomatis: Jika DB menyimpan format markdown/URL link, ambil hanya string kunci setelah 'key='
-            if (str_contains($rawKey, 'key=')) {
-                $parts  = explode('key=', $rawKey);
-                $rawKey = end($parts);
+            // SANITASIS KETAT: Buang format Markdown link & URL domain jika tersimpan di database
+            // Hapus pattern Markdown [https://...](https://...)
+            $cleanKey = preg_replace('/\[.*?\]\(.*?\)/', '', $rawKey);
+            // Hapus jika ada awalan URL http/https
+            $cleanKey = preg_replace('/https?:\/\/[^\s]+/', '', $cleanKey);
+            // Hapus sisa karakter kurung dan spasi
+            $pureKey  = trim(str_replace([']', ')', '[', '(', ' ', '"', "'", '%5B', '%5D', '%5b', '%5d'], '', $cleanKey));
+
+            // Jika masih mengandung 'key=', ambil bagian setelah key= terakhir
+            if (str_contains($pureKey, 'key=')) {
+                $parts   = explode('key=', $pureKey);
+                $pureKey = trim(end($parts));
             }
-            // Buang karakter pembungkus kurung markdown jika tersisa di DB
-            $pureKey = trim(str_replace([']', ')', '[', '(', ' ', '"', "'"], '', $rawKey));
 
             if (empty($pureKey)) continue;
 
