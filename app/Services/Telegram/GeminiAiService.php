@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiAiService
 {
     /**
-     * Memanggil AI dengan sistem Multi-API Fallback membaca dari Database
+     * Memanggil AI dengan Multi-API Fallback membaca dari Database
      */
     public function askAi(string $prompt): string
     {
@@ -19,29 +19,27 @@ class GeminiAiService
             ->get();
 
         if ($apiKeys->isEmpty()) {
-            return "⚠️ Layanan AI belum dikonfigurasi. Silakan hubungi Admin untuk memasukkan API Key.";
+            return "⚠️ *Asisten AI SISFO*\n\nLayanan AI belum dikonfigurasi. Silakan hubungi Admin untuk memasukkan API Key.";
         }
 
         $systemInstruction = "Anda adalah Asisten Virtual cerdas & ramah untuk SISFO SMKN 1 Bukittinggi. " .
-                           "Jawablah pertanyaan pengguna dengan sopan, jelas, singkat, dan relevan dengan lingkungan sekolah/pendidikan.";
+                             "Jawablah pertanyaan pengguna secara sopan, jelas, singkat, dan relevan dengan lingkungan sekolah/pendidikan.";
 
         foreach ($apiKeys as $keyItem) {
             try {
-                $provider = strtolower($keyItem->provider);
-                $apiKey   = $keyItem->api_key; // Otomatis ter-dekripsi oleh model
+                $provider = strtolower(trim($keyItem->provider));
+                $apiKey   = trim($keyItem->api_key); // Hapus karakter spasi tak terlihat jika ada
+
+                if (empty($apiKey)) {
+                    continue;
+                }
 
                 // 1. PROVIDER GOOGLE GEMINI
                 if ($provider === 'gemini') {
-                    // $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
-                    // Gunakan endpoint v1beta dengan model gemini-1.5-flash
+                    // Gunakan endpoint resmi v1beta gemini-1.5-flash
                     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
 
-                    // JIKA MASIH 404, coba ubah nama model menjadi gemini-2.0-flash atau gemini-pro:
-                    // $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
-                    // ATAU:
-                    // $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={$apiKey}";
-
-                    $response = Http::timeout(10)
+                    $response = Http::timeout(12)
                         ->withHeaders(['Content-Type' => 'application/json'])
                         ->post($url, [
                             'system_instruction' => [
@@ -63,12 +61,13 @@ class GeminiAiService
                         }
                     }
 
-                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status());
+                    // Log detail response untuk kemudahan debugging
+                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
                 }
 
-                // 2. PROVIDER GROQ (JIKA ADA CADANGAN PROVIDER GROQ)
+                // 2. PROVIDER GROQ (JIKA ADA PROVIDER CADANGAN)
                 elseif ($provider === 'groq') {
-                    $response = Http::timeout(10)
+                    $response = Http::timeout(12)
                         ->withToken($apiKey)
                         ->post('https://api.groq.com/openai/v1/chat/completions', [
                             'model' => 'llama-3.1-8b-instant',
@@ -90,12 +89,10 @@ class GeminiAiService
                 }
 
             } catch (\Exception $e) {
-                Log::error("Error panggil API Key '{$keyItem->label_name}': " . $e->getMessage());
+                Log::error("Exception panggil AI '{$keyItem->label_name}': " . $e->getMessage());
             }
-
-            // Jika API Key ini limit/error, loop otomatis berlanjut ke API Key berikutnya di database
         }
 
-        return "🤖 *Asisten AI SISFO*\n\nMaaf, seluruh kuota harian API AI sedang mencapai batas maksimal. Silakan coba beberapa saat lagi.";
+        return "🤖 *Asisten AI SISFO*\n\nMaaf, seluruh kuota harian layanan AI sedang mencapai batas maksimal. Silakan coba beberapa saat lagi.";
     }
 }
