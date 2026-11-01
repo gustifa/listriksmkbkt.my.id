@@ -13,7 +13,7 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Cek keberadaan file fisik gambar
+        // 1. Cek keberadaan file fisik gambar di beberapa kemungkinan lokasi path
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -46,9 +46,15 @@ class TeacherAttendanceService
 
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
-            
-            // Mengambil langsung nilai API Key murni dari database
-            $pureKey = trim((string) $keyItem->api_key);
+            $rawKey   = trim((string) $keyItem->api_key);
+
+            // Sanitasi Otomatis: Jika DB menyimpan format markdown/URL link, ambil hanya string kunci setelah 'key='
+            if (str_contains($rawKey, 'key=')) {
+                $parts  = explode('key=', $rawKey);
+                $rawKey = end($parts);
+            }
+            // Buang karakter pembungkus kurung markdown jika tersisa di DB
+            $pureKey = trim(str_replace([']', ')', '[', '(', ' ', '"', "'"], '', $rawKey));
 
             if (empty($pureKey)) continue;
 
