@@ -20,9 +20,6 @@ class TelegramTeacherController extends Controller
         $this->attendanceService = $attendanceService;
     }
 
-    /**
-     * Menangani unggahan foto rekap presensi dari Guru
-     */
     public function handlePhotoUpload(array $message, TelegramSubscriber $subscriber)
     {
         $chatId = $message['chat']['id'];
@@ -32,14 +29,12 @@ class TelegramTeacherController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 1. Beri respons awal ke pengguna
         $this->replyTelegram($chatId, "⏳ *Sedang menganalisis foto rekap presensi guru...*\nMohon tunggu beberapa detik.");
 
         try {
             $bestPhoto = end($photos);
             $fileId    = $bestPhoto['file_id'];
             
-            // Simpan foto fisik di public storage
             $photoPath = $this->downloadPhotoFromTelegram($fileId);
 
             if (!$photoPath) {
@@ -47,7 +42,6 @@ class TelegramTeacherController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // 2. Jalankan Vision OCR via Service
             $parsedData = $this->attendanceService->processAttendancePhoto($photoPath);
 
             if (!$parsedData || empty($parsedData['attendances'])) {
@@ -55,17 +49,23 @@ class TelegramTeacherController extends Controller
                 return response()->json(['status' => 'ok']);
             }
 
-            // 3. Simpan Hasil OCR ke Tabel daily_attendances (PostgreSQL UUID Ready)
             $targetDate   = !empty($parsedData['date']) ? $parsedData['date'] : date('Y-m-d');
             $successCount = 0;
-            $teacherName  = optional($subscriber->teacher)->name ?? 'Guru';
+            
+            // Ambil nama guru dengan aman (fallback ke parent_name jika null)
+            $teacherName = 'Guru';
+            if ($subscriber->teacher_id) {
+                $teacher = DB::table('teachers')->where('id', $subscriber->teacher_id)->first();
+                if ($teacher) $teacherName = $teacher->name;
+            } elseif (!empty($subscriber->parent_name)) {
+                $teacherName = $subscriber->parent_name;
+            }
 
             foreach ($parsedData['attendances'] as $row) {
                 $studentName = trim($row['student_name'] ?? '');
                 $studentNis  = trim($row['nis'] ?? '');
                 $statusRaw   = strtolower(trim($row['status'] ?? 'hadir'));
 
-                // Normalisasi status presensi
                 if (in_array($statusRaw, ['h', 'hadir', 'v', '✓', 'check'])) {
                     $status = 'hadir';
                 } elseif (in_array($statusRaw, ['i', 'iz', 'izin', 'ijin'])) {
@@ -78,7 +78,6 @@ class TelegramTeacherController extends Controller
                     $status = 'hadir';
                 }
 
-                // Cari siswa berdasarkan NIS/NISN dahulu
                 $student = null;
                 if (!empty($studentNis)) {
                     $student = DB::table('students')
@@ -87,7 +86,6 @@ class TelegramTeacherController extends Controller
                         ->first();
                 }
 
-                // Jika tidak ketemu NIS, cari berdasarkan NAMA (ILIKE PostgreSQL)
                 if (!$student && !empty($studentName)) {
                     $student = DB::table('students')
                         ->where('name', 'ILIKE', "%{$studentName}%")
@@ -95,14 +93,12 @@ class TelegramTeacherController extends Controller
                 }
 
                 if ($student) {
-                    // Cek apakah presensi siswa pada tanggal tersebut sudah ada
                     $existing = DB::table('daily_attendances')
                         ->where('student_id', $student->id)
                         ->where('date', $targetDate)
                         ->first();
 
                     if ($existing) {
-                        // Update record yang sudah ada
                         DB::table('daily_attendances')
                             ->where('id', $existing->id)
                             ->update([
@@ -112,7 +108,6 @@ class TelegramTeacherController extends Controller
                                 'is_synced'   => true,
                             ]);
                     } else {
-                        // Insert record baru dengan Primary Key UUID
                         DB::table('daily_attendances')->insert([
                             'id'          => (string) Str::uuid(),
                             'student_id'  => $student->id,
@@ -125,8 +120,6 @@ class TelegramTeacherController extends Controller
                         ]);
                     }
                     $successCount++;
-                } else {
-                    Log::warning("OCR Student Not Found: Nama={$studentName}, NIS={$studentNis}");
                 }
             }
 
@@ -137,17 +130,14 @@ class TelegramTeacherController extends Controller
 
             $this->replyTelegram($chatId, $replyMsg);
 
-        } catch (\Exception $e) {
-            Log::error("Teacher Controller Error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+        } catch (\Throwable $e) {
+            Log::error("Teacher Controller Exception: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             $this->replyTelegram($chatId, "❌ *Terjadi Kesalahan Server*\nSistem tidak dapat memproses foto saat ini.");
         }
 
         return response()->json(['status' => 'ok']);
     }
 
-    /**
-     * Unduh Foto dari Telegram Server dengan Endpoint Murni (Timeout 30s)
-     */
     private function downloadPhotoFromTelegram(string $fileId): ?string
     {
         $botToken = $this->getPureBotToken();
@@ -155,11 +145,7 @@ class TelegramTeacherController extends Controller
 
         $url = "https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}";
 
-        $res = Http::withoutVerifying()
-            ->timeout(30)
-            ->retry(2, 500)
-            ->get($url);
-
+        $res = Http::withoutVerifying()->timeout(30)->retry(2, 500)->get($url);
         if (!$res->successful()) return null;
 
         $filePathOnTelegram = $res->json('result.file_path');
@@ -176,9 +162,6 @@ class TelegramTeacherController extends Controller
         return $relativePath;
     }
 
-    /**
-     * Helper Balasan Telegram dengan Endpoint Murni (Timeout 30s)
-     */
     private function replyTelegram($chatId, string $text)
     {
         $botToken = $this->getPureBotToken();
@@ -186,19 +169,23 @@ class TelegramTeacherController extends Controller
 
         $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
 
-        return Http::withoutVerifying()
-            ->timeout(30)
-            ->retry(2, 500)
-            ->post($url, [
-                'chat_id'    => $chatId,
-                'text'       => $text,
-                'parse_mode' => 'Markdown'
+        // Coba kirim Markdown, jika gagal fallback otomatis ke Plain Text
+        $res = Http::withoutVerifying()->timeout(30)->retry(2, 500)->post($url, [
+            'chat_id'    => $chatId,
+            'text'       => $text,
+            'parse_mode' => 'Markdown'
+        ]);
+
+        if (!$res->successful()) {
+            return Http::withoutVerifying()->timeout(30)->retry(2, 500)->post($url, [
+                'chat_id' => $chatId,
+                'text'    => $text,
             ]);
+        }
+
+        return $res;
     }
 
-    /**
-     * Isolasi Murni Kunci Token Bot Telegram
-     */
     private function getPureBotToken(): string
     {
         $rawToken = config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
