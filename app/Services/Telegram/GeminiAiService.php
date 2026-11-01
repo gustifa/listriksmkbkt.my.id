@@ -189,41 +189,28 @@ class GeminiAiService
 
             // 1. VISION VIA GEMINI
             if ($provider === 'gemini') {
-    // Gunakan daftar endpoint resmi ini (v1beta & v1)
-    $endpoints = [
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$pureKey}",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$pureKey}",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$pureKey}",
-    ];
+                $endpoints = $this->discoverGeminiEndpoints($pureKey);
+                foreach ($endpoints as $url) {
+                    try {
+                        $response = Http::withoutVerifying()->timeout(25)->post($url, [
+                            'contents' => [
+                                [
+                                    'parts' => [
+                                        ['text' => $prompt],
+                                        ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64Image]]
+                                    ]
+                                ]
+                            ],
+                            'generationConfig' => ['temperature' => 0.1]
+                        ]);
 
-    foreach ($endpoints as $url) {
-        $response = Http::withoutVerifying()
-            ->timeout(15)
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post($url, [
-                'system_instruction' => [
-                    'parts' => [['text' => $systemInstruction]]
-                ],
-                'contents' => [
-                    ['parts' => [['text' => $prompt]]]
-                ],
-                'generationConfig' => [
-                    'maxOutputTokens' => 500,
-                    'temperature'     => 0.2,
-                ]
-            ]);
-
-        if ($response->successful()) {
-            $reply = $response->json('candidates.0.content.parts.0.text');
-            if (!empty($reply)) {
-                Log::info("SUKSES Gemini Text [{$keyItem->label_name}] | Endpoint: {$url}");
-                return trim($reply);
+                        if ($response->successful()) {
+                            $data = $this->cleanAndParseJson($response->json('candidates.0.content.parts.0.text'));
+                            if ($data) return $data;
+                        }
+                    } catch (\Exception $e) {}
+                }
             }
-        } else {
-            Log::warning("Gemini Try Failed [{$keyItem->label_name}] | Status: " . $response->status());
-        }
-    }
-}
             // 2. VISION VIA GROQ
             elseif ($provider === 'groq') {
                 $groqVisionModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
