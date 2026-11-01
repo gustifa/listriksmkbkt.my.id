@@ -57,22 +57,29 @@ class TeacherAttendanceService
         foreach ($apiKeys as $keyItem) {
             $raw = (string) $keyItem->api_key;
             
-            // Pembersihan agresif untuk menghilangkan sisa Markdown link, kurung, dan spasi
-            $clean = preg_replace('/\[.*?\]\(.*?\)/', '', $raw);
-            $clean = preg_replace('/https?:\/\/[^\s]+/', '', $clean);
+            // --- PEMBERSIHAN EKSTRIM: AMBIL HANYA BAGIAN KUNCI ASLI ---
+            // Jika mengandung 'key=', ambil tepat setelah 'key=' yang terakhir
+            if (str_contains($raw, 'key=')) {
+                $parts = explode('key=', $raw);
+                $raw = end($parts);
+            }
+            
+            // Bersihkan semua karakter pembungkus, URL, kurung, dan spasi yang tersisa
+            $clean = preg_replace('/https?:\/\/[^\s]+/', '', $raw);
             $pureKey = trim(str_replace([
                 ']', ')', '[', '(', ' ', '"', "'", 
                 '%5B', '%5D', '%5b', '%5d', '%28', '%29'
             ], '', $clean));
 
-            if (str_contains($pureKey, 'key=')) {
-                $parts = explode('key=', $pureKey);
-                $pureKey = trim(end($parts));
+            // Jika di dalam string masih ada sisa tanda penutup markdown di akhir, potong
+            if (str_contains($pureKey, ')')) {
+                $subParts = explode(')', $pureKey);
+                $pureKey = trim(end($subParts));
             }
 
             if (empty($pureKey)) continue;
 
-            // Membangun URL secara eksplisit dan terisolasi dari variabel luar
+            // Membangun URL secara murni dengan kunci yang sudah diisolasi
             $endpoints = [
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
                 '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
