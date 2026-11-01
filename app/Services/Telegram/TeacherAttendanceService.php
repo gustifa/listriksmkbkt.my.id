@@ -13,7 +13,7 @@ class TeacherAttendanceService
      */
     public function processAttendancePhoto(string $imagePath): ?array
     {
-        // 1. Pengecekan lokasi fisik file gambar yang akurat
+        // 1. Cek keberadaan file fisik gambar
         $fullPath = storage_path('app/public/' .$imagePath);
         
         if (!file_exists($fullPath)) {
@@ -25,7 +25,7 @@ class TeacherAttendanceService
         }
 
         if (!file_exists($fullPath)) {
-            Log::error("Teacher OCR: File tidak ditemukan di seluruh path: {$fullPath}");
+            Log::error("Teacher OCR: File tidak ditemukan di path: {$fullPath}");
             return null;
         }
 
@@ -46,22 +46,27 @@ class TeacherAttendanceService
 
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
-            $pureKey  = trim(urldecode((string)$keyItem->api_key));
-
-            // Extra Sanitasi: Hilangkan seluruh karakter markdown, kurung siku, dan awalan key=
-            if (str_contains($pureKey, 'key=')) {
-                $parts = explode('key=', $pureKey);
-                $pureKey = end($parts);
+            
+            // Extract pure API key (hapus key=, markdown, dan URL encoding)
+            $rawKey = (string) $keyItem->api_key;
+            if (str_contains($rawKey, 'key=')) {
+                $parts = explode('key=', $rawKey);
+                $rawKey = end($parts);
             }
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $pureKey);
+            
+            // Hanya ambil karakter alfanumerik, dash, dan underscore
+            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
 
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
-                // Endpoint murni tanpa interpolasi markdown
+                // Penggabungan string murni tanpa interpolasi markdown
+                $baseUrl1 = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)';
+                $baseUrl2 = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)';
+
                 $endpoints = [
-                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
-                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
+                    $baseUrl1 . $pureKey,
+                    $baseUrl2 . $pureKey,
                 ];
 
                 foreach ($endpoints as $url) {
