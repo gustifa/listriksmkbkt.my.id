@@ -416,7 +416,7 @@ class GeminiAiService
     // }
 
     /**
-     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Bulletproof OCR)
+     * Menganalisis Foto Rekap Presensi menggunakan Gemini Vision API (Fail-Safe OCR)
      */
     public function parseAttendanceImage(string $imagePath): ?array
     {
@@ -458,21 +458,25 @@ class GeminiAiService
                 $rawKey = trim($keyItem->api_key);
                 $rawKey = urldecode($rawKey); // Decode jika mengandung %5B / %5D
 
-                // 🌟 TEKNIK JITU: Cari pola API Key resmi Google (diawali AIzaSy...)
-                if (preg_match('/(AIzaSy[a-zA-Z0-9_\-]{33})/', $rawKey, $matches)) {
-                    $apiKey = $matches[1];
-                } else {
-                    // Fallback: buang semua karakter non-alfanumerik/dash/underscore
-                    $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
+                // 🌟 BERSIHKAN TOTAL: Jika di database terisi URL, potong dan ambil hanya bagian stelah 'key=' terakhir
+                if (str_contains($rawKey, 'key=')) {
+                    $parts = explode('key=', $rawKey);
+                    $rawKey = end($parts);
                 }
+
+                // Buang semua karakter kurung siku, kurung biasa, dan spasi
+                $rawKey = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $rawKey);
+
+                // Ambil hanya karakter alfanumerik, dash (-), dan underscore (_)
+                $apiKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawKey);
 
                 if (empty($apiKey)) {
                     Log::warning("Gemini Vision: API Key kosong setelah disanitasi dari label '{$keyItem->label_name}'.");
                     continue;
                 }
 
-                // Endpoint cURL murni tanpa ada karakter sampah
-                $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . trim($apiKey);
+                // Endpoint cURL murni
+                $endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" . $apiKey;
 
                 $response = Http::withoutVerifying()
                     ->timeout(25)
