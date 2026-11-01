@@ -138,4 +138,33 @@ class ApiKeySettingController extends Controller
 
         return back()->with('success', 'API Key AI berhasil dihapus!');
     }
+
+    /**
+     * Toggle Status Aktif / Nonaktif API Key
+     */
+    public function toggleStatus($id)
+    {
+        $apiKey = ApiKey::findOrFail($id);
+        $apiKey->update([
+            'is_active' => !$apiKey->is_active
+        ]);
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'Status API Key berhasil diperbarui!',
+                'data'    => $apiKey
+            ]);
+        }
+
+        return back()->with('success', 'Status API Key berhasil diperbarui!');
+    }
+
+    /**
+     * Alias method toggle jika route memanggil toggle()
+     */
+    public function toggle($id)
+    {
+        return $this->toggleStatus($id);
+    }
 }
