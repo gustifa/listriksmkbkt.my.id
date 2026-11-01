@@ -46,20 +46,9 @@ class TeacherAttendanceService
 
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
-            $rawKey   = (string) $keyItem->api_key;
-
-            // ISOLASI KUNCI MURNI: Ambil hanya string setelah 'key=' atau buang tautan Markdown
-            if (str_contains($rawKey, 'key=')) {
-                $parts  = explode('key=', $rawKey);
-                $rawKey = end($parts);
-            }
-
-            // Hapus semua kurung siku, kurung biasa, spasi, dan URL encoding
-            $cleanKey = trim(urldecode($rawKey));
-            $cleanKey = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $cleanKey);
-
-            // Ambil string API Key murni (karakter alfanumerik, dash, dan underscore saja)
-            $pureKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $cleanKey);
+            
+            // Mengambil langsung nilai API Key murni dari database
+            $pureKey = trim((string) $keyItem->api_key);
 
             if (empty($pureKey)) continue;
 
