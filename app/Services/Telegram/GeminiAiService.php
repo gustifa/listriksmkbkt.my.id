@@ -13,6 +13,10 @@ class GeminiAiService
     /**
      * Memanggil AI Teks dengan Auto-Discovery Endpoint & Multi-Provider Fallback
      */
+
+    /**
+     * Memanggil AI Teks secara langsung (Tanpa Enkripsi & Tanpa Format Markdown pada URL)
+     */
     public function askAi(string $prompt, ?string $customSystemInstruction = null): string
     {
         $apiKeys = ApiKey::where('is_active', true)
@@ -20,34 +24,30 @@ class GeminiAiService
             ->get();
 
         if ($apiKeys->isEmpty()) {
-            return "⚠️ *Asisten AI SISFO*\n\nLayanan AI belum dikonfigurasi. Silakan hubungi Admin untuk memasukkan API Key.";
+            return "⚠️ *Asisten AI SISFO*\n\nLayanan AI belum dikonfigurasi.";
         }
 
-        $daysMap = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
-        $todayName =$daysMap[date('N')] ?? 'Senin';
-        $currentDateStr =$todayName . ', ' . date('d F Y');
+        $systemInstruction = $customSystemInstruction ?? "Anda adalah Asisten Virtual Resmi SISFO SMKN 1 Bukittinggi. Jawab dengan ramah, singkat, dan jelas.";
 
-        $systemInstruction =$customSystemInstruction ?? 
-            "Anda adalah Asisten Virtual Resmi SISFO SMKN 1 Bukittinggi.\n" .
-            "Hari/Tanggal Server Saat Ini: {$currentDateStr}.\n\n" .
-            "ATURAN MUTLAK:\n" .
-            "1. Langsung berikan jawaban akhir yang ramah, sopan, dan singkat.\n" .
-            "2. DILARANG KERAS menampilkan proses berpikir, draft, evaluasi, persona, atau catatan internal.\n" .
-            "3. Jawab dalam Bahasa Indonesia yang alami.";
-
-        foreach ($apiKeys as$keyItem) {
+        foreach ($apiKeys as $keyItem) {
             try {
-                $provider = strtolower(trim($keyItem->provider));$pureKey  = $this->extractPureKey($keyItem->api_key);
+                $provider = strtolower(trim($keyItem->provider));
+                // Ambil kunci murni tanpa dekripsi
+                $pureKey  = $this->extractPureKey($keyItem->api_key);
 
                 if (empty($pureKey)) continue;
 
-                // ---------------------------------------------------
-                // 1. PROVIDER GOOGLE GEMINI (AUTO-DISCOVERY ENDPOINT)
-                // ---------------------------------------------------
-                if ($provider === 'gemini') {$endpoints = $this->discoverGeminiEndpoints($pureKey);
+                if ($provider === 'gemini') {
+                    // Endpoint resmi langsung tanpa kurung siku / format markdown
+                    $endpoints = [
+                        "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$pureKey}",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$pureKey}",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$pureKey}",
+                    ];
 
-                    foreach ($endpoints as $url) {$response = Http::withoutVerifying()
-                            ->timeout(12)
+                    foreach ($endpoints as $url) {
+                        $response = Http::withoutVerifying()
+                            ->timeout(15)
                             ->withHeaders(['Content-Type' => 'application/json'])
                             ->post($url, [
                                 'system_instruction' => [
@@ -63,43 +63,33 @@ class GeminiAiService
                             ]);
 
                         if ($response->successful()) {
-                            $reply =$response->json('candidates.0.content.parts.0.text');
+                            $reply = $response->json('candidates.0.content.parts.0.text');
                             if (!empty($reply)) {
-                                Log::info("SUKSES Gemini Text [{$keyItem->label_name}] URL: {$url}");
+                                Log::info("SUKSES Gemini Text [{$keyItem->label_name}]");
                                 return trim($reply);
                             }
                         } else {
-                            Log::warning("Gemini Try Failed [{$keyItem->label_name}] | Status: " . $response->status() . " \vert{} Endpoint: {$url}");
+                            Log::warning("Gemini Try Failed [{$keyItem->label_name}] | Status: " . $response->status());
                         }
                     }
-                }
+                } elseif ($provider === 'groq') {
+                    $response = Http::withoutVerifying()
+                        ->timeout(15)
+                        ->withToken($pureKey)
+                        ->post('https://api.groq.com/openai/v1/chat/completions', [
+                            'model' => 'llama-3.3-70b-versatile',
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemInstruction],
+                                ['role' => 'user', 'content' => $prompt]
+                            ],
+                            'temperature' => 0.2
+                        ]);
 
-                // ---------------------------------------------------
-                // 2. PROVIDER GROQ AI (AUTO-DISCOVERY MODEL)
-                // ---------------------------------------------------
-                elseif ($provider === 'groq') {$models = $this->discoverGroqModels($pureKey);
-
-                    foreach ($models as $model) {$response = Http::withoutVerifying()
-                            ->timeout(12)
-                            ->withToken($pureKey)
-                            ->post('https://api.groq.com/openai/v1/chat/completions', [
-                                'model' => $model,
-                                'messages' => [
-                                    ['role' => 'system', 'content' => $systemInstruction],
-                                    ['role' => 'user', 'content' => $prompt]
-                                ],
-                                'temperature' => 0.2,
-                                'max_tokens'  => 500,
-                            ]);
-
-                        if ($response->successful()) {
-                            $reply =$response->json('choices.0.message.content');
-                            if (!empty($reply)) {
-                                Log::info("SUKSES Groq Text [{$keyItem->label_name}] Model: {$model}");
-                                return trim($reply);
-                            }
-                        } else {
-                            Log::warning("Groq Try Failed [{$keyItem->label_name}] | Status: " . $response->status() . " \vert{} Model: {$model}");
+                    if ($response->successful()) {
+                        $reply = $response->json('choices.0.message.content');
+                        if (!empty($reply)) {
+                            Log::info("SUKSES Groq Text [{$keyItem->label_name}]");
+                            return trim($reply);
                         }
                     }
                 }
@@ -109,7 +99,29 @@ class GeminiAiService
             }
         }
 
-        return "🤖 *Asisten AI SISFO*\n\nMaaf, seluruh kuota harian layanan AI sedang mencapai batas maksimal. Silakan coba beberapa saat lagi.";
+        return "🤖 *Asisten AI SISFO*\n\nMaaf, seluruh layanan AI sedang mengalami kendala jaringan. Silakan coba beberapa saat lagi.";
+    }
+
+    /**
+     * Helper Ekstraksi Key Murni (Plain-Text)
+     */
+    private function extractPureKey(string $rawKey): string
+    {
+        $clean = trim(urldecode((string)$rawKey));
+
+        if (str_contains($clean, 'key=')) {
+            $parts = explode('key=', $clean);
+            $clean = end($parts);
+        }
+
+        // Buang seluruh karakter Markdown, kurung siku, dan spasi
+        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
+
+        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $clean, $matches)) {
+            return $matches[1];
+        }
+
+        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
     }
 
     /**
@@ -315,30 +327,6 @@ class GeminiAiService
         });
     }
 
-    /**
-     * Helper Ekstraksi Key Murni (Menjaga titik, dash, dan underscore)
-     */
-    /**
-     * Helper Ekstraksi Key Murni tanpa Dekripsi Crypt (Plain-Text Direct Read)
-     */
-    private function extractPureKey(string $rawKey): string
-    {
-        $clean = trim(urldecode((string)$rawKey));
-
-        // Buang jika ada sisa karakter markdown atau parameter key=
-        if (str_contains($clean, 'key=')) {
-            $parts = explode('key=', $clean);
-            $clean = end($parts);
-        }
-
-        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' ', '%5B', '%5D', '%5b', '%5d'], '', $clean);
-
-        if (preg_match('/(AIzaSy[a-zA-Z0-9_\-\.]{30,80}|AQ\.[a-zA-Z0-9_\-\.]{30,80}|AQAb[a-zA-Z0-9_\-\.]{30,80}|gsk_[a-zA-Z0-9_\-\.]{30,80})/', $clean, $matches)) {
-            return $matches[1];
-        }
-
-        return preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $clean);
-    }
 
     /**
      * Helper Pembersih JSON
