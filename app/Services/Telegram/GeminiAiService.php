@@ -28,7 +28,7 @@ class GeminiAiService
         foreach ($apiKeys as $keyItem) {
             try {
                 $provider = strtolower(trim($keyItem->provider));
-                $apiKey   = trim($keyItem->api_key); // Hapus karakter spasi tak terlihat jika ada
+                $apiKey   = trim($keyItem->api_key);
 
                 if (empty($apiKey)) {
                     continue;
@@ -36,8 +36,8 @@ class GeminiAiService
 
                 // 1. PROVIDER GOOGLE GEMINI
                 if ($provider === 'gemini') {
-                    // Gunakan endpoint resmi v1beta gemini-1.5-flash
-                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={$apiKey}";
+                    // Endpoint v1 resmi dengan model gemini-1.5-flash / gemini-2.0-flash
+                    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}";
 
                     $response = Http::timeout(12)
                         ->withHeaders(['Content-Type' => 'application/json'])
@@ -54,6 +54,25 @@ class GeminiAiService
                             ]
                         ]);
 
+                    // Fallback jika v1 gagal, coba endpoint gemini-2.0-flash v1beta
+                    if (!$response->successful() && $response->status() === 404) {
+                        $urlFallback = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+                        $response = Http::timeout(12)
+                            ->withHeaders(['Content-Type' => 'application/json'])
+                            ->post($urlFallback, [
+                                'system_instruction' => [
+                                    'parts' => [['text' => $systemInstruction]]
+                                ],
+                                'contents' => [
+                                    ['parts' => [['text' => $prompt]]]
+                                ],
+                                'generationConfig' => [
+                                    'maxOutputTokens' => 500,
+                                    'temperature'     => 0.7,
+                                ]
+                            ]);
+                    }
+
                     if ($response->successful()) {
                         $reply = $response->json('candidates.0.content.parts.0.text');
                         if (!empty($reply)) {
@@ -61,7 +80,6 @@ class GeminiAiService
                         }
                     }
 
-                    // Log detail response untuk kemudahan debugging
                     Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
                 }
 
