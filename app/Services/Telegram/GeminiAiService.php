@@ -8,12 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class GeminiAiService
 {
-    /**
-     * Memanggil AI dengan Multi-API Fallback membaca dari Database
-     */
     public function askAi(string $prompt): string
     {
-        // Ambil semua API Key aktif dari database terurut berdasarkan prioritas
         $apiKeys = ApiKey::where('is_active', true)
             ->orderBy('priority', 'asc')
             ->get();
@@ -38,11 +34,14 @@ class GeminiAiService
                 if ($provider === 'gemini') {
                     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={$apiKey}";
 
-                    $response = Http::timeout(15)
+                    $response = Http::withoutVerifying()
+                        ->timeout(20)
                         ->withOptions([
                             'curl' => [
-                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4, // Paksa IPv4 agar cURL cepat & tidak menggantung
+                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                                CURLOPT_CONNECTTIMEOUT => 10,
                                 CURLOPT_SSL_VERIFYPEER => false,
+                                CURLOPT_SSL_VERIFYHOST => false,
                             ]
                         ])
                         ->withHeaders(['Content-Type' => 'application/json'])
@@ -69,9 +68,10 @@ class GeminiAiService
                     Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
                 }
 
-                // 2. PROVIDER GROQ (JIKA ADA PROVIDER CADANGAN)
+                // 2. PROVIDER GROQ (ALTERNATIF TERCEPAT JIKA HOSTING BLOCK GOOGLE)
                 elseif ($provider === 'groq') {
-                    $response = Http::timeout(15)
+                    $response = Http::withoutVerifying()
+                        ->timeout(15)
                         ->withOptions([
                             'curl' => [
                                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
