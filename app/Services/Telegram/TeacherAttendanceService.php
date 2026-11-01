@@ -47,7 +47,7 @@ class TeacherAttendanceService
         foreach ($apiKeys as $keyItem) {
             $provider = strtolower(trim($keyItem->provider));
             
-            // Isolasi murni karakter API Key
+            // Ekstrak murni karakter API Key
             $rawKey = (string) $keyItem->api_key;
             if (str_contains($rawKey, 'key=')) {
                 $parts = explode('key=', $rawKey);
@@ -60,9 +60,10 @@ class TeacherAttendanceService
             if (empty($pureKey)) continue;
 
             if ($provider === 'gemini') {
+                // Penggabungan string murni tanpa sprintf agar aman dari ArgumentCountError
                 $endpoints = [
-                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s)', $pureKey),
-                    sprintf('[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=%s)', $pureKey),
+                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' . $pureKey,
+                    '[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=)' . $pureKey,
                 ];
 
                 foreach ($endpoints as $url) {
