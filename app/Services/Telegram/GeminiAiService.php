@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiAiService
 {
     /**
-     * Memanggil AI dengan Multi-API Fallback membaca dari Database
+     * Memanggil AI dengan Multi-API & Multi-Model Fallback dari Database
      */
     public function askAi(string $prompt): string
     {
@@ -34,70 +34,86 @@ class GeminiAiService
                     continue;
                 }
 
-                // 1. PROVIDER GROQ (MODEL PASTI AKTIF: llama-3.1-8b-instant)
+                // 1. PROVIDER GROQ
                 if ($provider === 'groq') {
-                    $response = Http::withoutVerifying()
-                        ->timeout(10)
-                        ->withOptions([
-                            'curl' => [
-                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-                            ]
-                        ])
-                        ->withToken($apiKey)
-                        ->post('https://api.groq.com/openai/v1/chat/completions', [
-                            'model' => 'llama-3.1-8b-instant',
-                            'messages' => [
-                                ['role' => 'system', 'content' => $systemInstruction],
-                                ['role' => 'user', 'content' => $prompt]
-                            ],
-                            'max_tokens' => 500,
-                        ]);
+                    // Daftar nama model Groq yang dicoba berurutan
+                    $groqModels = [
+                        'llama-3.3-70b-versatile',
+                        'llama-3.1-8b-instant',
+                        'mixtral-8x7b-32768',
+                        'gemma2-9b-it'
+                    ];
 
-                    if ($response->successful()) {
-                        $reply = $response->json('choices.0.message.content');
-                        if (!empty($reply)) {
-                            return trim($reply);
+                    foreach ($groqModels as $model) {
+                        $response = Http::withoutVerifying()
+                            ->timeout(10)
+                            ->withOptions([
+                                'curl' => [
+                                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                                ]
+                            ])
+                            ->withToken($apiKey)
+                            ->post('https://api.groq.com/openai/v1/chat/completions', [
+                                'model' => $model,
+                                'messages' => [
+                                    ['role' => 'system', 'content' => $systemInstruction],
+                                    ['role' => 'user', 'content' => $prompt]
+                                ],
+                                'max_tokens' => 500,
+                            ]);
+
+                        if ($response->successful()) {
+                            $reply = $response->json('choices.0.message.content');
+                            if (!empty($reply)) {
+                                return trim($reply);
+                            }
                         }
                     }
 
-                    Log::warning("Groq Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
+                    Log::warning("Groq Key '{$keyItem->label_name}' gagal/limit pada seluruh model.");
                 }
 
-                // 2. PROVIDER GOOGLE GEMINI (ENDPOINT DENGAN FULL MODEL PATH)
+                // 2. PROVIDER GOOGLE GEMINI
                 elseif ($provider === 'gemini') {
-                    // Penulisan endpoint v1beta resmi untuk model flash
-                    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+                    // Daftar endpoint model Gemini yang dicoba berurutan
+                    $geminiEndpoints = [
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={$apiKey}",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={$apiKey}",
+                        "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}"
+                    ];
 
-                    $response = Http::withoutVerifying()
-                        ->timeout(12)
-                        ->withOptions([
-                            'curl' => [
-                                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-                                CURLOPT_SSL_VERIFYPEER => false,
-                            ]
-                        ])
-                        ->withHeaders(['Content-Type' => 'application/json'])
-                        ->post($url, [
-                            'system_instruction' => [
-                                'parts' => [['text' => $systemInstruction]]
-                            ],
-                            'contents' => [
-                                ['parts' => [['text' => $prompt]]]
-                            ],
-                            'generationConfig' => [
-                                'maxOutputTokens' => 500,
-                                'temperature'     => 0.7,
-                            ]
-                        ]);
+                    foreach ($geminiEndpoints as $url) {
+                        $response = Http::withoutVerifying()
+                            ->timeout(10)
+                            ->withOptions([
+                                'curl' => [
+                                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                                    CURLOPT_SSL_VERIFYPEER => false,
+                                ]
+                            ])
+                            ->withHeaders(['Content-Type' => 'application/json'])
+                            ->post($url, [
+                                'system_instruction' => [
+                                    'parts' => [['text' => $systemInstruction]]
+                                ],
+                                'contents' => [
+                                    ['parts' => [['text' => $prompt]]]
+                                ],
+                                'generationConfig' => [
+                                    'maxOutputTokens' => 500,
+                                    'temperature'     => 0.7,
+                                ]
+                            ]);
 
-                    if ($response->successful()) {
-                        $reply = $response->json('candidates.0.content.parts.0.text');
-                        if (!empty($reply)) {
-                            return trim($reply);
+                        if ($response->successful()) {
+                            $reply = $response->json('candidates.0.content.parts.0.text');
+                            if (!empty($reply)) {
+                                return trim($reply);
+                            }
                         }
                     }
 
-                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit. Status: " . $response->status() . " | Body: " . $response->body());
+                    Log::warning("Gemini Key '{$keyItem->label_name}' gagal/limit pada seluruh endpoint.");
                 }
 
             } catch (\Exception $e) {
