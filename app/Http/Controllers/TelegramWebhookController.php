@@ -112,12 +112,18 @@ class TelegramWebhookController extends Controller
                         $studentNis  = trim($row['nis'] ?? '');
                         $status      = strtolower(trim($row['status'] ?? 'hadir'));
 
-                        // Normalisasi status presensi
-                        if (in_array($status, ['h', 'hadir'])) $status = 'hadir';
-                        elseif (in_array($status, ['i', 'izin'])) $status = 'izin';
-                        elseif (in_array($status, ['s', 'sakit'])) $status = 'sakit';
-                        elseif (in_array($status, ['a', 'alpha', 'alpa'])) $status = 'alpha';
-                        else $status = 'hadir';
+                        // Normalisasi fleksibel berbagai format tulisan status presensi
+                        if (in_array($status, ['h', 'hadir', 'v', '✓', 'check'])) {
+                            $status = 'hadir';
+                        } elseif (in_array($status, ['i', 'iz', 'izin', 'ijin'])) {
+                            $status = 'izin';
+                        } elseif (in_array($status, ['s', 'skt', 'sakit'])) {
+                            $status = 'sakit';
+                        } elseif (in_array($status, ['a', 'alp', 'alpha', 'alpa', 'tk'])) {
+                            $status = 'alpha';
+                        } else {
+                            $status = 'hadir';
+                        }
 
                         // 1. Cari siswa berdasarkan NIS/NISN dahulu
                         $student = null;
@@ -412,7 +418,7 @@ class TelegramWebhookController extends Controller
                              "• `/walas` : Rekap presensi gerbang kelas bimbingan\n" .
                              "• `/kabeng` : Rekap presensi di bengkel/jurusan\n" .
                              "• `/proka` : Rekap kehadiran program keahlian\n" .
-                             "• `/bk` : Daftar siswa terlambat hari ini\n" .
+                             "• `/bk` : Daftar terlambat guru BK\n" .
                              "• `/unsubscribe` : Berhenti berlangganan bot";
                 } else {
                     $reply = "ℹ️ *BANTUAN BOT SISFO*\n\n" .
