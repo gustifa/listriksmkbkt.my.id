@@ -17,7 +17,17 @@ class TelegramService
 
     public function __construct()
     {
-        $this->token = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+        // 🌟 SANITASI KETAT TOKEN BOT TELEGRAM DARI FORMAT MARKDOWN / KURUNG SIKU
+        $rawToken = config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
+        $clean = trim(urldecode((string)$rawToken));
+        $clean = str_replace(['[', ']', '(', ')', '{', '}', '"', "'", ' '], '', $clean);
+
+        if (preg_match('/([0-9]{8,12}:[a-zA-Z0-9_\-]{30,50})/', $clean, $matches)) {
+            $this->token = $matches[1];
+        } else {
+            $this->token = $clean;
+        }
+
         $this->baseUrl = "https://api.telegram.org/bot{$this->token}/";
     }
 
@@ -57,12 +67,15 @@ class TelegramService
         }
 
         try {
-            // 1. Coba kirim dengan Parse Mode Markdown
-            $response = Http::post($this->baseUrl . 'sendMessage', [
-                'chat_id'    => $chatId,
-                'text'       => $text,
-                'parse_mode' => 'Markdown',
-            ]);
+            // 1. Coba kirim dengan Parse Mode Markdown (Ditambahkan Timeout 30s & Retry 2x)
+            $response = Http::withoutVerifying()
+                ->timeout(30)
+                ->retry(2, 500)
+                ->post($this->baseUrl . 'sendMessage', [
+                    'chat_id'    => $chatId,
+                    'text'       => $text,
+                    'parse_mode' => 'Markdown',
+                ]);
 
             if ($response->successful()) {
                 Log::info("Telegram SUKSES terkirim ke Chat ID: {$chatId}");
@@ -81,10 +94,13 @@ class TelegramService
             $errorResponseBody = $response->body();
             Log::warning("Telegram GAGAL parse Markdown ke Chat ID: {$chatId}. Mencoba kirim Plain Text... Log: " . $errorResponseBody);
 
-            $fallbackResponse = Http::post($this->baseUrl . 'sendMessage', [
-                'chat_id' => $chatId,
-                'text'    => $text, // Kirim tanpa parse_mode
-            ]);
+            $fallbackResponse = Http::withoutVerifying()
+                ->timeout(30)
+                ->retry(2, 500)
+                ->post($this->baseUrl . 'sendMessage', [
+                    'chat_id' => $chatId,
+                    'text'    => $text, // Kirim tanpa parse_mode
+                ]);
 
             if ($fallbackResponse->successful()) {
                 Log::info("Telegram SUKSES (Plain Text Fallback) terkirim ke Chat ID: {$chatId}");
@@ -181,13 +197,15 @@ class TelegramService
             }
 
             // 1. Coba kirim foto dengan Caption Markdown
-            $response = Http::attach(
-                'photo', file_get_contents($fullPath), basename($fullPath)
-            )->post($this->baseUrl . 'sendPhoto', [
-                'chat_id'    => $chatId,
-                'caption'    => $caption,
-                'parse_mode' => 'Markdown',
-            ]);
+            $response = Http::withoutVerifying()
+                ->timeout(30)
+                ->retry(2, 500)
+                ->attach('photo', file_get_contents($fullPath), basename($fullPath))
+                ->post($this->baseUrl . 'sendPhoto', [
+                    'chat_id'    => $chatId,
+                    'caption'    => $caption,
+                    'parse_mode' => 'Markdown',
+                ]);
 
             if ($response->successful()) {
                 Log::info("Telegram Foto SUKSES terkirim ke Chat ID: {$chatId}");
@@ -206,12 +224,14 @@ class TelegramService
             $errorResponseBody = $response->body();
             Log::warning("Telegram Foto GAGAL parse Markdown ke Chat ID: {$chatId}. Mencoba kirim dengan Plain Text Caption...");
 
-            $fallbackResponse = Http::attach(
-                'photo', file_get_contents($fullPath), basename($fullPath)
-            )->post($this->baseUrl . 'sendPhoto', [
-                'chat_id' => $chatId,
-                'caption' => $caption, // Tanpa parse_mode
-            ]);
+            $fallbackResponse = Http::withoutVerifying()
+                ->timeout(30)
+                ->retry(2, 500)
+                ->attach('photo', file_get_contents($fullPath), basename($fullPath))
+                ->post($this->baseUrl . 'sendPhoto', [
+                    'chat_id' => $chatId,
+                    'caption' => $caption, // Tanpa parse_mode
+                ]);
 
             if ($fallbackResponse->successful()) {
                 Log::info("Telegram Foto SUKSES (Plain Text Fallback) terkirim ke Chat ID: {$chatId}");
@@ -257,23 +277,26 @@ class TelegramService
      */
     public function sendContactButton($chatId, string $text): bool
     {
-        return Http::post($this->baseUrl . 'sendMessage', [
-            'chat_id'      => $chatId,
-            'text'         => $text,
-            'parse_mode'   => 'Markdown',
-            'reply_markup' => json_encode([
-                'keyboard' => [
-                    [
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post($this->baseUrl . 'sendMessage', [
+                'chat_id'      => $chatId,
+                'text'         => $text,
+                'parse_mode'   => 'Markdown',
+                'reply_markup' => json_encode([
+                    'keyboard' => [
                         [
-                            'text'            => '📱 Bagikan Nomor Kontak Saya',
-                            'request_contact' => true
+                            [
+                                'text'            => '📱 Bagikan Nomor Kontak Saya',
+                                'request_contact' => true
+                            ]
                         ]
-                    ]
-                ],
-                'resize_keyboard'   => true,
-                'one_time_keyboard' => true
-            ])
-        ])->successful();
+                    ],
+                    'resize_keyboard'   => true,
+                    'one_time_keyboard' => true
+                ])
+            ])->successful();
     }
 
     /**
@@ -281,14 +304,17 @@ class TelegramService
      */
     public function sendMessageWithRemoveKeyboard($chatId, string $text): bool
     {
-        return Http::post($this->baseUrl . 'sendMessage', [
-            'chat_id'      => $chatId,
-            'text'         => $text,
-            'parse_mode'   => 'Markdown',
-            'reply_markup' => json_encode([
-                'remove_keyboard' => true
-            ])
-        ])->successful();
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post($this->baseUrl . 'sendMessage', [
+                'chat_id'      => $chatId,
+                'text'         => $text,
+                'parse_mode'   => 'Markdown',
+                'reply_markup' => json_encode([
+                    'remove_keyboard' => true
+                ])
+            ])->successful();
     }
 
     /**
@@ -296,14 +322,17 @@ class TelegramService
      */
     public function sendMessageWithInlineKeyboard($chatId, string $text, array $inlineKeyboard): bool
     {
-        return Http::post($this->baseUrl . 'sendMessage', [
-            'chat_id'      => $chatId,
-            'text'         => $text,
-            'parse_mode'   => 'Markdown',
-            'reply_markup' => json_encode([
-                'inline_keyboard' => $inlineKeyboard
-            ])
-        ])->successful();
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post($this->baseUrl . 'sendMessage', [
+                'chat_id'      => $chatId,
+                'text'         => $text,
+                'parse_mode'   => 'Markdown',
+                'reply_markup' => json_encode([
+                    'inline_keyboard' => $inlineKeyboard
+                ])
+            ])->successful();
     }
 
     /**
@@ -311,11 +340,14 @@ class TelegramService
      */
     public function answerCallbackQuery(string $callbackQueryId, string $text = '', bool $showAlert = false): bool
     {
-        return Http::post($this->baseUrl . 'answerCallbackQuery', [
-            'callback_query_id' => $callbackQueryId,
-            'text'              => $text,
-            'show_alert'        => $showAlert,
-        ])->successful();
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post($this->baseUrl . 'answerCallbackQuery', [
+                'callback_query_id' => $callbackQueryId,
+                'text'              => $text,
+                'show_alert'        => $showAlert,
+            ])->successful();
     }
 
     /**
@@ -323,11 +355,14 @@ class TelegramService
      */
     public function editMessageText($chatId, $messageId, string $text): bool
     {
-        return Http::post($this->baseUrl . 'editMessageText', [
-            'chat_id'    => $chatId,
-            'message_id' => $messageId,
-            'text'       => $text,
-            'parse_mode' => 'Markdown',
-        ])->successful();
+        return Http::withoutVerifying()
+            ->timeout(30)
+            ->retry(2, 500)
+            ->post($this->baseUrl . 'editMessageText', [
+                'chat_id'    => $chatId,
+                'message_id' => $messageId,
+                'text'       => $text,
+                'parse_mode' => 'Markdown',
+            ])->successful();
     }
 }
