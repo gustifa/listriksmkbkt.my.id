@@ -126,4 +126,33 @@ class InternshipExamController extends Controller
     {
         return Excel::download(new InternshipExamExport, 'Nilai_Ujian_Jurnal_PKL.xlsx');
     }
+
+    /**
+ * Cetak Transkrip / Rapor Nilai PKL Siswa (PDF)
+ */
+public function printTranscript($internshipId)
+{
+    $teacher = $this->getTeacher();
+
+    $internship = Internship::with([
+        'student.classroom.major.program',
+        'industry',
+        'exam',
+        'grade' // Memuat nilai TP & Akhir
+    ])
+    ->where('id', $internshipId)
+    ->firstOrFail();
+
+    $school = [
+        'name'            => \App\Models\Setting::value('school_name', 'SMK NEGERI 1 BUKITTINGGI'),
+        'sign_city'       => \App\Models\Setting::value('sign_city', 'Bukittinggi'),
+        'headmaster_name' => \App\Models\Setting::value('sign_name', 'FITHRI NOVILIA, S.Pd'),
+        'headmaster_nip'  => \App\Models\Setting::value('sign_nip', '19721102 199802 2 003'),
+    ];
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('guru.internships.transcript_pdf', compact('internship', 'school', 'teacher'));
+    $pdf->setPaper('a4', 'portrait');
+
+    return $pdf->stream('Rapor_PKL_' . str_replace(' ', '_', $internship->student->name) . '.pdf');
+}
 }

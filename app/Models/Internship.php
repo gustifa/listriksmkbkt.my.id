@@ -47,4 +47,13 @@ class Internship extends Model
     {
         return $this->hasOne(InternshipExam::class, 'internship_id');
     }
+
+    // ==========================================
+    // TAMBAHKAN RELASI TP SCORE DI BAWAH INI
+    // ==========================================
+    public function tpScore()
+    {
+        return $this->hasOne(InternshipTpScore::class, 'internship_id');
+    }
+
 }

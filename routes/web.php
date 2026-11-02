@@ -100,6 +100,8 @@ use App\Http\Controllers\Guru\IndustryGuruController;
 use App\Http\Controllers\Guru\MonitoringController;
 use App\Http\Controllers\Guru\GuruQuestionController;
 use App\Http\Controllers\Guru\InternshipExamController;
+use App\Http\Controllers\Guru\InternshipTpScoreController;
+use App\Http\Controllers\Guru\TpMasterController;
 
 use App\Http\Controllers\Admin\PrayerSettingController;
 use App\Http\Controllers\Admin\MbgController;
@@ -328,6 +330,20 @@ Route::middleware(['auth', 'role:guru|admin|super_admin'])->group(function () {
     });
 
     
+
+    Route::prefix('guru')->name('guru.')->group(function () {
+        
+        // ... route guru Anda yang lain ...
+
+        // Route Penilaian Dinamis TP Observasi PKL (TP 1 - TP 4)
+        Route::get('internships/{internship}/tp-assess', [InternshipTpScoreController::class, 'create'])->name('internships.tp.create');
+        Route::post('internships/{internship}/tp-assess', [InternshipTpScoreController::class, 'store'])->name('internships.tp.store');
+        // 2. TAMBAHKAN ROUTE CETAK RAPOR PKL DI SINI
+        Route::get('internships/{internship}/transcript-pdf', [InternshipTpScoreController::class, 'printTranscript'])->name('internships.transcript.print');
+        // 1. TAMBAHKAN ROUTE PARSE FILE DI SINI (Sebelum Route::resource)
+        Route::post('tp-master/parse-file', [TpMasterController::class, 'parseFile'])->name('tp_master.parse_file');
+        Route::resource('tp-master', TpMasterController::class)->names('tp_master');
+    });
 
     Route::get('/schedule/manual/{id}', [AttendanceController::class, 'createManual'])->name('attendance.manual');
     Route::post('/schedule/manual/{id}', [AttendanceController::class, 'storeManual'])->name('attendance.storeManual');
