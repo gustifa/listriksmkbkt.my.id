@@ -10,28 +10,33 @@ use Illuminate\Support\Facades\Log;
 class AttendanceOcrService
 {
     /**
-     * Mengambil API Key aktif dari database PostgreSQL (tabel api_keys)
+     * Mengambil Kunci API aktif dari tabel api_keys
      */
-    protected function getActiveApiKeyRecord()
+    protected function getActiveApiKey(): ?string
     {
-        return ApiKey::where('is_active', true)
+        $config = ApiKey::where('is_active', true)
             ->orderBy('priority', 'asc')
             ->first();
+
+        if (!$config) {
+            Log::error("OCR Error: Kunci API aktif tidak ditemukan pada tabel api_keys.");
+            return null;
+        }
+
+        return trim($config->api_key);
     }
 
     /**
-     * Memproses gambar dengan mencoba seluruh Endpoint AI / OCR secara otomatis
+     * Memproses gambar menggunakan Google Gemini REST API v1
      */
     public function processImage(string $imagePath): array
     {
-        $keyRecord = $this->getActiveApiKeyRecord();
+        $apiKey = $this->getActiveApiKey();
 
-        if (!$keyRecord) {
-            Log::error("OCR Error: Tidak ada Kunci API aktif ditemukan pada tabel api_keys.");
+        if (!$apiKey) {
             return [];
         }
 
-        $apiKey = trim($keyRecord->api_key);
         $fullPath = storage_path('app/public/' . $imagePath);
 
         if (!file_exists($fullPath)) {
@@ -41,30 +46,31 @@ class AttendanceOcrService
 
         $imageBytes = base64_encode(file_get_contents($fullPath));
         $mimeType   = mime_content_type($fullPath) ?: 'image/jpeg';
-        $prompt     = 'Tolong baca foto lembar absensi ini. Ekstrak dan tuliskan seluruh nama siswa dan NIS yang terdeteksi baris demi baris, pisahkan dengan baris baru.';
+        $prompt     = 'Ekstrak seluruh daftar nama siswa dan NIS yang ada pada foto daftar hadir ini. Tuliskan hasilnya baris demi baris secara murni tanpa format markdown.';
 
-        // ==========================================
-        // 1. ENDPOINT GEMINI (Google AI Studio)
-        // ==========================================
-        $geminiEndpoints = [
-            'gemini-1.5-flash'  => "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
-            'gemini-1.5-pro'    => "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$apiKey}",
-            'gemini-2.0-flash-exp' => "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}",
-            'gemini-pro-vision' => "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key={$apiKey}",
+        // Endpoint Resmi Gemini v1 REST (Sesuai untuk Kunci API Google Studio AQ.Ab8RN...)
+        $endpoints = [
+            'gemini-1.5-flash (v1)' => "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+            'gemini-1.5-pro (v1)'   => "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={$apiKey}",
         ];
 
-        foreach ($geminiEndpoints as $modelName => $url) {
-            Log::info("DEBUG OCR: Mencoba Endpoint Gemini ({$modelName})...");
+        foreach ($endpoints as $label => $url) {
+            Log::info("DEBUG OCR: Menghubungi {$label}...");
 
             try {
-                $response = Http::timeout(20)
+                $response = Http::timeout(40)
                     ->withHeaders(['Content-Type' => 'application/json'])
                     ->post($url, [
                         'contents' => [
                             [
                                 'parts' => [
                                     ['text' => $prompt],
-                                    ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageBytes]]
+                                    [
+                                        'inline_data' => [
+                                            'mime_type' => $mimeType,
+                                            'data'      => $imageBytes
+                                        ]
+                                    ]
                                 ]
                             ]
                         ]
@@ -73,118 +79,24 @@ class AttendanceOcrService
                 if ($response->successful()) {
                     $json = $response->json();
                     $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+
                     if (!empty($text)) {
-                        Log::info("SUKSES! Endpoint Gemini ({$modelName}) BERHASIL (HTTP 200)!");
+                        Log::info("SUKSES! Endpoint {$label} BERHASIL (HTTP 200)!");
                         return $this->parseLines($text);
                     }
                 } else {
-                    Log::warning("Gagal Gemini ({$modelName}) [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
+                    Log::warning("Gagal {$label} [HTTP {$response->status()}]: " . $response->body());
                 }
             } catch (\Exception $e) {
-                Log::warning("Exception Gemini ({$modelName}): " . $e->getMessage());
+                Log::error("Exception {$label}: " . $e->getMessage());
             }
         }
 
-        // ==========================================
-        // 2. ENDPOINT GROK (xAI API)
-        // ==========================================
-        Log::info("DEBUG OCR: Mencoba Endpoint Grok Vision (xAI)...");
-        try {
-            $response = Http::timeout(20)
-                ->withToken($apiKey)
-                ->post('https://api.x.ai/v1/chat/completions', [
-                    'model' => 'grok-vision-beta',
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => [
-                                ['type' => 'text', 'text' => $prompt],
-                                ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageBytes}"]]
-                            ]
-                        ]
-                    ]
-                ]);
-
-            if ($response->successful()) {
-                $text = $response->json()['choices'][0]['message']['content'] ?? '';
-                if (!empty($text)) {
-                    Log::info("SUKSES! Endpoint Grok Vision BERHASIL (HTTP 200)!");
-                    return $this->parseLines($text);
-                }
-            } else {
-                Log::warning("Gagal Grok Vision [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
-            }
-        } catch (\Exception $e) {
-            Log::warning("Exception Grok: " . $e->getMessage());
-        }
-
-        // ==========================================
-        // 3. ENDPOINT OPENAI (GPT-4o / GPT-4 Vision)
-        // ==========================================
-        Log::info("DEBUG OCR: Mencoba Endpoint OpenAI (GPT-4o Vision)...");
-        try {
-            $response = Http::timeout(20)
-                ->withToken($apiKey)
-                ->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => 'gpt-4o-mini',
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => [
-                                ['type' => 'text', 'text' => $prompt],
-                                ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageBytes}"]]
-                            ]
-                        ]
-                    ]
-                ]);
-
-            if ($response->successful()) {
-                $text = $response->json()['choices'][0]['message']['content'] ?? '';
-                if (!empty($text)) {
-                    Log::info("SUKSES! Endpoint OpenAI GPT-4o BERHASIL (HTTP 200)!");
-                    return $this->parseLines($text);
-                }
-            } else {
-                Log::warning("Gagal OpenAI [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
-            }
-        } catch (\Exception $e) {
-            Log::warning("Exception OpenAI: " . $e->getMessage());
-        }
-
-        // ==========================================
-        // 4. ENDPOINT GOOGLE CLOUD VISION REST API
-        // ==========================================
-        Log::info("DEBUG OCR: Mencoba Endpoint Google Cloud Vision REST...");
-        try {
-            $response = Http::timeout(20)
-                ->post("https://vision.googleapis.com/v1/images:annotate?key={$apiKey}", [
-                    'requests' => [
-                        [
-                            'image' => ['content' => $imageBytes],
-                            'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']]
-                        ]
-                    ]
-                ]);
-
-            if ($response->successful()) {
-                $textAnnotations = $response->json()['responses'][0]['textAnnotations'] ?? [];
-                if (!empty($textAnnotations)) {
-                    Log::info("SUKSES! Endpoint Google Cloud Vision REST BERHASIL (HTTP 200)!");
-                    return $this->parseLines($textAnnotations[0]['description'] ?? '');
-                }
-            } else {
-                Log::warning("Gagal Google Cloud Vision [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
-            }
-        } catch (\Exception $e) {
-            Log::warning("Exception Cloud Vision: " . $e->getMessage());
-        }
-
-        Log::error("OCR Error: Seluruh endpoint AI/OCR telah dicoba namun tidak ada yang berhasil dengan API Key tersebut.");
         return [];
     }
 
     /**
-     * Memecah teks output AI menjadi baris terpisah
+     * Memecah hasil ekstraksi teks AI menjadi baris terpisah
      */
     private function parseLines(string $fullText): array
     {
@@ -193,6 +105,7 @@ class AttendanceOcrService
 
         foreach ($lines as $line) {
             $cleaned = trim($line);
+            // Bersihkan nomor baris atau penanda list jika ada
             $cleaned = preg_replace('/^[\*\-\d\.\s]+/', '', $cleaned);
 
             if (strlen($cleaned) >= 3) {
@@ -207,7 +120,7 @@ class AttendanceOcrService
     }
 
     /**
-     * Match Teks Hasil OCR ke Tabel Students di PostgreSQL
+     * Pencocokan Teks Hasil OCR ke Data Siswa di PostgreSQL
      */
     public function matchStudents(array $ocrResults): array
     {
@@ -225,14 +138,14 @@ class AttendanceOcrService
             $highestSimilarity = 0;
 
             foreach ($students as $student) {
-                // 1. Cek Kemiripan NIS
+                // 1. Kemiripan NIS
                 if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
                     $bestMatch = $student;
                     $highestSimilarity = 100;
                     break;
                 }
 
-                // 2. Cek Kemiripan Nama (sub-string & fuzzy match)
+                // 2. Kemiripan Nama (sub-string)
                 if (str_contains(strtolower($rawText), strtolower($student->name)) || 
                     str_contains(strtolower($student->name), strtolower($rawText))) {
                     $bestMatch = $student;
@@ -240,6 +153,7 @@ class AttendanceOcrService
                     break;
                 }
 
+                // 3. Kemiripan Ejaan (Fuzzy Matching)
                 similar_text(strtolower($rawText), strtolower($student->name), $percent);
                 if ($percent > $highestSimilarity) {
                     $highestSimilarity = $percent;
