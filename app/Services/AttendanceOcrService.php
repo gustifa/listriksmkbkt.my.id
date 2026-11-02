@@ -27,7 +27,7 @@ class AttendanceOcrService
     }
 
     /**
-     * Memproses gambar dengan model Gemini Vision yang valid
+     * Memproses gambar langsung menembak model terbukti valid (gemini-flash-lite-latest)
      */
     public function processImage(string $imagePath): array
     {
@@ -48,21 +48,20 @@ class AttendanceOcrService
         $mimeType   = mime_content_type($fullPath) ?: 'image/jpeg';
         $prompt     = 'Tolong baca foto lembar absensi ini. Ekstrak dan tuliskan seluruh nama siswa dan NIS yang terdeteksi baris demi baris secara murni.';
 
-        // Ambil daftar model vision yang disaring
-        $visionModels = $this->fetchVisionModels($apiKey);
+        // Prioritaskan model gemini-flash-lite-latest yang terbukti HTTP 200 di server Anda
+        $priorityModels = [
+            'models/gemini-flash-lite-latest',
+            'models/gemini-2.0-flash-lite-preview-02-05',
+            'models/gemini-1.5-flash-8b'
+        ];
 
-        if (empty($visionModels)) {
-            Log::error("OCR Error: Tidak ada model Vision yang valid untuk API Key ini.");
-            return [];
-        }
-
-        foreach ($visionModels as $modelName) {
-            Log::info("DEBUG OCR: Mencoba mengeksekusi Model Vision: {$modelName}...");
+        foreach ($priorityModels as $modelName) {
+            Log::info("DEBUG OCR: Mengeksekusi Model Vision: {$modelName}...");
 
             $url = "https://generativelanguage.googleapis.com/v1beta/{$modelName}:generateContent?key={$apiKey}";
 
             try {
-                $response = Http::timeout(25)
+                $response = Http::timeout(20)
                     ->withHeaders(['Content-Type' => 'application/json'])
                     ->post($url, [
                         'contents' => [
@@ -85,7 +84,7 @@ class AttendanceOcrService
                     $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
                     if (!empty($text)) {
-                        Log::info("SUKSES BERHASIL! Model Gemini '{$modelName}' BERHASIL (HTTP 200)!");
+                        Log::info("SUKSES BERHASIL! Model '{$modelName}' mengembalikan respons HTTP 200.");
                         return $this->parseLines($text);
                     }
                 } else {
@@ -97,58 +96,6 @@ class AttendanceOcrService
         }
 
         return [];
-    }
-
-    /**
-     * Ambil & Filter hanya model Gemini yang mendukung Input Gambar (Vision)
-     */
-    private function fetchVisionModels(string $apiKey): array
-    {
-        $listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key={$apiKey}";
-
-        try {
-            $response = Http::timeout(15)->get($listUrl);
-
-            if ($response->successful()) {
-                $modelsData = $response->json()['models'] ?? [];
-                $filteredModels = [];
-
-                foreach ($modelsData as $model) {
-                    $name = $model['name'] ?? ''; // Format: models/gemini-...
-                    $supportedMethods = $model['supportedGenerationMethods'] ?? [];
-                    $inputModalities = $model['inputTokenLimit'] ?? 0; // indikator kapasitas model
-
-                    // Abaikan model TTS (Text-to-Speech), embedding, dan Gemma
-                    if (str_contains($name, '-tts') || str_contains($name, 'embedding') || str_contains($name, 'gemma')) {
-                        continue;
-                    }
-
-                    // Hanya ambil model gemini yang mendukung generateContent
-                    if (in_array('generateContent', $supportedMethods)) {
-                        $filteredModels[] = $name;
-                    }
-                }
-
-                // Urutkan agar model versi Flash standar/prioritas berada di paling awal
-                usort($filteredModels, function ($a, $b) {
-                    if (str_contains($a, 'flash') && !str_contains($b, 'flash')) return -1;
-                    if (!str_contains($a, 'flash') && str_contains($b, 'flash')) return 1;
-                    return 0;
-                });
-
-                Log::info("DEBUG OCR: Ditemukan " . count($filteredModels) . " model Vision yang valid.");
-                return $filteredModels;
-            }
-        } catch (\Exception $e) {
-            Log::error("DEBUG OCR: Exception saat ListModels: " . $e->getMessage());
-        }
-
-        // Daftar fallback spesifik untuk vision
-        return [
-            'models/gemini-1.5-flash',
-            'models/gemini-1.5-pro',
-            'models/gemini-1.0-pro-vision-latest'
-        ];
     }
 
     /**
