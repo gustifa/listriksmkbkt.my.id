@@ -104,14 +104,76 @@ class AttendanceScanController extends Controller
     //     }
     // }
 
-    public function upload(Request $request)
+//     public function upload(Request $request)
+// {
+//     // 1. Validasi Input Request (Termasuk classroom_id)
+//     $validator = Validator::make($request->all(), [
+//         'classroom_id' => 'required|uuid|exists:classrooms,id',
+//         'scan_type'    => 'required|in:daily,learning,prayer',
+//         'scan_date'    => 'required|date',
+//         'image'        => 'required|image|mimes:jpeg,jpg,png|max:10240', // Max 10MB
+//     ], [
+//         'classroom_id.required' => 'Pilih kelas terlebih dahulu.',
+//         'classroom_id.exists'   => 'Kelas yang dipilih tidak valid.',
+//         'scan_type.required'    => 'Pilih tipe absensi terlebih dahulu.',
+//         'scan_date.required'    => 'Tanggal absensi wajib diisi.',
+//         'image.required'        => 'Foto lembar absensi wajib diunggah.',
+//         'image.image'           => 'Berkas harus berupa gambar.',
+//         'image.mimes'           => 'Format gambar harus JPG, JPEG, atau PNG.',
+//         'image.max'             => 'Ukuran foto maksimal adalah 10MB.',
+//     ]);
+
+//     if ($validator->fails()) {
+//         return response()->json([
+//             'success' => false,
+//             'errors'  => $validator->errors()
+//         ], 422);
+//     }
+
+//     try {
+//         // 2. Simpan Foto ke Storage (`storage/app/public/attendance_scans`)
+//         $file = $request->file('image');
+//         $imagePath = $file->store('attendance_scans', 'public');
+
+//         // 3. Simpan Log Scan ke Database (Menyimpan classroom_id)
+//         $scan = AttendanceScan::create([
+//             'classroom_id' => $request->classroom_id,
+//             'scan_type'    => $request->scan_type,
+//             'scan_date'    => $request->scan_date,
+//             'image_path'   => $imagePath,
+//             'uploaded_by'  => auth()->user()->name ?? 'Administrator',
+//             'status'       => 'pending',
+//         ]);
+
+//         // 4. Eksekusi OCR Service & Fuzzy Match Siswa TERKUNCI PER KELAS
+//         $ocrResults  = $this->ocrService->processImage($imagePath);
+//         $matchedData = $this->ocrService->matchStudents($ocrResults, $scan->classroom_id);
+
+//         // 5. Kembalikan Respon JSON untuk AJAX & SweetAlert2
+//         return response()->json([
+//             'success'      => true,
+//             'message'      => 'Foto daftar hadir berhasil diuraikan.',
+//             'scan_id'      => $scan->id,
+//             'redirect_url' => route('attendance.scans.review', $scan->id),
+//             'data'         => $matchedData,
+//         ], 200);
+
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'success' => false,
+//             'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+//         ], 500);
+//     }
+// }
+
+public function upload(Request $request)
 {
-    // 1. Validasi Input Request (Termasuk classroom_id)
+    // 1. Validasi Input Request
     $validator = Validator::make($request->all(), [
         'classroom_id' => 'required|uuid|exists:classrooms,id',
         'scan_type'    => 'required|in:daily,learning,prayer',
         'scan_date'    => 'required|date',
-        'image'        => 'required|image|mimes:jpeg,jpg,png|max:10240', // Max 10MB
+        'image'        => 'required|image|mimes:jpeg,jpg,png|max:10240',
     ], [
         'classroom_id.required' => 'Pilih kelas terlebih dahulu.',
         'classroom_id.exists'   => 'Kelas yang dipilih tidak valid.',
@@ -131,17 +193,17 @@ class AttendanceScanController extends Controller
     }
 
     try {
-        // 2. Simpan Foto ke Storage (`storage/app/public/attendance_scans`)
+        // 2. Simpan Foto ke Storage
         $file = $request->file('image');
         $imagePath = $file->store('attendance_scans', 'public');
 
-        // 3. Simpan Log Scan ke Database (Menyimpan classroom_id)
+        // 3. Simpan Log Scan ke Database (uploaded_by menggunakan ID UUID pengunggah)
         $scan = AttendanceScan::create([
             'classroom_id' => $request->classroom_id,
             'scan_type'    => $request->scan_type,
             'scan_date'    => $request->scan_date,
             'image_path'   => $imagePath,
-            'uploaded_by'  => auth()->user()->name ?? 'Administrator',
+            'uploaded_by'  => auth()->id(), // <--- PERBAIKAN: Gunakan ID (UUID), bukan nama string
             'status'       => 'pending',
         ]);
 
@@ -149,7 +211,7 @@ class AttendanceScanController extends Controller
         $ocrResults  = $this->ocrService->processImage($imagePath);
         $matchedData = $this->ocrService->matchStudents($ocrResults, $scan->classroom_id);
 
-        // 5. Kembalikan Respon JSON untuk AJAX & SweetAlert2
+        // 5. Kembalikan Respon JSON
         return response()->json([
             'success'      => true,
             'message'      => 'Foto daftar hadir berhasil diuraikan.',
