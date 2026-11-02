@@ -86,6 +86,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\Pm2Controller;
 use App\Http\Controllers\WhatsappGatewayController;
 use App\Http\Controllers\TelegramMonitoringController;
+use App\Http\Controllers\AttendanceScanController;
 
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryLoanController;
@@ -174,6 +175,14 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    Route::get('/attendance/upload', [AttendanceScanController::class, 'index'])->name('attendance.scans.index');
+    Route::post('/attendance/upload', [AttendanceScanController::class, 'upload'])->name('attendance.scans.upload');
+    Route::get('/attendance/review/{id}', [AttendanceScanController::class, 'review'])->name('attendance.scans.review');
+    Route::post('/attendance/commit/{id}', [AttendanceScanController::class, 'commit'])->name('attendance.scans.commit');
+    
+    // Route halaman review/verifikasi data (opsional)
+    Route::get('/attendance/review/{id}', [AttendanceScanController::class, 'review'])->name('attendance.scans.review');
 
     Route::get('/admin/settings/api-keys', [ApiKeySettingController::class, 'index'])->name('admin.api-keys.index');
     Route::post('/admin/settings/api-keys', [ApiKeySettingController::class, 'store'])->name('admin.api-keys.store');
