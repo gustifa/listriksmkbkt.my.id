@@ -10,58 +10,80 @@ use Illuminate\Support\Facades\Log;
 class AttendanceOcrService
 {
     /**
-     * Mengambil API Key Google Vision aktif dari tabel api_keys
+     * Mengambil API Key aktif dari database PostgreSQL (tabel api_keys)
      */
-    protected function getActiveApiKey(): ?string
+    protected function getActiveApiKeyRecord()
     {
-        $config = ApiKey::where('provider', 'google_vision')
-            ->where('is_active', true)
+        return ApiKey::where('is_active', true)
+            ->whereIn('provider', ['google_vision', 'gemini', 'google'])
             ->orderBy('priority', 'asc')
             ->first();
-
-        if (!$config) {
-            Log::error("OCR Error: Kunci API aktif untuk 'google_vision' tidak ditemukan di tabel api_keys.");
-            return null;
-        }
-
-        return $config->api_key;
     }
 
     /**
-     * Memproses gambar lembar absensi dengan Google Cloud Vision API
+     * Memproses gambar dengan mencoba seluruh Endpoint API yang sesuai
      */
     public function processImage(string $imagePath): array
     {
-        $apiKey = $this->getActiveApiKey();
+        $keyRecord = $this->getActiveApiKeyRecord();
 
-        if (!$apiKey) {
+        if (!$keyRecord) {
+            Log::error("OCR Error: Kunci API aktif untuk 'google_vision' atau 'gemini' tidak ditemukan di tabel api_keys.");
             return [];
         }
 
+        $apiKey = trim($keyRecord->api_key);
         $fullPath = storage_path('app/public/' . $imagePath);
 
         if (!file_exists($fullPath)) {
-            Log::error("OCR Error: Berkas gambar tidak ditemukan pada lokasi: {$fullPath}");
+            Log::error("OCR Error: Berkas gambar tidak ditemukan pada: {$fullPath}");
             return [];
         }
 
-        $url = "https://vision.googleapis.com/v1/images:annotate?key={$apiKey}";
+        $imageBytes = base64_encode(file_get_contents($fullPath));
+        $mimeType   = mime_content_type($fullPath) ?: 'image/jpeg';
+
+        // --- ENDPOINT 1: Google Cloud Vision API (DOCUMENT_TEXT_DETECTION) ---
+        Log::info("DEBUG OCR: Mencoba Endpoint [1] Google Cloud Vision API...");
+        $visionUrl = "https://vision.googleapis.com/v1/images:annotate?key=" . $apiKey;
 
         try {
-            // Encode gambar ke format Base64
-            $imageBytes = base64_encode(file_get_contents($fullPath));
-
-            // Request payload menggunakan DOCUMENT_TEXT_DETECTION (optimasi untuk tabel & tulisan cetak/tangan)
-            $response = Http::timeout(45)->post($url, [
+            $response = Http::timeout(25)->post($visionUrl, [
                 'requests' => [
                     [
-                        'image' => [
-                            'content' => $imageBytes
-                        ],
-                        'features' => [
-                            [
-                                'type' => 'DOCUMENT_TEXT_DETECTION'
-                            ]
+                        'image' => ['content' => $imageBytes],
+                        'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']]
+                    ]
+                ]
+            ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $textAnnotations = $json['responses'][0]['textAnnotations'] ?? [];
+
+                if (!empty($textAnnotations)) {
+                    Log::info("DEBUG OCR: Endpoint [1] Google Vision BERHASIL (HTTP 200)!");
+                    $fullText = $textAnnotations[0]['description'] ?? '';
+                    return $this->parseLines($fullText);
+                }
+            } else {
+                Log::warning("DEBUG OCR: Endpoint [1] Vision Gagal [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
+            }
+        } catch (\Exception $e) {
+            Log::warning("DEBUG OCR: Endpoint [1] Exception: " . $e->getMessage());
+        }
+
+        // --- ENDPOINT 2: Google Gemini 1.5 Flash API ---
+        Log::info("DEBUG OCR: Mencoba Endpoint [2] Gemini 1.5 Flash API...");
+        $gemini15Url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
+
+        try {
+            $response = Http::timeout(25)->post($gemini15Url, [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => 'Ekstrak seluruh daftar nama siswa dan NIS dari foto rekap absensi ini baris demi baris.'],
+                            ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageBytes]]
                         ]
                     ]
                 ]
@@ -69,50 +91,67 @@ class AttendanceOcrService
 
             if ($response->successful()) {
                 $json = $response->json();
-                return $this->parseVisionResponse($json);
+                $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                if (!empty($text)) {
+                    Log::info("DEBUG OCR: Endpoint [2] Gemini 1.5 Flash BERHASIL (HTTP 200)!");
+                    return $this->parseLines($text);
+                }
             } else {
-                Log::error("Google Vision API Response Error [Status {$response->status()}]: " . $response->body());
+                Log::warning("DEBUG OCR: Endpoint [2] Gemini 1.5 Gagal [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
             }
-
         } catch (\Exception $e) {
-            Log::error("OCR Exception: " . $e->getMessage());
+            Log::warning("DEBUG OCR: Endpoint [2] Exception: " . $e->getMessage());
+        }
+
+        // --- ENDPOINT 3: Google Gemini 2.0 Flash API ---
+        Log::info("DEBUG OCR: Mencoba Endpoint [3] Gemini 2.0 Flash API...");
+        $gemini20Url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKey;
+
+        try {
+            $response = Http::timeout(25)->post($gemini20Url, [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => 'Ekstrak seluruh daftar nama siswa dari foto rekap absensi ini.'],
+                            ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageBytes]]
+                        ]
+                    ]
+                ]
+            ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                if (!empty($text)) {
+                    Log::info("DEBUG OCR: Endpoint [3] Gemini 2.0 Flash BERHASIL (HTTP 200)!");
+                    return $this->parseLines($text);
+                }
+            } else {
+                Log::error("DEBUG OCR: Endpoint [3] Gemini 2.0 Gagal [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
+            }
+        } catch (\Exception $e) {
+            Log::error("DEBUG OCR: Endpoint [3] Exception: " . $e->getMessage());
         }
 
         return [];
     }
 
     /**
-     * Urai teks hasil deteksi dari Google Cloud Vision API
+     * Memecah string teks menjadi array baris
      */
-    private function parseVisionResponse(array $json): array
+    private function parseLines(string $fullText): array
     {
-        $responses = $json['responses'][0] ?? [];
-
-        if (isset($responses['error'])) {
-            Log::error("Google Vision API Error Payload: " . json_encode($responses['error']));
-            return [];
-        }
-
-        $textAnnotations = $responses['textAnnotations'] ?? [];
-
-        if (empty($textAnnotations)) {
-            Log::warning("OCR Warning: Google Vision API tidak menemukan teks pada gambar.");
-            return [];
-        }
-
-        // Teks indeks ke-0 menyimpan gabungan seluruh baris teks yang terdeteksi
-        $fullText = $textAnnotations[0]['description'] ?? '';
         $lines = explode("\n", $fullText);
-
         $results = [];
-        foreach ($lines as $line) {
-            $cleanedLine = trim($line);
 
-            // Filter baris pendek atau header umum
-            if (strlen($cleanedLine) >= 3) {
+        foreach ($lines as $line) {
+            $cleaned = trim($line);
+            $cleaned = preg_replace('/^[\*\-\d\.\s]+/', '', $cleaned);
+
+            if (strlen($cleaned) >= 3) {
                 $results[] = [
-                    'raw_text' => $cleanedLine,
-                    'status'   => 'present',
+                    'raw_text' => $cleaned,
+                    'status'   => 'present'
                 ];
             }
         }
@@ -121,7 +160,7 @@ class AttendanceOcrService
     }
 
     /**
-     * Pencocokan baris teks OCR dengan data siswa di database
+     * Pencocokan Fuzzy Match Teks ke Database Siswa
      */
     public function matchStudents(array $ocrResults): array
     {
@@ -129,10 +168,9 @@ class AttendanceOcrService
             return [];
         }
 
-        // Ambil data acuan siswa
         $students = Student::select('id', 'nis', 'name')->get();
         $matchedResults = [];
-        $addedStudentIds = [];
+        $usedStudentIds = [];
 
         foreach ($ocrResults as $item) {
             $rawText = trim($item['raw_text']);
@@ -140,14 +178,19 @@ class AttendanceOcrService
             $highestSimilarity = 0;
 
             foreach ($students as $student) {
-                // 1. Pencocokan Presisi via NIS
                 if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
                     $bestMatch = $student;
                     $highestSimilarity = 100;
                     break;
                 }
 
-                // 2. Pencocokan Nama via String Similarity
+                if (str_contains(strtolower($rawText), strtolower($student->name)) || 
+                    str_contains(strtolower($student->name), strtolower($rawText))) {
+                    $bestMatch = $student;
+                    $highestSimilarity = 90;
+                    break;
+                }
+
                 similar_text(strtolower($rawText), strtolower($student->name), $percent);
                 if ($percent > $highestSimilarity) {
                     $highestSimilarity = $percent;
@@ -155,8 +198,7 @@ class AttendanceOcrService
                 }
             }
 
-            // Ambang batas kemiripan minimal 35% agar tabel terisi data hasil ekstraksi
-            if ($bestMatch && $highestSimilarity >= 35 && !in_array($bestMatch->id, $addedStudentIds)) {
+            if ($bestMatch && $highestSimilarity >= 25 && !in_array($bestMatch->id, $usedStudentIds)) {
                 $matchedResults[] = [
                     'raw_text'             => $rawText,
                     'matched_student_id'   => $bestMatch->id,
@@ -166,7 +208,7 @@ class AttendanceOcrService
                     'is_verified'          => $highestSimilarity >= 70,
                 ];
 
-                $addedStudentIds[] = $bestMatch->id;
+                $usedStudentIds[] = $bestMatch->id;
             }
         }
 
