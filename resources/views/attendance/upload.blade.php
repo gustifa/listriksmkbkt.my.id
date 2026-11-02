@@ -5,6 +5,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SweetAlert2 CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <!-- Select2 CSS & Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
     <style>
         body { background-color: #f8f9fa; }
@@ -22,8 +25,6 @@
         #imagePreview { max-height: 250px; border-radius: 8px; display: none; margin: 0 auto; }
         #reviewSection { display: none; }
     </style>
-</head>
-<body>
 
 <div class="container py-5">
     
@@ -49,7 +50,7 @@
 
                     <div class="mb-3">
                         <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas</label>
-                        <select class="form-select" id="classroom_id" name="classroom_id" required>
+                        <select class="form-select select2" id="classroom_id" name="classroom_id" required>
                             <option value="" selected disabled>-- Pilih Kelas --</option>
                             @if(isset($classrooms) && count($classrooms) > 0)
                                 @foreach($classrooms as $classroom)
@@ -131,8 +132,21 @@
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 @push('scripts')
 <script>
+$(document).ready(function() {
+    // Inisialisasi Select2 pada Dropdown Kelas
+    $('#classroom_id').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Pilih Kelas --',
+        allowClear: true,
+        width: '100%'
+    });
+});
+
 // Prapinjau Foto Gambar
 $('#imageInput').on('change', function(e) {
     const file = e.target.files[0];
@@ -272,6 +286,7 @@ $('#commitAttendanceForm').on('submit', function(e) {
 // Function Reset ke Form Upload Awal
 function resetForm() {
     $('#uploadAttendanceForm')[0].reset();
+    $('#classroom_id').val('').trigger('change'); // Reset UI Select2
     $('#imagePreview').hide().attr('src', '');
     $('#previewPlaceholder').show();
     $('#reviewSection').slideUp();
