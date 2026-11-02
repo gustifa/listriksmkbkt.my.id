@@ -103,29 +103,114 @@ public function review($id)
 
     return view('attendance.review', compact('scan', 'matchedData'));
 }
+
+
+/**
+ * Simpan Hasil Absensi yang Diverifikasi ke Database Utama
+ */
 public function commit(Request $request, $id)
 {
+    // 1. Ambil data scan
     $scan = AttendanceScan::findOrFail($id);
 
-    // Validasi dengan pesan custom Bahasa Indonesia
-    $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-        'attendances' => 'required|array|min:1',
-        'attendances.*.student_id' => 'required|uuid|exists:students,id',
-        'attendances.*.status' => 'required|string',
-    ], [
-        'attendances.required' => 'Tidak ada data siswa yang dapat disimpan. Pastikan hasil scan terdeteksi.',
-        'attendances.min'      => 'Minimal harus ada 1 data siswa yang terdeteksi.',
-    ]);
+    // 2. Ambil data attendances dari request
+    $attendances = $request->input('attendances', []);
 
-    if ($validator->fails()) {
+    if (empty($attendances)) {
         return response()->json([
             'success' => false,
-            'message' => $validator->errors()->first()
+            'message' => 'Tidak ada data siswa yang dikirim untuk disimpan.'
         ], 422);
     }
 
-    // ... sisa kode commit sama seperti sebelumnya
-}
+    DB::beginTransaction();
+    try {
+        $currentTime = now()->format('H:i:s');
+        $recordedBy  = auth()->user()->name ?? 'GUSTIFA FAUZAN, S.Pd';
+        $savedCount  = 0;
 
+        foreach ($attendances as $item) {
+            // Pastikan student_id ada dan tidak kosong
+            if (empty($item['student_id'])) {
+                continue;
+            }
+
+            $studentId = $item['student_id'];
+            $status    = $item['status'] ?? 'present';
+
+            switch ($scan->scan_type) {
+                case 'daily':
+                default:
+                    DailyAttendance::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'date'       => $scan->scan_date, // Menggunakan tanggal scan (misal: 2026-11-02)
+                        ],
+                        [
+                            'arrival_time' => $currentTime,
+                            'status'       => $status,
+                            'recorded_by'  => $recordedBy,
+                            'is_synced'    => true,
+                        ]
+                    );
+                    break;
+
+                case 'learning':
+                    Attendance::updateOrCreate(
+                        [
+                            'student_id'  => $studentId,
+                            'date'        => $scan->scan_date,
+                            'schedule_id' => $request->input('schedule_id'),
+                        ],
+                        [
+                            'subject_id'    => $request->input('subject_id'),
+                            'check_in_time' => $currentTime,
+                            'status'        => $status,
+                            'recorded_by'   => $recordedBy,
+                            'is_synced'     => true,
+                        ]
+                    );
+                    break;
+
+                case 'prayer':
+                    PrayerAttendance::updateOrCreate(
+                        [
+                            'student_id'  => $studentId,
+                            'date'        => $scan->scan_date,
+                            'prayer_name' => $request->input('prayer_name', 'Dzuhur'),
+                        ],
+                        [
+                            'check_in_time' => $currentTime,
+                            'status'        => $status,
+                            'location_type' => 'school',
+                            'is_synced'     => true,
+                        ]
+                    );
+                    break;
+            }
+
+            $savedCount++;
+        }
+
+        // Tandai status scan sebagai processed
+        $scan->update(['status' => 'processed']);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Berhasil menyimpan {$savedCount} data absensi siswa untuk tanggal {$scan->scan_date}."
+        ], 200);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error("Commit Attendance Error: " . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menyimpan ke database: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 }
