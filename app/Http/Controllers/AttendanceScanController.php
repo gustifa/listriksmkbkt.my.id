@@ -11,6 +11,7 @@ use App\Models\Attendance; // Tabel `attendances` (Pembelajaran)
 use App\Models\PrayerAttendance;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceScanController extends Controller
 {
