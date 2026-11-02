@@ -99,6 +99,7 @@ use App\Http\Controllers\Guru\DashboardGuruController;
 use App\Http\Controllers\Guru\IndustryGuruController;
 use App\Http\Controllers\Guru\MonitoringController;
 use App\Http\Controllers\Guru\GuruQuestionController;
+use App\Http\Controllers\Guru\InternshipExamController;
 
 use App\Http\Controllers\Admin\PrayerSettingController;
 use App\Http\Controllers\Admin\MbgController;
@@ -326,6 +327,8 @@ Route::middleware(['auth', 'role:guru|admin|super_admin'])->group(function () {
         Route::delete('/destroy/{id}', [ScheduleController::class, 'destroy'])->name('destroy');
     });
 
+    
+
     Route::get('/schedule/manual/{id}', [AttendanceController::class, 'createManual'])->name('attendance.manual');
     Route::post('/schedule/manual/{id}', [AttendanceController::class, 'storeManual'])->name('attendance.storeManual');
     Route::get('/print-cards-siswa', [StudentAreaController::class, 'index'])->name('print.siswa.index');
@@ -405,6 +408,7 @@ Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahu
     Route::get('/exams/{exam}/unsubmitted', [ExamController::class, 'unsubmittedStudents'])->name('guru.exams.unsubmitted');
     Route::post('/exam-sessions/{session}/finish', [ExamController::class, 'finishSessionByAdmin'])->name('guru.exam-sessions.finish');
     Route::get('/questions/{question}/students', [ExamController::class, 'getStudentsByAnswer'])->name('guru.questions.students');
+    
 
     Route::get('/guru/exams/{exam}/bank-soal', [GuruQuestionController::class, 'bankIndex'])->name('guru.questions.bank');
     Route::post('/guru/exams/{exam}/bank-soal/copy', [GuruQuestionController::class, 'copyFromBank'])->name('guru.questions.copy_bank');
@@ -444,6 +448,11 @@ Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahu
     Route::get('/guru/internships/{id}/assess', [InternshipAssessmentController::class, 'create'])->name('teacher.internships.assess');
     Route::post('/guru/internships/{id}/store', [InternshipAssessmentController::class, 'store'])->name('teacher.internships.store');
     Route::get('/guru/internships/{id}/certificate', [InternshipAssessmentController::class, 'printCertificate'])->name('teacher.internships.certificate');
+    // Uian Jurnal
+    Route::get('internships/{internship}/exam', [InternshipExamController::class, 'create'])->name('internships.exam.create');
+    Route::post('internships/{internship}/exam', [InternshipExamController::class, 'store'])->name('teacher.internships.exam.store');
+    Route::get('internships/{internship}/exam/print', [InternshipExamController::class, 'printExamResult'])->name('internships.exam.print');
+    Route::get('internships/exam/export-excel', [InternshipExamController::class, 'exportExcel'])->name('internships.exam.export_excel');
 
     // Pembinaan & Pelanggaran (Guru BK / Wakasis / Wali Kelas)
     Route::get('/pembinaan', [GuidanceController::class, 'index'])->name('admin.guidance.index');

@@ -42,4 +42,9 @@ class Internship extends Model
     {
         return $this->hasOne(InternshipGrade::class);
     }
+
+    public function exam()
+    {
+        return $this->hasOne(InternshipExam::class, 'internship_id');
+    }
 }
