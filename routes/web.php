@@ -792,6 +792,7 @@ Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->gr
     Route::get('/report/surat-tugas-all', [ReportController::class, 'printAllSuratTugas'])->name('report.surat_tugas_all');
 
     Route::resource('inventory', InventoryController::class);
+    Route::get('/inventory-loan-history', [InventoryLoanController::class, 'history'])->name('inventory.history');
     Route::get('/inventory-loan', [InventoryLoanController::class, 'store'])->name('inventory-loan.store');
     Route::get('/inventory-loan/active', [InventoryLoanController::class, 'activeLoans'])->name('inventory-loan.active');
     Route::put('/inventory-loan/{id}/return', [InventoryLoanController::class, 'returnItem'])->name('inventory-loan.return');
