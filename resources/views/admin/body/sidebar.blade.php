@@ -188,6 +188,7 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{ route('students.index') }}"><i class='bx bx-radio-circle'></i>Siswa Kejuruan</a></li>
                         <li><a href="{{ route('classrooms.index') }}"><i class='bx bx-radio-circle'></i>Rombel Kejuruan</a></li>
+                        <li><a href="{{ route('attendance.scans.index') }}"><i class='bx bx-radio-circle'></i>OCR presensi</a></li>
                     </ul>
                 </li>
 
