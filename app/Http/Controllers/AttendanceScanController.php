@@ -23,12 +23,24 @@ class AttendanceScanController extends Controller
         $this->ocrService = $ocrService;
     }
 
+    // /**
+    //  * Menampilkan Halaman Upload
+    //  */
+    // public function index()
+    // {
+    //     return view('attendance.upload');
+    // }
     /**
-     * Menampilkan Halaman Upload
+     * Tampilkan Halaman Form Upload Absensi (Hanya Kelas Aktif)
      */
     public function index()
     {
-        return view('attendance.upload');
+        // Ambil kelas yang memiliki kolom is_active = true
+        $classrooms = Classroom::where('is_active', true)
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return view('attendance.upload', compact('classrooms'));
     }
 
     /**
