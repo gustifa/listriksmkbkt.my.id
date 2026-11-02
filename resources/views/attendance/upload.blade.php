@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Upload Rekap Foto Absensi</title>
+    <title>Rekap Foto Absensi OCR (Full AJAX)</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -15,7 +15,7 @@
 
     <style>
         body { background-color: #f8f9fa; }
-        .upload-card { border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .card-custom { border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
         .image-preview-container {
             border: 2px dashed #cbd5e1;
             border-radius: 10px;
@@ -27,21 +27,23 @@
         }
         .image-preview-container:hover { border-color: #0d6efd; background-color: #f1f5f9; }
         #imagePreview { max-height: 250px; border-radius: 8px; display: none; margin: 0 auto; }
+        #reviewSection { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container py-5">
-    <div class="row justify-content-center">
+    
+    <!-- SECTION 1: FORM UPLOAD -->
+    <div id="uploadSection" class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
-            <div class="card upload-card p-4">
+            <div class="card card-custom p-4">
                 <div class="text-center mb-4">
                     <h4 class="fw-bold text-primary"><i class="fa-solid fa-camera me-2"></i>Scan Rekap Absensi</h4>
                     <p class="text-muted small">Unggah foto lembar absensi untuk diproses oleh OCR & AI</p>
                 </div>
 
                 <form id="uploadAttendanceForm" enctype="multipart/form-data">
-                    <!-- Tipe Absensi -->
                     <div class="mb-3">
                         <label for="scan_type" class="form-label fw-semibold">Tipe Absensi</label>
                         <select class="form-select" id="scan_type" name="scan_type" required>
@@ -52,7 +54,6 @@
                         </select>
                     </div>
 
-                    <!-- Pilih Kelas (Dinamis dari Controller) -->
                     <div class="mb-3">
                         <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas</label>
                         <select class="form-select" id="classroom_id" name="classroom_id" required>
@@ -65,16 +66,14 @@
                         </select>
                     </div>
 
-                    <!-- Tanggal Absensi -->
                     <div class="mb-3">
                         <label for="scan_date" class="form-label fw-semibold">Tanggal Absensi</label>
                         <input type="date" class="form-control" id="scan_date" name="scan_date" value="{{ date('Y-m-d') }}" required>
                     </div>
 
-                    <!-- Upload Foto Area -->
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Foto Lembar Absensi</label>
-                        <div class="image-preview-container" onclick="document.getElementById('imageInput').click()">
+                        <div class="image-preview-container" onclick="$('#imageInput').click()">
                             <div id="previewPlaceholder">
                                 <i class="fa-solid fa-cloud-arrow-up fa-3x text-primary mb-2"></i>
                                 <p class="mb-1 text-dark fw-medium">Klik atau Drag & Drop foto di sini</p>
@@ -85,14 +84,55 @@
                         <input type="file" id="imageInput" name="image" accept="image/png, image/jpeg, image/jpg" class="d-none" required>
                     </div>
 
-                    <!-- Submit Button -->
-                    <button type="submit" id="btnSubmit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">
+                    <button type="submit" id="btnUpload" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">
                         <i class="fa-solid fa-microchip me-2"></i>Unggah & Proses OCR
                     </button>
                 </form>
             </div>
         </div>
     </div>
+
+    <!-- SECTION 2: REVIEW HASIL OCR (DYNAMICALLY RENDERED VIA AJAX) -->
+    <div id="reviewSection" class="row">
+        <div class="col-12">
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold text-primary mb-0"><i class="fa-solid fa-list-check me-2"></i>Verifikasi Hasil Rekap Absensi</h4>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetForm()">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Scan Ulang / Kembali
+                    </button>
+                </div>
+
+                <form id="commitAttendanceForm">
+                    <input type="hidden" id="scan_id" name="scan_id">
+                    
+                    <div class="table-responsive mb-4">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Teks Terbaca (OCR)</th>
+                                    <th>Siswa Terdeteksi</th>
+                                    <th>Skor Kemiripan</th>
+                                    <th>Status Absen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ocrResultTableBody">
+                                <!-- Data diisi via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" id="btnCommit" class="btn btn-success px-4 py-2 fw-semibold shadow-sm">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>Simpan ke Database Utama
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- Scripts -->
@@ -100,6 +140,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Prapinjau Foto Gambar
 $('#imageInput').on('change', function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -112,24 +153,21 @@ $('#imageInput').on('change', function(e) {
     }
 });
 
+// AJAX 1: Unggah & Proses OCR
 $('#uploadAttendanceForm').on('submit', function(e) {
     e.preventDefault();
 
     let formData = new FormData(this);
-    let btnSubmit = $('#btnSubmit');
+    let btnUpload = $('#btnUpload');
 
-    // Tampilkan Loading SweetAlert2
     Swal.fire({
         title: 'Memproses Gambar...',
         text: 'Mohon tunggu, AI/OCR sedang mengekstrak data absensi.',
         allowOutsideClick: false,
-        allowEscapeKey: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+        didOpen: () => { Swal.showLoading(); }
     });
 
-    btnSubmit.prop('disabled', true);
+    btnUpload.prop('disabled', true);
 
     $.ajax({
         url: "{{ route('attendance.scans.upload') }}",
@@ -137,47 +175,115 @@ $('#uploadAttendanceForm').on('submit', function(e) {
         data: formData,
         contentType: false,
         processData: false,
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(response) {
-            btnSubmit.prop('disabled', false);
+            btnUpload.prop('disabled', false);
 
+            if (response.success) {
+                Swal.close();
+                renderReviewTable(response.scan_id, response.data);
+            }
+        },
+        error: function(xhr) {
+            btnUpload.prop('disabled', false);
+            let msg = xhr.responseJSON?.message || 'Terjadi kesalahan saat mengunggah foto.';
+            Swal.fire({ icon: 'error', title: 'Gagal Upload!', html: msg, confirmButtonColor: '#dc3545' });
+        }
+    });
+});
+
+// Render Tabel Hasil Matching ke Layar secara Dinamis
+function renderReviewTable(scanId, data) {
+    $('#scan_id').val(scanId);
+    let tbody = $('#ocrResultTableBody');
+    tbody.empty();
+
+    if (!data || data.length === 0) {
+        tbody.append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data siswa yang terdeteksi.</td></tr>');
+    } else {
+        $.each(data, function(index, item) {
+            let row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="text-muted small">${item.raw_text}</td>
+                    <td>
+                        <input type="hidden" name="attendances[${index}][student_id]" value="${item.matched_student_id}">
+                        <strong class="text-dark d-block">${item.matched_student_name}</strong>
+                    </td>
+                    <td>
+                        <span class="badge ${item.similarity_score >= 70 ? 'bg-success' : 'bg-warning'}">
+                            ${item.similarity_score}%
+                        </span>
+                    </td>
+                    <td>
+                        <select name="attendances[${index}][status]" class="form-select form-select-sm" style="width: 130px;">
+                            <option value="hadir" ${item.status === 'hadir' || item.status === 'present' ? 'selected' : ''}>Hadir</option>
+                            <option value="terlambat" ${item.status === 'terlambat' ? 'selected' : ''}>Terlambat</option>
+                            <option value="izin" ${item.status === 'izin' ? 'selected' : ''}>Izin</option>
+                            <option value="sakit" ${item.status === 'sakit' ? 'selected' : ''}>Sakit</option>
+                            <option value="alpa" ${item.status === 'alpa' || item.status === 'absent' ? 'selected' : ''}>Alfa</option>
+                        </select>
+                    </td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+    }
+
+    $('#uploadSection').slideUp();
+    $('#reviewSection').slideDown();
+}
+
+// AJAX 2: Simpan Hasil Review ke Database Utama
+$('#commitAttendanceForm').on('submit', function(e) {
+    e.preventDefault();
+
+    let scanId = $('#scan_id').val();
+    let btnCommit = $('#btnCommit');
+
+    Swal.fire({
+        title: 'Menyimpan Data...',
+        text: 'Sedang menyimpan rekap absensi ke database.',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    btnCommit.prop('disabled', true);
+
+    $.ajax({
+        url: "/attendance/commit/" + scanId,
+        type: "POST",
+        data: $(this).serialize(),
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function(response) {
+            btnCommit.prop('disabled', false);
             if (response.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil Diproses!',
+                    title: 'Berhasil Disimpan!',
                     text: response.message,
-                    confirmButtonText: 'Lihat Hasil Verifikasi',
-                    confirmButtonColor: '#0d6efd'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Redirect ke halaman verifikasi/review
-                        window.location.href = response.redirect_url;
-                    }
+                    confirmButtonColor: '#198754'
+                }).then(() => {
+                    resetForm();
                 });
             }
         },
         error: function(xhr) {
-            btnSubmit.prop('disabled', false);
-            
-            let errorMessage = 'Terjadi kesalahan saat mengunggah foto.';
-            if (xhr.responseJSON && xhr.responseJSON.errors) {
-                let errors = xhr.responseJSON.errors;
-                errorMessage = Object.values(errors).map(err => err.join('<br>')).join('<br>');
-            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                errorMessage = xhr.responseJSON.message;
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Upload!',
-                html: errorMessage,
-                confirmButtonColor: '#dc3545'
-            });
+            btnCommit.prop('disabled', false);
+            let msg = xhr.responseJSON?.message || 'Gagal menyimpan ke database.';
+            Swal.fire({ icon: 'error', title: 'Gagal!', html: msg, confirmButtonColor: '#dc3545' });
         }
     });
 });
+
+// Function Reset ke Form Upload Awal
+function resetForm() {
+    $('#uploadAttendanceForm')[0].reset();
+    $('#imagePreview').hide().attr('src', '');
+    $('#previewPlaceholder').show();
+    $('#reviewSection').slideUp();
+    $('#uploadSection').slideDown();
+}
 </script>
 </body>
 </html>
