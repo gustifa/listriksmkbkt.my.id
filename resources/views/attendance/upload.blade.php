@@ -52,6 +52,19 @@
                         </select>
                     </div>
 
+                    <!-- Pilih Kelas (Dinamis dari Controller) -->
+                    <div class="mb-3">
+                        <label for="classroom_id" class="form-label fw-semibold">Pilih Kelas</label>
+                        <select class="form-select" id="classroom_id" name="classroom_id" required>
+                            <option value="" selected disabled>-- Pilih Kelas --</option>
+                            @if(isset($classrooms) && count($classrooms) > 0)
+                                @foreach($classrooms as $classroom)
+                                    <option value="{{ $classroom->id }}">{{ $classroom->name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+
                     <!-- Tanggal Absensi -->
                     <div class="mb-3">
                         <label for="scan_date" class="form-label fw-semibold">Tanggal Absensi</label>
@@ -87,7 +100,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-$(document.getElementById('imageInput')).on('change', function(e) {
+$('#imageInput').on('change', function(e) {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();

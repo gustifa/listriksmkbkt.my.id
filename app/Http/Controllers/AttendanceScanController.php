@@ -12,6 +12,7 @@ use App\Models\PrayerAttendance;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use App\Models\Classroom;
 
 class AttendanceScanController extends Controller
 {
