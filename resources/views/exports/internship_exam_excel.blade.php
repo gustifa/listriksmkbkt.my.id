@@ -6,7 +6,7 @@
     </tr>
     <tr>
         <td colspan="2">Program Keahlian</td>
-        <td>: {{ $internships->first()->student->classroom->major->name ?? '' }}</td>
+        <td>: {{ $internships->first()->student->program->name ?? '' }}</td>
     </tr>
     <tr>
         <td colspan="2">Nama Guru Penguji</td>

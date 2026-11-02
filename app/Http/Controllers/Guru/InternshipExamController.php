@@ -22,7 +22,12 @@ class InternshipExamController extends Controller
     {
         $teacher = $this->getTeacher();
 
-        $internship = Internship::with(['student.classroom.major', 'industry', 'exam'])
+        // $internship = Internship::with(['student.classroom.major', 'industry', 'exam'])
+        //     ->where('id', $internshipId)
+        //     ->where('advisor_id', $teacher->id)
+        //     ->firstOrFail();
+        // UBAH BARIS INI: Tambahkan .program pada relasi major
+        $internship = Internship::with(['student.classroom.major.program', 'industry', 'exam'])
             ->where('id', $internshipId)
             ->where('advisor_id', $teacher->id)
             ->firstOrFail();
@@ -88,7 +93,12 @@ class InternshipExamController extends Controller
     {
         $teacher = $this->getTeacher();
 
-        $internship = Internship::with(['student.classroom.major', 'industry', 'exam'])
+        // $internship = Internship::with(['student.classroom.major', 'industry', 'exam'])
+        //     ->where('id', $internshipId)
+        //     ->where('advisor_id', $teacher->id)
+        //     ->firstOrFail();
+        // Tambahkan .program juga di sini
+        $internship = Internship::with(['student.classroom.major.program', 'industry', 'exam'])
             ->where('id', $internshipId)
             ->where('advisor_id', $teacher->id)
             ->firstOrFail();
@@ -103,6 +113,8 @@ class InternshipExamController extends Controller
             'headmaster_name' => \App\Models\Setting::value('sign_name', 'FITHRI NOVILIA, S.Pd'),
             'headmaster_nip'  => \App\Models\Setting::value('sign_nip', '19721102 199802 2 003'),
         ];
+
+        
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('guru.internships.exam_pdf', compact('internship', 'school', 'teacher'));
         $pdf->setPaper('a4', 'portrait');

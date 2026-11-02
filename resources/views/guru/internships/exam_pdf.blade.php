@@ -80,12 +80,26 @@
         <tr>
             <td width="22%">Program Keahlian</td>
             <td width="2%">:</td>
-            <td>{{ $internship->student->classroom->major->name ?? '......................................................................' }}</td>
+            <td>
+                {{ 
+                    $internship->student->classroom->major->program->name 
+                    ?? $internship->student->classroom->major->name 
+                    ?? $internship->student->classroom->name 
+                    ?? '......................................................................' 
+                }}
+            </td>
         </tr>
         <tr>
             <td>Kompetensi Keahlian</td>
             <td>:</td>
-            <td>{{ $internship->student->classroom->name ?? '......................................................................' }}</td>
+            <td>
+                {{ 
+                    $internship->student->classroom->program->name 
+                    ?? $internship->student->classroom->major->name 
+                    ?? $internship->student->classroom->name 
+                    ?? '......................................................................' 
+                }}
+            </td>
         </tr>
         <tr>
             <td>Nama Guru Penguji</td>
