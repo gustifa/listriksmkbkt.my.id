@@ -19,7 +19,7 @@ class AttendanceOcrService
             ->first();
 
         if (!$config) {
-            Log::error("OCR Error: Kunci API aktif tidak ditemukan pada tabel api_keys.");
+            Log::error("OCR Error: Kunci API aktif tidak ditemukan di tabel api_keys.");
             return null;
         }
 
@@ -27,7 +27,7 @@ class AttendanceOcrService
     }
 
     /**
-     * Memproses gambar menggunakan Google Gemini REST API v1
+     * Memproses gambar dengan mengambil daftar model aktif secara dinamis
      */
     public function processImage(string $imagePath): array
     {
@@ -40,25 +40,30 @@ class AttendanceOcrService
         $fullPath = storage_path('app/public/' . $imagePath);
 
         if (!file_exists($fullPath)) {
-            Log::error("OCR Error: Berkas gambar tidak ditemukan di path: {$fullPath}");
+            Log::error("OCR Error: File gambar tidak ditemukan pada: {$fullPath}");
             return [];
         }
 
         $imageBytes = base64_encode(file_get_contents($fullPath));
         $mimeType   = mime_content_type($fullPath) ?: 'image/jpeg';
-        $prompt     = 'Ekstrak seluruh daftar nama siswa dan NIS yang ada pada foto daftar hadir ini. Tuliskan hasilnya baris demi baris secara murni tanpa format markdown.';
+        $prompt     = 'Tolong baca foto lembar absensi ini. Ekstrak dan tuliskan seluruh nama siswa dan NIS yang terdeteksi baris demi baris secara murni.';
 
-        // Endpoint Resmi Gemini v1 REST (Sesuai untuk Kunci API Google Studio AQ.Ab8RN...)
-        $endpoints = [
-            'gemini-1.5-flash (v1)' => "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={$apiKey}",
-            'gemini-1.5-pro (v1)'   => "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={$apiKey}",
-        ];
+        // 1. Ambil daftar model yang tersedia untuk API Key ini
+        $availableModels = $this->fetchAvailableGeminiModels($apiKey);
 
-        foreach ($endpoints as $label => $url) {
-            Log::info("DEBUG OCR: Menghubungi {$label}...");
+        if (empty($availableModels)) {
+            Log::error("OCR Error: Tidak ada model Gemini yang dapat diakses dengan API Key tersebut.");
+            return [];
+        }
+
+        // 2. Coba setiap model yang ditemukan
+        foreach ($availableModels as $modelName) {
+            Log::info("DEBUG OCR: Mencoba mengeksekusi Model Gemini: {$modelName}...");
+
+            $url = "https://generativelanguage.googleapis.com/v1beta/{$modelName}:generateContent?key={$apiKey}";
 
             try {
-                $response = Http::timeout(40)
+                $response = Http::timeout(35)
                     ->withHeaders(['Content-Type' => 'application/json'])
                     ->post($url, [
                         'contents' => [
@@ -81,14 +86,14 @@ class AttendanceOcrService
                     $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
                     if (!empty($text)) {
-                        Log::info("SUKSES! Endpoint {$label} BERHASIL (HTTP 200)!");
+                        Log::info("SUKSES! Model Gemini '{$modelName}' BERHASIL (HTTP 200)!");
                         return $this->parseLines($text);
                     }
                 } else {
-                    Log::warning("Gagal {$label} [HTTP {$response->status()}]: " . $response->body());
+                    Log::warning("Gagal pada model '{$modelName}' [HTTP {$response->status()}]: " . substr($response->body(), 0, 150));
                 }
             } catch (\Exception $e) {
-                Log::error("Exception {$label}: " . $e->getMessage());
+                Log::error("Exception pada model '{$modelName}': " . $e->getMessage());
             }
         }
 
@@ -96,7 +101,48 @@ class AttendanceOcrService
     }
 
     /**
-     * Memecah hasil ekstraksi teks AI menjadi baris terpisah
+     * Mengambil daftar nama model Gemini yang aktif via Google ModelService API
+     */
+    private function fetchAvailableGeminiModels(string $apiKey): array
+    {
+        $listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key={$apiKey}";
+
+        try {
+            $response = Http::timeout(15)->get($listUrl);
+
+            if ($response->successful()) {
+                $modelsData = $response->json()['models'] ?? [];
+                $validModels = [];
+
+                foreach ($modelsData as $model) {
+                    $name = $model['name'] ?? ''; // Format: models/gemini-...
+                    $supportedMethods = $model['supportedGenerationMethods'] ?? [];
+
+                    // Filter model yang mendukung generateContent
+                    if (in_array('generateContent', $supportedMethods)) {
+                        $validModels[] = $name;
+                    }
+                }
+
+                Log::info("DEBUG OCR: Berhasil menemukan " . count($validModels) . " model aktif.");
+                return $validModels;
+            } else {
+                Log::warning("DEBUG OCR: Gagal mendapatkan ListModels [HTTP {$response->status()}]: " . $response->body());
+            }
+        } catch (\Exception $e) {
+            Log::error("DEBUG OCR: Exception saat ListModels: " . $e->getMessage());
+        }
+
+        // Fallback default jika ListModels dibatasi
+        return [
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro',
+            'models/gemini-2.0-flash-exp'
+        ];
+    }
+
+    /**
+     * Memecah hasil teks baris demi baris
      */
     private function parseLines(string $fullText): array
     {
@@ -105,7 +151,6 @@ class AttendanceOcrService
 
         foreach ($lines as $line) {
             $cleaned = trim($line);
-            // Bersihkan nomor baris atau penanda list jika ada
             $cleaned = preg_replace('/^[\*\-\d\.\s]+/', '', $cleaned);
 
             if (strlen($cleaned) >= 3) {
@@ -120,7 +165,7 @@ class AttendanceOcrService
     }
 
     /**
-     * Pencocokan Teks Hasil OCR ke Data Siswa di PostgreSQL
+     * Match Teks Hasil OCR ke Data Siswa di PostgreSQL
      */
     public function matchStudents(array $ocrResults): array
     {
@@ -138,14 +183,12 @@ class AttendanceOcrService
             $highestSimilarity = 0;
 
             foreach ($students as $student) {
-                // 1. Kemiripan NIS
                 if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
                     $bestMatch = $student;
                     $highestSimilarity = 100;
                     break;
                 }
 
-                // 2. Kemiripan Nama (sub-string)
                 if (str_contains(strtolower($rawText), strtolower($student->name)) || 
                     str_contains(strtolower($student->name), strtolower($rawText))) {
                     $bestMatch = $student;
@@ -153,7 +196,6 @@ class AttendanceOcrService
                     break;
                 }
 
-                // 3. Kemiripan Ejaan (Fuzzy Matching)
                 similar_text(strtolower($rawText), strtolower($student->name), $percent);
                 if ($percent > $highestSimilarity) {
                     $highestSimilarity = $percent;
