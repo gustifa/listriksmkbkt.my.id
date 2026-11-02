@@ -109,12 +109,12 @@ public function review($id)
 /**
  * Simpan Hasil Absensi yang Diverifikasi ke Database Utama
  */
+/**
+ * Simpan Hasil Absensi yang Diverifikasi ke Database Utama
+ */
 public function commit(Request $request, $id)
 {
-    // 1. Ambil data scan
     $scan = AttendanceScan::findOrFail($id);
-
-    // 2. Ambil data attendances dari request
     $attendances = $request->input('attendances', []);
 
     if (empty($attendances)) {
@@ -124,20 +124,35 @@ public function commit(Request $request, $id)
         ], 422);
     }
 
+    // Mapping status dari OCR/Form ke format PostgreSQL Constraint
+    $statusMap = [
+        'present'    => 'hadir',
+        'late'       => 'terlambat',
+        'permission' => 'izin',
+        'sick'       => 'sakit',
+        'absent'     => 'alpa',
+        // Jika input sudah huruf kecil bahasa Indonesia
+        'hadir'      => 'hadir',
+        'terlambat'  => 'terlambat',
+        'izin'       => 'izin',
+        'sakit'      => 'sakit',
+        'alpa'       => 'alpa',
+    ];
+
     DB::beginTransaction();
     try {
         $currentTime = now()->format('H:i:s');
-        $recordedBy  = auth()->user()->name ?? 'GUSTIFA FAUZAN, S.Pd';
+        $recordedBy  = auth()->user()->name ?? 'Administrator';
         $savedCount  = 0;
 
         foreach ($attendances as $item) {
-            // Pastikan student_id ada dan tidak kosong
             if (empty($item['student_id'])) {
                 continue;
             }
 
-            $studentId = $item['student_id'];
-            $status    = $item['status'] ?? 'present';
+            $studentId  = $item['student_id'];
+            $rawStatus  = strtolower($item['status'] ?? 'hadir');
+            $dbStatus   = $statusMap[$rawStatus] ?? 'hadir'; // Fallback ke 'hadir'
 
             switch ($scan->scan_type) {
                 case 'daily':
@@ -145,11 +160,11 @@ public function commit(Request $request, $id)
                     DailyAttendance::updateOrCreate(
                         [
                             'student_id' => $studentId,
-                            'date'       => $scan->scan_date, // Menggunakan tanggal scan (misal: 2026-11-02)
+                            'date'       => $scan->scan_date,
                         ],
                         [
                             'arrival_time' => $currentTime,
-                            'status'       => $status,
+                            'status'       => $dbStatus, // Menggunakan status yang sudah di-mapping ('hadir')
                             'recorded_by'  => $recordedBy,
                             'is_synced'    => true,
                         ]
@@ -166,7 +181,7 @@ public function commit(Request $request, $id)
                         [
                             'subject_id'    => $request->input('subject_id'),
                             'check_in_time' => $currentTime,
-                            'status'        => $status,
+                            'status'        => $dbStatus,
                             'recorded_by'   => $recordedBy,
                             'is_synced'     => true,
                         ]
@@ -182,7 +197,7 @@ public function commit(Request $request, $id)
                         ],
                         [
                             'check_in_time' => $currentTime,
-                            'status'        => $status,
+                            'status'        => $dbStatus,
                             'location_type' => 'school',
                             'is_synced'     => true,
                         ]
@@ -193,9 +208,7 @@ public function commit(Request $request, $id)
             $savedCount++;
         }
 
-        // Tandai status scan sebagai processed
         $scan->update(['status' => 'processed']);
-
         DB::commit();
 
         return response()->json([
