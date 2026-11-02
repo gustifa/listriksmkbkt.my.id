@@ -17,10 +17,16 @@ class AttendanceScan extends Model
         'scan_date',
         'status',
         'notes',
+        'classroom_id', // Tambahkan ini
     ];
 
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function classroom()
+    {
+        return $this->belongsTo(Classroom::class, 'classroom_id');
     }
 }
