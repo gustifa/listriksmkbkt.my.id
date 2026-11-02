@@ -124,56 +124,123 @@ class AttendanceOcrService
     /**
      * Match Teks Hasil OCR ke Data Siswa di PostgreSQL
      */
-    public function matchStudents(array $ocrResults): array
-    {
-        if (empty($ocrResults)) {
-            return [];
-        }
+    // public function matchStudents(array $ocrResults): array
+    // {
+    //     if (empty($ocrResults)) {
+    //         return [];
+    //     }
 
-        $students = Student::select('id', 'nis', 'name')->get();
-        $matchedResults = [];
-        $usedStudentIds = [];
+    //     $students = Student::select('id', 'nis', 'name')->get();
+    //     $matchedResults = [];
+    //     $usedStudentIds = [];
 
-        foreach ($ocrResults as $item) {
-            $rawText = trim($item['raw_text']);
-            $bestMatch = null;
-            $highestSimilarity = 0;
+    //     foreach ($ocrResults as $item) {
+    //         $rawText = trim($item['raw_text']);
+    //         $bestMatch = null;
+    //         $highestSimilarity = 0;
 
-            foreach ($students as $student) {
-                if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
-                    $bestMatch = $student;
-                    $highestSimilarity = 100;
-                    break;
-                }
+    //         foreach ($students as $student) {
+    //             if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
+    //                 $bestMatch = $student;
+    //                 $highestSimilarity = 100;
+    //                 break;
+    //             }
 
-                if (str_contains(strtolower($rawText), strtolower($student->name)) || 
-                    str_contains(strtolower($student->name), strtolower($rawText))) {
-                    $bestMatch = $student;
-                    $highestSimilarity = 90;
-                    break;
-                }
+    //             if (str_contains(strtolower($rawText), strtolower($student->name)) || 
+    //                 str_contains(strtolower($student->name), strtolower($rawText))) {
+    //                 $bestMatch = $student;
+    //                 $highestSimilarity = 90;
+    //                 break;
+    //             }
 
-                similar_text(strtolower($rawText), strtolower($student->name), $percent);
-                if ($percent > $highestSimilarity) {
-                    $highestSimilarity = $percent;
-                    $bestMatch = $student;
-                }
-            }
+    //             similar_text(strtolower($rawText), strtolower($student->name), $percent);
+    //             if ($percent > $highestSimilarity) {
+    //                 $highestSimilarity = $percent;
+    //                 $bestMatch = $student;
+    //             }
+    //         }
 
-            if ($bestMatch && $highestSimilarity >= 25 && !in_array($bestMatch->id, $usedStudentIds)) {
-                $matchedResults[] = [
-                    'raw_text'             => $rawText,
-                    'matched_student_id'   => $bestMatch->id,
-                    'matched_student_name' => $bestMatch->name,
-                    'similarity_score'     => round($highestSimilarity, 2),
-                    'status'               => $item['status'] ?? 'present',
-                    'is_verified'          => $highestSimilarity >= 70,
-                ];
+    //         if ($bestMatch && $highestSimilarity >= 25 && !in_array($bestMatch->id, $usedStudentIds)) {
+    //             $matchedResults[] = [
+    //                 'raw_text'             => $rawText,
+    //                 'matched_student_id'   => $bestMatch->id,
+    //                 'matched_student_name' => $bestMatch->name,
+    //                 'similarity_score'     => round($highestSimilarity, 2),
+    //                 'status'               => $item['status'] ?? 'present',
+    //                 'is_verified'          => $highestSimilarity >= 70,
+    //             ];
 
-                $usedStudentIds[] = $bestMatch->id;
-            }
-        }
+    //             $usedStudentIds[] = $bestMatch->id;
+    //         }
+    //     }
 
-        return $matchedResults;
+    //     return $matchedResults;
+    // }
+
+    /**
+ * Match Teks Hasil OCR ke Data Siswa berdasarkan Kelas Spesifik (classroom_id)
+ */
+public function matchStudents(array $ocrResults, ?string $classroomId = null): array
+{
+    if (empty($ocrResults)) {
+        return [];
     }
+
+    // Query ke tabel students menggunakan kolom classroom_id
+    $query = Student::select('id', 'nis', 'name', 'classroom_id');
+
+    // Filter siswa berdasarkan classroom_id jika dikirim
+    if ($classroomId) {
+        $query->where('classroom_id', $classroomId);
+    }
+
+    $students = $query->get();
+    $matchedResults = [];
+    $usedStudentIds = [];
+
+    foreach ($ocrResults as $item) {
+        $rawText = trim($item['raw_text']);
+        $bestMatch = null;
+        $highestSimilarity = 0;
+
+        foreach ($students as $student) {
+            // 1. Cek Kemiripan NIS
+            if (!empty($student->nis) && str_contains($rawText, $student->nis)) {
+                $bestMatch = $student;
+                $highestSimilarity = 100;
+                break;
+            }
+
+            // 2. Cek Sub-string Nama
+            if (str_contains(strtolower($rawText), strtolower($student->name)) || 
+                str_contains(strtolower($student->name), strtolower($rawText))) {
+                $bestMatch = $student;
+                $highestSimilarity = 90;
+                break;
+            }
+
+            // 3. Similarity Ejaan (Fuzzy Matching)
+            similar_text(strtolower($rawText), strtolower($student->name), $percent);
+            if ($percent > $highestSimilarity) {
+                $highestSimilarity = $percent;
+                $bestMatch = $student;
+            }
+        }
+
+        if ($bestMatch && $highestSimilarity >= 25 && !in_array($bestMatch->id, $usedStudentIds)) {
+            $matchedResults[] = [
+                'raw_text'             => $rawText,
+                'matched_student_id'   => $bestMatch->id,
+                'matched_student_name' => $bestMatch->name,
+                'similarity_score'     => round($highestSimilarity, 2),
+                'status'               => $item['status'] ?? 'hadir',
+                'is_verified'          => $highestSimilarity >= 70,
+            ];
+
+            $usedStudentIds[] = $bestMatch->id;
+        }
+    }
+
+    return $matchedResults;
+}
 }

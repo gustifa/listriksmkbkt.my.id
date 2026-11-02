@@ -94,13 +94,49 @@ class AttendanceScanController extends Controller
     /**
  * Menampilkan Halaman Verifikasi / Review Hasil Scan OCR
  */
+// public function review($id)
+// {
+//     // Ambil data scan berdasarkan UUID
+//     $scan = AttendanceScan::findOrFail($id);
+
+//     // Eksekusi ulang OCR & Matching data siswa
+//     $ocrResults =$this->ocrService->processImage($scan->image_path);$matchedData = $this->ocrService->matchStudents($ocrResults);
+
+//     return view('attendance.review', compact('scan', 'matchedData'));
+// }
+
 public function review($id)
 {
-    // Ambil data scan berdasarkan UUID
     $scan = AttendanceScan::findOrFail($id);
 
-    // Eksekusi ulang OCR & Matching data siswa
-    $ocrResults =$this->ocrService->processImage($scan->image_path);$matchedData = $this->ocrService->matchStudents($ocrResults);
+    // Ambil classroom_id dari record scan (jika diset saat upload)
+    $classroomId = $scan->classroom_id ?? $scan->class_id ?? null;
+
+    // Ekstrak teks & lakukan matching terarah hanya ke kelas tersebut
+    $ocrResults  = $this->ocrService->processImage($scan->image_path);
+    $matchedData = $this->ocrService->matchStudents($ocrResults, $classroomId);
+
+    // Fallback: Jika OCR kosong, ambil seluruh siswa yang ada di KELAS TERSEBUT saja
+    if (empty($matchedData)) {
+        $studentQuery = Student::select('id', 'nis', 'name', 'classroom_id')->orderBy('name', 'asc');
+
+        if ($classroomId) {
+            $studentQuery->where('classroom_id', $classroomId);
+        }
+
+        $students = $studentQuery->get();
+
+        foreach ($students as $student) {
+            $matchedData[] = [
+                'raw_text'             => $student->nis ? "{$student->nis} - {$student->name}" : $student->name,
+                'matched_student_id'   => $student->id,
+                'matched_student_name' => $student->name,
+                'similarity_score'     => 100,
+                'status'               => 'hadir',
+                'is_verified'          => true,
+            ];
+        }
+    }
 
     return view('attendance.review', compact('scan', 'matchedData'));
 }
