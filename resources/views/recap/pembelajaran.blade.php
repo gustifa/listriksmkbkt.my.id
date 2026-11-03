@@ -16,7 +16,7 @@
         .bg-warning-low { background-color: #f8d7da !important; color: #721c24 !important; }
         .bg-zebra td { background-color: #f8f9fa !important; }
         .text-left { text-align: left !important; padding-left: 6px !important; }
-        .note-badge { font-size: 10px; cursor: pointer; }
+        .note-badge { font-size: 10px; cursor: pointer; display: inline-block; }
 
         @media (min-width: 769px) {
             .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: sticky; z-index: 2; }
@@ -26,11 +26,16 @@
             .table-rekap thead th { position: sticky; top: 0; background-color: #f8f9fa !important; z-index: 3; }
             .table-rekap thead th.sticky-col { z-index: 4; }
         }
+        @media (max-width: 768px) {
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: static !important; box-shadow: none !important; }
+            .sticky-col-3 { min-width: 130px !important; }
+        }
         @media print {
             .btn, form, modal, .modal, nav, header, footer, sidebar, .no-print, .nav-tabs { display: none !important; }
             body { background-color: #fff !important; padding: 0 !important; }
             @page { size: A4 landscape; margin: 10mm; }
             .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; }
+            [class*="col-date-"] { display: table-cell !important; }
         }
     </style>
 
@@ -98,6 +103,40 @@
     <div class="tab-content" id="pembelajaranTabContent">
         <!-- ================= TAB 1: PRESENSI & JURNAL ================= -->
         <div class="tab-pane fade show active" id="presensi-pane" role="tabpanel">
+            
+            <!-- TOOLBAR DROPDOWN FILTER KOLOM TANGGAL -->
+            @if($dates->count() > 0)
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolom" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        👁️ Filter Tampilan Tanggal
+                    </button>
+                    <ul class="dropdown-menu p-3 shadow" style="max-height: 300px; overflow-y: auto; width: 280px; z-index: 1050;">
+                        <li class="fw-bold mb-2 text-primary border-bottom pb-1">Sembunyikan / Tampilkan:</li>
+                        <li>
+                            <div class="form-check fw-bold text-success mb-2">
+                                <input class="form-check-input" type="checkbox" id="toggle-all-dates" checked>
+                                <label class="form-check-label" for="toggle-all-dates">Pilih Semua / Reset</label>
+                            </div>
+                        </li>
+                        @foreach($dates as $index => $d)
+                        <li>
+                            <div class="form-check py-1">
+                                <input class="form-check-input toggle-col-checkbox" type="checkbox" data-column="{{ $index }}" id="col-check-{{ $index }}" checked>
+                                <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-{{ $index }}">
+                                    P-{{ $index + 1 }} ({{ \Carbon\Carbon::parse($d->date)->format('d/m/Y') }})
+                                </label>
+                            </div>
+                        </li>
+                        @endforeach
+                    </ul>
+                </div>
+                <small class="text-muted fst-italic">
+                    📌 Keterangan Visual: <strong>📝</strong> Ada Catatan | <strong>📎</strong> Ada Surat | Latar Merah: Kehadiran <strong>< 75%</strong>
+                </small>
+            </div>
+            @endif
+
             <div class="table-responsive" style="max-height: 600px; overflow: auto;">
                 <table class="table table-rekap">
                     <thead>
@@ -107,7 +146,8 @@
                             <th rowspan="2" class="sticky-col sticky-col-3">NAMA SISWA</th>
                             
                             @forelse($dates as $index => $d)
-                                <th class="header-vertical col-date-{{ $index }}">
+                                @php $jurnal = $jurnalMap[$d->date] ?? null; @endphp
+                                <th class="header-vertical col-date-{{ $index }}" title="{{ $jurnal ? 'Materi: '.$jurnal->topic : 'Pertemuan '.($index+1) }}">
                                     {{ \Carbon\Carbon::parse($d->date)->format('d/m/Y') }}
                                 </th>
                             @empty
@@ -154,8 +194,8 @@
                                     @else <span class="text-danger fw-bold">A</span>
                                     @endif
 
-                                    @if(!empty($catatan)) <span class="note-badge text-primary">📝</span> @endif
-                                    @if(!empty($attach)) <span class="note-badge text-danger">📎</span> @endif
+                                    @if(!empty($catatan)) <span class="note-badge text-primary" title="Catatan: {{ $catatan }}">📝</span> @endif
+                                    @if(!empty($attach)) <span class="note-badge text-danger" title="Ada Surat Lampiran">📎</span> @endif
                                 </td>
                             @endforeach
 
@@ -272,14 +312,178 @@
     @endif
 </div>
 
-<!-- Include Modal Bulk Presensi & Script JS (Sama seperti sebelumnya) -->
+<!-- MODAL PRESENSI & JURNAL MASSAL -->
+@if($selectedClassroom && $selectedSubject)
+<div class="modal fade no-print" id="modalBulkPresensi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-warning text-dark">
+                <h6 class="modal-title fw-bold">⚡ Presensi Massal & Jurnal Pembelajaran Guru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formBulkPresensi">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">Tanggal Pertemuan <span class="text-danger">*</span></label>
+                            <input type="date" id="bulk_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">Set Status Kehadiran Massal <span class="text-danger">*</span></label>
+                            <select id="bulk_status" class="form-select" required>
+                                <option value="H">✓ Hadir Semua</option>
+                                <option value="S">Sakit Semua</option>
+                                <option value="I">Izin Semua</option>
+                                <option value="A">Alpa / Belum Hadir</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-primary border-bottom pb-1 mb-3">📖 Jurnal Pembelajaran Guru (Hari Ini)</h6>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Materi / Kompetensi Dasar (KD)</label>
+                        <input type="text" id="bulk_topic" class="form-control" placeholder="Contoh: Bab 3 Rangkaian Arus Searah">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kegiatan Pembelajaran</label>
+                        <textarea id="bulk_activities" class="form-control" rows="2" placeholder="Contoh: Praktikum multimeter"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Hambatan / Catatan Pelaksanaan KBM</label>
+                        <textarea id="bulk_obstacles" class="form-control" rows="2" placeholder="Contoh: Unit multimeter terbatas"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning fw-bold">⚡ Terapkan Presensi & Simpan Jurnal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+
+        // LOGIKA SEMBUNYIKAN / TAMPILKAN KOLOM TANGGAL (REALTIME)
+        $(document).on('change', '.toggle-col-checkbox', function() {
+            const colIndex = $(this).data('column');
+            if ($(this).is(':checked')) { 
+                $(`.col-date-${colIndex}`).show(); 
+            } else { 
+                $(`.col-date-${colIndex}`).hide(); 
+            }
+        });
+
+        $(document).on('change', '#toggle-all-dates', function() {
+            const isChecked = $(this).is(':checked');
+            $('.toggle-col-checkbox').prop('checked', isChecked).trigger('change');
+        });
+
+        // Form Submit Presensi Massal
+        $('#formBulkPresensi').submit(function(e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Konfirmasi Presensi Massal',
+                text: 'Presensi seluruh siswa dan Jurnal Pembelajaran akan disimpan!',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Simpan!'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    $.ajax({
+                        url: '{{ route("rekap.presensi.bulk") }}',
+                        type: 'POST',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            classroom_id: '{{ $selectedClassroom }}',
+                            subject_id: '{{ $selectedSubject }}',
+                            date: $('#bulk_date').val(),
+                            status: $('#bulk_status').val(),
+                            topic: $('#bulk_topic').val(),
+                            activities: $('#bulk_activities').val(),
+                            obstacles: $('#bulk_obstacles').val()
+                        },
+                        success: function(resp) {
+                            Swal.fire('Berhasil!', resp.message, 'success').then(() => location.reload());
+                        },
+                        error: function(err) {
+                            Swal.fire('Gagal!', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
+                        }
+                    });
+                }
+            });
+        });
     });
+
+    // Modal Update Presensi Individual + Catatan & File Surat
+    function updatePresensi(studentId, studentName, date, currentStatus, currentNote, currentAttach) {
+        let attachHTML = currentAttach 
+            ? `<p class="mb-2"><a href="/storage/${currentAttach}" target="_blank" class="btn btn-sm btn-outline-info">📄 Lihat Surat Lampiran Saat Ini</a></p>` 
+            : '';
+
+        Swal.fire({
+            title: `Update Presensi & Catatan`,
+            html: `
+                <div class="text-start mb-2">
+                    <p class="mb-1">Siswa: <strong>${studentName}</strong></p>
+                    <p class="mb-2">Tanggal: <strong>${date}</strong></p>
+                    
+                    <label class="form-label fw-bold mb-1">Status Kehadiran:</label>
+                    <select id="swal_status" class="form-select mb-3">
+                        <option value="H" ${currentStatus === 'H' ? 'selected' : ''}>Hadir (H)</option>
+                        <option value="S" ${currentStatus === 'S' ? 'selected' : ''}>Sakit (S)</option>
+                        <option value="I" ${currentStatus === 'I' ? 'selected' : ''}>Izin (I)</option>
+                        <option value="A" ${currentStatus === 'A' ? 'selected' : ''}>Alpa / Tanpa Keterangan (A)</option>
+                    </select>
+
+                    <label class="form-label fw-bold mb-1">Catatan / Alasan Izin/Sakit:</label>
+                    <textarea id="swal_note" class="form-control mb-3" rows="2" placeholder="Tuliskan catatan khusus siswa...">${currentNote || ''}</textarea>
+
+                    ${attachHTML}
+
+                    <label class="form-label fw-bold mb-1">Upload/Ganti Surat dokter / Izin (PDF/Gambar):</label>
+                    <input type="file" id="swal_attachment" class="form-control" accept="image/*,.pdf">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            preConfirm: () => {
+                let formData = new FormData();
+                formData.append('_token', '{{ csrf_token() }}');
+                formData.append('student_id', studentId);
+                formData.append('subject_id', '{{ $selectedSubject }}');
+                formData.append('date', date);
+                formData.append('status', $('#swal_status').val());
+                formData.append('note', $('#swal_note').val());
+                
+                let fileInput = $('#swal_attachment')[0].files[0];
+                if (fileInput) { formData.append('attachment', fileInput); }
+
+                return $.ajax({
+                    url: '{{ route("rekap.presensi.update") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false
+                }).catch(err => {
+                    Swal.showValidationMessage(err.responseJSON?.message || 'Gagal menyimpan');
+                });
+            }
+        }).then((res) => {
+            if (res.isConfirmed) {
+                Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1200, showConfirmButton: false })
+                    .then(() => location.reload());
+            }
+        });
+    }
 </script>
 </x-app-layout>
