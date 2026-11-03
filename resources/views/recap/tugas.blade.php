@@ -9,6 +9,8 @@
             border-collapse: separate;
             border-spacing: 0;
             font-size: 11px;
+            width: max-content;
+            min-width: 100%;
         }
         .table-rekap th, .table-rekap td {
             border-right: 1px solid #333 !important;
@@ -49,28 +51,50 @@
             margin-bottom: 2px;
         }
 
-        /* STICKY / FREEZE COLUMN (NO, INDUK & NAMA SISWA) */
-        .table-rekap th.sticky-col, .table-rekap td.sticky-col {
-            position: sticky;
-            z-index: 2;
-        }
-        .sticky-col-1 { left: 0; min-width: 35px; }
-        .sticky-col-2 { left: 35px; min-width: 95px; }
-        .sticky-col-3 { 
-            left: 130px; 
-            min-width: 200px; 
-            box-shadow: 3px 0 5px -2px rgba(0,0,0,0.15); 
+        /* STICKY / FREEZE COLUMN (HANYA AKTIF PADA DESKTOP/TABLET > 768px) */
+        @media (min-width: 769px) {
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
+                position: sticky;
+                z-index: 2;
+            }
+            .sticky-col-1 { left: 0; min-width: 35px; }
+            .sticky-col-2 { left: 35px; min-width: 90px; }
+            .sticky-col-3 { 
+                left: 125px; 
+                min-width: 180px; 
+                box-shadow: 3px 0 5px -2px rgba(0,0,0,0.15); 
+            }
+
+            /* Header Sticky */
+            .table-rekap thead th {
+                position: sticky;
+                top: 0;
+                background-color: #f8f9fa !important;
+                z-index: 3;
+            }
+            .table-rekap thead th.sticky-col {
+                z-index: 4;
+            }
         }
 
-        /* Header Sticky */
-        .table-rekap thead th {
-            position: sticky;
-            top: 0;
-            background-color: #f8f9fa !important;
-            z-index: 3;
-        }
-        .table-rekap thead th.sticky-col {
-            z-index: 4;
+        /* KHUSUS PERANGKAT HP / MOBILE (< 768px) */
+        @media (max-width: 768px) {
+            .table-rekap {
+                font-size: 10px;
+            }
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
+                position: static !important;
+                box-shadow: none !important;
+            }
+            .sticky-col-3 {
+                min-width: 130px !important;
+                max-width: 150px !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+            }
+            .header-vertical {
+                height: 110px !important;
+            }
         }
 
         /* CSS MEDIA PRINT */
@@ -169,7 +193,7 @@
 
     <!-- TOOLBAR FILTER HIDE/SHOW KOLOM TUGAS -->
     @if($selectedClassroom && $selectedSubject && $assignments->count() > 0)
-    <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
         <div class="dropdown">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" 
                     type="button" 
@@ -179,7 +203,7 @@
                     aria-expanded="false">
                 👁️ Filter Tampilan Kolom Tugas
             </button>
-            <ul class="dropdown-menu p-3 shadow" aria-labelledby="btnFilterKolom" style="max-height: 320px; overflow-y: auto; width: 300px; z-index: 1050;">
+            <ul class="dropdown-menu p-3 shadow" aria-labelledby="btnFilterKolom" style="max-height: 320px; overflow-y: auto; width: 290px; z-index: 1050;">
                 <li class="fw-bold mb-2 text-primary border-bottom pb-1">Tampilkan / Sembunyikan Tugas:</li>
                 <li>
                     <div class="form-check fw-bold text-success mb-2">
@@ -200,14 +224,14 @@
             </ul>
         </div>
         <small class="text-muted fst-italic">
-            💡 Tips: Sembunyikan kolom tugas yang sudah selesai diinput agar matriks tabel lebih ringkas.
+            💡 Tips: Geser tabel ke kanan atau gunakan "Filter Tampilan Kolom" untuk mempermudah pengisian di HP.
         </small>
     </div>
     @endif
 
     <!-- Tabel Rekapitulasi Grid Matriks -->
     @if($selectedClassroom && $selectedSubject)
-    <div class="table-responsive" style="max-height: 650px; overflow: auto;">
+    <div class="table-responsive" style="max-height: 650px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch;">
         <table class="table table-rekap">
             <thead>
                 <tr>
@@ -356,7 +380,6 @@
             </div>
             <form id="formBulkRekap">
                 <div class="modal-body p-4">
-                    <!-- 1. Pilih Tugas/Kolom -->
                     <div class="mb-3">
                         <label for="bulk_assignment_id" class="form-label fw-bold text-dark">Pilih Kolom Tugas <span class="text-danger">*</span></label>
                         <select id="bulk_assignment_id" class="form-select select2-modal-bulk" required>
@@ -367,7 +390,6 @@
                         </select>
                     </div>
 
-                    <!-- 2. Pilih Status -->
                     <div class="mb-3">
                         <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulan <span class="text-danger">*</span></label>
                         <select id="bulk_status" class="form-select" required>
@@ -377,19 +399,16 @@
                         </select>
                     </div>
 
-                    <!-- 3. Edit Tanggal / Waktu Pengumpulan Massal -->
                     <div class="mb-3">
                         <label for="bulk_submitted_at" class="form-label fw-bold text-dark">Waktu Pengumpulan (Opsional)</label>
                         <input type="datetime-local" id="bulk_submitted_at" class="form-control" value="{{ date('Y-m-d\TH:i') }}">
                     </div>
 
-                    <!-- 4. Input Nilai Massal -->
                     <div class="mb-3">
                         <label for="bulk_score" class="form-label fw-bold text-dark">Nilai Tugas Massal (Opsional)</label>
                         <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85 atau 100" min="0" max="100" step="0.1">
                     </div>
 
-                    <!-- 5. Input Feedback / Catatan Guru Massal -->
                     <div class="mb-3">
                         <label for="bulk_feedback" class="form-label fw-bold text-dark">Catatan / Feedback Guru Massal (Opsional)</label>
                         <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Contoh: Sangat baik, tingkatkan lagi..."></textarea>
@@ -511,7 +530,7 @@
             });
         });
 
-        // Submit Form Pengisian Rekap Massal (Dengan Notifikasi Berhasil)
+        // Submit Form Pengisian Rekap Massal
         $('#formBulkRekap').submit(function(e) {
             e.preventDefault();
             
@@ -619,7 +638,7 @@
         });
     }
 
-    // Update Status, Nilai, Waktu & Feedback Individual (Dengan Notifikasi Berhasil)
+    // Update Status, Nilai, Waktu & Feedback Individual
     function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
         const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
 
