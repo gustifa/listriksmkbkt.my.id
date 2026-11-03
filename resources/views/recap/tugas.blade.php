@@ -79,9 +79,12 @@
             @endif
         </div>
 
-        <!-- Tombol Cetak & Export Excel di Pojok Kanan Header (Tanpa Merusak Filter Form) -->
+        <!-- Tombol Cetak, Export Excel & Pengisian Massal (Dipertahankan) -->
         @if($selectedClassroom && $selectedSubject)
-        <div class="d-flex gap-2 no-print">
+        <div class="d-flex flex-wrap gap-2 no-print">
+            <button type="button" class="btn btn-warning btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalBulkRekap" title="Pengisian Massal">
+                ⚡ Rekap Massal
+            </button>
             <button type="button" onclick="window.print()" class="btn btn-secondary btn-sm" title="Cetak Rekap">
                 🖨️ Cetak
             </button>
@@ -165,18 +168,23 @@
                     <td class="text-left fw-bold">{{ $row['nama'] }}</td>
 
                     @foreach($assignments as $assignment)
-                        @php $status = $row['tugas'][$assignment->id] ?? 'A'; @endphp
-                        <td class="cell-clickable" 
-                            onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}')">
-                            @if($status == 'H')
-                                <span class="text-success fw-bold">✓</span>
-                            @elseif($status == 'T')
-                                <span class="text-warning fw-bold">✓(T)</span>
-                            @else
-                                <span class="text-danger fw-bold">X</span>
-                            @endif
-                        </td>
-                    @endforeach
+                    @php 
+                        $status      = $row['tugas'][$assignment->id] ?? 'A'; 
+                        $score       = $row['nilai'][$assignment->id] ?? ''; 
+                        $submittedAt = $row['tanggal_kumpul'][$assignment->id] ?? ''; 
+                    @endphp
+    
+    <td class="cell-clickable" 
+        onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAt }}')">
+        @if($status == 'H' || $status == 'submitted')
+            <span class="text-success fw-bold">✓</span>
+        @elseif($status == 'T' || $status == 'late')
+            <span class="text-warning fw-bold">✓(T)</span>
+        @else
+            <span class="text-danger fw-bold">X</span>
+        @endif
+    </td>
+@endforeach
 
                     <td class="fw-bold bg-light text-success">{{ $row['total_h'] }}</td>
                     <td class="fw-bold bg-light text-warning">{{ $row['total_t'] }}</td>
@@ -189,7 +197,7 @@
     @endif
 </div>
 
-<!-- ================= MODAL 1: TAMBAH TP ================= -->
+<!-- ================= MODAL 1: TAMBAH TP (UTUH) ================= -->
 <div class="modal fade no-print" id="modalTP" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -217,7 +225,7 @@
     </div>
 </div>
 
-<!-- ================= MODAL 2: TAMBAH TUGAS ================= -->
+<!-- ================= MODAL 2: TAMBAH TUGAS (UTUH) ================= -->
 <div class="modal fade no-print" id="modalTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -258,6 +266,64 @@
     </div>
 </div>
 
+<!-- ================= MODAL 3: PENGISIAN REKAP & NILAI MASSAL ================= -->
+@if($selectedClassroom && $selectedSubject)
+<div class="modal fade no-print" id="modalBulkRekap" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h6 class="modal-title fw-bold">⚡ Pengisian Rekap & Nilai Massal</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formBulkRekap">
+                <div class="modal-body p-4">
+                    <!-- 1. Pilih Tugas/Kolom -->
+                    <div class="mb-3">
+                        <label for="bulk_assignment_id" class="form-label fw-bold text-dark">Pilih Kolom Tugas <span class="text-danger">*</span></label>
+                        <select id="bulk_assignment_id" class="form-select select2-modal-bulk" required>
+                            <option value="">-- Pilih Tugas --</option>
+                            @foreach($assignments as $assignment)
+                                <option value="{{ $assignment->id }}">{{ $assignment->title }} ({{ $assignment->due_date ? $assignment->due_date->format('d/m') : '-' }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- 2. Pilih Status -->
+                    <div class="mb-3">
+                        <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulkan <span class="text-danger">*</span></label>
+                        <select id="bulk_status" class="form-select" required>
+                            <option value="H">✓ Hadir (Tepat Waktu)</option>
+                            <option value="T">✓(T) Terlambat</option>
+                            <option value="A">X Alpa / Belum Mengumpulkan</option>
+                        </select>
+                    </div>
+
+                    <!-- 3. Input Nilai Massal (Opsional) -->
+                    <div class="mb-3">
+                        <label for="bulk_score" class="form-label fw-bold text-dark">Nilai Tugas Massal (Opsional)</label>
+                        <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85 atau 100" min="0" max="100" step="0.1">
+                        <small class="text-muted">Biarkan kosong jika hanya ingin mengubah status tanpa mengisi nilai.</small>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted d-block">
+                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status dan nilai tugas untuk <strong>seluruh siswa</strong> di kelas ini.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary fw-semibold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning fw-semibold" id="btnSubmitBulk">
+                        ⚡ Terapkan Massal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 <!-- JS Script Dependencies -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -268,18 +334,25 @@
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
         
-        // Select2 di dalam Modal Bootstrap
         $('.select2-modal').select2({
             theme: 'bootstrap-5',
             dropdownParent: $('#modalTugas'),
             width: '100%'
         });
 
+        if ($('#modalBulkRekap').length) {
+            $('.select2-modal-bulk').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#modalBulkRekap'),
+                width: '100%'
+            });
+        }
+
         $.ajaxSetup({
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
         });
 
-        // 1. Submit Form TP via AJAX
+        // 1. Submit Form TP
         $('#formTambahTP').submit(function(e) {
             e.preventDefault();
             const subjectId = $('#subject_id').val();
@@ -302,7 +375,7 @@
             });
         });
 
-        // 2. Submit Form Tugas via AJAX
+        // 2. Submit Form Tugas
         $('#formTambahTugas').submit(function(e) {
             e.preventDefault();
             $.ajax({
@@ -325,10 +398,70 @@
                 }
             });
         });
+
+        // 3. Submit Form Pengisian Rekap & Nilai Massal
+        $('#formBulkRekap').submit(function(e) {
+            e.preventDefault();
+            
+            const assignmentId = $('#bulk_assignment_id').val();
+            const status = $('#bulk_status').val();
+            const score = $('#bulk_score').val();
+            const classroomId = $('#classroom_id').val();
+
+            if (!assignmentId) {
+                Swal.fire('Peringatan', 'Silakan pilih tugas terlebih dahulu.', 'warning');
+                return;
+            }
+
+            if (!classroomId) {
+                Swal.fire('Peringatan', 'Silakan pilih kelas terlebih dahulu pada filter atas.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Apakah Anda Yakin?',
+                text: "Status dan nilai tugas seluruh siswa di kelas ini akan diperbarui!",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Terapkan!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                    $.ajax({
+                        url: '{{ route("rekap.tugas.bulk_update") }}',
+                        type: 'POST',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            assignment_id: assignmentId,
+                            classroom_id: classroomId,
+                            status: status,
+                            score: score
+                        },
+                        success: function(res) {
+                            $('#modalBulkRekap').modal('hide');
+                            Swal.fire('Berhasil!', res.message || 'Rekap tugas massal berhasil diperbarui.', 'success')
+                                .then(() => location.reload());
+                        },
+                        error: function(err) {
+                            let errorMsg = 'Gagal memperbarui data secara massal.';
+                            if (err.responseJSON && err.responseJSON.errors) {
+                                errorMsg = Object.values(err.responseJSON.errors).flat().join('<br>');
+                            } else if (err.responseJSON && err.responseJSON.message) {
+                                errorMsg = err.responseJSON.message;
+                            }
+                            Swal.fire('Gagal!', errorMsg, 'error');
+                        }
+                    });
+                }
+            });
+        });
     });
 
-    // 3. Modal Detail Informasi Tugas
-    // Info Detail Tugas & TP (SweetAlert2)
+    // 4. Modal Detail Informasi Tugas
     function showAssignmentInfo(assignmentId) {
         Swal.fire({ 
             title: 'Memuat data...', 
@@ -365,28 +498,58 @@
         });
     }
 
-    // 4. Update Status Ceklis via SweetAlert2
-    function updateStatus(assignmentId, studentId, studentName, currentStatus) {
+    // 5. Update Status Ceklis & Input Nilai per Sel Siswa via Modal SweetAlert2
+    function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAt) {
+        const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
+        
+        // Informasi Tanggal Kumpul
+        const dateInfoHtml = submittedAt 
+            ? `<div class="p-2 mb-3 bg-light rounded border text-start">
+                <small class="text-muted d-block"><i class="far fa-clock me-1 text-primary"></i> <strong>Waktu Pengumpulan:</strong></small>
+                <span class="fw-bold text-dark fs-6">${submittedAt}</span>
+            </div>`
+            : `<div class="p-2 mb-3 bg-light rounded border text-start">
+                <small class="text-muted d-block"><i class="far fa-clock me-1 text-danger"></i> <strong>Waktu Pengumpulan:</strong></small>
+                <span class="badge bg-danger-subtle text-danger border">Belum Dikumpulkan</span>
+            </div>`;
+
         Swal.fire({
-            title: `Update Status Tugas`,
-            html: `Status tugas siswa: <strong>${studentName}</strong>`,
-            input: 'select',
-            inputOptions: {
-                'H': '✓ Hadir (Tepat Waktu)',
-                'T': '✓ (T) Terlambat',
-                'A': 'X Alpa / Belum Mengumpulkan'
-            },
-            inputValue: currentStatus,
+            title: `Update Rekap & Nilai`,
+            html: `
+                <div class="text-start mb-2">
+                    <p class="mb-2">Siswa: <strong>${studentName}</strong></p>
+                    
+                    ${dateInfoHtml}
+
+                    <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
+                    <select id="swal_status" class="form-select mb-3">
+                        <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
+                        <option value="T" ${activeStatus === 'T' ? 'selected' : ''}>✓(T) Terlambat</option>
+                        <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
+                    </select>
+
+                    <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
+                    <input type="number" id="swal_score" class="form-control" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
+                </div>
+            `,
             showCancelButton: true,
-            confirmButtonText: 'Simpan',
+            confirmButtonText: 'Simpan Data',
             cancelButtonText: 'Batal',
-            preConfirm: (newStatus) => {
+            preConfirm: () => {
+                const status = $('#swal_status').val();
+                const score = $('#swal_score').val();
+
                 return $.ajax({
                     url: '{{ route("rekap.tugas.toggle") }}',
                     type: 'POST',
-                    data: { assignment_id: assignmentId, student_id: studentId, status: newStatus }
+                    data: { 
+                        assignment_id: assignmentId, 
+                        student_id: studentId, 
+                        status: status,
+                        score: score
+                    }
                 }).catch(error => {
-                    Swal.showValidationMessage(`Gagal memperbarui status`);
+                    Swal.showValidationMessage(`Gagal memperbarui data`);
                 });
             }
         }).then((result) => {
