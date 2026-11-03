@@ -168,23 +168,27 @@
                     <td class="text-left fw-bold">{{ $row['nama'] }}</td>
 
                     @foreach($assignments as $assignment)
-                    @php 
-                        $status      = $row['tugas'][$assignment->id] ?? 'A'; 
-                        $score       = $row['nilai'][$assignment->id] ?? ''; 
-                        $submittedAt = $row['tanggal_kumpul'][$assignment->id] ?? ''; 
-                    @endphp
-    
-    <td class="cell-clickable" 
-        onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAt }}')">
-        @if($status == 'H' || $status == 'submitted')
-            <span class="text-success fw-bold">✓</span>
-        @elseif($status == 'T' || $status == 'late')
-            <span class="text-warning fw-bold">✓(T)</span>
-        @else
-            <span class="text-danger fw-bold">X</span>
-        @endif
-    </td>
-@endforeach
+                        @php 
+                            $status               = $row['tugas'][$assignment->id] ?? 'A'; 
+                            $score                = $row['nilai'][$assignment->id] ?? ''; 
+                            $submittedAtFormatted = $row['tanggal_kumpul'][$assignment->id] ?? ''; 
+                            $feedback             = $row['feedback'][$assignment->id] ?? '';
+                            
+                            $sub = $assignment->submissions->where('student_id', $row['student_id'])->first();
+                            $submittedAtRaw = $sub && $sub->submitted_at ? $sub->submitted_at->format('Y-m-d\TH:i') : '';
+                        @endphp
+                        
+                        <td class="cell-clickable" 
+                            onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAtFormatted }}', '{{ $submittedAtRaw }}', '{{ addslashes($feedback) }}')">
+                            @if($status == 'H' || $status == 'submitted')
+                                <span class="text-success fw-bold">✓</span>
+                            @elseif($status == 'T' || $status == 'late')
+                                <span class="text-warning fw-bold">✓(T)</span>
+                            @else
+                                <span class="text-danger fw-bold">X</span>
+                            @endif
+                        </td>
+                    @endforeach
 
                     <td class="fw-bold bg-light text-success">{{ $row['total_h'] }}</td>
                     <td class="fw-bold bg-light text-warning">{{ $row['total_t'] }}</td>
@@ -266,13 +270,13 @@
     </div>
 </div>
 
-<!-- ================= MODAL 3: PENGISIAN REKAP & NILAI MASSAL ================= -->
+<!-- ================= MODAL 3: PENGISIAN REKAP MASSAL LENGKAP ================= -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBulkRekap" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-warning text-dark">
-                <h6 class="modal-title fw-bold">⚡ Pengisian Rekap & Nilai Massal</h6>
+                <h6 class="modal-title fw-bold">⚡ Pengisian Rekap Tugas Massal</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="formBulkRekap">
@@ -290,7 +294,7 @@
 
                     <!-- 2. Pilih Status -->
                     <div class="mb-3">
-                        <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulkan <span class="text-danger">*</span></label>
+                        <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulan <span class="text-danger">*</span></label>
                         <select id="bulk_status" class="form-select" required>
                             <option value="H">✓ Hadir (Tepat Waktu)</option>
                             <option value="T">✓(T) Terlambat</option>
@@ -298,16 +302,28 @@
                         </select>
                     </div>
 
-                    <!-- 3. Input Nilai Massal (Opsional) -->
+                    <!-- 3. Edit Tanggal / Waktu Pengumpulan Massal (Opsional) -->
+                    <div class="mb-3">
+                        <label for="bulk_submitted_at" class="form-label fw-bold text-dark">Waktu Pengumpulan (Opsional)</label>
+                        <input type="datetime-local" id="bulk_submitted_at" class="form-control" value="{{ date('Y-m-d\TH:i') }}">
+                        <small class="text-muted">Biarkan sesuai default jika ingin menggunakan waktu saat ini.</small>
+                    </div>
+
+                    <!-- 4. Input Nilai Massal (Opsional) -->
                     <div class="mb-3">
                         <label for="bulk_score" class="form-label fw-bold text-dark">Nilai Tugas Massal (Opsional)</label>
                         <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85 atau 100" min="0" max="100" step="0.1">
-                        <small class="text-muted">Biarkan kosong jika hanya ingin mengubah status tanpa mengisi nilai.</small>
+                    </div>
+
+                    <!-- 5. Input Feedback / Catatan Guru Massal (Opsional) -->
+                    <div class="mb-3">
+                        <label for="bulk_feedback" class="form-label fw-bold text-dark">Catatan / Feedback Guru Massal (Opsional)</label>
+                        <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Contoh: Sangat baik, lanjutkan perbaikan..."></textarea>
                     </div>
 
                     <div class="p-3 bg-light rounded border">
                         <small class="text-muted d-block">
-                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status dan nilai tugas untuk <strong>seluruh siswa</strong> di kelas ini.
+                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status, tanggal, nilai, dan feedback tugas untuk <strong>seluruh siswa</strong> di kelas ini secara bersamaan.
                         </small>
                     </div>
                 </div>
@@ -399,14 +415,16 @@
             });
         });
 
-        // 3. Submit Form Pengisian Rekap & Nilai Massal
+        // Submit Form Pengisian Rekap Massal
         $('#formBulkRekap').submit(function(e) {
             e.preventDefault();
             
             const assignmentId = $('#bulk_assignment_id').val();
-            const status = $('#bulk_status').val();
-            const score = $('#bulk_score').val();
-            const classroomId = $('#classroom_id').val();
+            const status       = $('#bulk_status').val();
+            const submittedAt  = $('#bulk_submitted_at').val();
+            const score        = $('#bulk_score').val();
+            const feedback     = $('#bulk_feedback').val();
+            const classroomId  = $('#classroom_id').val();
 
             if (!assignmentId) {
                 Swal.fire('Peringatan', 'Silakan pilih tugas terlebih dahulu.', 'warning');
@@ -420,7 +438,7 @@
 
             Swal.fire({
                 title: 'Apakah Anda Yakin?',
-                text: "Status dan nilai tugas seluruh siswa di kelas ini akan diperbarui!",
+                text: "Status, tanggal, nilai, dan feedback tugas untuk seluruh siswa di kelas ini akan diperbarui!",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#ffc107',
@@ -439,7 +457,9 @@
                             assignment_id: assignmentId,
                             classroom_id: classroomId,
                             status: status,
-                            score: score
+                            submitted_at: submittedAt,
+                            score: score,
+                            feedback: feedback
                         },
                         success: function(res) {
                             $('#modalBulkRekap').modal('hide');
@@ -498,29 +518,16 @@
         });
     }
 
-    // 5. Update Status Ceklis & Input Nilai per Sel Siswa via Modal SweetAlert2
-    function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAt) {
+    // 5. Update Status Ceklis, Input Nilai, Edit Waktu Pengumpulan & Feedback via Modal SweetAlert2
+    function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
         const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
-        
-        // Informasi Tanggal Kumpul
-        const dateInfoHtml = submittedAt 
-            ? `<div class="p-2 mb-3 bg-light rounded border text-start">
-                <small class="text-muted d-block"><i class="far fa-clock me-1 text-primary"></i> <strong>Waktu Pengumpulan:</strong></small>
-                <span class="fw-bold text-dark fs-6">${submittedAt}</span>
-            </div>`
-            : `<div class="p-2 mb-3 bg-light rounded border text-start">
-                <small class="text-muted d-block"><i class="far fa-clock me-1 text-danger"></i> <strong>Waktu Pengumpulan:</strong></small>
-                <span class="badge bg-danger-subtle text-danger border">Belum Dikumpulkan</span>
-            </div>`;
 
         Swal.fire({
-            title: `Update Rekap & Nilai`,
+            title: `Update Rekap, Nilai & Feedback`,
             html: `
                 <div class="text-start mb-2">
                     <p class="mb-2">Siswa: <strong>${studentName}</strong></p>
                     
-                    ${dateInfoHtml}
-
                     <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
                     <select id="swal_status" class="form-select mb-3">
                         <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
@@ -528,16 +535,25 @@
                         <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
                     </select>
 
+                    <label class="form-label fw-bold mb-1">Waktu Pengumpulan (Opsional):</label>
+                    <input type="datetime-local" id="swal_submitted_at" class="form-control mb-3" value="${submittedAtRaw || ''}">
+
                     <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
-                    <input type="number" id="swal_score" class="form-control" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
+                    <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
+
+                    <label class="form-label fw-bold mb-1">Catatan / Feedback Guru (Opsional):</label>
+                    <textarea id="swal_feedback" class="form-control" rows="2" placeholder="Tuliskan catatan atau masukan untuk siswa...">${currentFeedback || ''}</textarea>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: 'Simpan Data',
             cancelButtonText: 'Batal',
+            showLoaderOnConfirm: true,
             preConfirm: () => {
                 const status = $('#swal_status').val();
                 const score = $('#swal_score').val();
+                const submittedAt = $('#swal_submitted_at').val();
+                const feedback = $('#swal_feedback').val();
 
                 return $.ajax({
                     url: '{{ route("rekap.tugas.toggle") }}',
@@ -546,15 +562,31 @@
                         assignment_id: assignmentId, 
                         student_id: studentId, 
                         status: status,
-                        score: score
+                        score: score,
+                        submitted_at: submittedAt,
+                        feedback: feedback
                     }
                 }).catch(error => {
-                    Swal.showValidationMessage(`Gagal memperbarui data`);
+                    let errorMsg = 'Gagal memperbarui data.';
+                    if (error.responseJSON && error.responseJSON.message) {
+                        errorMsg = error.responseJSON.message;
+                    }
+                    Swal.showValidationMessage(errorMsg);
                 });
-            }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                location.reload();
+                // Tampilkan Notifikasi Berhasil Terlebih Dahulu Sebelum Reload
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: result.value?.message || 'Data rekapitulasi tugas siswa berhasil diperbarui.',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
             }
         });
     }

@@ -151,143 +151,286 @@ class RekapTugasController extends Controller
     // }
 
     // 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru)
-public function index(Request $request)
-{
-    // Ambil ID Guru yang sedang login
-    $userId = auth()->id();
-    $teacherId = \DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
+// public function index(Request $request)
+// {
+//     // Ambil ID Guru yang sedang login
+//     $userId = auth()->id();
+//     $teacherId = \DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
 
-    // Ambil Tahun Ajaran / Semester yang AKTIF
-    $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+//     // Ambil Tahun Ajaran / Semester yang AKTIF
+//     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
 
-    // 1. Ambil KELAS yang diajar oleh guru ini dari tabel 'schedules'
-    $classrooms = Classroom::whereIn('id', function ($query) use ($teacherId) {
-        $query->select('classroom_id')
-              ->from('schedules')
-              ->where('teacher_id', $teacherId);
-    })->get();
+//     // 1. Ambil KELAS yang diajar oleh guru ini dari tabel 'schedules'
+//     $classrooms = Classroom::whereIn('id', function ($query) use ($teacherId) {
+//         $query->select('classroom_id')
+//               ->from('schedules')
+//               ->where('teacher_id', $teacherId);
+//     })->get();
 
-    $selectedClassroom = $request->input('classroom_id');
+//     $selectedClassroom = $request->input('classroom_id');
 
-    // 2. Ambil MAPEL yang diajar guru ini
-    $subjects = Subject::whereIn('id', function ($query) use ($teacherId, $selectedClassroom) {
-        $query->select('subject_id')
-              ->from('schedules')
-              ->where('teacher_id', $teacherId);
+//     // 2. Ambil MAPEL yang diajar guru ini
+//     $subjects = Subject::whereIn('id', function ($query) use ($teacherId, $selectedClassroom) {
+//         $query->select('subject_id')
+//               ->from('schedules')
+//               ->where('teacher_id', $teacherId);
         
-        if ($selectedClassroom) {
-            $query->where('classroom_id', $selectedClassroom);
-        }
-    })->get();
+//         if ($selectedClassroom) {
+//             $query->where('classroom_id', $selectedClassroom);
+//         }
+//     })->get();
 
-    $selectedSubject = $request->input('subject_id');
+//     $selectedSubject = $request->input('subject_id');
 
-    $assignments = collect();
-    $learningObjectives = collect();
-    $rekapData = collect();
+//     $assignments = collect();
+//     $learningObjectives = collect();
+//     $rekapData = collect();
 
-    if ($selectedClassroom && $selectedSubject) {
-        // Ambil TP yang dibuat untuk Mata Pelajaran ini
-        $learningObjectives = LearningObjective::where('subject_id', $selectedSubject)
-            ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
-                $q->where(function($query) use ($activeAcademicYear) {
-                    $query->where('academic_year_id', $activeAcademicYear->id)
-                          ->orWhereNull('academic_year_id');
-                });
-            })
-            ->orderBy('code', 'asc')
-            ->get();
+//     if ($selectedClassroom && $selectedSubject) {
+//         // Ambil TP yang dibuat untuk Mata Pelajaran ini
+//         $learningObjectives = LearningObjective::where('subject_id', $selectedSubject)
+//             ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+//                 $q->where(function($query) use ($activeAcademicYear) {
+//                     $query->where('academic_year_id', $activeAcademicYear->id)
+//                           ->orWhereNull('academic_year_id');
+//                 });
+//             })
+//             ->orderBy('code', 'asc')
+//             ->get();
 
-        // Ambil Tugas yang dibuat oleh guru ini di kelas & mapel ini
-        $assignments = Assignment::with(['learningObjective', 'submissions'])
-            ->where('classroom_id', $selectedClassroom)
-            ->where('subject_id', $selectedSubject)
-            ->where('teacher_id', $teacherId)
-            ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
-                $q->where(function($query) use ($activeAcademicYear) {
-                    $query->where('academic_year_id', $activeAcademicYear->id)
-                          ->orWhereNull('academic_year_id');
-                });
-            })
-            ->orderBy('created_at', 'asc')
-            ->get();
+//         // Ambil Tugas yang dibuat oleh guru ini di kelas & mapel ini
+//         $assignments = Assignment::with(['learningObjective', 'submissions'])
+//             ->where('classroom_id', $selectedClassroom)
+//             ->where('subject_id', $selectedSubject)
+//             ->where('teacher_id', $teacherId)
+//             ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+//                 $q->where(function($query) use ($activeAcademicYear) {
+//                     $query->where('academic_year_id', $activeAcademicYear->id)
+//                           ->orWhereNull('academic_year_id');
+//                 });
+//             })
+//             ->orderBy('created_at', 'asc')
+//             ->get();
 
-        // Ambil Siswa di kelas yang dipilih
-        $students = Student::where('classroom_id', $selectedClassroom)
-            ->orderBy('name', 'asc')
-            ->get();
+//         // Ambil Siswa di kelas yang dipilih
+//         $students = Student::where('classroom_id', $selectedClassroom)
+//             ->orderBy('name', 'asc')
+//             ->get();
 
-        // Susun matriks rekapitulasi penyerahan tugas, nilai, dan tanggal kumpul
-        $rekapData = $students->map(function ($student) use ($assignments) {
-            $statusTugas  = [];
-            $nilaiTugas   = [];
-            $tanggalTugas = []; // Array untuk menyimpan tanggal pengumpulan
-            $totalH = 0; $totalT = 0; $totalA = 0;
+//         // Susun matriks rekapitulasi penyerahan tugas, nilai, dan tanggal kumpul
+//         $rekapData = $students->map(function ($student) use ($assignments) {
+//             $statusTugas  = [];
+//             $nilaiTugas   = [];
+//             $tanggalTugas = []; // Array untuk menyimpan tanggal pengumpulan
+//             $totalH = 0; $totalT = 0; $totalA = 0;
 
-            foreach ($assignments as $assignment) {
-                $submission = $assignment->submissions
-                    ->where('student_id', $student->id)
-                    ->first();
+//             foreach ($assignments as $assignment) {
+//                 $submission = $assignment->submissions
+//                     ->where('student_id', $student->id)
+//                     ->first();
 
-                if (!$submission) {
-                    $status       = 'A';
-                    $score        = null;
-                    $submittedAt  = null;
-                    $totalA++;
-                } else {
-                    $dbStatus = strtolower($submission->status ?? '');
+//                 if (!$submission) {
+//                     $status       = 'A';
+//                     $score        = null;
+//                     $submittedAt  = null;
+//                     $totalA++;
+//                 } else {
+//                     $dbStatus = strtolower($submission->status ?? '');
 
-                    if ($dbStatus === 'submitted' || $dbStatus === 'h') {
-                        $status = 'H';
-                        $totalH++;
-                    } elseif ($dbStatus === 'late' || $dbStatus === 't') {
-                        $status = 'T';
-                        $totalT++;
+//                     if ($dbStatus === 'submitted' || $dbStatus === 'h') {
+//                         $status = 'H';
+//                         $totalH++;
+//                     } elseif ($dbStatus === 'late' || $dbStatus === 't') {
+//                         $status = 'T';
+//                         $totalT++;
+//                     } else {
+//                         if ($submission->submitted_at && $assignment->due_date && $submission->submitted_at->gt($assignment->due_date)) {
+//                             $status = 'T';
+//                             $totalT++;
+//                         } else {
+//                             $status = 'H';
+//                             $totalH++;
+//                         }
+//                     }
+
+//                     $score       = $submission->score;
+//                     // Format tanggal pengumpulan (Contoh: 15 Oct 2026, 10:35)
+//                     $submittedAt = $submission->submitted_at ? $submission->submitted_at->format('d M Y, H:i') : null;
+//                 }
+
+//                 $statusTugas[$assignment->id]  = $status;
+//                 $nilaiTugas[$assignment->id]   = $score;
+//                 $tanggalTugas[$assignment->id] = $submittedAt;
+//             }
+
+//             return [
+//                 'student_id'    => $student->id,
+//                 'nisn'          => $student->nisn ?? $student->id,
+//                 'nama'          => $student->name,
+//                 'tugas'         => $statusTugas,
+//                 'nilai'         => $nilaiTugas,
+//                 'tanggal_kumpul'=> $tanggalTugas, // Sent to View
+//                 'total_h'       => $totalH,
+//                 'total_t'       => $totalT,
+//                 'total_a'       => $totalA,
+//             ];
+//         });
+//     }
+
+//     return view('recap.tugas', compact(
+//         'classrooms',
+//         'subjects',
+//         'selectedClassroom',
+//         'selectedSubject',
+//         'learningObjectives',
+//         'assignments',
+//         'rekapData',
+//         'activeAcademicYear'
+//     ));
+// }
+
+// 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru)
+    public function index(Request $request)
+    {
+        // Ambil ID Guru yang sedang login
+        $userId = auth()->id();
+        $teacherId = \DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
+
+        // Ambil Tahun Ajaran / Semester yang AKTIF
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+
+        // 1. Ambil KELAS yang diajar oleh guru ini dari tabel 'schedules'
+        $classrooms = Classroom::whereIn('id', function ($query) use ($teacherId) {
+            $query->select('classroom_id')
+                  ->from('schedules')
+                  ->where('teacher_id', $teacherId);
+        })->get();
+
+        $selectedClassroom = $request->input('classroom_id');
+
+        // 2. Ambil MAPEL yang diajar guru ini
+        $subjects = Subject::whereIn('id', function ($query) use ($teacherId, $selectedClassroom) {
+            $query->select('subject_id')
+                  ->from('schedules')
+                  ->where('teacher_id', $teacherId);
+            
+            if ($selectedClassroom) {
+                $query->where('classroom_id', $selectedClassroom);
+            }
+        })->get();
+
+        $selectedSubject = $request->input('subject_id');
+
+        $assignments = collect();
+        $learningObjectives = collect();
+        $rekapData = collect();
+
+        if ($selectedClassroom && $selectedSubject) {
+            // Ambil TP yang dibuat untuk Mata Pelajaran ini
+            $learningObjectives = LearningObjective::where('subject_id', $selectedSubject)
+                ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+                    $q->where(function($query) use ($activeAcademicYear) {
+                        $query->where('academic_year_id', $activeAcademicYear->id)
+                              ->orWhereNull('academic_year_id');
+                    });
+                })
+                ->orderBy('code', 'asc')
+                ->get();
+
+            // Ambil Tugas yang dibuat oleh guru ini di kelas & mapel ini
+            $assignments = Assignment::with(['learningObjective', 'submissions'])
+                ->where('classroom_id', $selectedClassroom)
+                ->where('subject_id', $selectedSubject)
+                ->where('teacher_id', $teacherId)
+                ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+                    $q->where(function($query) use ($activeAcademicYear) {
+                        $query->where('academic_year_id', $activeAcademicYear->id)
+                              ->orWhereNull('academic_year_id');
+                    });
+                })
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Ambil Siswa di kelas yang dipilih
+            $students = Student::where('classroom_id', $selectedClassroom)
+                ->orderBy('name', 'asc')
+                ->get();
+
+            // Susun matriks rekapitulasi penyerahan tugas, nilai, tanggal kumpul & feedback
+            $rekapData = $students->map(function ($student) use ($assignments) {
+                $statusTugas  = [];
+                $nilaiTugas   = [];
+                $tanggalTugas = [];
+                $feedbackTugas = []; // Array untuk menyimpan feedback guru
+                $totalH = 0; $totalT = 0; $totalA = 0;
+
+                foreach ($assignments as $assignment) {
+                    $submission = $assignment->submissions
+                        ->where('student_id', $student->id)
+                        ->first();
+
+                    if (!$submission) {
+                        $status       = 'A';
+                        $score        = null;
+                        $submittedAt  = null;
+                        $feedback     = '';
+                        $totalA++;
                     } else {
-                        if ($submission->submitted_at && $assignment->due_date && $submission->submitted_at->gt($assignment->due_date)) {
+                        $dbStatus = strtolower($submission->status ?? '');
+
+                        if ($dbStatus === 'submitted' || $dbStatus === 'h') {
+                            $status = 'H';
+                            $totalH++;
+                        } elseif ($dbStatus === 'late' || $dbStatus === 't') {
                             $status = 'T';
                             $totalT++;
                         } else {
-                            $status = 'H';
-                            $totalH++;
+                            if ($submission->submitted_at && $assignment->due_date && $submission->submitted_at->gt($assignment->due_date)) {
+                                $status = 'T';
+                                $totalT++;
+                            } else {
+                                $status = 'H';
+                                $totalH++;
+                            }
                         }
+
+                        $score       = $submission->score;
+                        $submittedAt = $submission->submitted_at ? $submission->submitted_at->format('d M Y, H:i') : null;
+                        $feedback    = $submission->feedback ?? '';
                     }
 
-                    $score       = $submission->score;
-                    // Format tanggal pengumpulan (Contoh: 15 Oct 2026, 10:35)
-                    $submittedAt = $submission->submitted_at ? $submission->submitted_at->format('d M Y, H:i') : null;
+                    $statusTugas[$assignment->id]   = $status;
+                    $nilaiTugas[$assignment->id]    = $score;
+                    $tanggalTugas[$assignment->id]  = $submittedAt;
+                    $feedbackTugas[$assignment->id] = $feedback;
                 }
 
-                $statusTugas[$assignment->id]  = $status;
-                $nilaiTugas[$assignment->id]   = $score;
-                $tanggalTugas[$assignment->id] = $submittedAt;
-            }
+                return [
+                    'student_id'    => $student->id,
+                    'nisn'          => $student->nisn ?? $student->id,
+                    'nama'          => $student->name,
+                    'tugas'         => $statusTugas,
+                    'nilai'         => $nilaiTugas,
+                    'tanggal_kumpul'=> $tanggalTugas,
+                    'feedback'      => $feedbackTugas, // Dikirim ke view Blade
+                    'total_h'       => $totalH,
+                    'total_t'       => $totalT,
+                    'total_a'       => $totalA,
+                ];
+            });
+        }
 
-            return [
-                'student_id'    => $student->id,
-                'nisn'          => $student->nisn ?? $student->id,
-                'nama'          => $student->name,
-                'tugas'         => $statusTugas,
-                'nilai'         => $nilaiTugas,
-                'tanggal_kumpul'=> $tanggalTugas, // Sent to View
-                'total_h'       => $totalH,
-                'total_t'       => $totalT,
-                'total_a'       => $totalA,
-            ];
-        });
+        return view('recap.tugas', compact(
+            'classrooms',
+            'subjects',
+            'selectedClassroom',
+            'selectedSubject',
+            'learningObjectives',
+            'assignments',
+            'rekapData',
+            'activeAcademicYear'
+        ));
     }
-
-    return view('recap.tugas', compact(
-        'classrooms',
-        'subjects',
-        'selectedClassroom',
-        'selectedSubject',
-        'learningObjectives',
-        'assignments',
-        'rekapData',
-        'activeAcademicYear'
-    ));
-}
 
     // 2. Simpan TP Baru via AJAX
     public function storeLearningObjective(Request $request)
@@ -634,13 +777,60 @@ public function index(Request $request)
     }
 
     // 5. Update Status & Nilai Pengumpulan (Individual)
+    // public function toggleStatus(Request $request)
+    // {
+    //     $request->validate([
+    //         'assignment_id' => 'required|uuid|exists:assignments,id',
+    //         'student_id'    => 'required|uuid|exists:students,id',
+    //         'status'        => 'required|in:H,T,A,submitted,late',
+    //         'score'         => 'nullable|numeric|min:0|max:100', // Validasi input nilai
+    //     ]);
+
+    //     $assignment = Assignment::findOrFail($request->assignment_id);
+
+    //     if ($request->status === 'A') {
+    //         AssignmentSubmission::where('assignment_id', $request->assignment_id)
+    //             ->where('student_id', $request->student_id)
+    //             ->delete();
+    //     } else {
+    //         $submittedAt = ($request->status === 'T' || $request->status === 'late') 
+    //             ? now()->addHours(2)
+    //             : ($assignment->due_date ?? now());
+
+    //         $dbStatus = ($request->status === 'H' || $request->status === 'submitted') ? 'submitted' : 'late';
+
+    //         AssignmentSubmission::updateOrCreate(
+    //             [
+    //                 'assignment_id' => $request->assignment_id,
+    //                 'student_id'    => $request->student_id,
+    //             ],
+    //             [
+    //                 'submitted_at' => $submittedAt,
+    //                 'status'       => $dbStatus,
+    //                 'score'        => $request->filled('score') ? $request->score : null, // Simpan Nilai
+    //                 'graded_at'    => $request->filled('score') ? now() : null,
+    //                 'created_at'   => now(),
+    //                 'updated_at'   => now()
+    //             ]
+    //         );
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Status dan nilai pengumpulan berhasil diperbarui!'
+    //     ]);
+    // }
+
+    // 5. Update Status, Nilai, Waktu Pengumpulan & Feedback (Individual)
     public function toggleStatus(Request $request)
     {
         $request->validate([
             'assignment_id' => 'required|uuid|exists:assignments,id',
             'student_id'    => 'required|uuid|exists:students,id',
             'status'        => 'required|in:H,T,A,submitted,late',
-            'score'         => 'nullable|numeric|min:0|max:100', // Validasi input nilai
+            'score'         => 'nullable|numeric|min:0|max:100',
+            'submitted_at'  => 'nullable|date',
+            'feedback'      => 'nullable|string', // Validasi input feedback
         ]);
 
         $assignment = Assignment::findOrFail($request->assignment_id);
@@ -650,9 +840,13 @@ public function index(Request $request)
                 ->where('student_id', $request->student_id)
                 ->delete();
         } else {
-            $submittedAt = ($request->status === 'T' || $request->status === 'late') 
-                ? now()->addHours(2)
-                : ($assignment->due_date ?? now());
+            if ($request->filled('submitted_at')) {
+                $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
+            } else {
+                $submittedAt = ($request->status === 'T' || $request->status === 'late') 
+                    ? now()->addHours(2)
+                    : ($assignment->due_date ?? now());
+            }
 
             $dbStatus = ($request->status === 'H' || $request->status === 'submitted') ? 'submitted' : 'late';
 
@@ -664,9 +858,9 @@ public function index(Request $request)
                 [
                     'submitted_at' => $submittedAt,
                     'status'       => $dbStatus,
-                    'score'        => $request->filled('score') ? $request->score : null, // Simpan Nilai
+                    'score'        => $request->filled('score') ? $request->score : null,
+                    'feedback'     => $request->feedback, // Simpan feedback
                     'graded_at'    => $request->filled('score') ? now() : null,
-                    'created_at'   => now(),
                     'updated_at'   => now()
                 ]
             );
@@ -674,51 +868,109 @@ public function index(Request $request)
 
         return response()->json([
             'success' => true,
-            'message' => 'Status dan nilai pengumpulan berhasil diperbarui!'
+            'message' => 'Status, nilai, waktu pengumpulan, dan feedback berhasil diperbarui!'
         ]);
     }
 
-    // 8. Pengisian Rekap Tugas Massal (Sertakan Nilai Massal)
-    public function bulkUpdate(Request $request)
-    {
-        $validated = $request->validate([
-            'assignment_id' => 'required|uuid|exists:assignments,id',
-            'classroom_id'  => 'required|uuid|exists:classrooms,id',
-            'status'        => 'required|in:H,T,A',
-            'score'         => 'nullable|numeric|min:0|max:100', // Opsional input nilai massal
-        ]);
+    // 8. Pengisian Rekap Tugas Massal
+    // public function bulkUpdate(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'assignment_id' => 'required|uuid|exists:assignments,id',
+    //         'classroom_id'  => 'required|uuid|exists:classrooms,id',
+    //         'status'        => 'required|in:H,T,A',
+    //         'score'         => 'nullable|numeric|min:0|max:100',
+    //     ]);
 
-        $students = Student::where('classroom_id', $validated['classroom_id'])->get();
+    //     $students = Student::where('classroom_id', $validated['classroom_id'])->get();
 
-        $dbStatusMap = [
-            'H' => 'submitted',
-            'T' => 'late',
-        ];
+    //     $dbStatusMap = [
+    //         'H' => 'submitted',
+    //         'T' => 'late',
+    //     ];
 
-        foreach ($students as $student) {
-            if ($validated['status'] === 'A') {
-                AssignmentSubmission::where('assignment_id', $validated['assignment_id'])
-                    ->where('student_id', $student->id)
-                    ->delete();
+    //     foreach ($students as $student) {
+    //         if ($validated['status'] === 'A') {
+    //             AssignmentSubmission::where('assignment_id', $validated['assignment_id'])
+    //                 ->where('student_id', $student->id)
+    //                 ->delete();
+    //         } else {
+    //             AssignmentSubmission::updateOrCreate(
+    //                 [
+    //                     'assignment_id' => $validated['assignment_id'],
+    //                     'student_id'    => $student->id,
+    //                 ],
+    //                 [
+    //                     'submitted_at' => now(),
+    //                     'status'       => $dbStatusMap[$validated['status']],
+    //                     'score'        => $request->filled('score') ? $request->score : null,
+    //                     'graded_at'    => $request->filled('score') ? now() : null,
+    //                 ]
+    //             );
+    //         }
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Rekapitulasi tugas berhasil diperbarui secara massal!'
+    //     ]);
+    // }
+    // 8. Pengisian Rekap Tugas Massal (Sertakan Nilai, Waktu & Feedback Massal)
+public function bulkUpdate(Request $request)
+{
+    // 1. Validasi Input dari Request AJAX
+    $validated = $request->validate([
+        'assignment_id' => 'required|uuid|exists:assignments,id',
+        'classroom_id'  => 'required|uuid|exists:classrooms,id',
+        'status'        => 'required|in:H,T,A',
+        'score'         => 'nullable|numeric|min:0|max:100',
+        'submitted_at'  => 'nullable|date',
+        'feedback'      => 'nullable|string',
+    ]);
+
+    // 2. Ambil seluruh siswa di kelas terpilih
+    $students = Student::where('classroom_id', $validated['classroom_id'])->get();
+
+    $dbStatusMap = [
+        'H' => 'submitted',
+        'T' => 'late',
+    ];
+
+    foreach ($students as $student) {
+        if ($validated['status'] === 'A') {
+            // Jika status A (Belum Kumpul), hapus record pengumpulan
+            AssignmentSubmission::where('assignment_id', $validated['assignment_id'])
+                ->where('student_id', $student->id)
+                ->delete();
+        } else {
+            // Tentukan waktu pengumpulan
+            if ($request->filled('submitted_at')) {
+                $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
             } else {
-                AssignmentSubmission::updateOrCreate(
-                    [
-                        'assignment_id' => $validated['assignment_id'],
-                        'student_id'    => $student->id,
-                    ],
-                    [
-                        'submitted_at' => now(),
-                        'status'       => $dbStatusMap[$validated['status']],
-                        'score'        => $request->filled('score') ? $request->score : null,
-                        'graded_at'    => $request->filled('score') ? now() : null,
-                    ]
-                );
+                $submittedAt = now();
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Rekapitulasi dan nilai tugas berhasil diperbarui secara massal!'
-        ]);
+            // Simpan atau buat data baru di database
+            AssignmentSubmission::updateOrCreate(
+                [
+                    'assignment_id' => $validated['assignment_id'],
+                    'student_id'    => $student->id,
+                ],
+                [
+                    'submitted_at' => $submittedAt,
+                    'status'       => $dbStatusMap[$validated['status']],
+                    'score'        => $request->filled('score') ? $request->score : null,
+                    'feedback'     => $request->feedback, // Simpan Feedback Massal
+                    'graded_at'    => $request->filled('score') ? now() : null,
+                    'updated_at'   => now()
+                ]
+            );
+        }
     }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Rekapitulasi tugas massal (status, nilai, waktu, dan feedback) berhasil diperbarui!'
+    ]);
+}
 }
