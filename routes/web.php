@@ -18,6 +18,7 @@ use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\AlumniPortalController;
 use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\RekapTugasController;
+use App\Http\Controllers\RekapPresensiController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -176,6 +177,17 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+
+    Route::prefix('rekap-presensi')->name('rekap.presensi.')->group(function () {
+        // 1. Tampilan Utama Rekapitulasi Presensi
+        Route::get('/', [RekapPresensiController::class, 'index'])->name('index');
+        
+        // 2. Update Status Presensi Individual via SweetAlert2
+        Route::post('/update', [RekapPresensiController::class, 'updateStatus'])->name('update');
+        
+        // 3. Update Presensi Massal (Bulk Update Per Tanggal)
+        Route::post('/bulk', [RekapPresensiController::class, 'bulkUpdate'])->name('bulk');
+    });
 
     // Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');
     // Route::get('/rekap-tugas/detail/{assignment}', [RekapTugasController::class, 'getAssignmentDetail'])->name('rekap.tugas.detail');
