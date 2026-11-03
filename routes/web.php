@@ -333,6 +333,7 @@ Route::middleware(['auth'])->group(function () {
     // Route AJAX untuk dependent dropdown
     Route::get('/api/get-subjects-by-classroom/{classroomId}', [AssignmentController::class, 'getSubjectsByClassroom'])->name('api.get.subjects.by.classroom');
     Route::get('/api/get-tp-by-subject/{subjectId}', [AssignmentController::class, 'getTpBySubject'])->name('api.get.tp.by.subject');
+    Route::post('/api/store-tp', [AssignmentController::class, 'storeTp'])->name('api.store.tp');
     Route::resource('assignments', AssignmentController::class);
 
     Route::prefix('license')->name('license.')->group(function () {

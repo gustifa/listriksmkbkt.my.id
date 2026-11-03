@@ -453,4 +453,23 @@ public function update(Request $request, Assignment $assignment)
 
     return response()->json($learningObjectives);
 }
+
+public function storeTp(Request $request)
+{
+    $validated = $request->validate([
+        'subject_id'  => 'required|uuid|exists:subjects,id',
+        'code'        => 'nullable|string|max:50',
+        'description' => 'required|string',
+    ]);
+
+    $tp = LearningObjective::create($validated);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Tujuan Pembelajaran berhasil ditambahkan!',
+        'data'    => $tp
+    ]);
+}
+
+
 }

@@ -64,7 +64,12 @@
 
                     <!-- 3. PILIH TUJUAN PEMBELAJARAN (Otomatis terisi sesuai mapel) -->
                     <div class="col-12">
-                        <label for="learning_objective_id" class="form-label fw-semibold text-dark">Tujuan Pembelajaran (TP)</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="learning_objective_id" class="form-label fw-semibold text-dark mb-0">Tujuan Pembelajaran (TP)</label>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" id="btn-open-tp-modal" data-bs-toggle="modal" data-bs-target="#modalCreateTp" disabled>
+                                <i class="fas fa-plus-circle me-1"></i> Tambah TP Baru
+                            </button>
+                        </div>
                         <select name="learning_objective_id" id="learning_objective_id" class="form-select select2 @error('learning_objective_id') is-invalid @enderror" disabled>
                             <option value="">-- Pilih Mata Pelajaran Dulu --</option>
                         </select>
@@ -142,11 +147,46 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL TAMBAH TP BARU -->
+<div class="modal fade" id="modalCreateTp" tabindex="-1" aria-labelledby="modalCreateTpLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark" id="modalCreateTpLabel">
+                    <i class="fas fa-bullseye text-primary me-2"></i>Tambah Tujuan Pembelajaran (TP)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formCreateTp">
+                <div class="modal-body p-4">
+                    <div id="tp-modal-alert" class="alert d-none" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label for="tp_code" class="form-label fw-semibold text-dark">Kode TP (Opsional)</label>
+                        <input type="text" id="tp_code" class="form-control" placeholder="Contoh: TP-1.1 atau 10.1">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="tp_description" class="form-label fw-semibold text-dark">Deskripsi Tujuan Pembelajaran <span class="text-danger">*</span></label>
+                        <textarea id="tp_description" class="form-control" rows="4" placeholder="Tuliskan deskripsi kompetensi / tujuan pembelajaran..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary fw-semibold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary fw-semibold" id="btnSaveTp">
+                        <i class="fas fa-save me-1"></i> Simpan TP
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
     <!-- jQuery & Select2 JS -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
@@ -159,6 +199,7 @@
 
             const $subjectSelect = $('#subject_id');
             const $tpSelect = $('#learning_objective_id');
+            const $btnOpenTpModal = $('#btn-open-tp-modal');
 
             // 1. Event saat KELAS berubah -> Fetch MAPEL
             $('#classroom_id').on('change', function() {
@@ -167,6 +208,7 @@
                 if (classroomId) {
                     $subjectSelect.html('<option value="">-- Memuat Mata Pelajaran... --</option>').prop('disabled', true);
                     $tpSelect.html('<option value="">-- Pilih Mata Pelajaran Dulu --</option>').prop('disabled', true).trigger('change');
+                    $btnOpenTpModal.prop('disabled', true);
 
                     $.ajax({
                         url: `/api/get-subjects-by-classroom/${classroomId}`,
@@ -191,14 +233,16 @@
                 } else {
                     $subjectSelect.html('<option value="">-- Pilih Kelas Dulu --</option>').prop('disabled', true).trigger('change');
                     $tpSelect.html('<option value="">-- Pilih Mata Pelajaran Dulu --</option>').prop('disabled', true).trigger('change');
+                    $btnOpenTpModal.prop('disabled', true);
                 }
             });
 
-            // 2. Event saat MAPEL berubah -> Fetch TP
+            // 2. Event saat MAPEL berubah -> Fetch TP & Aktifkan Tombol Tambah TP
             $subjectSelect.on('change', function() {
                 const subjectId = $(this).val();
 
                 if (subjectId) {
+                    $btnOpenTpModal.prop('disabled', false);
                     $tpSelect.html('<option value="">-- Memuat Tujuan Pembelajaran... --</option>').prop('disabled', true);
 
                     $.ajax({
@@ -223,8 +267,61 @@
                         }
                     });
                 } else {
+                    $btnOpenTpModal.prop('disabled', true);
                     $tpSelect.html('<option value="">-- Pilih Mata Pelajaran Dulu --</option>').prop('disabled', true).trigger('change');
                 }
+            });
+
+            // 3. Submit Form Tambah TP via AJAX
+            $('#formCreateTp').on('submit', function(e) {
+                e.preventDefault();
+
+                const subjectId = $subjectSelect.val();
+                const code = $('#tp_code').val();
+                const description = $('#tp_description').val();
+                const $btnSave = $('#btnSaveTp');
+                const $alert = $('#tp-modal-alert');
+
+                if (!subjectId) {
+                    $alert.removeClass('d-none alert-success').addClass('alert-danger').html('Pilih mata pelajaran terlebih dahulu.');
+                    return;
+                }
+
+                $btnSave.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Menyimpan...');
+
+                $.ajax({
+                    url: "{{ route('api.store.tp') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        subject_id: subjectId,
+                        code: code,
+                        description: description
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            const newTp = response.data;
+                            const codeStr = newTp.code ? newTp.code + ' - ' : '';
+                            const newOption = new Option(`${codeStr}${newTp.description}`, newTp.id, true, true);
+                            
+                            $tpSelect.append(newOption).trigger('change');
+
+                            $('#formCreateTp')[0].reset();
+                            $alert.addClass('d-none');
+                            $('#modalCreateTp').modal('hide');
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMsg = 'Gagal menyimpan TP.';
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            errorMsg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
+                        }
+                        $alert.removeClass('d-none alert-success').addClass('alert-danger').html(errorMsg);
+                    },
+                    complete: function() {
+                        $btnSave.prop('disabled', false).html('<i class="fas fa-save me-1"></i> Simpan TP');
+                    }
+                });
             });
         });
     </script>
