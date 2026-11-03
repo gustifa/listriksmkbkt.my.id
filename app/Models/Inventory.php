@@ -30,4 +30,9 @@ class Inventory extends Model
     {
         return $this->belongsTo(Room::class);
     }
+
+    public function transactions()
+    {
+        return $this->hasMany(InventoryTransaction::class, 'item_id');
+    }
 }

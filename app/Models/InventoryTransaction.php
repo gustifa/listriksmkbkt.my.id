@@ -10,17 +10,30 @@ class InventoryTransaction extends Model
 {
     use HasFactory, HasUuids;
 
+    // protected $fillable = [
+    //     'item_id',
+    //     'user_id', // Siapa yang mencatat
+    //     'type',    // 'in' (masuk) atau 'out' (keluar)
+    //     'quantity',
+    //     'date',
+    //     'notes',
+    //     'funding_source',
+    //     'year',
+    //     'receiver'
+    // ];
+
     protected $fillable = [
-        'item_id',
-        'user_id', // Siapa yang mencatat
-        'type',    // 'in' (masuk) atau 'out' (keluar)
-        'quantity',
-        'date',
-        'notes',
-        'funding_source',
-        'year',
-        'receiver'
-    ];
+    'item_id',
+    'inventory_id',
+    'user_id',
+    'type',
+    'quantity',
+    'date',
+    'notes',
+    'funding_source',
+    'year',
+    'receiver',
+];
 
     /**
      * Relasi ke master barang
@@ -37,4 +50,9 @@ class InventoryTransaction extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function inventory()
+{
+    return $this->belongsTo(Inventory::class, 'item_id');
+}
 }

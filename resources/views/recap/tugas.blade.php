@@ -6,15 +6,25 @@
 <x-app-layout>
     <style>
         .table-rekap {
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 11px;
         }
         .table-rekap th, .table-rekap td {
-            border: 1px solid #333 !important;
+            border-right: 1px solid #333 !important;
+            border-bottom: 1px solid #333 !important;
             text-align: center;
             vertical-align: middle;
             padding: 4px;
+            background-color: #fff;
         }
+        .table-rekap thead tr:first-child th {
+            border-top: 1px solid #333 !important;
+        }
+        .table-rekap tr th:first-child, .table-rekap tr td:first-child {
+            border-left: 1px solid #333 !important;
+        }
+
         .header-vertical {
             writing-mode: vertical-lr;
             transform: rotate(180deg);
@@ -23,11 +33,12 @@
             padding: 5px 2px !important;
             cursor: pointer;
         }
-        .header-vertical:hover { background-color: #e9ecef; }
+        .header-vertical:hover { background-color: #e9ecef !important; }
         .cell-clickable { cursor: pointer; font-size: 12px; }
         .cell-clickable:hover { background-color: #d1e7dd !important; }
-        .bg-zebra { background-color: #f8f9fa; }
+        .bg-zebra td { background-color: #f8f9fa !important; }
         .text-left { text-align: left !important; padding-left: 6px !important; }
+        .cursor-pointer { cursor: pointer; }
         .tp-badge {
             font-size: 9px;
             background-color: #0d6efd;
@@ -38,9 +49,33 @@
             margin-bottom: 2px;
         }
 
-        /* CSS KHUSUS MEDIA PRINT / CETAK PDF */
+        /* STICKY / FREEZE COLUMN (NO, INDUK & NAMA SISWA) */
+        .table-rekap th.sticky-col, .table-rekap td.sticky-col {
+            position: sticky;
+            z-index: 2;
+        }
+        .sticky-col-1 { left: 0; min-width: 35px; }
+        .sticky-col-2 { left: 35px; min-width: 95px; }
+        .sticky-col-3 { 
+            left: 130px; 
+            min-width: 200px; 
+            box-shadow: 3px 0 5px -2px rgba(0,0,0,0.15); 
+        }
+
+        /* Header Sticky */
+        .table-rekap thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa !important;
+            z-index: 3;
+        }
+        .table-rekap thead th.sticky-col {
+            z-index: 4;
+        }
+
+        /* CSS MEDIA PRINT */
         @media print {
-            .btn, form, modal, .modal, nav, header, footer, sidebar, .no-print {
+            .btn, form, modal, .modal, nav, header, footer, sidebar, .no-print, .dropdown {
                 display: none !important;
             }
             body {
@@ -60,10 +95,12 @@
                 width: 100% !important;
                 font-size: 9pt !important;
             }
-            .header-vertical {
-                writing-mode: vertical-lr;
-                transform: rotate(180deg);
-                height: 120px !important;
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
+                position: static !important;
+                box-shadow: none !important;
+            }
+            [class*="col-task-"] {
+                display: table-cell !important;
             }
         }
     </style>
@@ -79,7 +116,7 @@
             @endif
         </div>
 
-        <!-- Tombol Cetak, Export Excel & Pengisian Massal (Dipertahankan) -->
+        <!-- Tombol Cetak, Export Excel & Pengisian Massal -->
         @if($selectedClassroom && $selectedSubject)
         <div class="d-flex flex-wrap gap-2 no-print">
             <button type="button" class="btn btn-warning btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalBulkRekap" title="Pengisian Massal">
@@ -96,7 +133,7 @@
         @endif
     </div>
 
-    <!-- Filter Form (Tampilan Asli Dipertahankan) -->
+    <!-- Filter Form -->
     <form method="GET" action="{{ route('rekap.tugas') }}" class="row g-3 mb-4 no-print">
         <div class="col-12 col-md-4">
             <label class="form-label fw-bold">Pilih Kelas</label>
@@ -130,18 +167,56 @@
         </div>
     </form>
 
+    <!-- TOOLBAR FILTER HIDE/SHOW KOLOM TUGAS -->
+    @if($selectedClassroom && $selectedSubject && $assignments->count() > 0)
+    <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" 
+                    type="button" 
+                    id="btnFilterKolom" 
+                    data-bs-toggle="dropdown" 
+                    data-bs-auto-close="outside" 
+                    aria-expanded="false">
+                👁️ Filter Tampilan Kolom Tugas
+            </button>
+            <ul class="dropdown-menu p-3 shadow" aria-labelledby="btnFilterKolom" style="max-height: 320px; overflow-y: auto; width: 300px; z-index: 1050;">
+                <li class="fw-bold mb-2 text-primary border-bottom pb-1">Tampilkan / Sembunyikan Tugas:</li>
+                <li>
+                    <div class="form-check fw-bold text-success mb-2">
+                        <input class="form-check-input cursor-pointer" type="checkbox" id="toggle-all-tasks" checked>
+                        <label class="form-check-label cursor-pointer" for="toggle-all-tasks">Pilih Semua / Reset</label>
+                    </div>
+                </li>
+                @foreach($assignments as $index => $assignment)
+                <li>
+                    <div class="form-check py-1">
+                        <input class="form-check-input toggle-col-checkbox cursor-pointer" type="checkbox" data-column="{{ $index }}" id="col-check-{{ $index }}" checked>
+                        <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-{{ $index }}" title="{{ $assignment->title }}">
+                            ({{ $index + 1 }}) {{ $assignment->title }}
+                        </label>
+                    </div>
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        <small class="text-muted fst-italic">
+            💡 Tips: Sembunyikan kolom tugas yang sudah selesai diinput agar matriks tabel lebih ringkas.
+        </small>
+    </div>
+    @endif
+
     <!-- Tabel Rekapitulasi Grid Matriks -->
     @if($selectedClassroom && $selectedSubject)
-    <div class="table-responsive">
+    <div class="table-responsive" style="max-height: 650px; overflow: auto;">
         <table class="table table-rekap">
-            <thead class="bg-light">
+            <thead>
                 <tr>
-                    <th rowspan="2" style="width: 30px;">NO</th>
-                    <th rowspan="2" style="width: 90px;">INDUK SISWA</th>
-                    <th rowspan="2" style="min-width: 200px;">NAMA PESERTA DIDIK</th>
+                    <th rowspan="2" class="sticky-col sticky-col-1">NO</th>
+                    <th rowspan="2" class="sticky-col sticky-col-2">INDUK SISWA</th>
+                    <th rowspan="2" class="sticky-col sticky-col-3">NAMA PESERTA DIDIK</th>
                     
-                    @forelse($assignments as $assignment)
-                        <th class="header-vertical" onclick="showAssignmentInfo('{{ $assignment->id }}')" title="Klik untuk lihat detail tugas">
+                    @forelse($assignments as $index => $assignment)
+                        <th class="header-vertical col-task-{{ $index }}" onclick="showAssignmentInfo('{{ $assignment->id }}')" title="Klik untuk lihat detail tugas">
                             <span class="tp-badge">{{ $assignment->learningObjective->code ?? 'TP' }}</span>
                             {{ $assignment->title }} ({{ $assignment->due_date ? $assignment->due_date->format('d/m') : '-' }})
                         </th>
@@ -153,7 +228,7 @@
                 </tr>
                 <tr>
                     @foreach($assignments as $index => $assignment)
-                        <th style="font-size: 10px;">{{ $index + 1 }}</th>
+                        <th style="font-size: 10px;" class="col-task-{{ $index }}">{{ $index + 1 }}</th>
                     @endforeach
                     <th style="width: 25px;" class="text-success">H</th>
                     <th style="width: 25px;" class="text-warning">T</th>
@@ -163,11 +238,11 @@
             <tbody>
                 @foreach($rekapData as $index => $row)
                 <tr class="{{ $index % 2 == 1 ? 'bg-zebra' : '' }}">
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $row['nisn'] }}</td>
-                    <td class="text-left fw-bold">{{ $row['nama'] }}</td>
+                    <td class="sticky-col sticky-col-1">{{ $index + 1 }}</td>
+                    <td class="sticky-col sticky-col-2">{{ $row['nisn'] }}</td>
+                    <td class="sticky-col sticky-col-3 text-left fw-bold">{{ $row['nama'] }}</td>
 
-                    @foreach($assignments as $assignment)
+                    @foreach($assignments as $taskIndex => $assignment)
                         @php 
                             $status               = $row['tugas'][$assignment->id] ?? 'A'; 
                             $score                = $row['nilai'][$assignment->id] ?? ''; 
@@ -178,7 +253,7 @@
                             $submittedAtRaw = $sub && $sub->submitted_at ? $sub->submitted_at->format('Y-m-d\TH:i') : '';
                         @endphp
                         
-                        <td class="cell-clickable" 
+                        <td class="cell-clickable col-task-{{ $taskIndex }}" 
                             onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAtFormatted }}', '{{ $submittedAtRaw }}', '{{ addslashes($feedback) }}')">
                             @if($status == 'H' || $status == 'submitted')
                                 <span class="text-success fw-bold">✓</span>
@@ -201,7 +276,7 @@
     @endif
 </div>
 
-<!-- ================= MODAL 1: TAMBAH TP (UTUH) ================= -->
+<!-- ================= MODAL 1: TAMBAH TP ================= -->
 <div class="modal fade no-print" id="modalTP" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -229,7 +304,7 @@
     </div>
 </div>
 
-<!-- ================= MODAL 2: TAMBAH TUGAS (UTUH) ================= -->
+<!-- ================= MODAL 2: TAMBAH TUGAS ================= -->
 <div class="modal fade no-print" id="modalTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -302,28 +377,27 @@
                         </select>
                     </div>
 
-                    <!-- 3. Edit Tanggal / Waktu Pengumpulan Massal (Opsional) -->
+                    <!-- 3. Edit Tanggal / Waktu Pengumpulan Massal -->
                     <div class="mb-3">
                         <label for="bulk_submitted_at" class="form-label fw-bold text-dark">Waktu Pengumpulan (Opsional)</label>
                         <input type="datetime-local" id="bulk_submitted_at" class="form-control" value="{{ date('Y-m-d\TH:i') }}">
-                        <small class="text-muted">Biarkan sesuai default jika ingin menggunakan waktu saat ini.</small>
                     </div>
 
-                    <!-- 4. Input Nilai Massal (Opsional) -->
+                    <!-- 4. Input Nilai Massal -->
                     <div class="mb-3">
                         <label for="bulk_score" class="form-label fw-bold text-dark">Nilai Tugas Massal (Opsional)</label>
                         <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85 atau 100" min="0" max="100" step="0.1">
                     </div>
 
-                    <!-- 5. Input Feedback / Catatan Guru Massal (Opsional) -->
+                    <!-- 5. Input Feedback / Catatan Guru Massal -->
                     <div class="mb-3">
                         <label for="bulk_feedback" class="form-label fw-bold text-dark">Catatan / Feedback Guru Massal (Opsional)</label>
-                        <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Contoh: Sangat baik, lanjutkan perbaikan..."></textarea>
+                        <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Contoh: Sangat baik, tingkatkan lagi..."></textarea>
                     </div>
 
                     <div class="p-3 bg-light rounded border">
                         <small class="text-muted d-block">
-                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status, tanggal, nilai, dan feedback tugas untuk <strong>seluruh siswa</strong> di kelas ini secara bersamaan.
+                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status, waktu, nilai, dan feedback tugas untuk <strong>seluruh siswa</strong> di kelas ini secara bersamaan.
                         </small>
                     </div>
                 </div>
@@ -342,7 +416,7 @@
 
 <!-- JS Script Dependencies -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -368,7 +442,29 @@
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
         });
 
-        // 1. Submit Form TP
+        // 1. Inisialisasi Manual Dropdown Bootstrap
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        dropdownElementList.map(function (dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+
+        // 2. Event Handler Checkbox Hide / Show Kolom Tasks Real-time
+        $(document).on('change', '.toggle-col-checkbox', function() {
+            const colIndex = $(this).data('column');
+            if ($(this).is(':checked')) {
+                $(`.col-task-${colIndex}`).show();
+            } else {
+                $(`.col-task-${colIndex}`).hide();
+            }
+        });
+
+        // 3. Event Handler Select All Tasks
+        $(document).on('change', '#toggle-all-tasks', function() {
+            const isChecked = $(this).is(':checked');
+            $('.toggle-col-checkbox').prop('checked', isChecked).trigger('change');
+        });
+
+        // Submit Form TP
         $('#formTambahTP').submit(function(e) {
             e.preventDefault();
             const subjectId = $('#subject_id').val();
@@ -391,7 +487,7 @@
             });
         });
 
-        // 2. Submit Form Tugas
+        // Submit Form Tugas
         $('#formTambahTugas').submit(function(e) {
             e.preventDefault();
             $.ajax({
@@ -415,7 +511,7 @@
             });
         });
 
-        // Submit Form Pengisian Rekap Massal
+        // Submit Form Pengisian Rekap Massal (Dengan Notifikasi Berhasil)
         $('#formBulkRekap').submit(function(e) {
             e.preventDefault();
             
@@ -438,7 +534,7 @@
 
             Swal.fire({
                 title: 'Apakah Anda Yakin?',
-                text: "Status, tanggal, nilai, dan feedback tugas untuk seluruh siswa di kelas ini akan diperbarui!",
+                text: "Status, tanggal, nilai, dan feedback tugas seluruh siswa akan diperbarui secara massal!",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#ffc107',
@@ -463,8 +559,13 @@
                         },
                         success: function(res) {
                             $('#modalBulkRekap').modal('hide');
-                            Swal.fire('Berhasil!', res.message || 'Rekap tugas massal berhasil diperbarui.', 'success')
-                                .then(() => location.reload());
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: res.message || 'Rekap tugas massal berhasil diperbarui.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => location.reload());
                         },
                         error: function(err) {
                             let errorMsg = 'Gagal memperbarui data secara massal.';
@@ -481,7 +582,7 @@
         });
     });
 
-    // 4. Modal Detail Informasi Tugas
+    // Detail Informasi Tugas
     function showAssignmentInfo(assignmentId) {
         Swal.fire({ 
             title: 'Memuat data...', 
@@ -518,7 +619,7 @@
         });
     }
 
-    // 5. Update Status Ceklis, Input Nilai, Edit Waktu Pengumpulan & Feedback via Modal SweetAlert2
+    // Update Status, Nilai, Waktu & Feedback Individual (Dengan Notifikasi Berhasil)
     function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
         const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
 
@@ -577,7 +678,6 @@
             allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                // Tampilkan Notifikasi Berhasil Terlebih Dahulu Sebelum Reload
                 Swal.fire({
                     icon: 'success',
                     title: 'Berhasil!',

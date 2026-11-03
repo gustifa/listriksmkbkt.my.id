@@ -6,55 +6,85 @@ use App\Models\InventoryLoan;
 use App\Models\Inventory;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class InventoryLoanController extends Controller
 {
     /**
-     * Simpan Peminjaman Baru dengan Validasi Stok
+     * Simpan Peminjaman Baru dengan Validasi Stok (Mendukung AJAX & Direct Post)
      */
     public function store(Request $request)
     {
+        // Validasi input
         $request->validate([
-            'inventory_id' => 'required|exists:inventories,id',
+            'inventory_id'  => 'required|exists:inventories,id',
             'borrower_name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:1',
-            'loan_date' => 'required|date',
+            'quantity'      => 'required|integer|min:1',
+            'loan_date'     => 'required|date',
         ]);
 
-        $item = Inventory::findOrFail($request->inventory_id);
+        try {
+            return DB::transaction(function () use ($request) {
+                $item = Inventory::findOrFail($request->inventory_id);
 
-        // --- VALIDASI STOK BERJALAN ---
+                // 1. Hitung total barang yang sedang dipinjam (Status 'dipinjam')
+                $borrowedQty = InventoryLoan::where('inventory_id', $item->id)
+                                ->where('status', 'dipinjam')
+                                ->sum('quantity');
 
-        // 1. Hitung total barang yang sedang dipinjam (Status 'dipinjam')
-        $borrowedQty = InventoryLoan::where('inventory_id', $item->id)
-                        ->where('status', 'dipinjam')
-                        ->sum('quantity');
+                // 2. Hitung sisa stok yang tersedia
+                $availableQty = $item->quantity - $borrowedQty;
 
-        // 2. Hitung sisa stok yang tersedia di lemari/gudang
-        $availableQty = $item->quantity - $borrowedQty;
+                // 3. Cek apakah permintaan melebihi sisa stok
+                if ($request->quantity > $availableQty) {
+                    $errorMsg = "Stok tidak mencukupi! Total: {$item->quantity}, Dipinjam: {$borrowedQty}, Tersedia: {$availableQty}";
 
-        // 3. Cek apakah permintaan melebihi sisa stok
-        if ($request->quantity > $availableQty) {
-            // Kembalikan error ke halaman sebelumnya
-            return redirect()->back()
-                ->withErrors(['quantity' => "Stok tidak mencukupi! Total: {$item->quantity}, Dipinjam: {$borrowedQty}, Tersedia: {$availableQty}"])
-                ->withInput(); // Kembalikan input user agar tidak perlu ketik ulang
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json([
+                            'status'  => 'error',
+                            'message' => $errorMsg
+                        ], 422);
+                    }
+
+                    return redirect()->back()
+                        ->withErrors(['quantity' => $errorMsg])
+                        ->withInput();
+                }
+
+                // --- SIMPAN DATA JIKA VALID ---
+                $loan = InventoryLoan::create([
+                    'inventory_id'  => $request->inventory_id,
+                    'borrower_name' => $request->borrower_name,
+                    'quantity'      => $request->quantity,
+                    'loan_date'     => $request->loan_date,
+                    'status'        => 'dipinjam',
+                    'notes'         => $request->input('notes')
+                ]);
+
+                // Jika Request via AJAX (SweetAlert2)
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'status'   => 'success',
+                        'message'  => 'Peminjaman berhasil dicatat.',
+                        'data'     => $loan,
+                        'redirect' => route('inventory-loan.active')
+                    ], 200);
+                }
+
+                return redirect()->back()->with('success', 'Peminjaman berhasil dicatat.');
+            });
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Gagal memproses peminjaman: ' . $e->getMessage());
         }
-
-        // --- SIMPAN DATA JIKA VALID ---
-
-        InventoryLoan::create([
-            'inventory_id' => $request->inventory_id,
-            'borrower_name' => $request->borrower_name,
-            'quantity' => $request->quantity,
-            'loan_date' => $request->loan_date,
-            'status' => 'dipinjam',
-            'notes' => $request->input('notes')
-        ]);
-
-        return redirect()->back()->with('success', 'Peminjaman berhasil dicatat.');
     }
 
     /**
@@ -65,7 +95,6 @@ class InventoryLoanController extends Controller
         $loan = InventoryLoan::findOrFail($id);
 
         $returnNote = $request->input('notes');
-
         $finalNotes = $loan->notes;
 
         if (!empty($returnNote)) {
@@ -80,13 +109,16 @@ class InventoryLoanController extends Controller
         }
 
         $loan->update([
-            'status' => 'kembali',
+            'status'      => 'kembali',
             'return_date' => Carbon::now(),
-            'notes' => $finalNotes
+            'notes'       => $finalNotes
         ]);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['status' => 'success', 'message' => 'Barang berhasil dikembalikan.']);
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Barang berhasil dikembalikan.'
+            ]);
         }
 
         return redirect()->back()->with('success', 'Barang berhasil dikembalikan.');
@@ -117,14 +149,15 @@ class InventoryLoanController extends Controller
         $pdf->setPaper('a5', 'landscape');
         $pdf->setOptions([
             'isRemoteEnabled' => true,
-            'isPhpEnabled' => true,
-            'chroot' => public_path(),
+            'isPhpEnabled'    => true,
+            'chroot'          => public_path(),
         ]);
 
         return $pdf->stream('Bukti_Peminjaman_' . preg_replace('/[^A-Za-z0-9\-]/', '_', $loan->borrower_name) . '.pdf');
     }
 
-    private function imageToBase64($path) {
+    private function imageToBase64($path)
+    {
         if (!$path || $path == '-') return null;
         $cleanPath = str_replace('storage/', '', $path);
 
