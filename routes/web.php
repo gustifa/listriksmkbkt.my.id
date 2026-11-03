@@ -17,6 +17,7 @@ use App\Http\Controllers\NotificationCBTController;
 use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\AlumniPortalController;
 use App\Http\Controllers\StudentProfileController;
+use App\Http\Controllers\RekapTugasController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -176,6 +177,24 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
 
+    // Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');
+    // Route::get('/rekap-tugas/detail/{assignment}', [RekapTugasController::class, 'getAssignmentDetail'])->name('rekap.tugas.detail');
+    // Route::post('/rekap-tugas/toggle-status', [RekapTugasController::class, 'toggleStatus'])->name('rekap.tugas.toggle');
+    // Route Tampilan Utama Rekap
+    Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');
+
+    // Route AJAX untuk Simpan TP Baru
+    Route::post('/rekap-tugas/store-tp', [RekapTugasController::class, 'storeLearningObjective'])->name('rekap.tp.store');
+
+    // Route AJAX untuk Simpan Tugas Baru
+    Route::post('/rekap-tugas/store-assignment', [RekapTugasController::class, 'storeAssignment'])->name('rekap.tugas.store_assignment');
+
+    // Route AJAX untuk Detail Tugas & Update Status Pengumpulan
+    Route::get('/rekap-tugas/detail/{assignment}', [RekapTugasController::class, 'getAssignmentDetail'])->name('rekap.tugas.detail');
+    Route::post('/rekap-tugas/toggle-status', [RekapTugasController::class, 'toggleStatus'])->name('rekap.tugas.toggle');
+    Route::get('/rekap-tugas/export', [RekapTugasController::class, 'exportExcel'])->name('rekap.tugas.export');
+    Route::get('/rekap-tugas/pdf', [RekapTugasController::class, 'printPdf'])->name('rekap.tugas.pdf');
+
     Route::get('/attendance/upload', [AttendanceScanController::class, 'index'])->name('attendance.scans.index');
     Route::post('/attendance/upload', [AttendanceScanController::class, 'upload'])->name('attendance.scans.upload');
     Route::get('/attendance/review/{id}', [AttendanceScanController::class, 'review'])->name('attendance.scans.review');
@@ -311,6 +330,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/laporan-kegiatan', [ReportController::class, 'cetakLaporan'])->name('laporan.kegiatan');
 
     Route::resource('materials', CourseMaterialController::class);
+    // Route AJAX untuk dependent dropdown
+    Route::get('/api/get-subjects-by-classroom/{classroomId}', [AssignmentController::class, 'getSubjectsByClassroom'])->name('api.get.subjects.by.classroom');
+    Route::get('/api/get-tp-by-subject/{subjectId}', [AssignmentController::class, 'getTpBySubject'])->name('api.get.tp.by.subject');
     Route::resource('assignments', AssignmentController::class);
 
     Route::prefix('license')->name('license.')->group(function () {

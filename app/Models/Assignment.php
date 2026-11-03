@@ -18,7 +18,10 @@ class Assignment extends Model
         'instructions',
         'file_path',
         'due_date',
-        'max_score'
+        'max_score',
+        'is_published', // <- Tambahkan kolom ini
+        'learning_objective_id',
+        'academic_year_id',
     ];
 
     protected $casts = [
@@ -45,4 +48,13 @@ class Assignment extends Model
     {
         return $this->belongsTo(Teacher::class);
     }
+
+    /**
+     * Relasi ke Model LearningObjective (TP)
+     */
+    public function learningObjective()
+    {
+        return $this->belongsTo(LearningObjective::class, 'learning_objective_id');
+    }
+
 }

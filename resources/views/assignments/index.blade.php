@@ -2,6 +2,18 @@
 
 @section('title', 'Daftar Tugas Siswa')
 
+@push('styles')
+    <!-- Select2 CSS & Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        .select2-container--bootstrap-5 .select2-selection {
+            min-height: 38px;
+            padding-top: 2px;
+        }
+    </style>
+@endpush
+
 @section('content')
 <div class="container-fluid py-3">
     <!-- Header Page & Switcher Tampilan -->
@@ -280,34 +292,41 @@
                             </div>
 
                             <div class="modal-body p-4">
+                                <!-- Judul Tugas -->
                                 <div class="mb-3">
                                     <label class="form-label fw-semibold text-dark">Judul Tugas <span class="text-danger">*</span></label>
-                                    <input type="text" name="title" class="form-control" value="{{ $assignment->title }}" required>
+                                    <input type="text" name="title" class="form-control" value="{{ old('title', $assignment->title) }}" required>
                                 </div>
 
                                 <div class="row g-3 mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold text-dark">Mata Pelajaran <span class="text-danger">*</span></label>
-                                        <select name="subject_id" class="form-select" required>
-                                            @foreach($allSubjects as $subj)
-                                                <option value="{{ $subj->id }}" {{ $assignment->subject_id == $subj->id ? 'selected' : '' }}>
-                                                    {{ $subj->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-
-                                    <!-- Target Kelas (Hanya Kelas Aktif) -->
+                                    <!-- 1. Target Kelas (Hanya Kelas yang Diajar oleh Guru Tersebut) -->
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">Target Kelas <span class="text-danger">*</span></label>
-                                        <select name="classroom_id" class="form-select" required>
-                                            @foreach($allClassrooms->where('is_active', true) as $cls)
-                                                <option value="{{ $cls->id }}" {{ $assignment->classroom_id == $cls->id ? 'selected' : '' }}>
+                                        <select name="classroom_id" id="edit_classroom_id_{{ $assignment->id }}" class="form-select select2-edit-{{ $assignment->id }}" required>
+                                            <option value="">-- Pilih Kelas --</option>
+                                            @foreach($allClassrooms as $cls)
+                                                <option value="{{ $cls->id }}" {{ old('classroom_id', $assignment->classroom_id) == $cls->id ? 'selected' : '' }}>
                                                     {{ $cls->name }}
                                                 </option>
                                             @endforeach
                                         </select>
                                     </div>
+
+                                    <!-- 2. Mata Pelajaran (Dynamic Dependent Dropdown) -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold text-dark">Mata Pelajaran <span class="text-danger">*</span></label>
+                                        <select name="subject_id" id="edit_subject_id_{{ $assignment->id }}" class="form-select select2-edit-{{ $assignment->id }}" required>
+                                            <option value="">-- Pilih Kelas Terlebih Dahulu --</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- 3. Tujuan Pembelajaran (TP) -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold text-dark">Tujuan Pembelajaran (TP)</label>
+                                    <select name="learning_objective_id" id="edit_tp_id_{{ $assignment->id }}" class="form-select select2-edit-{{ $assignment->id }}">
+                                        <option value="">-- Pilih Tujuan Pembelajaran (Opsional) --</option>
+                                    </select>
                                 </div>
 
                                 <div class="row g-3 mb-3">
@@ -318,13 +337,13 @@
 
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">Nilai Maksimal <span class="text-danger">*</span></label>
-                                        <input type="number" name="max_score" class="form-control" value="{{ $assignment->max_score }}" min="1" max="100" required>
+                                        <input type="number" name="max_score" class="form-control" value="{{ old('max_score', (int)$assignment->max_score) }}" min="1" max="100" step="1" required>
                                     </div>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label fw-semibold text-dark">Instruksi Tugas <span class="text-danger">*</span></label>
-                                    <textarea name="instructions" rows="4" class="form-control" required>{{ $assignment->instructions }}</textarea>
+                                    <textarea name="instructions" rows="4" class="form-control" required>{{ old('instructions', $assignment->instructions) }}</textarea>
                                 </div>
 
                                 <div class="mb-3">
@@ -335,6 +354,19 @@
                                             File saat ini: <a href="{{ Storage::url($assignment->file_path) }}" target="_blank" class="text-primary">{{ basename($assignment->file_path) }}</a>
                                         </small>
                                     @endif
+                                </div>
+
+                                <!-- 4. Pilihan Publikasi ke Siswa -->
+                                <div class="p-3 bg-light rounded border mb-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" name="is_published" id="is_published_{{ $assignment->id }}" value="1" {{ old('is_published', $assignment->is_published) ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold text-dark" for="is_published_{{ $assignment->id }}">
+                                            Publikasikan Tugas ke Siswa
+                                        </label>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        Jika <strong>tidak dicentang</strong>, tugas hanya tampil pada rekapitulasi guru dan disembunyikan dari dashboard siswa.
+                                    </small>
                                 </div>
                             </div>
 
@@ -351,68 +383,184 @@
         @endforeach
     @endhasanyrole
 </div>
-
-<script>
-    function switchView(mode) {
-        const cardContainer = document.getElementById('view-card-container');
-        const tableContainer = document.getElementById('view-table-container');
-        const btnCard = document.getElementById('btn-view-card');
-        const btnTable = document.getElementById('btn-view-table');
-
-        if (mode === 'card') {
-            cardContainer.classList.remove('d-none');
-            tableContainer.classList.add('d-none');
-            btnCard.classList.add('active', 'bg-primary', 'text-white');
-            btnTable.classList.remove('active', 'bg-primary', 'text-white');
-        } else {
-            tableContainer.classList.remove('d-none');
-            cardContainer.classList.add('d-none');
-            btnTable.classList.add('active', 'bg-primary', 'text-white');
-            btnCard.classList.remove('active', 'bg-primary', 'text-white');
-        }
-    }
-
-    function filterAssignments() {
-        const searchInput = document.getElementById('filter-search').value.toLowerCase().trim();
-        const teacherInput = document.getElementById('filter-teacher').value.toLowerCase().trim();
-
-        const cardItems = document.querySelectorAll('.assignment-card-item');
-        cardItems.forEach(item => {
-            const title = item.getAttribute('data-title') || '';
-            const teacher = item.getAttribute('data-teacher') || '';
-
-            if (title.includes(searchInput) && teacher.includes(teacherInput)) {
-                item.classList.remove('d-none');
-            } else {
-                item.classList.add('d-none');
-            }
-        });
-
-        const tableRows = document.querySelectorAll('.assignment-row-item');
-        let visibleIndex = 1;
-
-        tableRows.forEach(row => {
-            const title = row.getAttribute('data-title') || '';
-            const teacher = row.getAttribute('data-teacher') || '';
-
-            if (title.includes(searchInput) && teacher.includes(teacherInput)) {
-                row.classList.remove('d-none');
-                const numCell = row.querySelector('.row-number');
-                if (numCell) numCell.innerText = visibleIndex++;
-            } else {
-                row.classList.add('d-none');
-            }
-        });
-    }
-
-    function resetFilter() {
-        document.getElementById('filter-search').value = '';
-        document.getElementById('filter-teacher').value = '';
-        filterAssignments();
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        switchView('card');
-    });
-</script>
 @endsection
+
+@push('scripts')
+    <!-- jQuery & Select2 JS -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        function switchView(mode) {
+            const cardContainer = document.getElementById('view-card-container');
+            const tableContainer = document.getElementById('view-table-container');
+            const btnCard = document.getElementById('btn-view-card');
+            const btnTable = document.getElementById('btn-view-table');
+
+            if (mode === 'card') {
+                cardContainer.classList.remove('d-none');
+                tableContainer.classList.add('d-none');
+                btnCard.classList.add('active', 'bg-primary', 'text-white');
+                btnTable.classList.remove('active', 'bg-primary', 'text-white');
+            } else {
+                tableContainer.classList.remove('d-none');
+                cardContainer.classList.add('d-none');
+                btnTable.classList.add('active', 'bg-primary', 'text-white');
+                btnCard.classList.remove('active', 'bg-primary', 'text-white');
+            }
+        }
+
+        function filterAssignments() {
+            const searchInput = document.getElementById('filter-search').value.toLowerCase().trim();
+            const teacherInput = document.getElementById('filter-teacher').value.toLowerCase().trim();
+
+            const cardItems = document.querySelectorAll('.assignment-card-item');
+            cardItems.forEach(item => {
+                const title = item.getAttribute('data-title') || '';
+                const teacher = item.getAttribute('data-teacher') || '';
+
+                if (title.includes(searchInput) && teacher.includes(teacherInput)) {
+                    item.classList.remove('d-none');
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            const tableRows = document.querySelectorAll('.assignment-row-item');
+            let visibleIndex = 1;
+
+            tableRows.forEach(row => {
+                const title = row.getAttribute('data-title') || '';
+                const teacher = row.getAttribute('data-teacher') || '';
+
+                if (title.includes(searchInput) && teacher.includes(teacherInput)) {
+                    row.classList.remove('d-none');
+                    const numCell = row.querySelector('.row-number');
+                    if (numCell) numCell.innerText = visibleIndex++;
+                } else {
+                    row.classList.add('d-none');
+                }
+            });
+        }
+
+        function resetFilter() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-teacher').value = '';
+            filterAssignments();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            switchView('card');
+
+            // Inisialisasi Dependent Dropdown (Kelas -> Mapel -> TP) & Select2 untuk setiap Modal Edit Tugas
+            @hasanyrole('guru|admin')
+                @foreach($assignments as $assignment)
+                    (function() {
+                        const modalId = '#editAssignmentModal-{{ $assignment->id }}';
+                        const classroomSelect = $('#edit_classroom_id_{{ $assignment->id }}');
+                        const subjectSelect = $('#edit_subject_id_{{ $assignment->id }}');
+                        const tpSelect = $('#edit_tp_id_{{ $assignment->id }}');
+
+                        const selectedSubjectId = "{{ old('subject_id', $assignment->subject_id) }}";
+                        const selectedTpId = "{{ old('learning_objective_id', $assignment->learning_objective_id) }}";
+
+                        if ($.fn.select2) {
+                            $('.select2-edit-{{ $assignment->id }}').select2({
+                                theme: 'bootstrap-5',
+                                dropdownParent: $(modalId),
+                                width: '100%'
+                            });
+                        }
+
+                        // Function untuk mengambil TP berdasarkan Mapel
+                        function fetchEditTP(subjectId, activeTpId = null) {
+                            if (!subjectId) {
+                                tpSelect.html('<option value="">-- Pilih Tujuan Pembelajaran (Opsional) --</option>').trigger('change');
+                                return;
+                            }
+
+                            tpSelect.html('<option value="">-- Memuat TP... --</option>');
+
+                            $.ajax({
+                                url: `/api/get-tp-by-subject/${subjectId}`,
+                                type: 'GET',
+                                dataType: 'json',
+                                success: function(tps) {
+                                    let options = '<option value="">-- Pilih Tujuan Pembelajaran (Opsional) --</option>';
+                                    if (tps && tps.length > 0) {
+                                        tps.forEach(function(tp) {
+                                            const isSel = (activeTpId && activeTpId == tp.id) ? 'selected' : '';
+                                            const codeStr = tp.code ? tp.code + ' - ' : '';
+                                            options += `<option value="${tp.id}" ${isSel}>${codeStr}${tp.description}</option>`;
+                                        });
+                                    } else {
+                                        options = '<option value="">-- Tidak Ada TP untuk Mapel Ini --</option>';
+                                    }
+                                    tpSelect.html(options).trigger('change');
+                                },
+                                error: function() {
+                                    tpSelect.html('<option value="">-- Gagal Memuat TP --</option>').trigger('change');
+                                }
+                            });
+                        }
+
+                        // Function untuk mengambil Mapel berdasarkan Kelas
+                        function fetchEditSubjects(classroomId, activeSubjId = null, activeTpId = null) {
+                            if (!classroomId) {
+                                subjectSelect.html('<option value="">-- Pilih Kelas Terlebih Dahulu --</option>').trigger('change');
+                                tpSelect.html('<option value="">-- Pilih Tujuan Pembelajaran (Opsional) --</option>').trigger('change');
+                                return;
+                            }
+
+                            subjectSelect.html('<option value="">-- Memuat Mata Pelajaran... --</option>');
+
+                            $.ajax({
+                                url: `/api/get-subjects-by-classroom/${classroomId}`,
+                                type: 'GET',
+                                dataType: 'json',
+                                success: function(subjects) {
+                                    let options = '<option value="">-- Pilih Mata Pelajaran --</option>';
+                                    if (subjects && subjects.length > 0) {
+                                        subjects.forEach(function(subj) {
+                                            const isSel = (activeSubjId && activeSubjId == subj.id) ? 'selected' : '';
+                                            options += `<option value="${subj.id}" ${isSel}>${subj.name}</option>`;
+                                        });
+                                        subjectSelect.html(options).trigger('change');
+
+                                        // Load TP untuk mapel terpilih
+                                        const currentSubj = activeSubjId || subjectSelect.val();
+                                        if (currentSubj) {
+                                            fetchEditTP(currentSubj, activeTpId);
+                                        }
+                                    } else {
+                                        subjectSelect.html('<option value="">-- Tidak Ada Mapel di Kelas Ini --</option>').trigger('change');
+                                        tpSelect.html('<option value="">-- Pilih Tujuan Pembelajaran (Opsional) --</option>').trigger('change');
+                                    }
+                                },
+                                error: function() {
+                                    subjectSelect.html('<option value="">-- Gagal Memuat Mapel --</option>').trigger('change');
+                                }
+                            });
+                        }
+
+                        // Load mapel & TP pertama kali saat modal dibuka
+                        $(modalId).on('shown.bs.modal', function () {
+                            fetchEditSubjects(classroomSelect.val(), selectedSubjectId, selectedTpId);
+                        });
+
+                        // Trigger saat kelas diubah
+                        classroomSelect.on('change', function() {
+                            fetchEditSubjects($(this).val());
+                        });
+
+                        // Trigger saat mapel diubah
+                        subjectSelect.on('change', function() {
+                            fetchEditTP($(this).val());
+                        });
+
+                    })();
+                @endforeach
+            @endhasanyrole
+        });
+    </script>
+@endpush
