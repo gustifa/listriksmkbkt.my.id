@@ -1,0 +1,176 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Classroom;
+use App\Models\Subject;
+use App\Models\Student;
+use App\Models\AcademicYear;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use DB;
+
+class RekapPembelajaranController extends Controller
+{
+    public function index(Request $request)
+    {
+        $userId = auth()->id();
+        $teacherId = DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+
+        // 1. Data Filter Kelas & Mapel
+        $classrooms = Classroom::whereIn('id', function ($query) use ($teacherId) {
+            $query->select('classroom_id')->from('schedules')->where('teacher_id', $teacherId);
+        })->get();
+
+        $selectedClassroom = $request->input('classroom_id');
+
+        $subjects = Subject::whereIn('id', function ($query) use ($teacherId, $selectedClassroom) {
+            $query->select('subject_id')->from('schedules')->where('teacher_id', $teacherId);
+            if ($selectedClassroom) {
+                $query->where('classroom_id', $selectedClassroom);
+            }
+        })->get();
+
+        $selectedSubject = $request->input('subject_id');
+
+        $dates = collect();
+        $assignments = collect();
+        $rekapData = collect();
+        $jurnalMap = [];
+
+        if ($selectedClassroom && $selectedSubject) {
+            // A. Dapatkan Tanggal Presensi Unik
+            $dates = DB::table('attendances')
+                ->where('subject_id', $selectedSubject)
+                ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+                    $q->where('academic_year_id', $activeAcademicYear->id);
+                })
+                ->select('date')
+                ->groupBy('date')
+                ->orderBy('date', 'asc')
+                ->get();
+
+            // B. Dapatkan Jurnal Pembelajaran Guru
+            $jurnals = DB::table('learning_journals')
+                ->where('classroom_id', $selectedClassroom)
+                ->where('subject_id', $selectedSubject)
+                ->get();
+            foreach ($jurnals as $j) {
+                $jurnalMap[$j->date] = $j;
+            }
+
+            // C. Dapatkan Daftar Tugas
+            $assignments = DB::table('assignments')
+                ->where('classroom_id', $selectedClassroom)
+                ->where('subject_id', $selectedSubject)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // D. Data Siswa
+            $students = Student::where('classroom_id', $selectedClassroom)
+                ->orderBy('name', 'asc')
+                ->get();
+
+            $totalMeetings = $dates->count();
+
+            // E. Susun Matriks Terpadu (Presensi + Tugas + Performa)
+            $rekapData = $students->map(function ($student) use ($dates, $assignments, $selectedSubject, $totalMeetings) {
+                // 1. Processing Presensi
+                $statusPresensi = [];
+                $catatanSiswa   = [];
+                $attachmentSiswa = [];
+                $totalH = 0; $totalS = 0; $totalI = 0; $totalA = 0; $totalCatatan = 0;
+
+                foreach ($dates as $d) {
+                    $attendance = DB::table('attendances')
+                        ->where('student_id', $student->id)
+                        ->where('subject_id', $selectedSubject)
+                        ->where('date', $d->date)
+                        ->first();
+
+                    if (!$attendance) {
+                        $status  = 'A';
+                        $catatan = '';
+                        $attach  = '';
+                        $totalA++;
+                    } else {
+                        $st = strtolower(trim($attendance->status ?? ''));
+                        if (in_array($st, ['hadir', 'h', 'present'])) {
+                            $status = 'H'; $totalH++;
+                        } elseif (in_array($st, ['sakit', 's', 'sick'])) {
+                            $status = 'S'; $totalS++;
+                        } elseif (in_array($st, ['izin', 'i', 'permission'])) {
+                            $status = 'I'; $totalI++;
+                        } else {
+                            $status = 'A'; $totalA++;
+                        }
+                        $catatan = $attendance->note ?? '';
+                        $attach  = $attendance->attachment_path ?? '';
+                        if (!empty($catatan) || !empty($attach)) { $totalCatatan++; }
+                    }
+                    $statusPresensi[$d->date]  = $status;
+                    $catatanSiswa[$d->date]     = $catatan;
+                    $attachmentSiswa[$d->date] = $attach;
+                }
+                $attendancePercentage = $totalMeetings > 0 ? round(($totalH / $totalMeetings) * 100, 1) : 0;
+
+                // 2. Processing Nilai Tugas
+                $nilaiTugas = [];
+                $totalNilai = 0;
+                $jumlahTugasDinilai = 0;
+
+                foreach ($assignments as $asg) {
+                    $submission = DB::table('assignment_submissions')
+                        ->where('assignment_id', $asg->id)
+                        ->where('student_id', $student->id)
+                        ->first();
+
+                    // PERBAIKAN: Cek kolom mana yang tersedia di database Anda
+                    $grade = null;
+                    if ($submission) {
+                        $grade = $submission->score 
+                            ?? $submission->grade 
+                            ?? $submission->marks 
+                            ?? $submission->point 
+                            ?? null;
+                    }
+                    $nilaiTugas[$asg->id] = $grade;
+
+                    if (!is_null($grade)) {
+                        $totalNilai += $grade;
+                        $jumlahTugasDinilai++;
+                    }
+                }
+                $avgGrade = $jumlahTugasDinilai > 0 ? round($totalNilai / $jumlahTugasDinilai, 1) : 0;
+
+                // 3. Penentuan Status Peringatan (Warning Status)
+                $needAttention = ($attendancePercentage < 75) || ($avgGrade > 0 && $avgGrade < 70);
+
+                return [
+                    'student_id'      => $student->id,
+                    'nisn'            => $student->nisn ?? $student->id,
+                    'nama'            => $student->name,
+                    'phone'           => $student->parent_phone ?? $student->phone ?? '',
+                    'presensi'        => $statusPresensi,
+                    'catatan'         => $catatanSiswa,
+                    'attachment'      => $attachmentSiswa,
+                    'total_h'         => $totalH,
+                    'total_s'         => $totalS,
+                    'total_i'         => $totalI,
+                    'total_a'         => $totalA,
+                    'total_catatan'   => $totalCatatan,
+                    'attendance_pct'  => $attendancePercentage,
+                    'tugas'           => $nilaiTugas,
+                    'avg_grade'       => $avgGrade,
+                    'need_attention'  => $needAttention
+                ];
+            });
+        }
+
+        return view('recap.pembelajaran', compact(
+            'classrooms', 'subjects', 'selectedClassroom', 
+            'selectedSubject', 'dates', 'assignments', 'rekapData', 'jurnalMap', 'activeAcademicYear'
+        ));
+    }
+}

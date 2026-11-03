@@ -19,6 +19,7 @@ use App\Http\Controllers\AlumniPortalController;
 use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\RekapTugasController;
 use App\Http\Controllers\RekapPresensiController;
+use App\Http\Controllers\RekapPembelajaranController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -187,6 +188,10 @@ Route::middleware(['auth'])->group(function () {
         
         // 3. Update Presensi Massal (Bulk Update Per Tanggal)
         Route::post('/bulk', [RekapPresensiController::class, 'bulkUpdate'])->name('bulk');
+    });
+
+    Route::prefix('rekap-pembelajaran')->name('rekap.pembelajaran.')->group(function () {
+        Route::get('/', [RekapPembelajaranController::class, 'index'])->name('index');
     });
 
     // Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');
