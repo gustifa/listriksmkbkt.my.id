@@ -70,7 +70,7 @@
                                 <select name="tp_id" required class="form-select">
                                     <option value="">-- Pilih TP --</option>
                                     @foreach($tps as $tp)
-                                        <option value="{{ $tp->id }}">{{ $tp->title }}</option>
+                                        <option value="{{ $tp->id }}">{{ $tp->title ?? $tp->display_title ?? $tp->description ?? '-' }}</option>
                                     @endforeach
                                 </select>
                             </div>

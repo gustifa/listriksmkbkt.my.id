@@ -39,14 +39,14 @@ class DynamicTemplateController extends Controller
 
     public function index()
 {
-    // 1. Ambil data TP dari tabel tp_masters
+    // 1. Ambil data dari tp_masters (kolom title)
     $tpsMaster = DB::table('tp_masters')
-        ->select('id', 'code', 'title as display_title', DB::raw("'tp_masters' as source_table"))
+        ->select('id', 'code', 'title')
         ->get();
 
-    // 2. Ambil data TP dari tabel learning_objectives
+    // 2. Ambil data dari learning_objectives (kolom description di-alias menjadi title)
     $tpsObjectives = DB::table('learning_objectives')
-        ->select('id', 'code', 'description as display_title', DB::raw("'learning_objectives' as source_table"))
+        ->select('id', 'code', 'description as title')
         ->get();
 
     // 3. Gabungkan kedua kumpulan data
