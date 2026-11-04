@@ -24,44 +24,26 @@ class DynamicTemplateController extends Controller
         $this->geminiService =$geminiService;
     }
 
-    // public function index()
-    // {
-    //     $tps = TpMaster::all();$teachers = Teacher::all();
-
-    //     if (!Storage::exists('public/templates')) {
-    //         Storage::makeDirectory('public/templates');
-    //     }
-
-    //     $uploadedTemplates = Storage::files('public/templates');
-
-    //     return view('templates.index', compact('tps', 'teachers', 'uploadedTemplates'));
-    // }
-
     public function index()
-{
-    // 1. Ambil data dari tp_masters (kolom title)
-    $tpsMaster = DB::table('tp_masters')
-        ->select('id', 'code', 'title')
-        ->get();
+    {
+        $tpsMaster = DB::table('tp_masters')
+            ->select('id', 'code', 'title')
+            ->get();
 
-    // 2. Ambil data dari learning_objectives (kolom description di-alias menjadi title)
-    $tpsObjectives = DB::table('learning_objectives')
-        ->select('id', 'code', 'description as title')
-        ->get();
+        $tpsObjectives = DB::table('learning_objectives')
+            ->select('id', 'code', 'description as title')
+            ->get();
 
-    // 3. Gabungkan kedua kumpulan data
-    $tps = $tpsMaster->merge($tpsObjectives);
-    
-    $teachers = Teacher::all();
+        $tps =$tpsMaster->merge($tpsObjectives);$teachers = Teacher::all();
 
-    if (!Storage::exists('public/templates')) {
-        Storage::makeDirectory('public/templates');
+        if (!Storage::exists('public/templates')) {
+            Storage::makeDirectory('public/templates');
+        }
+
+        $uploadedTemplates = Storage::files('public/templates');
+
+        return view('templates.index', compact('tps', 'teachers', 'uploadedTemplates'));
     }
-
-    $uploadedTemplates = Storage::files('public/templates');
-
-    return view('templates.index', compact('tps', 'teachers', 'uploadedTemplates'));
-}
 
     public function uploadTemplate(Request $request)
     {
@@ -89,13 +71,10 @@ class DynamicTemplateController extends Controller
         }
     }
 
-    /**
-     * Safe string helper untuk mencegah 'Array to string conversion'
-     */
     private function safeString($data)
     {
         if (is_null($data)) return '-';
-        if (is_string($data) || is_numeric($data) || is_bool($data)) return (string)$data;
+        if (is_string($data) \vert{}\vert{} is_numeric($data) || is_bool($data)) return (string)$data;
 
         if (is_array($data) || is_object($data)) {$result = [];
             foreach ((array) $data as $key =>$val) {
@@ -110,9 +89,6 @@ class DynamicTemplateController extends Controller
         return (string) $data;
     }
 
-    /**
-     * Menyuntikkan multiline text ke Word XML secara aman
-     */
     private function setValueWithLineBreaks($templateProcessor, $variable,$text)
     {
         $text = (string)$text;
@@ -126,31 +102,17 @@ class DynamicTemplateController extends Controller
         }
     }
 
-    /**
-     * Super Smart & Dynamic Prompt Generator (Vokasi, HOTS, K3LH, & DPL)
-     */
-/**
- * Dynamic Prompt Generator dengan Narrative Enrichment & Gaya Bahasa Vokasi Interaktif
- */
-/**
- * Super Smart & Dynamic Prompt Generator
- */
-private function buildDynamicPrompt($tp, $teacher, array $aiVariables, $namaMapel)
-{
-    // Menggunakan pembacaan aman agar support kedua tabel (tp_masters & learning_objectives)
-    $judulTp = $this->safeString($tp->title ?? $tp->description ?? '-');
-    $indikatorTp = $this->safeString($tp->indicators ?? $tp->description ?? 'Standar kompetensi vokasi SMK Merdeka');
-    $elemenKode = $this->safeString($tp->code ?? $tp->element_code ?? '-');
+    private function buildDynamicPrompt($judulTp,$indikatorTp, $elemenKode,$teacher, array $aiVariables,$namaMapel)
+    {
+        $inventoryList = 'Multimeter, Trainer Board, Power Supply DC, Cable Tester, APD Bengkel, SOP K3LH';
+        if (class_exists(\App\Models\Inventory::class)) {
+            $invData = \App\Models\Inventory::pluck('name')->take(8)->implode(', ');
+            if (!empty($invData)) $inventoryList =$invData;
+        }
 
-    $inventoryList = 'Multimeter, Trainer Board, Power Supply DC, Cable Tester, APD Bengkel, SOP K3LH';
-    if (class_exists(\App\Models\Inventory::class)) {
-        $invData = \App\Models\Inventory::pluck('name')->take(8)->implode(', ');
-        if (!empty($invData)) $inventoryList = $invData;
-    }
+        $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
 
-    $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
-
-    return <<<PROMPT
+        return <<<PROMPT
 Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi & Instruktur Senior Teknik Ketenagalistrikan di SMK Negeri 1 Bukittinggi.
 
 TUGAS UTAMA:
@@ -169,17 +131,14 @@ DAFTAR VARIABLE PLACEHOLDER YANG WAJIB DIISI:
 {$variableList}
 
 PRINSIP KECERDASAN ARTIFISIAL DALAM MENYUSUN ISI (WAJIB PATUHI):
-1. SPESIFIK & TEKNIS VOKASI: DILARANG memberikan kata-kata generik seperti "Lakukan praktikum dengan baik". Gunakan nama komponen fisik nyata, alat ukur spesifik, rumus/prinsip kelistrikan, dan aturan K3LH yang relevan dengan TP "{$judulTp}".
-2. MODEL PEMBELAJARAN (Sintaks PjBL / PBL): Uraikan aktivitas Guru dan Siswa pada tahap Awal, Inti (Memahami, Mengaplikasi, Merefleksi), dan Penutup secara mendalam dan operasional.
-3. PROFIL LULUSAN (DPL1-DPL8): Apabila terdapat variabel 'profil_lulusan', pilih Dimensi Profil Lulusan yang paling tepat (contoh: DPL3 Penalaran Kritis, DPL4 Kreativitas, DPL5 Kolaborasi) beserta deskripsi integrasi pembelajarannya.
-4. ASESMEN & RUBRIK: Sajikan instrumen asesmen awal, formatif, dan sumatif beserta rubrik penilaian kinerja terukur (Sangat Baik, Baik, Cukup, Perlu Bimbingan).
-5. FORMAT OUTPUT: Hasilkan HANYA string JSON VALID. Setiap nilai (value) HARUS berbentuk teks multiline murni dengan poin bullet (•) jika berisikan poin-poin.
+1. SPESIFIK & TEKNIS VOKASI: DILARANG memberikan kata-kata generik. Gunakan komponen fisik nyata, alat ukur spesifik, rumus kelistrikan, dan aturan K3LH relevan.
+2. MODEL PEMBELAJARAN (Sintaks PjBL / PBL): Uraikan aktivitas Guru dan Siswa secara operasional.
+3. PROFIL LULUSAN: Pilih Dimensi Profil Lulusan yang tepat beserta deskripsi integrasinya.
+4. ASESMEN & RUBRIK: Sajikan instrumen asesmen dan rubrik kinerja terukur.
+5. FORMAT OUTPUT: Hasilkan HANYA string JSON VALID berbentuk teks multiline murni dengan poin bullet (•).
 PROMPT;
-}
+    }
 
-    /**
-     * Auto Template Master Word (.docx)
-     */
     private function generateAutoTemplateStream()
     {
         $phpWord = new PhpWord();
@@ -218,7 +177,6 @@ PROMPT;
 
         $addSectionBox = function($title, $variable) use ($section) {
             $section->addText($title, ['name' => 'Arial', 'size' => 11, 'bold' => true, 'color' => '0F2240']);
-            
             $boxTable =$section->addTable(['borderSize' => 0]);
             $boxTable->addRow();$cell = $boxTable->addCell(9000, ['bgColor' => 'F8FAFC']);$cell->addText($variable, ['name' => 'Arial', 'size' => 9.5, 'color' => '1E293B']);$section->addTextBreak(1);
         };
@@ -233,261 +191,148 @@ PROMPT;
     }
 
     /**
-     * Process & Generate Document
+     * Core Method: Process & Generate Word (.docx) - Support Database & Manual TP Input
      */
-    // public function generateDocument(Request $request)
-    // {
-    //     set_time_limit(300);
-    //     ini_set('memory_limit', '512M');
+    public function generateDocument(Request $request)
+    {
+        set_time_limit(300);
+        daq: ini_set('memory_limit', '512M');
 
-    //     try {
-    //         $request->validate([
-    //             'tp_id' => 'required',
-    //             'teacher_id' => 'required',
-    //         ]);
+        try {
+            $request->validate([
+                'teacher_id' => 'required',
+                'tp_mode'    => 'nullable|in:database,manual',
+            ]);
 
-    //         $isAutoGenerated = false;
+            $isAutoGenerated = false;
 
-    //         if (empty($request->template_path) || $request->template_path === 'auto') {$fullTemplatePath = $this->generateAutoTemplateStream();$isAutoGenerated = true;
-    //         } else {
-    //             $templateRelativePath =$request->template_path;
-                
-    //             if (!Storage::exists($templateRelativePath)) {
-    //                 if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
-    //                     $templateRelativePath = 'public/templates/' . basename($templateRelativePath);
-    //                 } else {
-    //                     return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan di server.'], 404);
-    //                 }
-    //             }
-
-    //             $fullTemplatePath = Storage::path($templateRelativePath);
-    //         }
-
-    //         $templateProcessor = new TemplateProcessor($fullTemplatePath);
-    //         $variables =$templateProcessor->getVariables();
-
-    //         $tp = TpMaster::with('subject')->findOrFail($request->tp_id);
-    //         $teacher = Teacher::findOrFail($request->teacher_id);
-            
-    //         $namaMapel =$this->safeString($tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan');
-    //         $judulTp =$this->safeString($tp->title);$namaGuru = $this->safeString($teacher->name ?? '-');
-    //         $nipGuru = $this->safeString($teacher->nip ?? '-');
-
-    //         $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
-
-    //         $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
-            
-    //         $userPrompt = $this->buildDynamicPrompt($tp, $teacher, $aiVariables, $namaMapel);
-
-    //         $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
-            
-    //         $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
-    //         $cleanJson = trim($cleanJson, '`');
-    //         $aiData = json_decode($cleanJson, true) ?? [];
-
-    //         foreach ($variables as $variable) {
-    //             $varLower = strtolower($variable);
-
-    //             if (in_array($varLower, ['nama_mapel', 'mapel'])) {
-    //                 $templateProcessor->setValue($variable, $namaMapel);
-    //             } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
-    //                 $templateProcessor->setValue($variable, $namaGuru);
-    //             } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
-    //                 $templateProcessor->setValue($variable, $nipGuru);
-    //             } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
-    //                 $templateProcessor->setValue($variable, $judulTp);
-    //             } else {
-    //                 $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
-
-    //                 if ($rawValue === null) {
-    //                     foreach ($aiData as $k => $v) {
-    //                         if (strtolower($k) === $varLower) {
-    //                             $rawValue = $v;
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-
-    //                 $safeValue = $this->safeString($rawValue ?? 'Konten disesuaikan dengan TP: ' . $judulTp);
-    //                 $this->setValueWithLineBreaks($templateProcessor, $variable, $safeValue);
-    //             }
-    //         }
-
-    //         $tempFile = tempnam(sys_get_temp_dir(), 'docx_out_');
-    //         $templateProcessor->saveAs($tempFile);
-            
-    //         $fileData = file_get_contents($tempFile);
-    //         $base64File = base64_encode($fileData);
-            
-    //         @unlink($tempFile);
-    //         if ($isAutoGenerated && file_exists($fullTemplatePath)) {
-    //             @unlink($fullTemplatePath);
-    //         }
-
-    //         $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
-
-    //         return response()->json([
-    //             'status' => 'success',
-    //             'message' => 'Dokumen berhasil disusun dan disesuaikan secara cerdas dengan TP!',
-    //             'filename' => $downloadFilename,
-    //             'file_data' => $base64File,
-    //             'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    //         ], 200);
-
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
-    /**
- * Core Method: Process & Generate Word (.docx)
- * Mendukung dua sumber tabel TP (tp_masters & learning_objectives)
- */
-public function generateDocument(Request $request)
-{
-    set_time_limit(300);
-    ini_set('memory_limit', '512M');
-
-    try {
-        $request->validate([
-            'tp_id' => 'required',
-            'teacher_id' => 'required',
-        ]);
-
-        $isAutoGenerated = false;
-
-        // 1. Tentukan Sumber File Template (.docx)
-        if (empty($request->template_path) || $request->template_path === 'auto') {$fullTemplatePath = $this->generateAutoTemplateStream();$isAutoGenerated = true;
-        } else {
-            $templateRelativePath =$request->template_path;
-            
-            if (!Storage::exists($templateRelativePath)) {
-                if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
-                    $templateRelativePath = 'public/templates/' . basename($templateRelativePath);
-                } else {
-                    return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan di server.'], 404);
-                }
-            }
-
-            $fullTemplatePath = Storage::path($templateRelativePath);
-        }
-
-        // 2. Load TemplateProcessor & Deteksi Variabel Placeholder ${...}
-        $templateProcessor = new TemplateProcessor($fullTemplatePath);
-        $variables =$templateProcessor->getVariables();
-
-        // 3. Pencarian Fleksibel Data TP di Dua Tabel (tp_masters & learning_objectives)
-        $tp = DB::table('tp_masters')->where('id', $request->tp_id)->first();$sourceTable = 'tp_masters';
-
-        if (!$tp) {$tp = DB::table('learning_objectives')->where('id', $request->tp_id)->first();$sourceTable = 'learning_objectives';
-        }
-
-        if (!$tp) {
-            return response()->json(['status' => 'error', 'message' => 'Data TP tidak ditemukan di database.'], 404);
-        }
-
-        // Ekstrak Judul TP, Indikator, dan Nama Mapel secara otomatis mengikuti asal tabelnya
-        // Ekstrak Judul TP, Indikator, dan Nama Mapel secara otomatis & aman
-        if ($sourceTable === 'tp_masters') {
-            $judulTp = $this->safeString($tp->title ?? $tp->description ?? '-');
-            $indikatorTp = $this->safeString($tp->indicators ?? $tp->title ?? 'Kompetensi keahlian vokasi SMK');
-            
-            $namaMapel = 'Teknik Ketenagalistrikan';
-            if (!empty($tp->major_id)) {
-                $major = DB::table('majors')->where('id', $tp->major_id)->first();
-                if ($major) $namaMapel = $major->name;
-            }
-        } else { // learning_objectives
-            $judulTp = $this->safeString($tp->description ?? $tp->title ?? '-');
-            $indikatorTp = $this->safeString($tp->description ?? 'Kompetensi keahlian vokasi SMK');
-            
-            $namaMapel = 'Teknik Ketenagalistrikan';
-            if (!empty($tp->subject_id)) {
-                $subject = DB::table('subjects')->where('id', $tp->subject_id)->first();
-                if ($subject) $namaMapel = $subject->name;
-            }
-        }
-
-        // Ambil Data Guru Pengampu
-        $teacher = Teacher::findOrFail($request->teacher_id);$namaGuru = $this->safeString($teacher->name ?? '-');
-        $nipGuru = $this->safeString($teacher->nip ?? '-');
-
-        // Pisahkan Variabel Statis Identitas dan Variabel AI
-        $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
-
-        // 4. Susun Prompt Dinamis & Panggil Gemini AI
-        $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi & Instruktur Senior. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
-        
-        $userPrompt = $this->buildDynamicPrompt($tp, $teacher, $aiVariables, $namaMapel);
-
-        $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
-        
-        // Pembersihan Format JSON AI Response
-        $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
-        $cleanJson = trim($cleanJson, '`');
-        $aiData = json_decode($cleanJson, true) ?? [];
-
-        // 5. Inject Data Statis & Data AI ke Placeholder Word
-        foreach ($variables as $variable) {
-            $varLower = strtolower($variable);
-
-            if (in_array($varLower, ['nama_mapel', 'mapel'])) {
-                $templateProcessor->setValue($variable, $namaMapel);
-            } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
-                $templateProcessor->setValue($variable, $namaGuru);
-            } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
-                $templateProcessor->setValue($variable, $nipGuru);
-            } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
-                $templateProcessor->setValue($variable, $judulTp);
+            if (empty($request->template_path) || $request->template_path === 'auto') {$fullTemplatePath = $this->generateAutoTemplateStream();$isAutoGenerated = true;
             } else {
-                $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
-
-                // Fallback jika AI mengubah penulisan case key JSON
-                if ($rawValue === null) {
-                    foreach ($aiData as $k => $v) {
-                        if (strtolower($k) === $varLower) {
-                            $rawValue = $v;
-                            break;
-                        }
+                $templateRelativePath =$request->template_path;
+                
+                if (!Storage::exists($templateRelativePath)) {
+                    if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
+                        $templateRelativePath = 'public/templates/' . basename($templateRelativePath);
+                    } else {
+                        return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan di server.'], 404);
                     }
                 }
 
-                $safeValue = $this->safeString($rawValue ?? 'Konten disesuaikan dengan TP: ' . $judulTp);
-                $this->setValueWithLineBreaks($templateProcessor, $variable, $safeValue);
+                $fullTemplatePath = Storage::path($templateRelativePath);
             }
+
+            $templateProcessor = new TemplateProcessor($fullTemplatePath);
+            $variables =$templateProcessor->getVariables();
+
+            $judulTp = "";
+            $indikatorTp = "Standar kompetensi keahlian vokasi SMK";
+            $elemenKode = "TP-KLI-01";
+            $namaMapel = "Teknik Ketenagalistrikan";
+
+            // Tangani Input TP (Manual vs Database)
+            if ($request->tp_mode === 'manual' \vert{}\vert{}$request->filled('tp_manual')) {
+                $judulTp = trim($request->tp_manual);
+                if (empty($judulTp)) { return response()->json(['status' => 'error', 'message' => 'Tujuan Pembelajaran (TP) manual tidak boleh kosong.'], 422); } } else {$request->validate(['tp_id' => 'required']);
+
+                $tp = DB::table('tp_masters')->where('id', $request->tp_id)->first();$sourceTable = 'tp_masters';
+
+                if (!$tp) {$tp = DB::table('learning_objectives')->where('id', $request->tp_id)->first();$sourceTable = 'learning_objectives';
+                }
+
+                if (!$tp) {
+                    return response()->json(['status' => 'error', 'message' => 'Data TP tidak ditemukan di database.'], 404);
+                }
+
+                if ($sourceTable === 'tp_masters') {
+                    $judulTp =$this->safeString($tp->title ?? $tp->description ?? '-');
+                    $indikatorTp =$this->safeString($tp->indicators ?? $tp->title ?? 'Kompetensi keahlian vokasi SMK');
+                    $elemenKode = $this->safeString($tp->code ?? '-');
+                    
+                    if (!empty($tp->major_id)) {
+                        $major = DB::table('majors')->where('id',$tp->major_id)->first();
+                        if ($major) $namaMapel =$major->name;
+                    }
+                } else {
+                    $judulTp =$this->safeString($tp->description ?? $tp->title ?? '-');
+                    $indikatorTp = $this->safeString($tp->description ?? 'Kompetensi keahlian vokasi SMK');
+                    $elemenKode = $this->safeString($tp->code ?? '-');
+                    
+                    if (!empty($tp->subject_id)) {
+                        $subject = DB::table('subjects')->where('id',$tp->subject_id)->first();
+                        if ($subject) $namaMapel =$subject->name;
+                    }
+                }
+            }
+
+            $teacher = Teacher::findOrFail($request->teacher_id);$namaGuru = $this->safeString($teacher->name ?? '-');
+            $nipGuru = $this->safeString($teacher->nip ?? '-');
+
+            $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
+
+            $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi & Instruktur Senior. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
+            
+            $userPrompt = $this->buildDynamicPrompt($judulTp, $indikatorTp, $elemenKode, $teacher, $aiVariables, $namaMapel);
+
+            $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
+            
+            $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
+            $cleanJson = trim($cleanJson, '`');
+            $aiData = json_decode($cleanJson, true) ?? [];
+
+            foreach ($variables as $variable) {
+                $varLower = strtolower($variable);
+
+                if (in_array($varLower, ['nama_mapel', 'mapel'])) {
+                    $templateProcessor->setValue($variable, $namaMapel);
+                } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
+                    $templateProcessor->setValue($variable, $namaGuru);
+                } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
+                    $templateProcessor->setValue($variable, $nipGuru);
+                } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
+                    $templateProcessor->setValue($variable, $judulTp);
+                } else {
+                    $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
+
+                    if ($rawValue === null) {
+                        foreach ($aiData as $k => $v) {
+                            if (strtolower($k) === $varLower) {
+                                $rawValue = $v;
+                                break;
+                            }
+                        }
+                    }
+
+                    $safeValue = $this->safeString($rawValue ?? 'Konten disesuaikan dengan TP: ' . $judulTp);
+                    $this->setValueWithLineBreaks($templateProcessor, $variable, $safeValue);
+                }
+            }
+
+            $tempFile = tempnam(sys_get_temp_dir(), 'docx_out_');
+            $templateProcessor->saveAs($tempFile);
+            
+            $fileData = file_get_contents($tempFile);
+            $base64File = base64_encode($fileData);
+            
+            @unlink($tempFile);
+            if ($isAutoGenerated && file_exists($fullTemplatePath)) {
+                @unlink($fullTemplatePath);
+            }
+
+            $downloadFilename = 'Perangkat_Ajar_' . Str::slug(Str::limit($judulTp, 30)) . '_' . time() . '.docx';
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Dokumen berhasil disusun dan disesuaikan secara cerdas dengan TP!',
+                'filename' => $downloadFilename,
+                'file_data' => $base64File,
+                'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-
-        // 6. Simpan Ke Temporary File & Konversi ke String Base64
-        $tempFile = tempnam(sys_get_temp_dir(), 'docx_out_');
-        $templateProcessor->saveAs($tempFile);
-        
-        $fileData = file_get_contents($tempFile);
-        $base64File = base64_encode($fileData);
-        
-        @unlink($tempFile);
-        if ($isAutoGenerated && file_exists($fullTemplatePath)) {
-            @unlink($fullTemplatePath);
-        }
-
-        $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
-
-        // Return Response JSON ke Frontend untuk Direct Download (Bypass 403/404)
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Dokumen berhasil disusun dan disesuaikan secara cerdas dengan TP!',
-            'filename' => $downloadFilename,
-            'file_data' => $base64File,
-            'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ], 200);
-
-    } catch (Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-        ], 500);
     }
-}
 }
