@@ -4,17 +4,16 @@ namespace App\Services;
 
 use App\Models\ApiKey;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class VideoGeneratorService
 {
     /**
-     * Ambil API Key Aktif dari Database secara Dinamis berdasarkan Provider
+     * Ambil API Key Aktif dari Database api_keys secara Dinamis
      */
-    public function getActiveApiKey(string $provider)
+    private function getActiveApiKey(string $provider)
     {
-        $keyRecord = ApiKey::where('provider', $provider)
+        $keyRecord = ApiKey::where('provider', strtolower($provider))
             ->where('is_active', true)
             ->orderBy('priority', 'asc')
             ->first();
@@ -23,28 +22,24 @@ class VideoGeneratorService
             return $keyRecord->api_key;
         }
 
-        // Fallback ke .env jika di database tidak ditemukan
-        $envKey = env(strtoupper($provider) . '_API_KEY');
-        if (!empty($envKey)) {
-            return $envKey;
-        }
-
-        return null;
+        return env(strtoupper($provider) . '_API_KEY', null);
     }
 
     /**
-     * 100% GRATIS: Generate Voiceover Bahasa Indonesia Menggunakan Edge TTS API
+     * 100% GRATIS: Generate Voiceover Bahasa Indonesia Menggunakan Edge TTS
      */
     public function generateFreeVoiceover(string $text, string $voice = 'id-ID-ArdiNeural')
     {
         $filename = 'audio_' . time() . '_' . uniqid() . '.mp3';
-        $savePath = storage_path('app/public/audio/' . $filename);
+        $saveDir = storage_path('app/public/audio');
 
-        if (!file_exists(storage_path('app/public/audio'))) {
-            mkdir(storage_path('app/public/audio'), 0755, true);
+        if (!file_exists($saveDir)) {
+            mkdir($saveDir, 0755, true);
         }
 
-        // Menggunakan endpoint publik Edge TTS (Tanpa API Key, 100% Gratis)
+        $savePath = $saveDir . '/' . $filename;
+
+        // Endpoint Edge TTS Gratis tanpa API Key
         $url = "https://api.streamelements.com/kappa/v2/speech?voice={$voice}&text=" . urlencode($text);
         
         $response = Http::timeout(30)->get($url);
@@ -54,47 +49,50 @@ class VideoGeneratorService
             return asset('storage/audio/' . $filename);
         }
 
-        throw new Exception("Gagal merender suara Edge TTS.");
+        throw new Exception("Gagal membuat suara Edge TTS.");
     }
 
     /**
-     * Generator Video Hybrid: Memprioritaskan API Key Dinamis dari DB, Fallback ke Voiceover Gratis
+     * Core Method Public: Multi-Model Renderer (HeyGen -> Luma -> Fallback Gratis)
      */
-    public function renderDynamicVideo(string $script, string $format, string $topic)
+    public function generateVideo(string $script, string $format = 'short', string $topic = '')
     {
-        // 1. Cek API Key HeyGen dari Database
+        // 1. Cek API Key HeyGen
         $heygenKey = $this->getActiveApiKey('heygen');
         if ($heygenKey) {
             try {
                 return $this->renderWithHeyGen($script, $format, $heygenKey);
             } catch (Exception $e) {
-                // Jika key HeyGen gagal/habis kuota, lanjut ke fallback
+                // Fallback jika gagal/habis kuota
             }
         }
 
-        // 2. Cek API Key Luma dari Database
+        // 2. Cek API Key Luma
         $lumaKey = $this->getActiveApiKey('luma');
         if ($lumaKey) {
             try {
                 return $this->renderWithLuma($script, $format, $lumaKey);
             } catch (Exception $e) {
-                // Jika gagal, lanjut ke fallback
+                // Fallback jika gagal
             }
         }
 
-        // 3. Fallback 100% GRATIS: Edge TTS Audio + Standar Slide Video
+        // 3. Fallback 100% Gratis: Voiceover Audio Bahasa Indonesia via Edge TTS
         $audioUrl = $this->generateFreeVoiceover($script);
 
         return [
-            'status' => 'success',
-            'provider' => 'Edge TTS + Engine Lokal (100% Gratis)',
+            'status' => 'completed',
+            'provider' => 'Edge TTS Engine (100% Gratis)',
+            'video_url' => null,
             'audio_url' => $audioUrl,
-            'script' => $script,
-            'message' => 'Voiceover Bahasa Indonesia berhasil dibuat gratis! Menggunakan audio pengisi suara.'
+            'message' => 'Naskah & Voiceover Bahasa Indonesia berhasil dibuat gratis!'
         ];
     }
 
-    private function renderWithHeyGen($script, $format, $apiKey)
+    /**
+     * Render via HeyGen API
+     */
+    private function renderWithHeyGen(string $script, string $format, string $apiKey)
     {
         $dimension = ($format === 'short') ? ['width' => 720, 'height' => 1280] : ['width' => 1280, 'height' => 720];
 
@@ -111,16 +109,21 @@ class VideoGeneratorService
 
         if ($response->successful()) {
             return [
-                'status' => 'success',
-                'provider' => 'HeyGen Avatar AI (Database Key)',
-                'video_url' => $response->json('data.video_url')
+                'status' => 'completed',
+                'provider' => 'HeyGen AI (Database Key)',
+                'video_url' => $response->json('data.video_url'),
+                'audio_url' => null,
+                'message' => 'Video Avatar AI berhasil di-render!'
             ];
         }
 
-        throw new Exception("HeyGen error");
+        throw new Exception("HeyGen API Error");
     }
 
-    private function renderWithLuma($prompt, $format, $apiKey)
+    /**
+     * Render via Luma AI API
+     */
+    private function renderWithLuma(string $prompt, string $format, string $apiKey)
     {
         $aspectRatio = ($format === 'short') ? '9:16' : '16:9';
 
@@ -134,12 +137,14 @@ class VideoGeneratorService
 
         if ($response->successful()) {
             return [
-                'status' => 'success',
+                'status' => 'completed',
                 'provider' => 'Luma AI (Database Key)',
-                'video_url' => $response->json('assets.video')
+                'video_url' => $response->json('assets.video'),
+                'audio_url' => null,
+                'message' => 'Video animasi Luma AI berhasil di-render!'
             ];
         }
 
-        throw new Exception("Luma error");
+        throw new Exception("Luma API Error");
     }
 }
