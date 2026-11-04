@@ -134,8 +134,11 @@
 
 </div>
 
-<!-- Script AJAX Handler (Word Download + Video Generator + SweetAlert2) -->
+<!-- Script AJAX Handler (Word Download + Video Generator + Export Text + SweetAlert2) -->
 <script>
+    // Variabel Global untuk menyimpan data Part sementara
+    let currentScriptParts = [];
+
     document.addEventListener('DOMContentLoaded', function () {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
@@ -258,7 +261,7 @@
     function triggerGenerateVideo(format) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const tpId = document.getElementById('tp_id_select').value;
-        const partCount = document.getElementById('part_count_select').value; // Mengambil opsi jumlah part
+        const partCount = document.getElementById('part_count_select').value;
         
         if (!tpId) {
             Swal.fire({
@@ -293,6 +296,9 @@
             const data = await response.json();
             if (response.ok && data.status === 'success') {
                 
+                // Simpan data part ke variabel global
+                currentScriptParts = data.parts || [];
+
                 let downloadHtml = `<p class="small text-muted mb-2">${data.message} (Engine: <strong>${data.provider}</strong>)</p>`;
                 
                 if (data.video_url) {
@@ -306,8 +312,22 @@
                         </div>`;
                 }
 
-                // Render Naskah per Part dengan Tombol Salin per Bagian
-                downloadHtml += `<div class="text-start mt-3" style="max-height: 280px; overflow-y: auto;">`;
+                // Tombol Aksi Masal: Export Text (.txt) & Salin Semua Part
+                downloadHtml += `
+                    <div class="d-flex justify-content-between align-items-center mb-2 mt-3 px-1">
+                        <span class="small fw-bold text-dark"><i class="fa-solid fa-list-ol text-primary me-1"></i> Daftar Part Naskah:</span>
+                        <div class="d-flex gap-1">
+                            <button type="button" onclick="exportScriptToText()" class="btn btn-sm btn-outline-success py-1 px-2">
+                                <i class="fa-solid fa-file-arrow-down me-1"></i> Export Text (.txt)
+                            </button>
+                            <button type="button" onclick="copyAllPartsScript()" id="btnCopyAll" class="btn btn-sm btn-outline-dark py-1 px-2">
+                                <i class="fa-solid fa-copy me-1"></i> Salin Semua
+                            </button>
+                        </div>
+                    </div>`;
+
+                // Render Naskah per Part
+                downloadHtml += `<div class="text-start" style="max-height: 260px; overflow-y: auto;">`;
                 
                 if (data.parts && data.parts.length > 0) {
                     data.parts.forEach((part, index) => {
@@ -341,7 +361,7 @@
                     icon: 'success',
                     title: 'Naskah Berhasil Di-generate!',
                     html: downloadHtml,
-                    width: '600px',
+                    width: '620px',
                     confirmColor: '#0d6efd'
                 });
 
@@ -354,7 +374,7 @@
         });
     }
 
-    // Helper Function: Salin Teks Per Part ke Clipboard
+    // Helper Function 1: Salin Per Part
     function copyPartScript(elementId, buttonId) {
         const scriptElem = document.getElementById(elementId);
         if (!scriptElem) return;
@@ -370,9 +390,56 @@
                     btn.innerHTML = '<i class="fa-solid fa-copy me-1"></i> Salin Part';
                 }, 2000);
             }
-        }).catch(err => {
-            alert('Gagal menyalin naskah: ' + err);
+        }).catch(err => alert('Gagal menyalin: ' + err));
+    }
+
+    // Helper Function 2: Salin Semua Part Sekaligus
+    function copyAllPartsScript() {
+        if (!currentScriptParts || currentScriptParts.length === 0) return;
+
+        let fullText = "";
+        currentScriptParts.forEach(part => {
+            fullText += `=== ${part.part_name} ===\n${part.content}\n\n`;
         });
+
+        navigator.clipboard.writeText(fullText.trim()).then(() => {
+            const btn = document.getElementById('btnCopyAll');
+            if (btn) {
+                btn.className = "btn btn-sm btn-success py-1 px-2";
+                btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Semua Tersalin!';
+                setTimeout(() => {
+                    btn.className = "btn btn-sm btn-outline-dark py-1 px-2";
+                    btn.innerHTML = '<i class="fa-solid fa-copy me-1"></i> Salin Semua';
+                }, 2000);
+            }
+        });
+    }
+
+    // Helper Function 3: Export Naskah Ke File Text (.txt)
+    function exportScriptToText() {
+        if (!currentScriptParts || currentScriptParts.length === 0) {
+            alert('Tidak ada naskah yang bisa diexport.');
+            return;
+        }
+
+        let content = "=========================================\n";
+        content += "  NASKAH VIDEO PEMBELAJARAN (AI SCRIPT)  \n";
+        content += "  SMK NEGERI 1 BUKITTINGGI               \n";
+        content += "=========================================\n\n";
+
+        currentScriptParts.forEach((part, index) => {
+            content += `[ ${part.part_name.toUpperCase()} ]\n`;
+            content += `${part.content}\n\n`;
+            content += "-----------------------------------------\n\n";
+        });
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Naskah_Video_AI_Part_${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 </script>
 </x-app-layout>
