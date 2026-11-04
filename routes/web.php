@@ -182,6 +182,8 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 Route::middleware(['auth'])->group(function () {
 
     Route::post('/dynamic-templates/generate-video', [VideoGeneratorController::class, 'generateVideo'])->name('dynamic-templates.generate-video');
+    // Tambahkan route ini di routes/web.php
+Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::class, 'generateImage'])->name('dynamic-templates.generate-image');
     Route::prefix('rekap-presensi')->name('rekap.presensi.')->group(function () {
         // 1. Tampilan Utama Rekapitulasi Presensi
         Route::get('/', [RekapPresensiController::class, 'index'])->name('index');
