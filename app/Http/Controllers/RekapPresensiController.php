@@ -106,11 +106,20 @@ class RekapPresensiController extends Controller
 
                 $percentage = $totalMeetings > 0 ? round(($totalH / $totalMeetings) * 100, 1) : 0;
 
+                // --- PEMBARUAN: Format nomor HP otomatis ke kode negara 62 ---
+                $rawPhone = $student->parent_phone ?? $student->phone ?? '';
+                $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                } elseif (str_starts_with($cleanPhone, '8')) {
+                    $cleanPhone = '62' . $cleanPhone;
+                }
+
                 return [
                     'student_id'   => $student->id,
                     'nisn'         => $student->nisn ?? $student->id,
                     'nama'         => $student->name,
-                    'phone'        => $student->parent_phone ?? $student->phone ?? '',
+                    'phone'        => $cleanPhone,
                     'presensi'     => $statusPresensi,
                     'catatan'      => $catatanSiswa,
                     'attachment'   => $attachmentSiswa,
