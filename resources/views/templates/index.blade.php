@@ -155,6 +155,7 @@
             }
 
             // 2. Script Form Generate Dokumen (AJAX + Base64 Blob Download)
+            
             const generateForm = document.getElementById('generateDocumentForm');
             if (generateForm) {
                 generateForm.addEventListener('submit', function (e) {
@@ -178,11 +179,21 @@
                         body: formData
                     })
                     .then(async response => {
-                        const data = await response.json();
-
-                        if (response.ok && data.status === 'success') {
-                            
-                            // Konversi String Base64 dari Server ke File Blob di Browser
+                        const contentType = response.headers.get("content-type");
+                        if (!response.ok) {
+                            if (contentType && contentType.indexOf("application/json") !== -1) {
+                                const errData = await response.json();
+                                throw new Error(errData.message || `Server Error HTTP ${response.status}`);
+                            } else {
+                                const textErr = await response.text();
+                                throw new Error(`Server Timeout / Error (${response.status}): Cek log PHP server.`);
+                            }
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Konversi Base64 ke Blob & Auto Download
                             const byteCharacters = atob(data.file_data);
                             const byteNumbers = new Array(byteCharacters.length);
                             for (let i = 0; i < byteCharacters.length; i++) {
@@ -191,7 +202,6 @@
                             const byteArray = new Uint8Array(byteNumbers);
                             const blob = new Blob([byteArray], { type: data.file_type });
 
-                            // Pemicu Otomatis Download File .docx di Browser User
                             const link = document.createElement('a');
                             link.href = window.URL.createObjectURL(blob);
                             link.download = data.filename;
@@ -205,7 +215,6 @@
                                 text: 'Dokumen .docx berhasil terunduh otomatis ke komputer Anda.',
                                 confirmColor: '#198754'
                             });
-
                         } else {
                             Swal.fire({ 
                                 icon: 'error', 
