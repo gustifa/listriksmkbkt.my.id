@@ -13,6 +13,7 @@ use PhpOffice\PhpWord\SimpleType\Jc;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 class DynamicTemplateController extends Controller
 {
