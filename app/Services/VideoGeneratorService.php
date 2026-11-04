@@ -19,131 +19,118 @@ class VideoGeneratorService
             ->first();
 
         if ($keyRecord && !empty($keyRecord->api_key)) {
-            return $keyRecord->api_key;
+            return trim($keyRecord->api_key);
         }
 
         return env(strtoupper($provider) . '_API_KEY', null);
     }
 
     /**
- * 100% GRATIS & SAFE: Generate Voiceover dengan Multi-Provider Fallback (Tanpa Crash)
- */
-public function generateFreeVoiceover(string $text)
-{
-    $filename = 'audio_' . time() . '_' . uniqid() . '.mp3';
-    $saveDir = storage_path('app/public/audio');
-
-    if (!file_exists($saveDir)) {
-        mkdir($saveDir, 0755, true);
-    }
-
-    $savePath = $saveDir . '/' . $filename;
-
-    // Sanitasi Teks
-    $cleanText = strip_tags($text);
-    $cleanText = preg_replace('/[*_#`~]/', '', $cleanText);
-    $cleanText = trim(preg_replace('/\s+/', ' ', $cleanText));
-    $shortText = mb_substr($cleanText, 0, 300);
-
-    // 1. Coba StreamElements Edge TTS
-    try {
-        $urlEdge = "https://api.streamelements.com/kappa/v2/speech?voice=id-ID-ArdiNeural&text=" . rawurlencode($shortText);
-        $response = Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        ])->timeout(8)->get($urlEdge);
-
-        if ($response->successful() && strlen($response->body()) > 100) {
-            file_put_contents($savePath, $response->body());
-            return asset('storage/audio/' . $filename);
-        }
-    } catch (\Exception $e) {}
-
-    // 2. Coba Google Translate TTS (gTTS)
-    try {
-        $urlGtts = "https://translate.google.com/translate_tts?ie=UTF-8&q=" . rawurlencode($shortText) . "&tl=id&client=tw-ob";
-        $response = Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        ])->timeout(8)->get($urlGtts);
-
-        if ($response->successful() && strlen($response->body()) > 100) {
-            file_put_contents($savePath, $response->body());
-            return asset('storage/audio/' . $filename);
-        }
-    } catch (\Exception $e) {}
-
-    // 3. Fallback Aman (Jika API Publik Block): Kembalikan null tanpa throw Exception
-    return null;
-}
-
-    /**
-     * Core Method Public: Multi-Model Renderer (HeyGen -> Luma -> Fallback Gratis)
+     * Core Method: Multi-Model Renderer (HeyGen -> Luma -> Fallback Gratis)
      */
-    /**
- * Core Method: Multi-Model Renderer (HeyGen -> Luma -> Fallback Naskah Gratis)
- */
-public function generateVideo(string $script, string $format = 'short', string $topic = '')
-{
-    // 1. Cek API Key HeyGen dari Database
-    $heygenKey = $this->getActiveApiKey('heygen');
-    if ($heygenKey) {
-        try {
-            return $this->renderWithHeyGen($script, $format, $heygenKey);
-        } catch (\Exception $e) {}
+    public function generateVideo(string $script, string $format = 'short', string $topic = '')
+    {
+        // 1. Cek API Key HeyGen
+        $heygenKey = $this->getActiveApiKey('heygen');
+        if ($heygenKey) {
+            try {
+                return $this->renderWithHeyGen($script, $format, $heygenKey);
+            } catch (Exception $e) {
+                // Log error jika HeyGen gagal dan lanjut ke fallback
+                logger()->error("HeyGen Render Error: " . $e->getMessage());
+            }
+        }
+
+        // 2. Cek API Key Luma
+        $lumaKey = $this->getActiveApiKey('luma');
+        if ($lumaKey) {
+            try {
+                return $this->renderWithLuma($script, $format, $lumaKey);
+            } catch (Exception $e) {
+                logger()->error("Luma Render Error: " . $e->getMessage());
+            }
+        }
+
+        // 3. Fallback 100% Gratis: Voiceover Audio Bahasa Indonesia via Edge TTS / gTTS
+        $audioUrl = $this->generateFreeVoiceover($script);
+
+        return [
+            'status' => 'completed',
+            'provider' => 'Gemini AI Scriptwriter Engine (Free Fallback)',
+            'video_url' => null,
+            'audio_url' => $audioUrl,
+            'message' => 'Naskah AI Scriptwriter berhasil disusun!'
+        ];
     }
 
-    // 2. Cek API Key Luma dari Database
-    $lumaKey = $this->getActiveApiKey('luma');
-    if ($lumaKey) {
-        try {
-            return $this->renderWithLuma($script, $format, $lumaKey);
-        } catch (\Exception $e) {}
-    }
-
-    // 3. Fallback Gratis: Voiceover Audio (Jika tersedia) + Naskah AI Script
-    $audioUrl = $this->generateFreeVoiceover($script);
-
-    $msg = $audioUrl 
-        ? 'Naskah AI Scriptwriter & Voiceover Bahasa Indonesia berhasil dibuat!' 
-        : 'Naskah AI Scriptwriter berhasil disusun! (Audio publik sedang sibuk, naskah siap digunakan).';
-
-    return [
-        'status' => 'completed',
-        'provider' => $audioUrl ? 'Edge TTS Engine (Gratis)' : 'Gemini AI Scriptwriter Engine',
-        'video_url' => null,
-        'audio_url' => $audioUrl,
-        'message' => $msg
-    ];
-}
-
     /**
-     * Render via HeyGen API
+     * Render via HeyGen API v2 (Handling Asynchronous Job)
      */
     private function renderWithHeyGen(string $script, string $format, string $apiKey)
     {
-        $dimension = ($format === 'short') ? ['width' => 720, 'height' => 1280] : ['width' => 1280, 'height' => 720];
+        $dimension = ($format === 'short') 
+            ? ['width' => 720, 'height' => 1280] 
+            : ['width' => 1280, 'height' => 720];
 
+        // Step 1: Submit Task Generate Video ke HeyGen
         $response = Http::withHeaders([
             'X-Api-Key' => $apiKey,
             'Content-Type' => 'application/json',
-        ])->timeout(45)->post('https://api.heygen.com/v2/video/generate', [
+        ])->timeout(30)->post('https://api.heygen.com/v2/video/generate', [
             'video_inputs' => [[
-                'character' => ['type' => 'avatar', 'avatar_id' => 'Daisy-Expressive-20240508'],
-                'voice' => ['type' => 'text', 'input_text' => $script, 'voice_id' => 'id-ID-ArdiNeural']
+                'character' => [
+                    'type' => 'avatar', 
+                    'avatar_id' => 'Daisy-Expressive-20240508',
+                    'avatar_style' => 'normal'
+                ],
+                'voice' => [
+                    'type' => 'text', 
+                    'input_text' => mb_substr($script, 0, 1000), 
+                    'voice_id' => '2d5b0e6cf1064e0a829143926bf4c6e9' // Voice ID Default / Bahasa Indonesia
+                ]
             ]],
             'dimension' => $dimension
         ]);
 
-        if ($response->successful()) {
+        if (!$response->successful()) {
+            throw new Exception("HeyGen Submit API Failed: " . $response->body());
+        }
+
+        $videoId = $response->json('data.video_id');
+        if (!$videoId) {
+            throw new Exception("HeyGen Video ID tidak ditemukan pada respon.");
+        }
+
+        // Step 2: Polling status hingga video selesai di-render (Maksimal 12 kali polling / ~24 detik)
+        $videoUrl = null;
+        for ($i = 0; $i < 12; $i++) {
+            sleep(2);
+            $statusResponse = Http::withHeaders([
+                'X-Api-Key' => $apiKey,
+            ])->get("https://api.heygen.com/v1/video_status.get?video_id={$videoId}");
+
+            if ($statusResponse->successful()) {
+                $statusData = $statusResponse->json('data');
+                if (isset($statusData['status']) && $statusData['status'] === 'completed') {
+                    $videoUrl = $statusData['video_url'];
+                    break;
+                } elseif (isset($statusData['status']) && $statusData['status'] === 'failed') {
+                    throw new Exception("HeyGen Rendering Failed: " . ($statusData['error'] ?? 'Unknown Error'));
+                }
+            }
+        }
+
+        if ($videoUrl) {
             return [
                 'status' => 'completed',
-                'provider' => 'HeyGen AI (Database Key)',
-                'video_url' => $response->json('data.video_url'),
+                'provider' => 'HeyGen AI Cloud',
+                'video_url' => $videoUrl,
                 'audio_url' => null,
-                'message' => 'Video Avatar AI berhasil di-render!'
+                'message' => 'Video MP4 Avatar AI berhasil di-render!'
             ];
         }
 
-        throw new Exception("HeyGen API Error");
+        throw new Exception("Proses render HeyGen membutuhkan waktu lebih lama. Video ID: " . $videoId);
     }
 
     /**
@@ -156,21 +143,51 @@ public function generateVideo(string $script, string $format = 'short', string $
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Content-Type' => 'application/json',
-        ])->timeout(45)->post('https://api.lumalabs.ai/dream-machine/v1/generations', [
-            'prompt' => $prompt,
+        ])->timeout(30)->post('https://api.lumalabs.ai/dream-machine/v1/generations', [
+            'prompt' => mb_substr($prompt, 0, 500),
             'aspect_ratio' => $aspectRatio,
         ]);
 
         if ($response->successful()) {
             return [
                 'status' => 'completed',
-                'provider' => 'Luma AI (Database Key)',
+                'provider' => 'Luma AI Cloud',
                 'video_url' => $response->json('assets.video'),
                 'audio_url' => null,
-                'message' => 'Video animasi Luma AI berhasil di-render!'
+                'message' => 'Video animasi MP4 Luma AI berhasil di-render!'
             ];
         }
 
-        throw new Exception("Luma API Error");
+        throw new Exception("Luma API Error: " . $response->body());
+    }
+
+    /**
+     * Fallback Free Voiceover
+     */
+    public function generateFreeVoiceover(string $text)
+    {
+        $filename = 'audio_' . time() . '_' . uniqid() . '.mp3';
+        $saveDir = storage_path('app/public/audio');
+
+        if (!file_exists($saveDir)) {
+            mkdir($saveDir, 0755, true);
+        }
+
+        $savePath = $saveDir . '/' . $filename;
+        $cleanText = strip_tags($text);
+        $cleanText = preg_replace('/[*_#`~]/', '', $cleanText);
+        $shortText = mb_substr(trim(preg_replace('/\s+/', ' ', $cleanText)), 0, 300);
+
+        try {
+            $urlEdge = "https://api.streamelements.com/kappa/v2/speech?voice=id-ID-ArdiNeural&text=" . rawurlencode($shortText);
+            $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])->timeout(8)->get($urlEdge);
+
+            if ($response->successful() && strlen($response->body()) > 100) {
+                file_put_contents($savePath, $response->body());
+                return asset('storage/audio/' . $filename);
+            }
+        } catch (\Exception $e) {}
+
+        return null;
     }
 }
