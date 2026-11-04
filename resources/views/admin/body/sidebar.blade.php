@@ -116,7 +116,7 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Custom</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('dynamic-templates..index')}}"><i class='bx bx-sync'></i>AI Perangkat</a></li>
+                        <li><a href="{{route('dynamic-templates.index')}}"><i class='bx bx-sync'></i>AI Perangkat</a></li>
                         
                     </ul>
                 </li>
