@@ -92,16 +92,26 @@ class DynamicTemplateController extends Controller
     /**
      * Helper Menyuntikkan Teks Multiline ke Word dengan Tag <w:br/>
      */
-    private function setValueWithLineBreaks($templateProcessor, $variable,$text)
-    {
-        $text = (string)$text;
-        $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $text));
-        
-        if (count($lines) > 1) {$formattedText = implode("<w:br/>", array_map('htmlspecialchars', $lines));$templateProcessor->setValue($variable,$formattedText);
-        } else {
-            $templateProcessor->setValue($variable, htmlspecialchars($text));
-        }
+    /**
+ * Helper menyuntikkan teks multiline ke Word secara aman tanpa merusak struktur XML.
+ */
+private function setValueWithLineBreaks($templateProcessor, $variable, $text)
+{
+    $text = (string) $text;
+    
+    // Clean-up karakter yang berpotensi merusak XML Word
+    $text = str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $text);
+    
+    // Ubah new line (\n) menjadi tag line break Word murni (\n di-parse oleh PhpWord jika dikirim array / multiline)
+    $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $text));
+    
+    if (count($lines) > 1) {
+        $formattedText = implode("</w:t><w:br/><w:t>", $lines);
+        $templateProcessor->setValue($variable, $formattedText);
+    } else {
+        $templateProcessor->setValue($variable, $text);
     }
+}
 
     /**
      * Generator Prompt Dinamis Berdasarkan Data TP & Variabel Template Word
@@ -372,6 +382,9 @@ PROMPT;
 /**
  * Membuat Struktur Template Word Master secara Otomatis di Memory/Temporary Server
  */
+/**
+ * Membuat Struktur Template Word Master secara Otomatis di Memory/Temporary Server
+ */
 private function generateAutoTemplateStream()
 {
     $phpWord = new PhpWord();
@@ -434,7 +447,7 @@ private function generateAutoTemplateStream()
     $addSectionBox('V. LANGKAH-LANGKAH KERJA PERCOBAAN', '${langkah_kerja}');
     $addSectionBox('VI. LEMBAR PENILAIAN & RUBRIK KINERJA', '${rubrik_penilaian}');
 
-    // Simpan ke file temporary menggunakan writer 'Word2007'
+    // Simpan ke file temporary menggunakan Word2007
     $tempPath = tempnam(sys_get_temp_dir(), 'tpl_auto_');
     $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
     $objWriter->save($tempPath);
