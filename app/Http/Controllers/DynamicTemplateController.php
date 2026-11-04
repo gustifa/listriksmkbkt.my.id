@@ -335,4 +335,38 @@ PROMPT;
             ], 500);
         }
     }
+
+    public function generateImage(Request $request)
+{
+    try {
+        $request->validate([
+            'tp_mode' => 'nullable|in:database,manual',
+        ]);
+
+        $judulTp = "";
+        if ($request->tp_mode === 'manual' || $request->filled('tp_manual')) {
+            $judulTp = trim($request->tp_manual);
+        } else {
+            $tp = DB::table('tp_masters')->where('id', $request->tp_id)->first() 
+                ?? DB::table('learning_objectives')->where('id', $request->tp_id)->first();
+            $judulTp = $tp->title ?? $tp->description ?? 'Praktikum Kelistrikan';
+        }
+
+        // Panggil Image Generator Service
+        $imageService = new \App\Services\ImageGeneratorService();
+        $result = $imageService->generateIllustration($judulTp);
+
+        return response()->json([
+            'status' => 'success',
+            'image_url' => $result['image_url'],
+            'message' => 'Ilustrasi gambar praktikum berhasil dibuat!'
+        ], 200);
+
+    } catch (Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Gagal generate gambar: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

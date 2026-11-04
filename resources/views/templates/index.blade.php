@@ -147,6 +147,16 @@
                             </div>
                         </div>
 
+                        <!-- Section Fitur Generate Gambar Ilustrasi AI -->
+                        <div class="mt-3 pt-3 border-top">
+                            <label class="form-label fw-bold text-dark d-block mb-2">
+                                <i class="fa-solid fa-image text-primary me-1"></i> Generate Gambar / Skema Praktikum (AI)
+                            </label>
+                            <button type="button" onclick="triggerGenerateImage()" class="btn btn-outline-primary w-100 py-2">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Buat Gambar Ilustrasi dari TP
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -245,7 +255,12 @@
                     return;
                 }
 
+                // Masukkan input tp_mode dan tp_manual ke dalam FormData secara dinamis
                 let formData = new FormData(this);
+                formData.set('tp_mode', mode);
+                if (mode === 'manual') {
+                    formData.set('tp_manual', tpManual);
+                }
 
                 Swal.fire({
                     title: 'Memproses AI & Perangkat Ajar...',
@@ -403,6 +418,57 @@
 
             } else {
                 Swal.fire('Gagal Generate', data.message || 'Terjadi kesalahan.', 'error');
+            }
+        })
+        .catch(error => {
+            Swal.fire('Kesalahan Sistem', error.message, 'error');
+        });
+    }
+
+    // 4. Handling Generate Gambar Ilustrasi AI
+    function triggerGenerateImage() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const mode = document.querySelector('input[name="tp_mode"]:checked').value;
+        const tpId = document.getElementById('tp_id_select').value;
+        const tpManual = document.getElementById('tp_manual_input').value;
+
+        if (mode === 'database' && !tpId) {
+            Swal.fire('Peringatan', 'Silakan pilih TP dari Database terlebih dahulu.', 'warning');
+            return;
+        }
+        if (mode === 'manual' && !tpManual.trim()) {
+            Swal.fire('Peringatan', 'Silakan ketikkan Tujuan Pembelajaran (TP) terlebih dahulu.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Memproses Gambar AI...',
+            text: 'AI sedang merancang ilustrasi visual/skema berdasarkan Tujuan Pembelajaran.',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        fetch("{{ route('dynamic-templates.generate-image') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ tp_mode: mode, tp_id: tpId, tp_manual: tpManual })
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (response.ok && data.status === 'success') {
+                Swal.fire({
+                    title: 'Gambar Berhasil Dibuat!',
+                    html: `<img src="${data.image_url}" class="img-fluid rounded shadow mb-3" alt="Ilustrasi TP">
+                           <br><a href="${data.image_url}" target="_blank" class="btn btn-sm btn-success"><i class="fa-solid fa-download me-1"></i> Unduh Gambar</a>`,
+                    width: '600px',
+                    confirmButtonText: 'Tutup'
+                });
+            } else {
+                Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
             }
         })
         .catch(error => {
