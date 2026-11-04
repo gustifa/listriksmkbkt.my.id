@@ -20,6 +20,7 @@ use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\RekapTugasController;
 use App\Http\Controllers\RekapPresensiController;
 use App\Http\Controllers\RekapPembelajaranController;
+use App\Http\Controllers\DynamicTemplateController;
 
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
@@ -192,6 +193,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('rekap-pembelajaran')->name('rekap.pembelajaran.')->group(function () {
         Route::get('/', [RekapPembelajaranController::class, 'index'])->name('index');
+    });
+
+    Route::prefix('dynamic-templates')->name('dynamic-templates.')->group(function () {
+        Route::get('/', [DynamicTemplateController::class, 'index'])->name('index');
+        Route::post('/upload', [DynamicTemplateController::class, 'uploadTemplate'])->name('upload');
+        Route::post('/generate', [DynamicTemplateController::class, 'generateDocument'])->name('generate');
     });
 
     // Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');

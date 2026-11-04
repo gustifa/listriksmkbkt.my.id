@@ -36,4 +36,12 @@ class TpMaster extends Model
     {
         return $this->belongsTo(Major::class, 'major_id');
     }
+
+    /**
+     * Relasi ke Model Subject (Mata Pelajaran)
+     */
+    public function subject()
+    {
+        return $this->belongsTo(Subject::class, 'subject_id', 'id');
+    }
 }

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Generator Perangkat Ajar Dinamis</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-light py-4">
+
+    <div class="container">
+        <div class="mb-4">
+            <h2 class="fw-bold text-dark">
+                <i class="fa-solid fa-file-word text-primary me-2"></i> Generator Perangkat Ajar (AI + Template Word)
+            </h2>
+            <p class="text-muted">Unggah template .docx Anda dan biarkan AI mengisi konten secara otomatis berdasarkan data PostgreSQL.</p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Form Upload Template -->
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white fw-bold">
+                        <i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i> Upload Template Word (.docx)
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadTemplateForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nama Template</label>
+                                <input type="text" name="template_name" class="form-control" required placeholder="Contoh: Template Jobsheet 2026">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">File Dokumen (.docx)</label>
+                                <input type="file" name="template_file" accept=".docx" class="form-control" required>
+                                <small class="text-muted d-block mt-1">Gunakan placeholder seperti <code>${nama_mapel}</code>, <code>${informasi_umum}</code> di dalam Word.</small>
+                            </div>
+                            <button type="submit" id="btnUpload" class="btn btn-primary w-100">
+                                <i class="fa-solid fa-upload me-1"></i> Unggah Template
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Generate Dokumen -->
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white fw-bold">
+                        <i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i> Generate Dokumen AI
+                    </div>
+                    <div class="card-body">
+                        <form id="generateDocumentForm">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Pilih Template Master</label>
+                                <select name="template_path" required class="form-select">
+    <option value="">-- Pilih Template --</option>
+    @foreach($uploadedTemplates as $template)
+        <option value="{{ $template }}">{{ basename($template) }}</option>
+    @endforeach
+</select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Tujuan Pembelajaran (TP)</label>
+                                <select name="tp_id" required class="form-select">
+                                    <option value="">-- Pilih TP --</option>
+                                    @foreach($tps as $tp)
+                                        <option value="{{ $tp->id }}">{{ $tp->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Guru Pengampu</label>
+                                <select name="teacher_id" required class="form-select">
+                                    <option value="">-- Pilih Guru --</option>
+                                    @foreach($teachers as $teacher)
+                                        <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <button type="submit" id="btnGenerate" class="btn btn-success w-100 py-2">
+                                <i class="fa-solid fa-gears me-1"></i> Process & Generate Word (.docx)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            // 1. Script Upload Template
+            const uploadForm = document.getElementById('uploadTemplateForm');
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    let btn = document.getElementById('btnUpload');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengunggah...';
+
+                    let formData = new FormData(this);
+
+                    fetch("{{ route('dynamic-templates.upload') }}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    })
+                    .then(async response => {
+                        const data = await response.json();
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Unggah Template';
+
+                        if (response.ok && data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: data.message,
+                                confirmColor: '#0d6efd'
+                            }).then(() => location.reload());
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: data.message || 'Terjadi kesalahan saat unggah.'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Unggah Template';
+                        Swal.fire({ icon: 'error', title: 'Kesalahan Sistem', text: error.message });
+                    });
+                });
+            }
+
+            // 2. Script Generate Dokumen
+            const generateForm = document.getElementById('generateDocumentForm');
+            if (generateForm) {
+                generateForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    let formData = new FormData(this);
+
+                    Swal.fire({
+                        title: 'Memproses AI & Template...',
+                        text: 'Sedang mengekstrak data dan menyusun konten Word via Gemini AI.',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+
+                    fetch("{{ route('dynamic-templates.generate') }}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    })
+                    .then(async response => {
+                        const data = await response.json();
+                        if (response.ok && data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Dokumen Siap!',
+                                text: data.message,
+                                showCancelButton: true,
+                                confirmButtonText: '<i class="fa-solid fa-download me-1"></i> Download .docx',
+                                cancelButtonText: 'Tutup'
+                            }).then((res) => {
+                                if (res.isConfirmed) {
+                                    window.location.href = data.download_url;
+                                }
+                            });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Gagal Generate', text: data.message || 'Error server.' });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: error.message });
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
