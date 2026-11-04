@@ -26,7 +26,7 @@ class VideoGeneratorService
     }
 
     /**
- * 100% GRATIS: Generate Voiceover Bahasa Indonesia dengan Multiple API Fallback
+ * 100% GRATIS & SAFE: Generate Voiceover dengan Multi-Provider Fallback (Tanpa Crash)
  */
 public function generateFreeVoiceover(string $text)
 {
@@ -39,81 +39,81 @@ public function generateFreeVoiceover(string $text)
 
     $savePath = $saveDir . '/' . $filename;
 
-    // Bersihkan teks dari markdown/karakter aneh dan batasi panjang untuk GET Request
+    // Sanitasi Teks
     $cleanText = strip_tags($text);
     $cleanText = preg_replace('/[*_#`~]/', '', $cleanText);
     $cleanText = trim(preg_replace('/\s+/', ' ', $cleanText));
-    $shortText = mb_substr($cleanText, 0, 400); // Ambil 400 karakter pertama agar request tidak error 414/403
+    $shortText = mb_substr($cleanText, 0, 300);
 
-    // PROVIDER 1: StreamElements (Edge TTS id-ID-ArdiNeural)
+    // 1. Coba StreamElements Edge TTS
     try {
         $urlEdge = "https://api.streamelements.com/kappa/v2/speech?voice=id-ID-ArdiNeural&text=" . rawurlencode($shortText);
         $response = Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        ])->timeout(15)->get($urlEdge);
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ])->timeout(8)->get($urlEdge);
 
         if ($response->successful() && strlen($response->body()) > 100) {
             file_put_contents($savePath, $response->body());
             return asset('storage/audio/' . $filename);
         }
-    } catch (Exception $e) {
-        // Lanjut ke fallback provider 2 jika stream elements gagal
-    }
+    } catch (\Exception $e) {}
 
-    // PROVIDER 2 (FALLBACK): Google Translate TTS (gTTS Bahasa Indonesia)
+    // 2. Coba Google Translate TTS (gTTS)
     try {
         $urlGtts = "https://translate.google.com/translate_tts?ie=UTF-8&q=" . rawurlencode($shortText) . "&tl=id&client=tw-ob";
         $response = Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        ])->timeout(15)->get($urlGtts);
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ])->timeout(8)->get($urlGtts);
 
         if ($response->successful() && strlen($response->body()) > 100) {
             file_put_contents($savePath, $response->body());
             return asset('storage/audio/' . $filename);
         }
-    } catch (Exception $e) {
-        // Jika keduanya gagal, throw error
-    }
+    } catch (\Exception $e) {}
 
-    throw new Exception("Koneksi API TTS Gratis sedang dibatasi server. Silakan coba kembali atau gunakan API Key HeyGen/Luma.");
+    // 3. Fallback Aman (Jika API Publik Block): Kembalikan null tanpa throw Exception
+    return null;
 }
 
     /**
      * Core Method Public: Multi-Model Renderer (HeyGen -> Luma -> Fallback Gratis)
      */
-    public function generateVideo(string $script, string $format = 'short', string $topic = '')
-    {
-        // 1. Cek API Key HeyGen
-        $heygenKey = $this->getActiveApiKey('heygen');
-        if ($heygenKey) {
-            try {
-                return $this->renderWithHeyGen($script, $format, $heygenKey);
-            } catch (Exception $e) {
-                // Fallback jika gagal/habis kuota
-            }
-        }
-
-        // 2. Cek API Key Luma
-        $lumaKey = $this->getActiveApiKey('luma');
-        if ($lumaKey) {
-            try {
-                return $this->renderWithLuma($script, $format, $lumaKey);
-            } catch (Exception $e) {
-                // Fallback jika gagal
-            }
-        }
-
-        // 3. Fallback 100% Gratis: Voiceover Audio Bahasa Indonesia via Edge TTS
-        $audioUrl = $this->generateFreeVoiceover($script);
-
-        return [
-            'status' => 'completed',
-            'provider' => 'Edge TTS Engine (100% Gratis)',
-            'video_url' => null,
-            'audio_url' => $audioUrl,
-            'message' => 'Naskah & Voiceover Bahasa Indonesia berhasil dibuat gratis!'
-        ];
+    /**
+ * Core Method: Multi-Model Renderer (HeyGen -> Luma -> Fallback Naskah Gratis)
+ */
+public function generateVideo(string $script, string $format = 'short', string $topic = '')
+{
+    // 1. Cek API Key HeyGen dari Database
+    $heygenKey = $this->getActiveApiKey('heygen');
+    if ($heygenKey) {
+        try {
+            return $this->renderWithHeyGen($script, $format, $heygenKey);
+        } catch (\Exception $e) {}
     }
+
+    // 2. Cek API Key Luma dari Database
+    $lumaKey = $this->getActiveApiKey('luma');
+    if ($lumaKey) {
+        try {
+            return $this->renderWithLuma($script, $format, $lumaKey);
+        } catch (\Exception $e) {}
+    }
+
+    // 3. Fallback Gratis: Voiceover Audio (Jika tersedia) + Naskah AI Script
+    $audioUrl = $this->generateFreeVoiceover($script);
+
+    $msg = $audioUrl 
+        ? 'Naskah AI Scriptwriter & Voiceover Bahasa Indonesia berhasil dibuat!' 
+        : 'Naskah AI Scriptwriter berhasil disusun! (Audio publik sedang sibuk, naskah siap digunakan).';
+
+    return [
+        'status' => 'completed',
+        'provider' => $audioUrl ? 'Edge TTS Engine (Gratis)' : 'Gemini AI Scriptwriter Engine',
+        'video_url' => null,
+        'audio_url' => $audioUrl,
+        'message' => $msg
+    ];
+}
 
     /**
      * Render via HeyGen API
