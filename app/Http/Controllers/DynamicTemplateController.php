@@ -142,4 +142,19 @@ class DynamicTemplateController extends Controller
         ], 500);
     }
 }
+
+public function downloadDocument($filename)
+{
+    // Cegah directory traversal security issue
+    $cleanFilename = basename($filename);
+    $filePath = storage_path('app/public/generated/' . $cleanFilename);
+
+    if (!file_exists($filePath)) {
+        abort(404, 'File tidak ditemukan.');
+    }
+
+    return response()->download($filePath, $cleanFilename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]);
+}
 }
