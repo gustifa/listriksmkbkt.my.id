@@ -102,48 +102,48 @@ class DynamicTemplateController extends Controller
     /**
      * Super Smart & Dynamic Prompt Generator (Vokasi, HOTS, K3LH, & DPL)
      */
-    private function buildDynamicPrompt($tp,$teacher, array $aiVariables,$namaMapel)
-    {
-        $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Standar kompetensi vokasi SMK Merdeka');
-        $elemenKode =$this->safeString($tp->code ?? $tp->element_code ?? '-');
+/**
+ * Dynamic Prompt Generator dengan Narrative Enrichment & Gaya Bahasa Vokasi Interaktif
+ */
+private function buildDynamicPrompt($tp, $teacher, array $aiVariables, $namaMapel)
+{
+    $judulTp = $this->safeString($tp->title);
+    $indikatorTp = $this->safeString($tp->indicators ?? 'Standar kompetensi vokasi SMK Merdeka');
+    $elemenKode = $this->safeString($tp->code ?? $tp->element_code ?? '-');
 
-        // Ambil sampel fasilitas bengkel dari PostgreSQL jika tersedia
-        $inventoryList = 'Multimeter Analog/Digital, Trainer Board, Power Supply DC, Cable Tester, APD Bengkel, SOP K3';
-        if (class_exists(Inventory::class)) {
-            $invData = Inventory::pluck('name')->take(8)->implode(', ');
-            if (!empty($invData)) {
-                $inventoryList =$invData;
-            }
-        }
+    $inventoryList = 'Multimeter, Trainer Board, Power Supply DC, Cable Tester, APD Bengkel, SOP K3LH';
+    if (class_exists(\App\Models\Inventory::class)) {
+        $invData = \App\Models\Inventory::pluck('name')->take(8)->implode(', ');
+        if (!empty($invData)) $inventoryList = $invData;
+    }
 
-        $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
+    $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
 
-        return <<<PROMPT
-Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi & Instruktur Senior Teknik Ketenagalistrikan & Industri 4.0.
+    return <<<PROMPT
+Anda adalah seorang Guru Master Vokasi Ketenagalistrikan & Instruktur Industri di SMK Negeri 1 Bukittinggi yang sangat berpengalaman, komunikatif, dan inspiratif.
 
 TUGAS UTAMA:
-Susunlah konten perangkat ajar (Modul Ajar / Jobsheet / RPP) yang SANGAT CERDAS, MENDALAM, TERSTRUKTUR, RELEVAN DENGAN DUNIA KERJA (IDUKA), dan BERBASIS HOTS (C3-C6) berdasarkan data acuan berikut:
+Susunlah konten perangkat ajar (Modul Ajar / Jobsheet / RPP) yang LUID, HUMANIS, TEKNIS SPESIFIK, dan INTERAKTIF berbasis Kurikulum Merdeka berdasarkan acuan berikut:
 =================================================================================
-- SATUAN PENDIDIKAN   : SMK NEGERI 1 BUKITTINGGI
 - MATA PELAJARAN      : {$namaMapel}
 - TUJUAN PEMBELAJARAN : {$judulTp}
 - KODE / ELEMEN       : {$elemenKode}
 - INDIKATOR KINERJA   : {$indikatorTp}
 - GURU PENGAMPU       : {$teacher->name} (NIP. {$teacher->nip})
-- INVENTARIS BENGKEL  : {$inventoryList}
+- SARANA & ALAT BENGKEL: {$inventoryList}
 =================================================================================
 
 DAFTAR VARIABLE PLACEHOLDER YANG WAJIB DIISI:
 {$variableList}
 
-PRINSIP KECERDASAN ARTIFISIAL DALAM MENYUSUN ISI (WAJIB PATUHI):
-1. SPESIFIK & TEKNIS VOKASI: DILARANG memberikan kata-kata generik seperti "Lakukan praktikum dengan baik". Gunakan nama komponen fisik nyata, alat ukur spesifik, rumus/prinsip kelistrikan, dan aturan K3LH yang relevan dengan TP "{$judulTp}".
-2. MODEL PEMBELAJARAN (Sintaks PjBL / PBL): Uraikan aktivitas Guru dan Siswa pada tahap Awal, Inti (Memahami, Mengaplikasi, Merefleksi), dan Penutup secara mendalam dan operasional.
-3. PROFIL LULUSAN (DPL1-DPL8): Apabila terdapat variabel 'profil_lulusan', pilih Dimensi Profil Lulusan yang paling tepat (contoh: DPL3 Penalaran Kritis, DPL4 Kreativitas, DPL5 Kolaborasi) beserta deskripsi integrasi pembelajarannya.
-4. ASESMEN & RUBRIK: Sajikan instrumen asesmen awal, formatif, dan sumatif beserta rubrik penilaian kinerja terukur (Sangat Baik, Baik, Cukup, Perlu Bimbingan).
-5. FORMAT OUTPUT: Hasilkan HANYA string JSON VALID. Setiap nilai (value) HARUS berbentuk teks multiline murni dengan poin bullet (•) jika berisikan poin-poin.
+GAYA BAHASA & KUALITAS KONTEN (PENTING AGAR TIDAK KAKU):
+1. NARASI AKTIF & INSPIRATIF: Gunakan kalimat aksi mengajar yang hidup (misal: "Guru mengajak peserta didik mendiskusikan fenomena...", "Peserta didik secara kolaboratif menganalisis skema...").
+2. ISTILAH TEKNIS RIIL: Gunakan nama alat ukur nyata, komponen spesifik, serta istilah teknis kelistrikan/vokasi yang tepat. DILARANG menggunakan kalimat generik seperti "Pelajari materi dengan baik".
+3. INTEGRASI DEEP LEARNING (PjBL/PBL): Jabarkan langkah pembelajaran dengan sintaks mengajar yang mengalir alami, mulai dari pertanyaan pemantik berbasis problem nyata, eksplorasi bengkel, hingga refleksi bermakna.
+4. PENULISAN POIN: Gunakan format poin bertingkat (`• `) dengan penataan narasi yang jelas dan nyaman dibaca.
+5. FORMAT OUTPUT: Hasilkan HANYA string JSON VALID. Setiap nilai (value) HARUS berbentuk teks multiline murni.
 PROMPT;
-    }
+}
 
     /**
      * Auto Template Master Word (.docx)

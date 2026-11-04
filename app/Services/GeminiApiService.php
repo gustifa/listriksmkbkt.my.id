@@ -99,7 +99,7 @@ class GeminiApiService
                 ]
             ],
             'generationConfig' => [
-                'temperature' => 0.3,
+                'temperature' => 0.5,
                 'topP' => 0.8,
                 'maxOutputTokens' => 8192,
             ]
