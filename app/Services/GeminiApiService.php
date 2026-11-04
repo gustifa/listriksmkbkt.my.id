@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Models\ApiKey;
@@ -31,28 +32,23 @@ class GeminiApiService
     }
 
     /**
-     * Fetch daftar model resmi Gemini (Filter khusus seri 'gemini-' yang cepat)
+     * Fetch daftar model resmi Gemini (Filter khusus seri 'gemini-' yang mendukung generateContent)
      */
     public function getAvailableModels($apiKey = null)
     {
         $apiKey = $apiKey ?? $this->getActiveApiKey();
 
-        return Cache::remember('gemini_available_models_v2_' . md5($apiKey), now()->addHours(12), function () use ($apiKey) {
-            // Tambahkan timeout 15 detik untuk fetching daftar model
+        return Cache::remember('gemini_available_models_v3_' . md5($apiKey), now()->addHours(12), function () use ($apiKey) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models?key={$apiKey}";
             $response = Http::timeout(15)->get($url);
 
-            if ($response->successful()) {
-                $data = $response->json('models') ?? [];
-                
-                // Filter HANYA model Gemini yang mendukung 'generateContent' dan hindari model Gemma/Vision berat
-                $validModels = array_filter($data, function ($model) {
-                    $name = $model['name'] ?? '';
-                    $methods = $model['supportedGenerationMethods'] ?? [];
+            if ($response->successful()) {$data = $response->json('models') ?? [];$validModels = array_filter($data, function ($model) {
+                    $name =$model['name'] ?? '';
+                    $methods =$model['supportedGenerationMethods'] ?? [];
                     
                     return in_array('generateContent', $methods) && 
                            str_contains($name, 'gemini') && 
-                           !str_contains($name, 'gemma'); // Abaikan Gemma agar tidak timeout
+                           !str_contains($name, 'gemma');
                 });
 
                 return array_map(function ($model) {
@@ -60,41 +56,40 @@ class GeminiApiService
                 }, array_values($validModels));
             }
 
-            return ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+            return ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'];
         });
     }
 
     /**
-     * Menentukan model tercepat (Memprioritaskan 2.5-flash & 1.5-flash)
+     * Menentukan model terbaik (Memprioritaskan 1.5-pro / 2.0-flash untuk penalaran kurikulum mendalam)
      */
     public function getBestModel($apiKey = null)
     {
         $models = $this->getAvailableModels($apiKey);
 
-        // Prioritas 1: Gemini 2.5 Flash
-        foreach ($models as $m) {
-            if (str_contains($m, '2.5-flash')) return $m;
+        // Prioritas 1: Gemini 1.5 Pro (Sangat cerdas untuk menyusun dokumen panjang)
+        foreach ($models as$m) {
+            if (str_contains($m, '1.5-pro')) return$m;
         }
 
-        // Prioritas 2: Gemini 1.5 Flash
-        foreach ($models as $m) {
-            if (str_contains($m, '1.5-flash')) return $m;
+        // Prioritas 2: Gemini 2.0 / 1.5 Flash
+        foreach ($models as$m) {
+            if (str_contains($m, '2.0-flash') || str_contains($m, '1.5-flash')) return$m;
         }
 
         return $models[0] ?? 'gemini-1.5-flash';
     }
 
     /**
-     * Kirim prompt ke Gemini API dengan Timeout 120 detik & Fallback Loop
+     * Kirim prompt ke Gemini API dengan Konfigurasi Parameter AI Pintar & Fallback Loop
      */
-    public function generateContent(string $userPrompt, string $systemInstruction = null)
+    public function generateContent(string $userPrompt, string$systemInstruction = null)
     {
-        $apiKey = $this->getActiveApiKey();
-        $availableModels = $this->getAvailableModels($apiKey);
+        $apiKey = $this->getActiveApiKey();$availableModels = $this->getAvailableModels($apiKey);
 
-        $bestModel = $this->getBestModel($apiKey);
-        $modelsToTry = array_unique(array_merge([$bestModel], $availableModels));
+        $bestModel =$this->getBestModel($apiKey);$modelsToTry = array_unique(array_merge([$bestModel],$availableModels));
 
+        // Setup Payload dengan Parameter Pintar (Temperature 0.3 untuk fokus dan presisi kurikulum)
         $payload = [
             'contents' => [
                 [
@@ -102,11 +97,15 @@ class GeminiApiService
                         ['text' => $userPrompt]
                     ]
                 ]
+            ],
+            'generationConfig' => [
+                'temperature' => 0.3,
+                'topP' => 0.8,
+                'maxOutputTokens' => 8192,
             ]
         ];
 
-        if ($systemInstruction) {
-            $payload['systemInstruction'] = [
+        if ($systemInstruction) {$payload['systemInstruction'] = [
                 'parts' => [
                     ['text' => $systemInstruction]
                 ]
@@ -115,18 +114,16 @@ class GeminiApiService
 
         $lastExceptionMessage = '';
 
-        foreach ($modelsToTry as $modelName) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key={$apiKey}";
+        foreach ($modelsToTry as $modelName) {$url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key={$apiKey}";
 
             try {
-                // KUNCI UTAMA: Tambahkan timeout(120) agar Laravel menunggu hingga 2 menit
-                $response = Http::timeout(120)
+                $response = Http::timeout(180)
                     ->connectTimeout(15)
                     ->withHeaders(['Content-Type' => 'application/json'])
-                    ->post($url, $payload);
+                    ->post($url,$payload);
 
                 if ($response->successful()) {
-                    $text = $response->json('candidates.0.content.parts.0.text');
+                    $text =$response->json('candidates.0.content.parts.0.text');
                     if (!empty($text)) {
                         return $text;
                     }

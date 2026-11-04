@@ -5,14 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\TpMaster;
 use App\Models\Teacher;
+use App\Models\Inventory;
 use App\Services\GeminiApiService;
+use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\TemplateProcessor;
+use PhpOffice\PhpWord\SimpleType\Jc;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Exception;
-use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\SimpleType\Jc;
-use PhpOffice\PhpWord\Style\Font;
 
 class DynamicTemplateController extends Controller
 {
@@ -23,9 +23,6 @@ class DynamicTemplateController extends Controller
         $this->geminiService =$geminiService;
     }
 
-    /**
-     * Tampilan Utama Generator Perangkat Ajar
-     */
     public function index()
     {
         $tps = TpMaster::all();$teachers = Teacher::all();
@@ -39,9 +36,6 @@ class DynamicTemplateController extends Controller
         return view('templates.index', compact('tps', 'teachers', 'uploadedTemplates'));
     }
 
-    /**
-     * Upload Template .docx Baru (Selesaikan Error Call to Undefined Method)
-     */
     public function uploadTemplate(Request $request)
     {
         try {
@@ -69,12 +63,12 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Helper Konversi Data (Array/Object/JSON) ke String Murni (Mencegah Array to string conversion)
+     * Safe string helper untuk mencegah 'Array to string conversion'
      */
     private function safeString($data)
     {
         if (is_null($data)) return '-';
-        if (is_string($data) || is_numeric($data) || is_bool($data)) return (string)$data;
+        if (is_string($data) \vert{}\vert{} is_numeric($data) || is_bool($data)) return (string)$data;
 
         if (is_array($data) || is_object($data)) {$result = [];
             foreach ((array) $data as $key =>$val) {
@@ -90,174 +84,124 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Helper Menyuntikkan Teks Multiline ke Word dengan Tag <w:br/>
+     * Menyuntikkan multiline text ke Word XML secara aman
      */
-    /**
- * Helper menyuntikkan teks multiline ke Word secara aman tanpa merusak struktur XML.
- */
-private function setValueWithLineBreaks($templateProcessor, $variable, $text)
-{
-    $text = (string) $text;
-    
-    // Clean-up karakter yang berpotensi merusak XML Word
-    $text = str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $text);
-    
-    // Ubah new line (\n) menjadi tag line break Word murni (\n di-parse oleh PhpWord jika dikirim array / multiline)
-    $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $text));
-    
-    if (count($lines) > 1) {
-        $formattedText = implode("</w:t><w:br/><w:t>", $lines);
-        $templateProcessor->setValue($variable, $formattedText);
-    } else {
-        $templateProcessor->setValue($variable, $text);
+    private function setValueWithLineBreaks($templateProcessor, $variable,$text)
+    {
+        $text = (string)$text;
+        $text = str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'],$text);
+        
+        $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $text));
+        
+        if (count($lines) > 1) {$formattedText = implode("</w:t><w:br/><w:t>", $lines);$templateProcessor->setValue($variable,$formattedText);
+        } else {
+            $templateProcessor->setValue($variable,$text);
+        }
     }
-}
 
     /**
-     * Generator Prompt Dinamis Berdasarkan Data TP & Variabel Template Word
+     * Super Smart & Dynamic Prompt Generator (Vokasi, HOTS, K3LH, & DPL)
      */
     private function buildDynamicPrompt($tp,$teacher, array $aiVariables,$namaMapel)
     {
-        $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Kompetensi keahlian standar SMK Merdeka');
+        $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Standar kompetensi vokasi SMK Merdeka');
         $elemenKode =$this->safeString($tp->code ?? $tp->element_code ?? '-');
+
+        // Ambil sampel fasilitas bengkel dari PostgreSQL jika tersedia
+        $inventoryList = 'Multimeter Analog/Digital, Trainer Board, Power Supply DC, Cable Tester, APD Bengkel, SOP K3';
+        if (class_exists(Inventory::class)) {
+            $invData = Inventory::pluck('name')->take(8)->implode(', ');
+            if (!empty($invData)) {
+                $inventoryList =$invData;
+            }
+        }
 
         $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
 
         return <<<PROMPT
-Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi bidang {$namaMapel}.
+Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi & Instruktur Senior Teknik Ketenagalistrikan & Industri 4.0.
 
-TOLONG BUATKAN KONTEN TEKNIS SPESIFIK UNTUK DOKUMEN PERANGKAT AJAR DENGAN RINCIAN BERIKUT:
+TUGAS UTAMA:
+Susunlah konten perangkat ajar (Modul Ajar / Jobsheet / RPP) yang SANGAT CERDAS, MENDALAM, TERSTRUKTUR, RELEVAN DENGAN DUNIA KERJA (IDUKA), dan BERBASIS HOTS (C3-C6) berdasarkan data acuan berikut:
 =================================================================================
+- SATUAN PENDIDIKAN   : SMK NEGERI 1 BUKITTINGGI
 - MATA PELAJARAN      : {$namaMapel}
 - TUJUAN PEMBELAJARAN : {$judulTp}
 - KODE / ELEMEN       : {$elemenKode}
 - INDIKATOR KINERJA   : {$indikatorTp}
-- GURU PENGAMPU       : {$teacher->name}
+- GURU PENGAMPU       : {$teacher->name} (NIP. {$teacher->nip})
+- INVENTARIS BENGKEL  : {$inventoryList}
 =================================================================================
 
-KONTEN YANG HARUS DIISI (VARIABLE PLACEHOLDER):
+DAFTAR VARIABLE PLACEHOLDER YANG WAJIB DIISI:
 {$variableList}
 
-ATURAN GENERASI KONTEN (WAJIB DIPATUHI):
-1. Hasil HARUS berupa JSON VALID tunggal dengan kunci/key PERSIS SAMA seperti daftar variabel di atas.
-2. Setiap nilai (value) HARUS berbentuk STRING murni yang siap dimasukkan ke dokumen Word.
-3. Seluruh materi, K3, langkah kerja praktikum, teori, dan rubrik penilaian HARUS BERFOKUS 100% pada topik: "{$judulTp}".
-4. DILARANG KERAS memberikan teks umum/generik seperti "Lakukan praktikum dengan baik". Berikan instruksi teknis vokasi yang detail dan sistematis.
-5. Gunakan format poin bertingkat dengan karakter bullet (•) jika berisi beberapa langkah/poin.
+PRINSIP KECERDASAN ARTIFISIAL DALAM MENYUSUN ISI (WAJIB PATUHI):
+1. SPESIFIK & TEKNIS VOKASI: DILARANG memberikan kata-kata generik seperti "Lakukan praktikum dengan baik". Gunakan nama komponen fisik nyata, alat ukur spesifik, rumus/prinsip kelistrikan, dan aturan K3LH yang relevan dengan TP "{$judulTp}".
+2. MODEL PEMBELAJARAN (Sintaks PjBL / PBL): Uraikan aktivitas Guru dan Siswa pada tahap Awal, Inti (Memahami, Mengaplikasi, Merefleksi), dan Penutup secara mendalam dan operasional.
+3. PROFIL LULUSAN (DPL1-DPL8): Apabila terdapat variabel 'profil_lulusan', pilih Dimensi Profil Lulusan yang paling tepat (contoh: DPL3 Penalaran Kritis, DPL4 Kreativitas, DPL5 Kolaborasi) beserta deskripsi integrasi pembelajarannya.
+4. ASESMEN & RUBRIK: Sajikan instrumen asesmen awal, formatif, dan sumatif beserta rubrik penilaian kinerja terukur (Sangat Baik, Baik, Cukup, Perlu Bimbingan).
+5. FORMAT OUTPUT: Hasilkan HANYA string JSON VALID. Setiap nilai (value) HARUS berbentuk teks multiline murni dengan poin bullet (•) jika berisikan poin-poin.
 PROMPT;
     }
 
     /**
-     * Eksekusi Generate Dokumen Word via Gemini AI & Direct Base64 Download
+     * Auto Template Master Word (.docx)
      */
-    // public function generateDocument(Request $request)
-    // {
-    //     set_time_limit(300);
-    //     ini_set('memory_limit', '512M');
+    private function generateAutoTemplateStream()
+    {
+        $phpWord = new PhpWord();
+        
+        $section =$phpWord->addSection([
+            'marginTop' => 1134,
+            'marginBottom' => 1134,
+            'marginLeft' => 1134,
+            'marginRight' => 1134,
+        ]);
 
-    //     try {
-    //         $request->validate([
-    //             'template_path' => 'required|string',
-    //             'tp_id' => 'required',
-    //             'teacher_id' => 'required',
-    //         ]);
+        $titleStyle = ['name' => 'Arial', 'size' => 14, 'bold' => true, 'color' => '0F2240'];$subTitleStyle = ['name' => 'Arial', 'size' => 12, 'bold' => true, 'color' => '0051A3'];
+        
+        $section->addText('LEMBAR KERJA PESERTA DIDIK / JOBSHEET PRAKTIK',$titleStyle, ['alignment' => Jc::CENTER]);
+        $section->addText('${topik_pembelajaran}', $subTitleStyle, ['alignment' => Jc::CENTER]);$section->addTextBreak(1);
 
-    //         $templateRelativePath =$request->template_path;
+        $tableStyle = ['borderSize' => 6, 'borderColor' => 'CCCCCC', 'cellMargin' => 80];
+        $phpWord->addTableStyle('IdentityTable',$tableStyle);
+        $table =$section->addTable('IdentityTable');
+
+        $rowsData = [
+            ['Satuan Pendidikan', 'SMK NEGERI 1 BUKITTINGGI'],
+            ['Program Keahlian', 'Teknik Ketenagalistrikan'],
+            ['Mata Pelajaran', '${nama_mapel}'],
+            ['Topik / Modul Ajar', '${tujuan_pembelajaran}'],
+            ['Guru Pengampu', '${nama_guru} (NIP.${nip_guru})'],
+            ['Nama Kelompok / Anggota', 'Kelompok: ......... / Nama: 1. .........  2. .........  3. .........']
+        ];
+
+        foreach ($rowsData as$row) {
+            $table->addRow();$table->addCell(2500, ['bgColor' => '0F2240'])->addText($row[0], ['bold' => true, 'color' => 'FFFFFF', 'size' => 9.5]);$table->addCell(300, ['bgColor' => 'F0F4F8'])->addText(':', ['bold' => true, 'size' => 9.5]);
+            $table->addCell(6200, ['bgColor' => 'F0F4F8'])->addText($row[1], ['size' => 9.5]);
+        }
+
+        $section->addTextBreak(1);
+
+        $addSectionBox = function($title, $variable) use ($section) {
+            $section->addText($title, ['name' => 'Arial', 'size' => 11, 'bold' => true, 'color' => '0F2240']);
             
-    //         if (!Storage::exists($templateRelativePath)) {
-    //             if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
-    //                 $templateRelativePath = 'public/templates/' . basename($templateRelativePath);
-    //             } else {
-    //                 return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan di server.'], 404);
-    //             }
-    //         }
+            $boxTable =$section->addTable(['borderSize' => 0]);
+            $boxTable->addRow();$cell = $boxTable->addCell(9000, ['bgColor' => 'F8FAFC']);$cell->addText($variable, ['name' => 'Arial', 'size' => 9.5, 'color' => '1E293B']);$section->addTextBreak(1);
+        };
 
-    //         $fullTemplatePath = Storage::path($templateRelativePath);
+        $addSectionBox('I. TUJUAN PEMBELAJARAN & INDIKATOR KINERJA', '${tujuan_pembelajaran_detail}');$addSectionBox('II. KESELAMATAN KERJA (K3) DAN PETUNJUK UMUM', '${keselamatan_kerja}');$addSectionBox('III. ALAT DAN BAHAN PRAKTIKUM', '${alat_dan_bahan}');$addSectionBox('IV. RINGKASAN TEORI & SKEMATIK RANGKAIAN', '${ringkasan_teori}');$addSectionBox('V. LANGKAH-LANGKAH KERJA PERCOBAAN', '${langkah_kerja}');$addSectionBox('VI. LEMBAR PENILAIAN & RUBRIK KINERJA', '${rubrik_penilaian}');
 
-    //         // 1. Load Template & Deteksi Semua Variable Placeholder ${...}
-    //         $templateProcessor = new TemplateProcessor($fullTemplatePath);
-    //         $variables =$templateProcessor->getVariables();
+        $tempPath = tempnam(sys_get_temp_dir(), 'tpl_auto_');
+        $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
+        $objWriter->save($tempPath);
 
-    //         // 2. Ambil Data Detail dari PostgreSQL
-    //         $tp = TpMaster::with('subject')->findOrFail($request->tp_id);
-    //         $teacher = Teacher::findOrFail($request->teacher_id);
-            
-    //         $namaMapel =$this->safeString($tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan');
-    //         $judulTp =$this->safeString($tp->title);$namaGuru = $this->safeString($teacher->name ?? '-');
-    //         $nipGuru = $this->safeString($teacher->nip ?? '-');
-
-    //         // Filter variabel statis dan variabel AI
-    //         $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
-
-    //         // 3. Susun Prompt Dinamis
-    //         $systemInstruction = "Anda adalah Asisten AI Kurikulum SMK Merdeka yang ahli dalam Vokasi Teknik Ketenagalistrikan. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
-            
-    //         $userPrompt = $this->buildDynamicPrompt($tp, $teacher, $aiVariables, $namaMapel);
-
-    //         // 4. Panggil Gemini Service
-    //         $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
-            
-    //         $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
-    //         $cleanJson = trim($cleanJson, '`');
-    //         $aiData = json_decode($cleanJson, true) ?? [];
-
-    //         // 5. Inject Hasil ke File Word
-    //         foreach ($variables as $variable) {
-    //             $varLower = strtolower($variable);
-
-    //             if (in_array($varLower, ['nama_mapel', 'mapel'])) {
-    //                 $templateProcessor->setValue($variable, htmlspecialchars($namaMapel));
-    //             } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
-    //                 $templateProcessor->setValue($variable, htmlspecialchars($namaGuru));
-    //             } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
-    //                 $templateProcessor->setValue($variable, htmlspecialchars($nipGuru));
-    //             } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
-    //                 $templateProcessor->setValue($variable, htmlspecialchars($judulTp));
-    //             } else {
-    //                 $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
-
-    //                 if ($rawValue === null) {
-    //                     foreach ($aiData as $k => $v) {
-    //                         if (strtolower($k) === $varLower) {
-    //                             $rawValue = $v;
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-
-    //                 $safeValue = $this->safeString($rawValue ?? 'Konten disesuaikan dengan TP: ' . $judulTp);
-    //                 $this->setValueWithLineBreaks($templateProcessor, $variable, $safeValue);
-    //             }
-    //         }
-
-    //         // 6. Simpan Temporary & Konversi Base64 untuk Direct Download (Bypass 403/404)
-    //         $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
-    //         $templateProcessor->saveAs($tempFile);
-            
-    //         $fileData = file_get_contents($tempFile);
-    //         $base64File = base64_encode($fileData);
-    //         @unlink($tempFile);
-
-    //         $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
-
-    //         return response()->json([
-    //             'status' => 'success',
-    //             'message' => 'Dokumen berhasil di-generate secara dinamis!',
-    //             'filename' => $downloadFilename,
-    //             'file_data' => $base64File,
-    //             'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    //         ], 200);
-
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
+        return $tempPath;
+    }
 
     /**
-     * Core Method: Process & Generate Word (.docx)
+     * Process & Generate Document
      */
     public function generateDocument(Request $request)
     {
@@ -272,7 +216,6 @@ PROMPT;
 
             $isAutoGenerated = false;
 
-            // 1. Tentukan Sumber File Template (.docx)
             if (empty($request->template_path) || $request->template_path === 'auto') {$fullTemplatePath = $this->generateAutoTemplateStream();$isAutoGenerated = true;
             } else {
                 $templateRelativePath =$request->template_path;
@@ -288,11 +231,9 @@ PROMPT;
                 $fullTemplatePath = Storage::path($templateRelativePath);
             }
 
-            // 2. Load TemplateProcessor & Deteksi Semua Variabel Placeholder ${...}
             $templateProcessor = new TemplateProcessor($fullTemplatePath);
             $variables =$templateProcessor->getVariables();
 
-            // 3. Ambil Data Spesifik dari PostgreSQL
             $tp = TpMaster::with('subject')->findOrFail($request->tp_id);
             $teacher = Teacher::findOrFail($request->teacher_id);
             
@@ -300,37 +241,32 @@ PROMPT;
             $judulTp =$this->safeString($tp->title);$namaGuru = $this->safeString($teacher->name ?? '-');
             $nipGuru = $this->safeString($teacher->nip ?? '-');
 
-            // Pisahkan Variabel Statis Identitas dan Variabel AI
             $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
 
-            // 4. Susun Prompt Dinamis & Panggil Gemini AI Service
-            $systemInstruction = "Anda adalah Asisten AI Kurikulum Merdeka SMK Vokasi Teknik Ketenagalistrikan. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
+            $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
             
             $userPrompt = $this->buildDynamicPrompt($tp, $teacher, $aiVariables, $namaMapel);
 
             $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
             
-            // Pembersihan Format JSON AI Response
             $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
             $cleanJson = trim($cleanJson, '`');
             $aiData = json_decode($cleanJson, true) ?? [];
 
-            // 5. Inject Data Statis & Data AI ke Placeholder Word
             foreach ($variables as $variable) {
                 $varLower = strtolower($variable);
 
                 if (in_array($varLower, ['nama_mapel', 'mapel'])) {
-                    $templateProcessor->setValue($variable, htmlspecialchars($namaMapel));
+                    $templateProcessor->setValue($variable, $namaMapel);
                 } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
-                    $templateProcessor->setValue($variable, htmlspecialchars($namaGuru));
+                    $templateProcessor->setValue($variable, $namaGuru);
                 } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
-                    $templateProcessor->setValue($variable, htmlspecialchars($nipGuru));
+                    $templateProcessor->setValue($variable, $nipGuru);
                 } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
-                    $templateProcessor->setValue($variable, htmlspecialchars($judulTp));
+                    $templateProcessor->setValue($variable, $judulTp);
                 } else {
                     $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
 
-                    // Fallback jika AI mengubah penulisan huruf besar/kecil key
                     if ($rawValue === null) {
                         foreach ($aiData as $k => $v) {
                             if (strtolower($k) === $varLower) {
@@ -345,7 +281,6 @@ PROMPT;
                 }
             }
 
-            // 6. Simpan Ke Temporary File & Konversi ke String Base64
             $tempFile = tempnam(sys_get_temp_dir(), 'docx_out_');
             $templateProcessor->saveAs($tempFile);
             
@@ -359,10 +294,9 @@ PROMPT;
 
             $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
 
-            // Return Response JSON ke Frontend untuk Direct Download (Bypass 403/404)
             return response()->json([
                 'status' => 'success',
-                'message' => 'Dokumen berhasil disusun dan disesuaikan dengan TP!',
+                'message' => 'Dokumen berhasil disusun dan disesuaikan secara cerdas dengan TP!',
                 'filename' => $downloadFilename,
                 'file_data' => $base64File,
                 'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -375,83 +309,4 @@ PROMPT;
             ], 500);
         }
     }
-
-    /**
- * Membuat File Template Master Word (.docx) Secara Otomatis di Memory
- */
-/**
- * Membuat Struktur Template Word Master secara Otomatis di Memory/Temporary Server
- */
-/**
- * Membuat Struktur Template Word Master secara Otomatis di Memory/Temporary Server
- */
-private function generateAutoTemplateStream()
-{
-    $phpWord = new PhpWord();
-    
-    $section = $phpWord->addSection([
-        'marginTop' => 1134, // 2 cm
-        'marginBottom' => 1134,
-        'marginLeft' => 1134,
-        'marginRight' => 1134,
-    ]);
-
-    // 1. Header & Judul Dokumen
-    $titleStyle = ['name' => 'Arial', 'size' => 14, 'bold' => true, 'color' => '0F2240'];
-    $subTitleStyle = ['name' => 'Arial', 'size' => 12, 'bold' => true, 'color' => '0051A3'];
-    
-    $section->addText('LEMBAR KERJA PESERTA DIDIK / JOBSHEET PRAKTIK', $titleStyle, ['alignment' => Jc::CENTER]);
-    $section->addText('${topik_pembelajaran}', $subTitleStyle, ['alignment' => Jc::CENTER]);
-    $section->addTextBreak(1);
-
-    // 2. Tabel Identitas
-    $tableStyle = ['borderSize' => 6, 'borderColor' => 'CCCCCC', 'cellMargin' => 80];
-    $phpWord->addTableStyle('IdentityTable', $tableStyle);
-    $table = $section->addTable('IdentityTable');
-
-    $rowsData = [
-        ['Satuan Pendidikan', 'SMK NEGERI 1 BUKITTINGGI'],
-        ['Program Keahlian', 'Teknik Ketenagalistrikan'],
-        ['Mata Pelajaran', '${nama_mapel}'],
-        ['Topik / Modul Ajar', '${tujuan_pembelajaran}'],
-        ['Guru Pengampu', '${nama_guru} (NIP. ${nip_guru})'],
-        ['Nama Kelompok / Anggota', 'Kelompok: ......... / Nama: 1. .........  2. .........  3. .........']
-    ];
-
-    foreach ($rowsData as $row) {
-        $table->addRow();
-        $table->addCell(2500, ['bgColor' => '0F2240'])->addText($row[0], ['bold' => true, 'color' => 'FFFFFF', 'size' => 9.5]);
-        $table->addCell(300, ['bgColor' => 'F0F4F8'])->addText(':', ['bold' => true, 'size' => 9.5]);
-        $table->addCell(6200, ['bgColor' => 'F0F4F8'])->addText($row[1], ['size' => 9.5]);
-    }
-
-    $section->addTextBreak(1);
-
-    // 3. Helper Section Box
-    $addSectionBox = function($title, $variable) use ($section) {
-        $section->addText($title, ['name' => 'Arial', 'size' => 11, 'bold' => true, 'color' => '0F2240']);
-        
-        $boxTable = $section->addTable(['borderSize' => 0]);
-        $boxTable->addRow();
-        $cell = $boxTable->addCell(9000, ['bgColor' => 'F8FAFC']);
-        $cell->addText($variable, ['name' => 'Arial', 'size' => 9.5, 'color' => '1E293B']);
-        
-        $section->addTextBreak(1);
-    };
-
-    // 4. Menyusun Variabel Utama Dokumen
-    $addSectionBox('I. TUJUAN PEMBELAJARAN & INDIKATOR KINERJA', '${tujuan_pembelajaran_detail}');
-    $addSectionBox('II. KESELAMATAN KERJA (K3) DAN PETUNJUK UMUM', '${keselamatan_kerja}');
-    $addSectionBox('III. ALAT DAN BAHAN PRAKTIKUM', '${alat_dan_bahan}');
-    $addSectionBox('IV. RINGKASAN TEORI & SKEMATIK RANGKAIAN', '${ringkasan_teori}');
-    $addSectionBox('V. LANGKAH-LANGKAH KERJA PERCOBAAN', '${langkah_kerja}');
-    $addSectionBox('VI. LEMBAR PENILAIAN & RUBRIK KINERJA', '${rubrik_penilaian}');
-
-    // Simpan ke file temporary menggunakan Word2007
-    $tempPath = tempnam(sys_get_temp_dir(), 'tpl_auto_');
-    $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
-    $objWriter->save($tempPath);
-
-    return $tempPath;
-}
 }
