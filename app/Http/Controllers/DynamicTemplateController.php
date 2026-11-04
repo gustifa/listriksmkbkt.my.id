@@ -132,7 +132,7 @@ class DynamicTemplateController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Dokumen berhasil di-generate!',
-            'download_url' => asset('storage/generated/' . $outputFilename)
+            'download_url' => route('dynamic-templates.download', ['filename' => $outputFilename])
         ], 200);
 
     } catch (Exception $e) {
