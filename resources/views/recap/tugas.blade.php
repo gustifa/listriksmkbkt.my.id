@@ -1,135 +1,48 @@
 @section('title', 'Rekapitulasi Penyerahan Tugas Siswa')
+<x-app-layout>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-    <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-<x-app-layout>
-    <style>
-        .table-rekap {
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 11px;
-            width: max-content;
-            min-width: 100%;
-        }
-        .table-rekap th, .table-rekap td {
-            border-right: 1px solid #333 !important;
-            border-bottom: 1px solid #333 !important;
-            text-align: center;
-            vertical-align: middle;
-            padding: 4px;
-            background-color: #fff;
-        }
-        .table-rekap thead tr:first-child th {
-            border-top: 1px solid #333 !important;
-        }
-        .table-rekap tr th:first-child, .table-rekap tr td:first-child {
-            border-left: 1px solid #333 !important;
-        }
 
-        .header-vertical {
-            writing-mode: vertical-lr;
-            transform: rotate(180deg);
-            white-space: nowrap;
-            height: 140px;
-            padding: 5px 2px !important;
-            cursor: pointer;
-        }
+    <style>
+        .table-rekap { border-collapse: separate; border-spacing: 0; font-size: 11px; width: max-content; min-width: 100%; }
+        .table-rekap th, .table-rekap td { border-right: 1px solid #333 !important; border-bottom: 1px solid #333 !important; text-align: center; vertical-align: middle; padding: 4px; background-color: #fff; }
+        .table-rekap thead tr:first-child th { border-top: 1px solid #333 !important; }
+        .table-rekap tr th:first-child, .table-rekap tr td:first-child { border-left: 1px solid #333 !important; }
+
+        .header-vertical { writing-mode: vertical-lr; transform: rotate(180deg); white-space: nowrap; height: 140px; padding: 5px 2px !important; cursor: pointer; }
         .header-vertical:hover { background-color: #e9ecef !important; }
         .cell-clickable { cursor: pointer; font-size: 12px; }
         .cell-clickable:hover { background-color: #d1e7dd !important; }
         .bg-zebra td { background-color: #f8f9fa !important; }
         .text-left { text-align: left !important; padding-left: 6px !important; }
         .cursor-pointer { cursor: pointer; }
-        .tp-badge {
-            font-size: 9px;
-            background-color: #0d6efd;
-            color: #fff;
-            padding: 2px 4px;
-            border-radius: 3px;
-            display: block;
-            margin-bottom: 2px;
-        }
+        .tp-badge { font-size: 9px; background-color: #0d6efd; color: #fff; padding: 2px 4px; border-radius: 3px; display: block; margin-bottom: 2px; }
 
-        /* STICKY / FREEZE COLUMN (HANYA AKTIF PADA DESKTOP/TABLET > 768px) */
         @media (min-width: 769px) {
-            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
-                position: sticky;
-                z-index: 2;
-            }
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: sticky; z-index: 2; }
             .sticky-col-1 { left: 0; min-width: 35px; }
             .sticky-col-2 { left: 35px; min-width: 90px; }
-            .sticky-col-3 { 
-                left: 125px; 
-                min-width: 180px; 
-                box-shadow: 3px 0 5px -2px rgba(0,0,0,0.15); 
-            }
-
-            /* Header Sticky */
-            .table-rekap thead th {
-                position: sticky;
-                top: 0;
-                background-color: #f8f9fa !important;
-                z-index: 3;
-            }
-            .table-rekap thead th.sticky-col {
-                z-index: 4;
-            }
+            .sticky-col-3 { left: 125px; min-width: 180px; box-shadow: 3px 0 5px -2px rgba(0,0,0,0.15); }
+            .table-rekap thead th { position: sticky; top: 0; background-color: #f8f9fa !important; z-index: 3; }
+            .table-rekap thead th.sticky-col { z-index: 4; }
         }
-
-        /* KHUSUS PERANGKAT HP / MOBILE (< 768px) */
         @media (max-width: 768px) {
-            .table-rekap {
-                font-size: 10px;
-            }
-            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
-                position: static !important;
-                box-shadow: none !important;
-            }
-            .sticky-col-3 {
-                min-width: 130px !important;
-                max-width: 150px !important;
-                white-space: normal !important;
-                word-break: break-word !important;
-            }
-            .header-vertical {
-                height: 110px !important;
-            }
+            .table-rekap { font-size: 10px; }
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: static !important; box-shadow: none !important; }
+            .sticky-col-3 { min-width: 130px !important; max-width: 150px !important; white-space: normal !important; word-break: break-word !important; }
+            .header-vertical { height: 110px !important; }
         }
-
-        /* CSS MEDIA PRINT */
         @media print {
-            .btn, form, modal, .modal, nav, header, footer, sidebar, .no-print, .dropdown {
-                display: none !important;
-            }
-            body {
-                background-color: #fff !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            .container-fluid {
-                box-shadow: none !important;
-                padding: 0 !important;
-            }
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-            .table-rekap {
-                width: 100% !important;
-                font-size: 9pt !important;
-            }
-            .table-rekap th.sticky-col, .table-rekap td.sticky-col {
-                position: static !important;
-                box-shadow: none !important;
-            }
-            [class*="col-task-"] {
-                display: table-cell !important;
-            }
+            .btn, form, modal, .modal, nav, header, footer, sidebar, .no-print, .dropdown { display: none !important; }
+            body { background-color: #fff !important; padding: 0 !important; margin: 0 !important; }
+            .container-fluid { box-shadow: none !important; padding: 0 !important; }
+            @page { size: A4 landscape; margin: 10mm; }
+            .table-rekap { width: 100% !important; font-size: 9pt !important; }
+            .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: static !important; box-shadow: none !important; }
+            [class*="col-task-"] { display: table-cell !important; }
         }
     </style>
-</head>
-<body class="p-2 p-md-4 bg-light">
 
 <div class="container-fluid bg-white p-3 p-md-4 rounded shadow-sm">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-2">
@@ -140,7 +53,6 @@
             @endif
         </div>
 
-        <!-- Tombol Cetak, Export Excel & Pengisian Massal -->
         @if($selectedClassroom && $selectedSubject)
         <div class="d-flex flex-wrap gap-2 no-print">
             <button type="button" class="btn btn-warning btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalBulkRekap" title="Pengisian Massal">
@@ -195,15 +107,10 @@
     @if($selectedClassroom && $selectedSubject && $assignments->count() > 0)
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
         <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" 
-                    type="button" 
-                    id="btnFilterKolom" 
-                    data-bs-toggle="dropdown" 
-                    data-bs-auto-close="outside" 
-                    aria-expanded="false">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolom" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                 👁️ Filter Tampilan Kolom Tugas
             </button>
-            <ul class="dropdown-menu p-3 shadow" aria-labelledby="btnFilterKolom" style="max-height: 320px; overflow-y: auto; width: 290px; z-index: 1050;">
+            <ul class="dropdown-menu p-3 shadow" style="max-height: 320px; overflow-y: auto; width: 290px; z-index: 1050;">
                 <li class="fw-bold mb-2 text-primary border-bottom pb-1">Tampilkan / Sembunyikan Tugas:</li>
                 <li>
                     <div class="form-check fw-bold text-success mb-2">
@@ -224,14 +131,14 @@
             </ul>
         </div>
         <small class="text-muted fst-italic">
-            💡 Tips: Geser tabel ke kanan atau gunakan "Filter Tampilan Kolom" untuk mempermudah pengisian di HP.
+            💡 Tips: Pilihan tampilan kolom tugas otomatis tersimpan saat halaman di-reload.
         </small>
     </div>
     @endif
 
     <!-- Tabel Rekapitulasi Grid Matriks -->
     @if($selectedClassroom && $selectedSubject)
-    <div class="table-responsive" style="max-height: 650px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch;">
+    <div class="table-responsive" style="max-height: 650px; overflow: auto;">
         <table class="table table-rekap">
             <thead>
                 <tr>
@@ -300,7 +207,7 @@
     @endif
 </div>
 
-<!-- ================= MODAL 1: TAMBAH TP ================= -->
+<!-- MODAL 1: TAMBAH TP -->
 <div class="modal fade no-print" id="modalTP" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -316,7 +223,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Deskripsi TP</label>
-                        <textarea id="tp_description" class="form-control" rows="3" placeholder="Contoh: Menganalisis rangkaian listrik arus searah..." required></textarea>
+                        <textarea id="tp_description" class="form-control" rows="3" placeholder="Contoh: Menganalisis rangkaian listrik..." required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -328,7 +235,7 @@
     </div>
 </div>
 
-<!-- ================= MODAL 2: TAMBAH TUGAS ================= -->
+<!-- MODAL 2: TAMBAH TUGAS -->
 <div class="modal fade no-print" id="modalTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -369,14 +276,14 @@
     </div>
 </div>
 
-<!-- ================= MODAL 3: PENGISIAN REKAP MASSAL LENGKAP ================= -->
+<!-- MODAL 3: REKAP MASSAL -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBulkRekap" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-warning text-dark">
                 <h6 class="modal-title fw-bold">⚡ Pengisian Rekap Tugas Massal</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="formBulkRekap">
                 <div class="modal-body p-4">
@@ -389,7 +296,6 @@
                             @endforeach
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulan <span class="text-danger">*</span></label>
                         <select id="bulk_status" class="form-select" required>
@@ -398,34 +304,22 @@
                             <option value="A">X Alpa / Belum Mengumpulkan</option>
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label for="bulk_submitted_at" class="form-label fw-bold text-dark">Waktu Pengumpulan (Opsional)</label>
                         <input type="datetime-local" id="bulk_submitted_at" class="form-control" value="{{ date('Y-m-d\TH:i') }}">
                     </div>
-
                     <div class="mb-3">
                         <label for="bulk_score" class="form-label fw-bold text-dark">Nilai Tugas Massal (Opsional)</label>
-                        <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85 atau 100" min="0" max="100" step="0.1">
+                        <input type="number" id="bulk_score" class="form-control" placeholder="Contoh: 85" min="0" max="100" step="0.1">
                     </div>
-
                     <div class="mb-3">
                         <label for="bulk_feedback" class="form-label fw-bold text-dark">Catatan / Feedback Guru Massal (Opsional)</label>
-                        <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Contoh: Sangat baik, tingkatkan lagi..."></textarea>
-                    </div>
-
-                    <div class="p-3 bg-light rounded border">
-                        <small class="text-muted d-block">
-                            <i class="fas fa-info-circle me-1"></i> Aksi ini akan memperbarui status, waktu, nilai, dan feedback tugas untuk <strong>seluruh siswa</strong> di kelas ini secara bersamaan.
-                        </small>
+                        <textarea id="bulk_feedback" class="form-control" rows="2" placeholder="Catatan..."></textarea>
                     </div>
                 </div>
-
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary fw-semibold" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-warning fw-semibold" id="btnSubmitBulk">
-                        ⚡ Terapkan Massal
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning fw-semibold">⚡ Terapkan Massal</button>
                 </div>
             </form>
         </div>
@@ -433,9 +327,8 @@
 </div>
 @endif
 
-<!-- JS Script Dependencies -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -443,56 +336,81 @@
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
         
-        $('.select2-modal').select2({
-            theme: 'bootstrap-5',
-            dropdownParent: $('#modalTugas'),
-            width: '100%'
-        });
-
+        if ($('#modalTugas').length) {
+            $('.select2-modal').select2({ theme: 'bootstrap-5', dropdownParent: $('#modalTugas'), width: '100%' });
+        }
         if ($('#modalBulkRekap').length) {
-            $('.select2-modal-bulk').select2({
-                theme: 'bootstrap-5',
-                dropdownParent: $('#modalBulkRekap'),
-                width: '100%'
-            });
+            $('.select2-modal-bulk').select2({ theme: 'bootstrap-5', dropdownParent: $('#modalBulkRekap'), width: '100%' });
         }
 
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
+        $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
 
-        // 1. Inisialisasi Manual Dropdown Bootstrap
-        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-        dropdownElementList.map(function (dropdownToggleEl) {
-            return new bootstrap.Dropdown(dropdownToggleEl);
-        });
+        const taskStorageKey = 'vis_tasks_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
 
-        // 2. Event Handler Checkbox Hide / Show Kolom Tasks Real-time
+        // RESTORE LOCALSTORAGE STATUS VISIBILITAS KOLOM TUGAS
+        function restoreVisibility() {
+            const savedState = localStorage.getItem(taskStorageKey);
+            if (savedState) {
+                const hiddenCols = JSON.parse(savedState);
+                $('.toggle-col-checkbox').each(function() {
+                    const colIdx = $(this).data('column');
+                    if (hiddenCols.includes(colIdx)) {
+                        $(this).prop('checked', false);
+                        $(`.col-task-${colIdx}`).hide();
+                    } else {
+                        $(this).prop('checked', true);
+                        $(`.col-task-${colIdx}`).show();
+                    }
+                });
+                $('#toggle-all-tasks').prop('checked', $('.toggle-col-checkbox:checked').length === $('.toggle-col-checkbox').length);
+            }
+        }
+
+        function saveVisibility() {
+            const hiddenCols = [];
+            $('.toggle-col-checkbox').each(function() {
+                const colIdx = $(this).data('column');
+                if (!$(this).is(':checked')) {
+                    hiddenCols.push(colIdx);
+                }
+            });
+            localStorage.setItem(taskStorageKey, JSON.stringify(hiddenCols));
+        }
+
+        restoreVisibility();
+
+        // TOGGLE FILTER TUGAS
         $(document).on('change', '.toggle-col-checkbox', function() {
             const colIndex = $(this).data('column');
-            if ($(this).is(':checked')) {
-                $(`.col-task-${colIndex}`).show();
-            } else {
-                $(`.col-task-${colIndex}`).hide();
+            if ($(this).is(':checked')) { 
+                $(`.col-task-${colIndex}`).show(); 
+            } else { 
+                $(`.col-task-${colIndex}`).hide(); 
             }
+            $('#toggle-all-tasks').prop('checked', $('.toggle-col-checkbox:checked').length === $('.toggle-col-checkbox').length);
+            saveVisibility();
         });
 
-        // 3. Event Handler Select All Tasks
         $(document).on('change', '#toggle-all-tasks', function() {
             const isChecked = $(this).is(':checked');
-            $('.toggle-col-checkbox').prop('checked', isChecked).trigger('change');
+            $('.toggle-col-checkbox').prop('checked', isChecked);
+            if (isChecked) {
+                $('[class*="col-task-"]').show();
+                localStorage.removeItem(taskStorageKey);
+            } else {
+                $('[class*="col-task-"]').hide();
+                saveVisibility();
+            }
         });
 
         // Submit Form TP
         $('#formTambahTP').submit(function(e) {
             e.preventDefault();
-            const subjectId = $('#subject_id').val();
-
             $.ajax({
                 url: '{{ route("rekap.tp.store") }}',
                 type: 'POST',
                 data: {
-                    subject_id: subjectId,
+                    subject_id: $('#subject_id').val(),
                     code: $('#tp_code').val(),
                     description: $('#tp_description').val()
                 },
@@ -530,36 +448,24 @@
             });
         });
 
-        // Submit Form Pengisian Rekap Massal
+        // Submit Form Rekap Massal
         $('#formBulkRekap').submit(function(e) {
             e.preventDefault();
-            
             const assignmentId = $('#bulk_assignment_id').val();
-            const status       = $('#bulk_status').val();
-            const submittedAt  = $('#bulk_submitted_at').val();
-            const score        = $('#bulk_score').val();
-            const feedback     = $('#bulk_feedback').val();
             const classroomId  = $('#classroom_id').val();
 
-            if (!assignmentId) {
-                Swal.fire('Peringatan', 'Silakan pilih tugas terlebih dahulu.', 'warning');
-                return;
-            }
-
-            if (!classroomId) {
-                Swal.fire('Peringatan', 'Silakan pilih kelas terlebih dahulu pada filter atas.', 'warning');
+            if (!assignmentId || !classroomId) {
+                Swal.fire('Peringatan', 'Silakan pilih tugas dan kelas terlebih dahulu.', 'warning');
                 return;
             }
 
             Swal.fire({
                 title: 'Apakah Anda Yakin?',
-                text: "Status, tanggal, nilai, dan feedback tugas seluruh siswa akan diperbarui secara massal!",
+                text: "Rekap tugas seluruh siswa akan diperbarui secara massal!",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#ffc107',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Ya, Terapkan!',
-                cancelButtonText: 'Batal'
+                confirmButtonText: 'Ya, Terapkan!'
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -571,29 +477,17 @@
                             _token: '{{ csrf_token() }}',
                             assignment_id: assignmentId,
                             classroom_id: classroomId,
-                            status: status,
-                            submitted_at: submittedAt,
-                            score: score,
-                            feedback: feedback
+                            status: $('#bulk_status').val(),
+                            submitted_at: $('#bulk_submitted_at').val(),
+                            score: $('#bulk_score').val(),
+                            feedback: $('#bulk_feedback').val()
                         },
                         success: function(res) {
                             $('#modalBulkRekap').modal('hide');
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Berhasil!',
-                                text: res.message || 'Rekap tugas massal berhasil diperbarui.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
+                            Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
                         },
                         error: function(err) {
-                            let errorMsg = 'Gagal memperbarui data secara massal.';
-                            if (err.responseJSON && err.responseJSON.errors) {
-                                errorMsg = Object.values(err.responseJSON.errors).flat().join('<br>');
-                            } else if (err.responseJSON && err.responseJSON.message) {
-                                errorMsg = err.responseJSON.message;
-                            }
-                            Swal.fire('Gagal!', errorMsg, 'error');
+                            Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal memperbarui data', 'error');
                         }
                     });
                 }
@@ -601,14 +495,8 @@
         });
     });
 
-    // Detail Informasi Tugas
     function showAssignmentInfo(assignmentId) {
-        Swal.fire({ 
-            title: 'Memuat data...', 
-            allowOutsideClick: false, 
-            didOpen: () => { Swal.showLoading(); } 
-        });
-
+        Swal.fire({ title: 'Memuat data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         $.ajax({
             url: `/rekap-tugas/detail/${assignmentId}`,
             type: 'GET',
@@ -632,13 +520,10 @@
                     });
                 }
             },
-            error: function() {
-                Swal.fire('Error', 'Gagal memuat detail data tugas.', 'error');
-            }
+            error: function() { Swal.fire('Error', 'Gagal memuat detail data tugas.', 'error'); }
         });
     }
 
-    // Update Status, Nilai, Waktu & Feedback Individual
     function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
         const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
 
@@ -662,53 +547,32 @@
                     <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
 
                     <label class="form-label fw-bold mb-1">Catatan / Feedback Guru (Opsional):</label>
-                    <textarea id="swal_feedback" class="form-control" rows="2" placeholder="Tuliskan catatan atau masukan untuk siswa...">${currentFeedback || ''}</textarea>
+                    <textarea id="swal_feedback" class="form-control" rows="2" placeholder="Catatan...">${currentFeedback || ''}</textarea>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: 'Simpan Data',
-            cancelButtonText: 'Batal',
-            showLoaderOnConfirm: true,
             preConfirm: () => {
-                const status = $('#swal_status').val();
-                const score = $('#swal_score').val();
-                const submittedAt = $('#swal_submitted_at').val();
-                const feedback = $('#swal_feedback').val();
-
                 return $.ajax({
                     url: '{{ route("rekap.tugas.toggle") }}',
                     type: 'POST',
                     data: { 
                         assignment_id: assignmentId, 
                         student_id: studentId, 
-                        status: status,
-                        score: score,
-                        submitted_at: submittedAt,
-                        feedback: feedback
+                        status: $('#swal_status').val(),
+                        score: $('#swal_score').val(),
+                        submitted_at: $('#swal_submitted_at').val(),
+                        feedback: $('#swal_feedback').val()
                     }
                 }).catch(error => {
-                    let errorMsg = 'Gagal memperbarui data.';
-                    if (error.responseJSON && error.responseJSON.message) {
-                        errorMsg = error.responseJSON.message;
-                    }
-                    Swal.showValidationMessage(errorMsg);
+                    Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
                 });
-            },
-            allowOutsideClick: () => !Swal.isLoading()
+            }
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: result.value?.message || 'Data rekapitulasi tugas siswa berhasil diperbarui.',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    location.reload();
-                });
+                Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1200, showConfirmButton: false }).then(() => location.reload());
             }
         });
     }
 </script>
-
 </x-app-layout>

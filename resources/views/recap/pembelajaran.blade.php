@@ -35,7 +35,7 @@
             body { background-color: #fff !important; padding: 0 !important; }
             @page { size: A4 landscape; margin: 10mm; }
             .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; }
-            [class*="col-date-"] { display: table-cell !important; }
+            [class*="col-date-"], [class*="col-task-"] { display: table-cell !important; }
         }
     </style>
 
@@ -104,11 +104,11 @@
         <!-- ================= TAB 1: PRESENSI & JURNAL ================= -->
         <div class="tab-pane fade show active" id="presensi-pane" role="tabpanel">
             
-            <!-- TOOLBAR DROPDOWN FILTER KOLOM TANGGAL -->
+            <!-- TOOLBAR DROPDOWN FILTER KOLOM TANGGAL PRESENSI -->
             @if($dates->count() > 0)
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolom" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolomDates" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                         👁️ Filter Tampilan Tanggal
                     </button>
                     <ul class="dropdown-menu p-3 shadow" style="max-height: 300px; overflow-y: auto; width: 280px; z-index: 1050;">
@@ -122,8 +122,8 @@
                         @foreach($dates as $index => $d)
                         <li>
                             <div class="form-check py-1">
-                                <input class="form-check-input toggle-col-checkbox" type="checkbox" data-column="{{ $index }}" id="col-check-{{ $index }}" checked>
-                                <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-{{ $index }}">
+                                <input class="form-check-input toggle-date-checkbox" type="checkbox" data-column="{{ $index }}" id="col-check-date-{{ $index }}" checked>
+                                <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-date-{{ $index }}">
                                     P-{{ $index + 1 }} ({{ \Carbon\Carbon::parse($d->date)->format('d/m/Y') }})
                                 </label>
                             </div>
@@ -214,6 +214,37 @@
 
         <!-- ================= TAB 2: REKAP TUGAS & NILAI ================= -->
         <div class="tab-pane fade" id="tugas-pane" role="tabpanel">
+            
+            <!-- TOOLBAR DROPDOWN FILTER KOLOM TUGAS -->
+            @if($assignments->count() > 0)
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolomTasks" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        👁️ Filter Tampilan Kolom Tugas
+                    </button>
+                    <ul class="dropdown-menu p-3 shadow" style="max-height: 300px; overflow-y: auto; width: 280px; z-index: 1050;">
+                        <li class="fw-bold mb-2 text-primary border-bottom pb-1">Sembunyikan / Tampilkan:</li>
+                        <li>
+                            <div class="form-check fw-bold text-success mb-2">
+                                <input class="form-check-input" type="checkbox" id="toggle-all-tasks" checked>
+                                <label class="form-check-label" for="toggle-all-tasks">Pilih Semua / Reset</label>
+                            </div>
+                        </li>
+                        @foreach($assignments as $index => $asg)
+                        <li>
+                            <div class="form-check py-1">
+                                <input class="form-check-input toggle-task-checkbox" type="checkbox" data-column="{{ $index }}" id="col-check-task-{{ $index }}" checked>
+                                <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-task-{{ $index }}" title="{{ $asg->title }}">
+                                    ({{ $index + 1 }}) {{ $asg->title }}
+                                </label>
+                            </div>
+                        </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+            @endif
+
             <div class="table-responsive" style="max-height: 600px; overflow: auto;">
                 <table class="table table-rekap">
                     <thead>
@@ -223,7 +254,7 @@
                             <th rowspan="2" class="sticky-col sticky-col-3">NAMA SISWA</th>
                             
                             @forelse($assignments as $asgIndex => $asg)
-                                <th class="header-vertical">
+                                <th class="header-vertical col-task-{{ $asgIndex }}">
                                     {{ $asg->title }}
                                 </th>
                             @empty
@@ -234,7 +265,7 @@
                         </tr>
                         <tr>
                             @foreach($assignments as $asgIndex => $asg)
-                                <th style="font-size: 10px;">T-{{ $asgIndex + 1 }}</th>
+                                <th style="font-size: 10px;" class="col-task-{{ $asgIndex }}">T-{{ $asgIndex + 1 }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -245,9 +276,9 @@
                             <td class="sticky-col sticky-col-2">{{ $row['nisn'] }}</td>
                             <td class="sticky-col sticky-col-3 text-left fw-bold">{{ $row['nama'] }}</td>
 
-                            @foreach($assignments as $asg)
+                            @foreach($assignments as $asgIndex => $asg)
                                 @php $grade = $row['tugas'][$asg->id] ?? null; @endphp
-                                <td class="fw-bold {{ is_null($grade) ? 'text-muted' : ($grade < 70 ? 'text-danger' : 'text-dark') }}">
+                                <td class="fw-bold col-task-{{ $asgIndex }} {{ is_null($grade) ? 'text-muted' : ($grade < 70 ? 'text-danger' : 'text-dark') }}">
                                     {{ is_null($grade) ? '-' : $grade }}
                                 </td>
                             @endforeach
@@ -364,7 +395,7 @@
 @endif
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -372,22 +403,107 @@
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
 
-        // LOGIKA SEMBUNYIKAN / TAMPILKAN KOLOM TANGGAL (REALTIME)
-        $(document).on('change', '.toggle-col-checkbox', function() {
-            const colIndex = $(this).data('column');
-            if ($(this).is(':checked')) { 
-                $(`.col-date-${colIndex}`).show(); 
-            } else { 
-                $(`.col-date-${colIndex}`).hide(); 
+        // KEY DUA LOCALSTORAGE SPESIFIK AGAR TERISOLASI BERDASARKAN KELAS & MAPEL
+        const dateStorageKey = 'vis_dates_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
+        const taskStorageKey = 'vis_tasks_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
+
+        // 1. MEMBACA PERSISTENSI VISIBILITAS UNTUK DATES & TASKS
+        function restoreVisibility() {
+            // Restore Dates
+            const savedDates = localStorage.getItem(dateStorageKey);
+            if (savedDates) {
+                const hiddenDates = JSON.parse(savedDates);
+                $('.toggle-date-checkbox').each(function() {
+                    const colIdx = $(this).data('column');
+                    if (hiddenDates.includes(colIdx)) {
+                        $(this).prop('checked', false);
+                        $(`.col-date-${colIdx}`).hide();
+                    } else {
+                        $(this).prop('checked', true);
+                        $(`.col-date-${colIdx}`).show();
+                    }
+                });
+                $('#toggle-all-dates').prop('checked', $('.toggle-date-checkbox:checked').length === $('.toggle-date-checkbox').length);
             }
+
+            // Restore Tasks
+            const savedTasks = localStorage.getItem(taskStorageKey);
+            if (savedTasks) {
+                const hiddenTasks = JSON.parse(savedTasks);
+                $('.toggle-task-checkbox').each(function() {
+                    const colIdx = $(this).data('column');
+                    if (hiddenTasks.includes(colIdx)) {
+                        $(this).prop('checked', false);
+                        $(`.col-task-${colIdx}`).hide();
+                    } else {
+                        $(this).prop('checked', true);
+                        $(`.col-task-${colIdx}`).show();
+                    }
+                });
+                $('#toggle-all-tasks').prop('checked', $('.toggle-task-checkbox:checked').length === $('.toggle-task-checkbox').length);
+            }
+        }
+
+        // 2. MENYIMPAN STATUS KE LOCALSTORAGE
+        function saveVisibility(key, checkboxClass) {
+            const hiddenCols = [];
+            $(checkboxClass).each(function() {
+                const colIdx = $(this).data('column');
+                if (!$(this).is(':checked')) {
+                    hiddenCols.push(colIdx);
+                }
+            });
+            localStorage.setItem(key, JSON.stringify(hiddenCols));
+        }
+
+        // JALANKAN RESTORE SAAT HALAMAN DILOAD
+        restoreVisibility();
+
+        // 3. EVENT HANDLER TOGGLE DATE
+        $(document).on('change', '.toggle-date-checkbox', function() {
+            const colIdx = $(this).data('column');
+            if ($(this).is(':checked')) { $(`.col-date-${colIdx}`).show(); } 
+            else { $(`.col-date-${colIdx}`).hide(); }
+            
+            $('#toggle-all-dates').prop('checked', $('.toggle-date-checkbox:checked').length === $('.toggle-date-checkbox').length);
+            saveVisibility(dateStorageKey, '.toggle-date-checkbox');
         });
 
         $(document).on('change', '#toggle-all-dates', function() {
             const isChecked = $(this).is(':checked');
-            $('.toggle-col-checkbox').prop('checked', isChecked).trigger('change');
+            $('.toggle-date-checkbox').prop('checked', isChecked);
+            if (isChecked) {
+                $('[class*="col-date-"]').show();
+                localStorage.removeItem(dateStorageKey);
+            } else {
+                $('[class*="col-date-"]').hide();
+                saveVisibility(dateStorageKey, '.toggle-date-checkbox');
+            }
         });
 
-        // Form Submit Presensi Massal
+        // 4. EVENT HANDLER TOGGLE TASK
+        $(document).on('change', '.toggle-task-checkbox', function() {
+            const colIdx = $(this).data('column');
+            if ($(this).is(':checked')) { $(`.col-task-${colIdx}`).show(); } 
+            else { $(`.col-task-${colIdx}`).hide(); }
+
+            $('#toggle-all-tasks').prop('checked', $('.toggle-task-checkbox:checked').length === $('.toggle-task-checkbox').length);
+            saveVisibility(taskStorageKey, '.toggle-task-checkbox');
+        });
+
+        $(document).on('change', '#toggle-all-tasks', function() {
+            const isChecked = $(this).is(':checked');
+            $('.toggle-task-checkbox').prop('checked', isChecked);
+            if (isChecked) {
+                $('[class*="col-task-"]').show();
+                localStorage.removeItem(taskStorageKey);
+            } else {
+                $('[class*="col-task-"]').hide();
+                saveVisibility(taskStorageKey, '.toggle-task-checkbox');
+            }
+        });
+
+        // Submit Presensi Massal
         $('#formBulkPresensi').submit(function(e) {
             e.preventDefault();
             Swal.fire({
@@ -424,7 +540,7 @@
         });
     });
 
-    // Modal Update Presensi Individual + Catatan & File Surat
+    // Update Presensi Individual
     function updatePresensi(studentId, studentName, date, currentStatus, currentNote, currentAttach) {
         let attachHTML = currentAttach 
             ? `<p class="mb-2"><a href="/storage/${currentAttach}" target="_blank" class="btn btn-sm btn-outline-info">📄 Lihat Surat Lampiran Saat Ini</a></p>` 

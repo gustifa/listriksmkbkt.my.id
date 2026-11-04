@@ -35,6 +35,7 @@
             body { background-color: #fff !important; padding: 0 !important; }
             @page { size: A4 landscape; margin: 10mm; }
             .table-rekap { width: 100% !important; font-size: 8pt !important; }
+            [class*="col-date-"] { display: table-cell !important; }
         }
     </style>
 
@@ -83,10 +84,10 @@
     @if($selectedClassroom && $selectedSubject && $dates->count() > 0)
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2 no-print">
         <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold" type="button" id="btnFilterKolom" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle fw-semibold shadow-sm" type="button" id="btnFilterKolom" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                 👁️ Filter Tampilan Tanggal
             </button>
-            <ul class="dropdown-menu p-3 shadow" style="max-height: 300px; overflow-y: auto; width: 280px;">
+            <ul class="dropdown-menu p-3 shadow" style="max-height: 300px; overflow-y: auto; width: 280px; z-index: 1050;">
                 <li class="fw-bold mb-2 text-primary border-bottom pb-1">Tampilkan Tanggal:</li>
                 <li>
                     <div class="form-check fw-bold text-success mb-2">
@@ -98,7 +99,7 @@
                 <li>
                     <div class="form-check py-1">
                         <input class="form-check-input toggle-col-checkbox" type="checkbox" data-column="{{ $index }}" id="col-check-{{ $index }}" checked>
-                        <label class="form-check-label text-truncate d-block" for="col-check-{{ $index }}">
+                        <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-{{ $index }}">
                             P-{{ $index + 1 }} ({{ \Carbon\Carbon::parse($d->date)->format('d/m/Y') }})
                         </label>
                     </div>
@@ -167,20 +168,14 @@
                         <td class="cell-clickable col-date-{{ $dateIndex }}" 
                             onclick="updatePresensi('{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $d->date }}', '{{ $st }}', '{{ addslashes($catatan) }}', '{{ $attach }}')">
                             
-                            {{-- Status Utama --}}
                             @if($st == 'H') <span class="text-success fw-bold">H</span>
                             @elseif($st == 'S') <span class="text-info fw-bold">S</span>
                             @elseif($st == 'I') <span class="text-warning fw-bold">I</span>
                             @else <span class="text-danger fw-bold">A</span>
                             @endif
 
-                            {{-- Indikator Visual Catatan / Surat --}}
-                            @if(!empty($catatan))
-                                <span class="note-badge text-primary" title="Catatan: {{ $catatan }}">📝</span>
-                            @endif
-                            @if(!empty($attach))
-                                <span class="note-badge text-danger" title="Ada Lampiran Surat">📎</span>
-                            @endif
+                            @if(!empty($catatan)) <span class="note-badge text-primary" title="Catatan: {{ $catatan }}">📝</span> @endif
+                            @if(!empty($attach)) <span class="note-badge text-danger" title="Ada Lampiran Surat">📎</span> @endif
                         </td>
                     @endforeach
 
@@ -238,7 +233,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Kegiatan Pembelajaran</label>
-                        <textarea id="bulk_activities" class="form-control" rows="2" placeholder="Contoh: Praktikum pengukuran tegangan dan arus menggunakan multimeter"></textarea>
+                        <textarea id="bulk_activities" class="form-control" rows="2" placeholder="Contoh: Praktikum multimeter"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Hambatan / Catatan Pelaksanaan KBM</label>
@@ -256,7 +251,7 @@
 @endif
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -264,15 +259,62 @@
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
 
-        // Filter Column
+        const storageKey = 'vis_dates_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
+
+        // RESTORE LOCALSTORAGE STATUS VISIBILITAS KOLOM TANGGAL
+        function restoreVisibility() {
+            const savedState = localStorage.getItem(storageKey);
+            if (savedState) {
+                const hiddenCols = JSON.parse(savedState);
+                $('.toggle-col-checkbox').each(function() {
+                    const colIdx = $(this).data('column');
+                    if (hiddenCols.includes(colIdx)) {
+                        $(this).prop('checked', false);
+                        $(`.col-date-${colIdx}`).hide();
+                    } else {
+                        $(this).prop('checked', true);
+                        $(`.col-date-${colIdx}`).show();
+                    }
+                });
+                $('#toggle-all-dates').prop('checked', $('.toggle-col-checkbox:checked').length === $('.toggle-col-checkbox').length);
+            }
+        }
+
+        function saveVisibility() {
+            const hiddenCols = [];
+            $('.toggle-col-checkbox').each(function() {
+                const colIdx = $(this).data('column');
+                if (!$(this).is(':checked')) {
+                    hiddenCols.push(colIdx);
+                }
+            });
+            localStorage.setItem(storageKey, JSON.stringify(hiddenCols));
+        }
+
+        restoreVisibility();
+
+        // TOGGLE FILTER TANGGAL
         $(document).on('change', '.toggle-col-checkbox', function() {
             const colIndex = $(this).data('column');
-            if ($(this).is(':checked')) { $(`.col-date-${colIndex}`).show(); } 
-            else { $(`.col-date-${colIndex}`).hide(); }
+            if ($(this).is(':checked')) { 
+                $(`.col-date-${colIndex}`).show(); 
+            } else { 
+                $(`.col-date-${colIndex}`).hide(); 
+            }
+            $('#toggle-all-dates').prop('checked', $('.toggle-col-checkbox:checked').length === $('.toggle-col-checkbox').length);
+            saveVisibility();
         });
+
         $(document).on('change', '#toggle-all-dates', function() {
             const isChecked = $(this).is(':checked');
-            $('.toggle-col-checkbox').prop('checked', isChecked).trigger('change');
+            $('.toggle-col-checkbox').prop('checked', isChecked);
+            if (isChecked) {
+                $('[class*="col-date-"]').show();
+                localStorage.removeItem(storageKey);
+            } else {
+                $('[class*="col-date-"]').hide();
+                saveVisibility();
+            }
         });
 
         // Submit Presensi Massal & Jurnal
@@ -312,7 +354,7 @@
         });
     });
 
-    // Update Presensi Individual + Catatan + Upload File
+    // Update Presensi Individual
     function updatePresensi(studentId, studentName, date, currentStatus, currentNote, currentAttach) {
         let attachHTML = currentAttach 
             ? `<p class="mb-2"><a href="/storage/${currentAttach}" target="_blank" class="btn btn-sm btn-outline-info">📄 Lihat Surat Lampiran Saat Ini</a></p>` 
