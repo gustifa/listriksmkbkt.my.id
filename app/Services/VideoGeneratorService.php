@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Exception;
 
-class DynamicVideoService
+class VideoGeneratorService
 {
     /**
      * Ambil API Key Aktif dari Database secara Dinamis berdasarkan Provider
