@@ -10,6 +10,7 @@ use App\Models\Teacher;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class InternshipTpScoreController extends Controller
@@ -50,6 +51,17 @@ class InternshipTpScoreController extends Controller
             ->where('advisor_id', $teacher->id)
             ->firstOrFail();
 
+        // 1. Simpan/Update Data Kehadiran & Instruktur DUDI ke tabel Internship
+        if ($request->has('instructor_name') || $request->has('sick_days')) {
+            $internship->update([
+                'instructor_name' => $request->input('instructor_name'),
+                'sick_days'       => $request->input('sick_days', 0),
+                'permission_days' => $request->input('permission_days', 0),
+                'alpha_days'      => $request->input('alpha_days', 0),
+            ]);
+        }
+
+        // 2. Hitung Rerata Skor TP (0 - 100)
         $inputScores = $request->input('scores', []);
         $inputNotes  = $request->input('notes', []);
 
@@ -86,7 +98,14 @@ class InternshipTpScoreController extends Controller
             ]
         );
 
-        return redirect()->route('guru.internships.index')->with('success', 'Penilaian Observasi TP Siswa berhasil disimpan!');
+        // PERBAIKAN: Deteksi route index secara fleksibel agar aman dari RouteNotFoundException
+        $redirectRoute = Route::has('teacher.internships.index')
+            ? 'teacher.internships.index'
+            : (Route::has('guru.internships.index')
+                ? 'guru.internships.index'
+                : 'internships.index');
+
+        return redirect()->route($redirectRoute)->with('success', 'Penilaian Observasi TP Siswa berhasil disimpan!');
     }
 
     /**
