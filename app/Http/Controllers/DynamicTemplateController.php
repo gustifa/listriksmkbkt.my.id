@@ -157,4 +157,5 @@ public function downloadDocument($filename)
         'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ]);
 }
+
 }

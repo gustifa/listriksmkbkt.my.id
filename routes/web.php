@@ -199,7 +199,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [DynamicTemplateController::class, 'index'])->name('index');
         Route::post('/upload', [DynamicTemplateController::class, 'uploadTemplate'])->name('upload');
         Route::post('/generate', [DynamicTemplateController::class, 'generateDocument'])->name('generate');
+        Route::get('/download/{filename}', [DynamicTemplateController::class, 'downloadDocument'])->name('download');
     });
+    
 
     // Route::get('/rekap-tugas', [RekapTugasController::class, 'index'])->name('rekap.tugas');
     // Route::get('/rekap-tugas/detail/{assignment}', [RekapTugasController::class, 'getAssignmentDetail'])->name('rekap.tugas.detail');
