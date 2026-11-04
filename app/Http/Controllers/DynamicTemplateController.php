@@ -68,7 +68,7 @@ class DynamicTemplateController extends Controller
     private function safeString($data)
     {
         if (is_null($data)) return '-';
-        if (is_string($data) \vert{}\vert{} is_numeric($data) || is_bool($data)) return (string)$data;
+        if (is_string($data) || is_numeric($data) || is_bool($data)) return (string)$data;
 
         if (is_array($data) || is_object($data)) {$result = [];
             foreach ((array) $data as $key =>$val) {
