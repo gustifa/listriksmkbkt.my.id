@@ -21,7 +21,6 @@ use App\Http\Controllers\RekapTugasController;
 use App\Http\Controllers\RekapPresensiController;
 use App\Http\Controllers\RekapPembelajaranController;
 use App\Http\Controllers\DynamicTemplateController;
-
 use App\Http\Controllers\ClassPromotionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
@@ -45,6 +44,8 @@ use App\Http\Controllers\AttendanceRecapController;
 use App\Http\Controllers\DailyAttendanceRecapController;
 use App\Http\Controllers\PrayerAttendanceRecapController;
 use App\Http\Controllers\CombinedWeeklyReportController;
+
+use App\Http\Controllers\VideoGeneratorController;
 
 
 use App\Http\Controllers\UserImportController;
@@ -180,6 +181,7 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
 
+    Route::post('/dynamic-templates/generate-video', [VideoGeneratorController::class, 'generateVideo'])->name('dynamic-templates.generate-video');
     Route::prefix('rekap-presensi')->name('rekap.presensi.')->group(function () {
         // 1. Tampilan Utama Rekapitulasi Presensi
         Route::get('/', [RekapPresensiController::class, 'index'])->name('index');
