@@ -3,7 +3,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="fw-bold text-primary mb-1"><i class="fas fa-key me-2"></i> Pengaturan API Key AI</h4>
-                <p class="text-muted small mb-0">Kelola kunci API Gemini / AI Cadangan untuk Bot Telegram tanpa mengedit file <code>.env</code>.</p>
+                <p class="text-muted small mb-0">Kelola kunci API Gemini, HeyGen, Luma, dan Groq untuk Bot Telegram, Dokumen, dan Video AI.</p>
             </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiKeyModal">
                 <i class="fas fa-plus me-1"></i> Tambah API Key
@@ -41,7 +41,17 @@
                                     </td>
                                     <td class="fw-bold text-dark">{{ $key->label_name }}</td>
                                     <td>
-                                        <span class="badge bg-info text-white text-uppercase">{{ $key->provider }}</span>
+                                        @if(strtolower($key->provider) === 'gemini')
+                                            <span class="badge bg-primary text-white text-uppercase">Gemini</span>
+                                        @elseif(strtolower($key->provider) === 'heygen')
+                                            <span class="badge text-white text-uppercase" style="background-color: #6f42c1;">HeyGen</span>
+                                        @elseif(strtolower($key->provider) === 'luma')
+                                            <span class="badge bg-info text-dark text-uppercase">Luma</span>
+                                        @elseif(strtolower($key->provider) === 'groq')
+                                            <span class="badge bg-success text-white text-uppercase">Groq</span>
+                                        @else
+                                            <span class="badge bg-secondary text-white text-uppercase">{{ $key->provider }}</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <code class="text-muted">••••••••{{ substr($key->api_key, -6) }}</code>
@@ -57,7 +67,7 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
-                                            <!-- Tombol Trigger Modal Edit via Attributes Murni -->
+                                            <!-- Tombol Trigger Modal Edit -->
                                             <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editApiKeyModal{{ $key->id }}" title="Edit API Key">
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -72,7 +82,7 @@
                                             </form>
                                         </div>
 
-                                        <!-- MODAL EDIT PER ITEM (TANPA DEPENDENCY JAVASCRIPT AJAX) -->
+                                        <!-- MODAL EDIT PER ITEM -->
                                         <div class="modal fade text-start" id="editApiKeyModal{{ $key->id }}" tabindex="-1" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content border-0 shadow">
@@ -89,6 +99,9 @@
                                                                 <label class="form-label fw-semibold">Provider AI</label>
                                                                 <select name="provider" class="form-select" required>
                                                                     <option value="gemini" {{ strtolower($key->provider) == 'gemini' ? 'selected' : '' }}>Google Gemini AI</option>
+                                                                    <option value="heygen" {{ strtolower($key->provider) == 'heygen' ? 'selected' : '' }}>HeyGen (Video Avatar AI)</option>
+                                                                    <option value="luma" {{ strtolower($key->provider) == 'luma' ? 'selected' : '' }}>Luma AI (Text-to-Video)</option>
+                                                                    <option value="runway" {{ strtolower($key->provider) == 'runway' ? 'selected' : '' }}>RunwayML (Video Gen-3)</option>
                                                                     <option value="groq" {{ strtolower($key->provider) == 'groq' ? 'selected' : '' }}>Groq AI (Llama 3)</option>
                                                                 </select>
                                                             </div>
@@ -146,23 +159,26 @@
                             <label class="form-label fw-semibold">Provider AI</label>
                             <select name="provider" class="form-select" required>
                                 <option value="gemini">Google Gemini AI</option>
+                                <option value="heygen">HeyGen (Video Avatar AI)</option>
+                                <option value="luma">Luma AI (Text-to-Video)</option>
+                                <option value="runway">RunwayML (Video Gen-3)</option>
                                 <option value="groq">Groq AI (Llama 3)</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Label / Nama Pembeda</label>
-                            <input type="text" name="label_name" class="form-control" placeholder="Contoh: Gemini API Key Utama" required>
+                            <input type="text" name="label_name" class="form-control" placeholder="Contoh: HeyGen Video Key" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">API Key</label>
-                            <input type="password" name="api_key" class="form-control" placeholder="Tempelkan API Key dari Google AI Studio" required autocomplete="off">
+                            <input type="text" name="api_key" class="form-control" placeholder="Tempelkan API Key di sini" required autocomplete="off">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Urutan Prioritas</label>
                             <input type="number" name="priority" class="form-control" value="{{ count($apiKeys) + 1 }}" min="1" required>
                         </div>
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" checked>
                             <label class="form-check-label fw-semibold" for="is_active">Langsung Aktifkan</label>
                         </div>
                     </div>
