@@ -6,9 +6,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Generator Perangkat Ajar Dinamis</title>
 
-    <!-- Bootstrap 5 CSS -->
+    <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -16,6 +16,8 @@
 <body class="bg-light py-4">
 
     <div class="container">
+        
+        <!-- Header -->
         <div class="mb-4">
             <h2 class="fw-bold text-dark">
                 <i class="fa-solid fa-file-word text-primary me-2"></i> Generator Perangkat Ajar (AI + Template Word)
@@ -24,6 +26,7 @@
         </div>
 
         <div class="row g-4">
+            
             <!-- Form Upload Template -->
             <div class="col-md-5">
                 <div class="card shadow-sm border-0">
@@ -60,11 +63,11 @@
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Pilih Template Master</label>
                                 <select name="template_path" required class="form-select">
-    <option value="">-- Pilih Template --</option>
-    @foreach($uploadedTemplates as $template)
-        <option value="{{ $template }}">{{ basename($template) }}</option>
-    @endforeach
-</select>
+                                    <option value="">-- Pilih Template --</option>
+                                    @foreach($uploadedTemplates as $template)
+                                        <option value="{{ $template }}">{{ basename($template) }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <div class="mb-3">
@@ -94,14 +97,16 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
+    <!-- Script AJAX + SweetAlert2 + Base64 Blob Auto-Download -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-            // 1. Script Upload Template
+            // 1. Script Form Upload Template (AJAX)
             const uploadForm = document.getElementById('uploadTemplateForm');
             if (uploadForm) {
                 uploadForm.addEventListener('submit', function (e) {
@@ -149,7 +154,7 @@
                 });
             }
 
-            // 2. Script Generate Dokumen
+            // 2. Script Form Generate Dokumen (AJAX + Base64 Blob Download)
             const generateForm = document.getElementById('generateDocumentForm');
             if (generateForm) {
                 generateForm.addEventListener('submit', function (e) {
@@ -159,7 +164,7 @@
 
                     Swal.fire({
                         title: 'Memproses AI & Template...',
-                        text: 'Sedang mengekstrak data dan menyusun konten Word via Gemini AI.',
+                        text: 'Sedang mengekstrak data dan menyusun dokumen Word via Gemini AI.',
                         allowOutsideClick: false,
                         didOpen: () => Swal.showLoading()
                     });
@@ -174,21 +179,39 @@
                     })
                     .then(async response => {
                         const data = await response.json();
+
                         if (response.ok && data.status === 'success') {
+                            
+                            // Konversi String Base64 dari Server ke File Blob di Browser
+                            const byteCharacters = atob(data.file_data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            const blob = new Blob([byteArray], { type: data.file_type });
+
+                            // Pemicu Otomatis Download File .docx di Browser User
+                            const link = document.createElement('a');
+                            link.href = window.URL.createObjectURL(blob);
+                            link.download = data.filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+
                             Swal.fire({
                                 icon: 'success',
-                                title: 'Dokumen Siap!',
-                                text: data.message,
-                                showCancelButton: true,
-                                confirmButtonText: '<i class="fa-solid fa-download me-1"></i> Download .docx',
-                                cancelButtonText: 'Tutup'
-                            }).then((res) => {
-                                if (res.isConfirmed) {
-                                    window.location.href = data.download_url;
-                                }
+                                title: 'Berhasil Unduh!',
+                                text: 'Dokumen .docx berhasil terunduh otomatis ke komputer Anda.',
+                                confirmColor: '#198754'
                             });
+
                         } else {
-                            Swal.fire({ icon: 'error', title: 'Gagal Generate', text: data.message || 'Error server.' });
+                            Swal.fire({ 
+                                icon: 'error', 
+                                title: 'Gagal Generate', 
+                                text: data.message || 'Terjadi kesalahan pada server.' 
+                            });
                         }
                     })
                     .catch(error => {
