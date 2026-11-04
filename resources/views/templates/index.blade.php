@@ -100,9 +100,21 @@
 
                         <!-- Section Fitur Generate Video AI -->
                         <div class="mt-4 pt-3 border-top">
-                            <label class="form-label fw-bold text-dark d-block">
+                            <label class="form-label fw-bold text-dark d-block mb-2">
                                 <i class="fa-solid fa-clapperboard text-danger me-1"></i> Generate Media Video Pembelajaran (AI)
                             </label>
+                            
+                            <!-- Dropdown Pilihan Pembagian Part Naskah -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted mb-1">Pilih Pembagian Naskah (Part):</label>
+                                <select id="part_count_select" class="form-select form-select-sm">
+                                    <option value="auto" selected>✨ Otomatis AI (Disesuaikan Durasi)</option>
+                                    <option value="2">2 Part (Pembukaan & Inti/Penutup)</option>
+                                    <option value="3">3 Part (Pembukaan, Langkah Kerja, Penutup)</option>
+                                    <option value="4">4 Part (Salam, K3LH/Alat, Praktikum, Evaluasi)</option>
+                                </select>
+                            </div>
+
                             <div class="d-flex gap-2">
                                 <button type="button" onclick="triggerGenerateVideo('short')" class="btn btn-outline-danger w-50 py-2">
                                     <i class="fa-solid fa-mobile-screen me-1"></i> Video Short (9:16)
@@ -242,10 +254,11 @@
         }
     });
 
-    // 3. Handling Generate Video AI (Short & Long) via AJAX
+    // 3. Handling Generate Video AI (Short & Long) Terkelompok per Part via AJAX
     function triggerGenerateVideo(format) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const tpId = document.getElementById('tp_id_select').value;
+        const partCount = document.getElementById('part_count_select').value; // Mengambil opsi jumlah part
         
         if (!tpId) {
             Swal.fire({
@@ -257,8 +270,8 @@
         }
 
         Swal.fire({
-            title: 'Menyusun Naskah & Merender Video...',
-            text: 'Gemini AI sedang menyusun script dan mengeksekusi engine video/audio (' + format.toUpperCase() + ').',
+            title: 'Menyusun Naskah per Part...',
+            text: 'Gemini AI sedang mengelompokkan naskah (' + format.toUpperCase() + ') ke dalam bagian sesuai pilihan Anda.',
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
@@ -270,13 +283,17 @@
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ tp_id: tpId, video_format: format })
+            body: JSON.stringify({ 
+                tp_id: tpId, 
+                video_format: format,
+                part_count: partCount 
+            })
         })
         .then(async response => {
             const data = await response.json();
             if (response.ok && data.status === 'success') {
                 
-                let downloadHtml = `<p class="small text-muted mb-3">${data.message} (Provider: <strong>${data.provider}</strong>)</p>`;
+                let downloadHtml = `<p class="small text-muted mb-2">${data.message} (Engine: <strong>${data.provider}</strong>)</p>`;
                 
                 if (data.video_url) {
                     downloadHtml += `<a href="${data.video_url}" target="_blank" class="btn btn-success w-100 py-2 mb-3"><i class="fa-solid fa-download me-1"></i> Unduh Video MP4</a>`;
@@ -289,21 +306,42 @@
                         </div>`;
                 }
 
-                downloadHtml += `
-                    <div class="text-start bg-light p-3 rounded border mt-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong class="small text-dark">Naskah Pengisi Suara (AI Scriptwriter):</strong>
-                            <button type="button" onclick="copyScriptToClipboard()" id="btnCopyScript" class="btn btn-sm btn-outline-primary py-0 px-2">
-                                <i class="fa-solid fa-copy me-1"></i> Salin Naskah
-                            </button>
-                        </div>
-                        <div id="aiScriptText" style="max-height: 160px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word;">${data.script}</div>
-                    </div>`;
+                // Render Naskah per Part dengan Tombol Salin per Bagian
+                downloadHtml += `<div class="text-start mt-3" style="max-height: 280px; overflow-y: auto;">`;
+                
+                if (data.parts && data.parts.length > 0) {
+                    data.parts.forEach((part, index) => {
+                        downloadHtml += `
+                            <div class="bg-light p-3 rounded border mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="small text-primary"><i class="fa-solid fa-layer-group me-1"></i> ${part.part_name}</strong>
+                                    <button type="button" onclick="copyPartScript('part-text-${index}', 'btn-part-${index}')" id="btn-part-${index}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        <i class="fa-solid fa-copy me-1"></i> Salin Part
+                                    </button>
+                                </div>
+                                <div id="part-text-${index}" style="font-size: 0.85rem; white-space: pre-wrap; color: #333; word-break: break-word;">${part.content}</div>
+                            </div>`;
+                    });
+                } else if (data.script) {
+                    downloadHtml += `
+                        <div class="bg-light p-3 rounded border mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small text-primary"><i class="fa-solid fa-align-left me-1"></i> Naskah Utuh</strong>
+                                <button type="button" onclick="copyPartScript('part-text-single', 'btn-part-single')" id="btn-part-single" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                    <i class="fa-solid fa-copy me-1"></i> Salin Naskah
+                                </button>
+                            </div>
+                            <div id="part-text-single" style="font-size: 0.85rem; white-space: pre-wrap; color: #333; word-break: break-word;">${data.script}</div>
+                        </div>`;
+                }
+                
+                downloadHtml += `</div>`;
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil Dibuat!',
+                    title: 'Naskah Berhasil Di-generate!',
                     html: downloadHtml,
+                    width: '600px',
                     confirmColor: '#0d6efd'
                 });
 
@@ -316,20 +354,20 @@
         });
     }
 
-    // Helper Function: Salin Teks Naskah ke Clipboard
-    function copyScriptToClipboard() {
-        const scriptElem = document.getElementById('aiScriptText');
+    // Helper Function: Salin Teks Per Part ke Clipboard
+    function copyPartScript(elementId, buttonId) {
+        const scriptElem = document.getElementById(elementId);
         if (!scriptElem) return;
 
         const textToCopy = scriptElem.innerText;
         navigator.clipboard.writeText(textToCopy).then(() => {
-            const btnCopy = document.getElementById('btnCopyScript');
-            if (btnCopy) {
-                btnCopy.className = "btn btn-sm btn-success py-0 px-2";
-                btnCopy.innerHTML = '<i class="fa-solid fa-check me-1"></i> Tersalin!';
+            const btn = document.getElementById(buttonId);
+            if (btn) {
+                btn.className = "btn btn-sm btn-success py-0 px-2";
+                btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Tersalin!';
                 setTimeout(() => {
-                    btnCopy.className = "btn btn-sm btn-outline-primary py-0 px-2";
-                    btnCopy.innerHTML = '<i class="fa-solid fa-copy me-1"></i> Salin Naskah';
+                    btn.className = "btn btn-sm btn-outline-primary py-0 px-2";
+                    btn.innerHTML = '<i class="fa-solid fa-copy me-1"></i> Salin Part';
                 }, 2000);
             }
         }).catch(err => {
