@@ -356,24 +356,24 @@ PROMPT;
                 return response()->json(['status' => 'error', 'message' => 'Data TP tidak ditemukan.'], 404);
             }
             
-            $judulTp = $tp->title ?? $tp->description ?? 'Praktikum Kelistrikan';
+            $judulTp = $tp->title ?? $tp->description ?? 'Praktikan Instalasi Kelistrikan';
         }
 
         if (empty($judulTp)) {
             return response()->json(['status' => 'error', 'message' => 'Tujuan Pembelajaran (TP) kosong.'], 400);
         }
 
-        // Menggunakan layanan Quickchart / Skema Diagram berbasis teks atau Unsplash Search aman
-        // Atau menggunakan API Hugging Face gratis
-        $prompt = "Technical educational diagram, electrical engineering vocational school style: " . urlencode($judulTp);
+        // Prompt khusus teknik kelistrikan dan skema vokasi SMK agar AI menggambar skema/diagram
+        $cleanTopic = preg_replace('/[^a-zA-Z0-9\s]/', '', $judulTp);
+        $prompt = "Technical vector diagram, electrical engineering schematic, wiring installation, blueprint style, educational vocational school: " . $cleanTopic;
         
-        // Menggunakan sumber gambar ilustrasi bebas blokir (Contoh: Lorem Picsum / Pollinations tanpa parameter antrean atau Wikimedia query)
-        $imageUrl = "https://picsum.photos/seed/" . md5($judulTp) . "/1024/768";
+        // Menggunakan endpoint pollinations dengan format encode prompt yang bersih tanpa antrean
+        $imageUrl = "https://pollinations.ai/p/" . rawurlencode($prompt) . "?width=1024&height=768&seed=" . rand(1, 10000) . "&nologo=true";
 
         return response()->json([
             'status'    => 'success',
             'image_url' => $imageUrl,
-            'message'   => 'Ilustrasi gambar praktikum berhasil dibuat!'
+            'message'   => 'Ilustrasi skema praktikum berhasil dibuat!'
         ], 200);
 
     } catch (Exception $e) {
