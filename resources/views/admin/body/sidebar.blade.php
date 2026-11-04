@@ -109,6 +109,17 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('license.index')}}"><i class='bx bx-key'></i>Lisensi</a></li>
                     </ul>
                 </li>
+
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-chip"></i></div>
+                        <div class="menu-title">Custom</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('dynamic-templates..index')}}"><i class='bx bx-sync'></i>AI Perangkat</a></li>
+                        
+                    </ul>
+                </li>
             @endhasanyrole
 
             {{-- ========================================== --}}
