@@ -290,9 +290,14 @@
                 }
 
                 downloadHtml += `
-                    <div class="text-start bg-light p-3 rounded border">
-                        <strong class="d-block mb-1 small text-dark">Naskah Pengisi Suara (AI Scriptwriter):</strong>
-                        <div style="max-height: 150px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap;">${data.script}</div>
+                    <div class="text-start bg-light p-3 rounded border mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="small text-dark">Naskah Pengisi Suara (AI Scriptwriter):</strong>
+                            <button type="button" onclick="copyScriptToClipboard()" id="btnCopyScript" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                <i class="fa-solid fa-copy me-1"></i> Salin Naskah
+                            </button>
+                        </div>
+                        <div id="aiScriptText" style="max-height: 160px; overflow-y: auto; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word;">${data.script}</div>
                     </div>`;
 
                 Swal.fire({
@@ -308,6 +313,27 @@
         })
         .catch(error => {
             Swal.fire('Kesalahan Sistem', error.message, 'error');
+        });
+    }
+
+    // Helper Function: Salin Teks Naskah ke Clipboard
+    function copyScriptToClipboard() {
+        const scriptElem = document.getElementById('aiScriptText');
+        if (!scriptElem) return;
+
+        const textToCopy = scriptElem.innerText;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const btnCopy = document.getElementById('btnCopyScript');
+            if (btnCopy) {
+                btnCopy.className = "btn btn-sm btn-success py-0 px-2";
+                btnCopy.innerHTML = '<i class="fa-solid fa-check me-1"></i> Tersalin!';
+                setTimeout(() => {
+                    btnCopy.className = "btn btn-sm btn-outline-primary py-0 px-2";
+                    btnCopy.innerHTML = '<i class="fa-solid fa-copy me-1"></i> Salin Naskah';
+                }, 2000);
+            }
+        }).catch(err => {
+            alert('Gagal menyalin naskah: ' + err);
         });
     }
 </script>
