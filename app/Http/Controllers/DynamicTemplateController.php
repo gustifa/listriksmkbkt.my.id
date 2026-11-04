@@ -30,7 +30,7 @@ class DynamicTemplateController extends Controller
             return '-';
         }
 
-        if (is_string($data) || is_numeric($data) \vert{}\vert{} is_bool($data)) {
+        if (is_string($data) || is_numeric($data) || is_bool($data)) {
             return (string) $data;
         }
 
