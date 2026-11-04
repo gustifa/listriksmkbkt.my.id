@@ -26,31 +26,57 @@ class VideoGeneratorService
     }
 
     /**
-     * 100% GRATIS: Generate Voiceover Bahasa Indonesia Menggunakan Edge TTS
-     */
-    public function generateFreeVoiceover(string $text, string $voice = 'id-ID-ArdiNeural')
-    {
-        $filename = 'audio_' . time() . '_' . uniqid() . '.mp3';
-        $saveDir = storage_path('app/public/audio');
+ * 100% GRATIS: Generate Voiceover Bahasa Indonesia dengan Multiple API Fallback
+ */
+public function generateFreeVoiceover(string $text)
+{
+    $filename = 'audio_' . time() . '_' . uniqid() . '.mp3';
+    $saveDir = storage_path('app/public/audio');
 
-        if (!file_exists($saveDir)) {
-            mkdir($saveDir, 0755, true);
-        }
+    if (!file_exists($saveDir)) {
+        mkdir($saveDir, 0755, true);
+    }
 
-        $savePath = $saveDir . '/' . $filename;
+    $savePath = $saveDir . '/' . $filename;
 
-        // Endpoint Edge TTS Gratis tanpa API Key
-        $url = "https://api.streamelements.com/kappa/v2/speech?voice={$voice}&text=" . urlencode($text);
-        
-        $response = Http::timeout(30)->get($url);
+    // Bersihkan teks dari markdown/karakter aneh dan batasi panjang untuk GET Request
+    $cleanText = strip_tags($text);
+    $cleanText = preg_replace('/[*_#`~]/', '', $cleanText);
+    $cleanText = trim(preg_replace('/\s+/', ' ', $cleanText));
+    $shortText = mb_substr($cleanText, 0, 400); // Ambil 400 karakter pertama agar request tidak error 414/403
 
-        if ($response->successful()) {
+    // PROVIDER 1: StreamElements (Edge TTS id-ID-ArdiNeural)
+    try {
+        $urlEdge = "https://api.streamelements.com/kappa/v2/speech?voice=id-ID-ArdiNeural&text=" . rawurlencode($shortText);
+        $response = Http::withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        ])->timeout(15)->get($urlEdge);
+
+        if ($response->successful() && strlen($response->body()) > 100) {
             file_put_contents($savePath, $response->body());
             return asset('storage/audio/' . $filename);
         }
-
-        throw new Exception("Gagal membuat suara Edge TTS.");
+    } catch (Exception $e) {
+        // Lanjut ke fallback provider 2 jika stream elements gagal
     }
+
+    // PROVIDER 2 (FALLBACK): Google Translate TTS (gTTS Bahasa Indonesia)
+    try {
+        $urlGtts = "https://translate.google.com/translate_tts?ie=UTF-8&q=" . rawurlencode($shortText) . "&tl=id&client=tw-ob";
+        $response = Http::withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        ])->timeout(15)->get($urlGtts);
+
+        if ($response->successful() && strlen($response->body()) > 100) {
+            file_put_contents($savePath, $response->body());
+            return asset('storage/audio/' . $filename);
+        }
+    } catch (Exception $e) {
+        // Jika keduanya gagal, throw error
+    }
+
+    throw new Exception("Koneksi API TTS Gratis sedang dibatasi server. Silakan coba kembali atau gunakan API Key HeyGen/Luma.");
+}
 
     /**
      * Core Method Public: Multi-Model Renderer (HeyGen -> Luma -> Fallback Gratis)
