@@ -73,7 +73,6 @@ class DynamicTemplateController extends Controller
      */
     public function generateDocument(Request $request)
 {
-    // Naikkan batas waktu eksekusi PHP hingga 5 menit & alokasi memori
     set_time_limit(300);
     ini_set('memory_limit', '512M');
 
@@ -84,7 +83,7 @@ class DynamicTemplateController extends Controller
             'teacher_id' => 'required',
         ]);
 
-        $templateRelativePath = $request->template_path;
+        $templateRelativePath =$request->template_path;
         
         if (!Storage::exists($templateRelativePath)) {
             if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
@@ -99,54 +98,84 @@ class DynamicTemplateController extends Controller
 
         $fullTemplatePath = Storage::path($templateRelativePath);
 
-        // 1. Ekstrak data dan template
+        // 1. Load Template & Deteksi Semua Variable Placeholder ${...}
         $templateProcessor = new TemplateProcessor($fullTemplatePath);
-        $variables = $templateProcessor->getVariables();
+        $variables =$templateProcessor->getVariables();
 
-        $tp = TpMaster::findOrFail($request->tp_id);
-        $teacher = Teacher::findOrFail($request->teacher_id);
-        $namaMapel = $tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan';
+        // 2. Ambil Data Detail dari PostgreSQL
+        $tp = TpMaster::with('subject')->findOrFail($request->tp_id);$teacher = Teacher::findOrFail($request->teacher_id);$namaMapel = $tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan';
+        $judulTp =$tp->title;
+        $indikatorTp = is_array($tp->indicators) ? implode(', ', $tp->indicators) : ($tp->indicators ?? 'Sesuai standar elemen kompetensi SMK');
 
-        // 2. Olah AI via Gemini Service
-        $prompt = "Buatkan konten terstruktur dalam format JSON murni untuk variabel berikut: " . json_encode($variables) 
-            . "\nBerdasarkan Mata Pelajaran: " . $namaMapel 
-            . " dan TP: " . $tp->title;
+        // Filter variabel yang BUKAN variabel statis (karena variabel statis akan kita isi manual)
+        $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_diff($variables,$staticKeys);
 
-        $systemInstruction = "Hasilkan HANYA string JSON valid tanpa markup/pembungkus markdown.";
+        // 3. Susun Prompt Spesifik & Ketat
+        $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi bidang Teknik Ketenagalistrikan dan Elektronika. "
+            . "TUGAS UTAMA: Hasilkan konten pembelajaran yang 100% RELEVAN, SPESIFIK, dan AKURAT sesuai dengan Tujuan Pembelajaran (TP) yang diberikan. "
+            . "DILARANG keras membuat materi umum/generik yang tidak ada hubungannya dengan TP tersebut. "
+            . "OUTPUT HARUS BERUPA JSON VALID tanpa tanda ```json atau markup markdown lainnya.";
 
-        $aiResponse = $this->geminiService->generateContent($prompt, $systemInstruction);
-        $cleanJson = preg_replace('/^```json\s*|\s*```$/', '', trim($aiResponse));
+        $userPrompt = "Saya sedang menyusun dokumen perangkat ajar SMK dengan acuan data resmi berikut:\n"
+            . "----------------------------------------\n"
+            . "- MATA PELAJARAN: {$namaMapel}\n"
+            . "- TUJUAN PEMBELAJARAN (TP): {$judulTp}\n"
+            . "- INDIKATOR/ELEMEN KUNCI: {$indikatorTp}\n"
+            . "- GURU PENGAMPU: {$teacher->name}\n"
+            . "----------------------------------------\n\n"
+            . "Tolong buatkan isi konten teknis yang mendalam dan spesifik untuk mengisi variabel-variabel berikut:\n"
+            . json_encode(array_values($aiVariables)) . "\n\n"
+            . "KETENTUAN PENTING:\n"
+            . "1. Buatlah jawaban berbentuk objek JSON dengan KEY/KUNCI persis sama seperti daftar variabel di atas.\n"
+            . "2. Setiap nilai (value) harus secara LANGSUNG membahas, mempraktikkan, atau mengevaluasi materi: '{$judulTp}'.\n"
+            . "3. Gunakan bahasa teknis vokasi yang profesional, jelas, dan siap pakai di kelas/bengkel SMK.";
+
+        // 4. Panggil Gemini AI Service
+        $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
+        
+        // Pembersihan Format JSON
+        $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
+        $cleanJson = trim($cleanJson, '`');
         $aiData = json_decode($cleanJson, true) ?? [];
 
-        // 3. Inject data ke template Word
+        // 5. Inject Data Statis & Data AI ke File Word
         foreach ($variables as $variable) {
-            if ($variable === 'nama_mapel') {
+            $varLower = strtolower($variable);
+
+            // Mapping Variabel Statis
+            if (in_array($varLower, ['nama_mapel', 'mapel'])) {
                 $templateProcessor->setValue($variable, $namaMapel);
-            } elseif ($variable === 'nama_guru') {
+            } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
                 $templateProcessor->setValue($variable, $teacher->name ?? '-');
-            } elseif ($variable === 'nip_guru') {
+            } elseif (in_array($varLower, ['nip_guru', 'nip'])) {
                 $templateProcessor->setValue($variable, $teacher->nip ?? '-');
-            } elseif ($variable === 'tujuan_pembelajaran') {
-                $templateProcessor->setValue($variable, $tp->title ?? '-');
+            } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
+                $templateProcessor->setValue($variable, $judulTp);
             } else {
-                $templateProcessor->setValue($variable, $aiData[$variable] ?? '-');
+                // Mapping Hasil AI
+                $val = $aiData[$variable] ?? $aiData[$varLower] ?? null;
+
+                if (is_array($val)) {
+                    $val = implode("\n• ", $val);
+                }
+
+                $templateProcessor->setValue($variable, $val ?? '-');
             }
         }
 
-        // 4. Simpan ke file temporary & ubah ke Base64
+        // 6. Simpan Temporary & Konversi ke Base64 untuk Direct Download
         $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
         $templateProcessor->saveAs($tempFile);
         
         $fileData = file_get_contents($tempFile);
         $base64File = base64_encode($fileData);
-        
         @unlink($tempFile);
 
-        $downloadFilename = 'Perangkat_Ajar_' . time() . '.docx';
+        $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Dokumen berhasil di-generate!',
+            'message' => 'Dokumen berhasil disesuaikan dengan TP!',
             'filename' => $downloadFilename,
             'file_data' => $base64File,
             'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
