@@ -230,7 +230,7 @@ PROMPT;
             $namaMapel = "Teknik Ketenagalistrikan";
 
             // Tangani Input TP (Manual vs Database)
-            if ($request->tp_mode === 'manual' \vert{}\vert{}$request->filled('tp_manual')) {
+            if ($request->tp_mode === 'manual' || $request->filled('tp_manual')) {
                 $judulTp = trim($request->tp_manual);
                 if (empty($judulTp)) { return response()->json(['status' => 'error', 'message' => 'Tujuan Pembelajaran (TP) manual tidak boleh kosong.'], 422); } } else {$request->validate(['tp_id' => 'required']);
 
