@@ -63,7 +63,7 @@ class DynamicTemplateController extends Controller
         if (is_string($data) || is_numeric($data)) return (string)$data;
 
         if (is_array($data) || is_object($data)) {$result = [];
-            foreach ((array) $data as$key => $val) {$valStr = is_array($val) \vert{}\vert{} is_object($val) ? json_encode($val) : (string)$val;
+            foreach ((array) $data as$key => $val) {$valStr = is_array($val) || is_object($val) ? json_encode($val) : (string)$val;
                 $result[] = is_numeric($key) ?$valStr : "{$key}: {$valStr}";
             }
             return implode("\n• ", $result);
