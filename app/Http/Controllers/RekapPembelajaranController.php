@@ -12,7 +12,7 @@ use DB;
 
 class RekapPembelajaranController extends Controller
 {
-    public function index(Request $request)
+    
     public function index(Request $request)
     {
         $userId = auth()->id();
