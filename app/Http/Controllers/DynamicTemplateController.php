@@ -21,7 +21,7 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Tampilan Utama
+     * Tampilan Utama Generator Perangkat Ajar
      */
     public function index()
     {
@@ -37,7 +37,7 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Method Upload Template (Selesaikan error Call to undefined method)
+     * Upload Template .docx Baru (Selesaikan Error Call to Undefined Method)
      */
     public function uploadTemplate(Request $request)
     {
@@ -50,7 +50,6 @@ class DynamicTemplateController extends Controller
             $file =$request->file('template_file');
             $filename = time() . '_' . Str::slug($request->template_name) . '.docx';
             
-            // Simpan file ke storage
             $file->storeAs('public/templates',$filename);
 
             return response()->json([
@@ -67,12 +66,12 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Helper Konversi Data jenis apapun ke String murni
+     * Helper Konversi Data (Array/Object/JSON) ke String Murni (Mencegah Array to string conversion)
      */
     private function safeString($data)
     {
         if (is_null($data)) return '-';
-        if (is_string($data) || is_numeric($data) || is_bool($data)) return (string)$data;
+        if (is_string($data) \vert{}\vert{} is_numeric($data) || is_bool($data)) return (string)$data;
 
         if (is_array($data) || is_object($data)) {$result = [];
             foreach ((array) $data as $key =>$val) {
@@ -88,7 +87,7 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Helper Menyuntikkan Teks ke Word dengan Line Break (<w:br/>)
+     * Helper Menyuntikkan Teks Multiline ke Word dengan Tag <w:br/>
      */
     private function setValueWithLineBreaks($templateProcessor, $variable,$text)
     {
@@ -102,7 +101,41 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Process & Generate Word (.docx)
+     * Generator Prompt Dinamis Berdasarkan Data TP & Variabel Template Word
+     */
+    private function buildDynamicPrompt($tp,$teacher, array $aiVariables,$namaMapel)
+    {
+        $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Kompetensi keahlian standar SMK Merdeka');
+        $elemenKode =$this->safeString($tp->code ?? $tp->element_code ?? '-');
+
+        $variableList = json_encode(array_values($aiVariables), JSON_PRETTY_PRINT);
+
+        return <<<PROMPT
+Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi bidang {$namaMapel}.
+
+TOLONG BUATKAN KONTEN TEKNIS SPESIFIK UNTUK DOKUMEN PERANGKAT AJAR DENGAN RINCIAN BERIKUT:
+=================================================================================
+- MATA PELAJARAN      : {$namaMapel}
+- TUJUAN PEMBELAJARAN : {$judulTp}
+- KODE / ELEMEN       : {$elemenKode}
+- INDIKATOR KINERJA   : {$indikatorTp}
+- GURU PENGAMPU       : {$teacher->name}
+=================================================================================
+
+KONTEN YANG HARUS DIISI (VARIABLE PLACEHOLDER):
+{$variableList}
+
+ATURAN GENERASI KONTEN (WAJIB DIPATUHI):
+1. Hasil HARUS berupa JSON VALID tunggal dengan kunci/key PERSIS SAMA seperti daftar variabel di atas.
+2. Setiap nilai (value) HARUS berbentuk STRING murni yang siap dimasukkan ke dokumen Word.
+3. Seluruh materi, K3, langkah kerja praktikum, teori, dan rubrik penilaian HARUS BERFOKUS 100% pada topik: "{$judulTp}".
+4. DILARANG KERAS memberikan teks umum/generik seperti "Lakukan praktikum dengan baik". Berikan instruksi teknis vokasi yang detail dan sistematis.
+5. Gunakan format poin bertingkat dengan karakter bullet (•) jika berisi beberapa langkah/poin.
+PROMPT;
+    }
+
+    /**
+     * Eksekusi Generate Dokumen Word via Gemini AI & Direct Base64 Download
      */
     public function generateDocument(Request $request)
     {
@@ -122,49 +155,40 @@ class DynamicTemplateController extends Controller
                 if (Storage::exists('public/templates/' . basename($templateRelativePath))) {
                     $templateRelativePath = 'public/templates/' . basename($templateRelativePath);
                 } else {
-                    return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan.'], 404);
+                    return response()->json(['status' => 'error', 'message' => 'File template tidak ditemukan di server.'], 404);
                 }
             }
 
             $fullTemplatePath = Storage::path($templateRelativePath);
 
+            // 1. Load Template & Deteksi Semua Variable Placeholder ${...}
             $templateProcessor = new TemplateProcessor($fullTemplatePath);
             $variables =$templateProcessor->getVariables();
 
+            // 2. Ambil Data Detail dari PostgreSQL
             $tp = TpMaster::with('subject')->findOrFail($request->tp_id);
             $teacher = Teacher::findOrFail($request->teacher_id);
             
             $namaMapel =$this->safeString($tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan');
-            $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Standar kompetensi SMK');
-            $namaGuru = $this->safeString($teacher->name ?? 'GUSTIFA FAUZAN, S.Pd');
+            $judulTp =$this->safeString($tp->title);$namaGuru = $this->safeString($teacher->name ?? '-');
             $nipGuru = $this->safeString($teacher->nip ?? '-');
 
+            // Filter variabel statis dan variabel AI
             $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
 
-            $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi. "
-                . "TUGAS: Hasilkan konten pembelajaran yang 100% RELEVAN dan SPESIFIK sesuai Tujuan Pembelajaran (TP). "
-                . "OUTPUT WAJIB BERUPA OBJEK JSON VALID tanpa markup ```json.";
+            // 3. Susun Prompt Dinamis
+            $systemInstruction = "Anda adalah Asisten AI Kurikulum SMK Merdeka yang ahli dalam Vokasi Teknik Ketenagalistrikan. Output HARUS murni string JSON valid tanpa markup markdown (tanpa ```json).";
+            
+            $userPrompt = $this->buildDynamicPrompt($tp, $teacher, $aiVariables, $namaMapel);
 
-            $userPrompt = "Saya sedang menyusun dokumen perangkat ajar SMK dengan acuan data resmi berikut:\n"
-                . "----------------------------------------\n"
-                . "- MATA PELAJARAN: {$namaMapel}\n"
-                . "- TUJUAN PEMBELAJARAN (TP): {$judulTp}\n"
-                . "- INDIKATOR/ELEMEN KUNCI: {$indikatorTp}\n"
-                . "- GURU PENGAMPU: {$namaGuru}\n"
-                . "----------------------------------------\n\n"
-                . "Tolong buatkan isi konten teknis yang mendalam dan spesifik untuk mengisi variabel-variabel berikut:\n"
-                . json_encode($aiVariables) . "\n\n"
-                . "KETENTUAN PENTING:\n"
-                . "1. Buatlah jawaban berbentuk objek JSON dengan KEY/KUNCI persis seperti daftar variabel di atas.\n"
-                . "2. Setiap nilai (value) HARUS berbentuk STRING murni atau TEKS TUNGGAL.\n"
-                . "3. Bahas materi spesifik tentang '{$judulTp}'.";
-
+            // 4. Panggil Gemini Service
             $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
             
             $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
             $cleanJson = trim($cleanJson, '`');
             $aiData = json_decode($cleanJson, true) ?? [];
 
+            // 5. Inject Hasil ke File Word
             foreach ($variables as $variable) {
                 $varLower = strtolower($variable);
 
@@ -193,6 +217,7 @@ class DynamicTemplateController extends Controller
                 }
             }
 
+            // 6. Simpan Temporary & Konversi Base64 untuk Direct Download (Bypass 403/404)
             $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
             $templateProcessor->saveAs($tempFile);
             
@@ -200,11 +225,11 @@ class DynamicTemplateController extends Controller
             $base64File = base64_encode($fileData);
             @unlink($tempFile);
 
-            $downloadFilename = 'Jobsheet_' . Str::slug($judulTp) . '_' . time() . '.docx';
+            $downloadFilename = 'Perangkat_Ajar_' . Str::slug($judulTp) . '_' . time() . '.docx';
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Dokumen berhasil disesuaikan dengan TP!',
+                'message' => 'Dokumen berhasil di-generate secara dinamis!',
                 'filename' => $downloadFilename,
                 'file_data' => $base64File,
                 'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
