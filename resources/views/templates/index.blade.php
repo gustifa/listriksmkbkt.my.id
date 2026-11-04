@@ -15,7 +15,7 @@
                 <h2 class="fw-bold text-dark mb-1">
                     <i class="fa-solid fa-file-word text-primary me-2"></i> Generator Perangkat Ajar & Video (AI)
                 </h2>
-                <p class="text-muted mb-0">Unggah template .docx Anda, pilih template otomatis, atau buat video naskah praktikum berdasarkan data PostgreSQL.</p>
+                <p class="text-muted mb-0">Unggah template .docx Anda, pilih template otomatis, atau buat video naskah praktikum berdasarkan data PostgreSQL / Input Manual.</p>
             </div>
             <div>
                 <a href="{{ route('admin.api-keys.index') }}" class="btn btn-outline-dark">
@@ -72,14 +72,36 @@
                                 <small class="text-muted">Pilih "Generate Otomatis" jika Anda tidak ingin mengunggah file template .docx sendiri.</small>
                             </div>
 
+                            <!-- Opsi Pilihan Sumber Tujuan Pembelajaran (TP) -->
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Tujuan Pembelajaran (TP)</label>
-                                <select name="tp_id" id="tp_id_select" required class="form-select">
-                                    <option value="">-- Pilih TP --</option>
-                                    @foreach($tps as $tp)
-                                        <option value="{{ $tp->id }}">{{ $tp->title ?? $tp->display_title ?? $tp->description ?? '-' }}</option>
-                                    @endforeach
-                                </select>
+                                <label class="form-label fw-bold d-block mb-1">Sumber Tujuan Pembelajaran (TP)</label>
+                                <div class="btn-group w-100 mb-2" role="group">
+                                    <input type="radio" class="btn-check" name="tp_mode" id="tp_mode_db" value="database" checked onchange="toggleTpInputMode()">
+                                    <label class="btn btn-outline-primary" for="tp_mode_db">
+                                        <i class="fa-solid fa-database me-1"></i> Pilih dari Database
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="tp_mode" id="tp_mode_manual" value="manual" onchange="toggleTpInputMode()">
+                                    <label class="btn btn-outline-primary" for="tp_mode_manual">
+                                        <i class="fa-solid fa-keyboard me-1"></i> Ketik Manual TP
+                                    </label>
+                                </div>
+
+                                <!-- Container Input TP Database -->
+                                <div id="tp_database_container">
+                                    <select name="tp_id" id="tp_id_select" class="form-select">
+                                        <option value="">-- Pilih TP dari Database --</option>
+                                        @foreach($tps as $tp)
+                                            <option value="{{ $tp->id }}">{{ $tp->title ?? $tp->display_title ?? $tp->description ?? '-' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <!-- Container Input TP Manual -->
+                                <div id="tp_manual_container" class="d-none">
+                                    <textarea name="tp_manual" id="tp_manual_input" class="form-control" rows="3" placeholder="Ketikkan Tujuan Pembelajaran (TP) atau indikator praktikum di sini..."></textarea>
+                                    <small class="text-muted">Contoh: Memahami prinsip kerja instalasi penerangan 1 fasa menggunakan saklar tunggal dan stop kontak.</small>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -134,10 +156,24 @@
 
 </div>
 
-<!-- Script AJAX Handler (Word Download + Video Generator + Export Text + SweetAlert2) -->
+<!-- Script AJAX Handler -->
 <script>
-    // Variabel Global untuk menyimpan data Part sementara
     let currentScriptParts = [];
+
+    // Switcher Mode Input TP (Database vs Manual)
+    function toggleTpInputMode() {
+        const mode = document.querySelector('input[name="tp_mode"]:checked').value;
+        const dbContainer = document.getElementById('tp_database_container');
+        const manualContainer = document.getElementById('tp_manual_container');
+
+        if (mode === 'manual') {
+            dbContainer.classList.add('d-none');
+            manualContainer.classList.remove('d-none');
+        } else {
+            dbContainer.classList.remove('d-none');
+            manualContainer.classList.add('d-none');
+        }
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -196,6 +232,19 @@
             generateForm.addEventListener('submit', function (e) {
                 e.preventDefault();
 
+                const mode = document.querySelector('input[name="tp_mode"]:checked').value;
+                const tpId = document.getElementById('tp_id_select').value;
+                const tpManual = document.getElementById('tp_manual_input').value;
+
+                if (mode === 'database' && !tpId) {
+                    Swal.fire('Peringatan', 'Silakan pilih TP dari Database terlebih dahulu.', 'warning');
+                    return;
+                }
+                if (mode === 'manual' && !tpManual.trim()) {
+                    Swal.fire('Peringatan', 'Silakan ketikkan Tujuan Pembelajaran (TP) terlebih dahulu.', 'warning');
+                    return;
+                }
+
                 let formData = new FormData(this);
 
                 Swal.fire({
@@ -217,8 +266,6 @@
                     const data = await response.json();
 
                     if (response.ok && data.status === 'success') {
-                        
-                        // Decode Base64 ke Uint8Array dan buat Blob lokal
                         const byteCharacters = atob(data.file_data);
                         const byteNumbers = new Array(byteCharacters.length);
                         for (let i = 0; i < byteCharacters.length; i++) {
@@ -227,7 +274,6 @@
                         const byteArray = new Uint8Array(byteNumbers);
                         const blob = new Blob([byteArray], { type: data.file_type });
 
-                        // Trigger Direct Download di Browser
                         const link = document.createElement('a');
                         link.href = window.URL.createObjectURL(blob);
                         link.download = data.filename;
@@ -260,21 +306,23 @@
     // 3. Handling Generate Video AI (Short & Long) Terkelompok per Part via AJAX
     function triggerGenerateVideo(format) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const mode = document.querySelector('input[name="tp_mode"]:checked').value;
         const tpId = document.getElementById('tp_id_select').value;
+        const tpManual = document.getElementById('tp_manual_input').value;
         const partCount = document.getElementById('part_count_select').value;
         
-        if (!tpId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'PILIH TP TERLEBIH DAHULU',
-                text: 'Silakan pilih Tujuan Pembelajaran (TP) pada dropdown di atas.'
-            });
+        if (mode === 'database' && !tpId) {
+            Swal.fire('Peringatan', 'Silakan pilih TP dari Database terlebih dahulu.', 'warning');
+            return;
+        }
+        if (mode === 'manual' && !tpManual.trim()) {
+            Swal.fire('Peringatan', 'Silakan ketikkan Tujuan Pembelajaran (TP) terlebih dahulu.', 'warning');
             return;
         }
 
         Swal.fire({
             title: 'Menyusun Naskah per Part...',
-            text: 'Gemini AI sedang mengelompokkan naskah (' + format.toUpperCase() + ') ke dalam bagian sesuai pilihan Anda.',
+            text: 'Gemini AI sedang menyusun naskah video (' + format.toUpperCase() + ') berdasarkan TP yang Anda masukkan.',
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
@@ -287,7 +335,9 @@
                 'Accept': 'application/json'
             },
             body: JSON.stringify({ 
-                tp_id: tpId, 
+                tp_mode: mode,
+                tp_id: tpId,
+                tp_manual: tpManual,
                 video_format: format,
                 part_count: partCount 
             })
@@ -296,7 +346,6 @@
             const data = await response.json();
             if (response.ok && data.status === 'success') {
                 
-                // Simpan data part ke variabel global
                 currentScriptParts = data.parts || [];
 
                 let downloadHtml = `<p class="small text-muted mb-2">${data.message} (Engine: <strong>${data.provider}</strong>)</p>`;
@@ -312,7 +361,6 @@
                         </div>`;
                 }
 
-                // Tombol Aksi Masal: Export Text (.txt) & Salin Semua Part
                 downloadHtml += `
                     <div class="d-flex justify-content-between align-items-center mb-2 mt-3 px-1">
                         <span class="small fw-bold text-dark"><i class="fa-solid fa-list-ol text-primary me-1"></i> Daftar Part Naskah:</span>
@@ -326,7 +374,6 @@
                         </div>
                     </div>`;
 
-                // Render Naskah per Part
                 downloadHtml += `<div class="text-start" style="max-height: 260px; overflow-y: auto;">`;
                 
                 if (data.parts && data.parts.length > 0) {
@@ -342,17 +389,6 @@
                                 <div id="part-text-${index}" style="font-size: 0.85rem; white-space: pre-wrap; color: #333; word-break: break-word;">${part.content}</div>
                             </div>`;
                     });
-                } else if (data.script) {
-                    downloadHtml += `
-                        <div class="bg-light p-3 rounded border mb-2">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <strong class="small text-primary"><i class="fa-solid fa-align-left me-1"></i> Naskah Utuh</strong>
-                                <button type="button" onclick="copyPartScript('part-text-single', 'btn-part-single')" id="btn-part-single" class="btn btn-sm btn-outline-primary py-0 px-2">
-                                    <i class="fa-solid fa-copy me-1"></i> Salin Naskah
-                                </button>
-                            </div>
-                            <div id="part-text-single" style="font-size: 0.85rem; white-space: pre-wrap; color: #333; word-break: break-word;">${data.script}</div>
-                        </div>`;
                 }
                 
                 downloadHtml += `</div>`;
@@ -374,7 +410,7 @@
         });
     }
 
-    // Helper Function 1: Salin Per Part
+    // Helper Functions
     function copyPartScript(elementId, buttonId) {
         const scriptElem = document.getElementById(elementId);
         if (!scriptElem) return;
@@ -393,7 +429,6 @@
         }).catch(err => alert('Gagal menyalin: ' + err));
     }
 
-    // Helper Function 2: Salin Semua Part Sekaligus
     function copyAllPartsScript() {
         if (!currentScriptParts || currentScriptParts.length === 0) return;
 
@@ -415,19 +450,15 @@
         });
     }
 
-    // Helper Function 3: Export Naskah Ke File Text (.txt)
     function exportScriptToText() {
-        if (!currentScriptParts || currentScriptParts.length === 0) {
-            alert('Tidak ada naskah yang bisa diexport.');
-            return;
-        }
+        if (!currentScriptParts || currentScriptParts.length === 0) return;
 
         let content = "=========================================\n";
         content += "  NASKAH VIDEO PEMBELAJARAN (AI SCRIPT)  \n";
         content += "  SMK NEGERI 1 BUKITTINGGI               \n";
         content += "=========================================\n\n";
 
-        currentScriptParts.forEach((part, index) => {
+        currentScriptParts.forEach((part) => {
             content += `[ ${part.part_name.toUpperCase()} ]\n`;
             content += `${part.content}\n\n`;
             content += "-----------------------------------------\n\n";
