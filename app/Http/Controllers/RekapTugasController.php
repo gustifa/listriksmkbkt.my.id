@@ -290,6 +290,149 @@ class RekapTugasController extends Controller
 // }
 
 // 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru)
+    // public function index(Request $request)
+    // {
+    //     // Ambil ID Guru yang sedang login
+    //     $userId = auth()->id();
+    //     $teacherId = \DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
+
+    //     // Ambil Tahun Ajaran / Semester yang AKTIF
+    //     $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+
+    //     // 1. Ambil KELAS yang diajar oleh guru ini dari tabel 'schedules'
+    //     $classrooms = Classroom::whereIn('id', function ($query) use ($teacherId) {
+    //         $query->select('classroom_id')
+    //               ->from('schedules')
+    //               ->where('teacher_id', $teacherId);
+    //     })->get();
+
+    //     $selectedClassroom = $request->input('classroom_id');
+
+    //     // 2. Ambil MAPEL yang diajar guru ini
+    //     $subjects = Subject::whereIn('id', function ($query) use ($teacherId, $selectedClassroom) {
+    //         $query->select('subject_id')
+    //               ->from('schedules')
+    //               ->where('teacher_id', $teacherId);
+            
+    //         if ($selectedClassroom) {
+    //             $query->where('classroom_id', $selectedClassroom);
+    //         }
+    //     })->get();
+
+    //     $selectedSubject = $request->input('subject_id');
+
+    //     $assignments = collect();
+    //     $learningObjectives = collect();
+    //     $rekapData = collect();
+
+    //     if ($selectedClassroom && $selectedSubject) {
+    //         // Ambil TP yang dibuat untuk Mata Pelajaran ini
+    //         $learningObjectives = LearningObjective::where('subject_id', $selectedSubject)
+    //             ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+    //                 $q->where(function($query) use ($activeAcademicYear) {
+    //                     $query->where('academic_year_id', $activeAcademicYear->id)
+    //                           ->orWhereNull('academic_year_id');
+    //                 });
+    //             })
+    //             ->orderBy('code', 'asc')
+    //             ->get();
+
+    //         // Ambil Tugas yang dibuat oleh guru ini di kelas & mapel ini
+    //         $assignments = Assignment::with(['learningObjective', 'submissions'])
+    //             ->where('classroom_id', $selectedClassroom)
+    //             ->where('subject_id', $selectedSubject)
+    //             ->where('teacher_id', $teacherId)
+    //             ->when($activeAcademicYear, function($q) use ($activeAcademicYear) {
+    //                 $q->where(function($query) use ($activeAcademicYear) {
+    //                     $query->where('academic_year_id', $activeAcademicYear->id)
+    //                           ->orWhereNull('academic_year_id');
+    //                 });
+    //             })
+    //             ->orderBy('created_at', 'asc')
+    //             ->get();
+
+    //         // Ambil Siswa di kelas yang dipilih
+    //         $students = Student::where('classroom_id', $selectedClassroom)
+    //             ->orderBy('name', 'asc')
+    //             ->get();
+
+    //         // Susun matriks rekapitulasi penyerahan tugas, nilai, tanggal kumpul & feedback
+    //         $rekapData = $students->map(function ($student) use ($assignments) {
+    //             $statusTugas  = [];
+    //             $nilaiTugas   = [];
+    //             $tanggalTugas = [];
+    //             $feedbackTugas = []; // Array untuk menyimpan feedback guru
+    //             $totalH = 0; $totalT = 0; $totalA = 0;
+
+    //             foreach ($assignments as $assignment) {
+    //                 $submission = $assignment->submissions
+    //                     ->where('student_id', $student->id)
+    //                     ->first();
+
+    //                 if (!$submission) {
+    //                     $status       = 'A';
+    //                     $score        = null;
+    //                     $submittedAt  = null;
+    //                     $feedback     = '';
+    //                     $totalA++;
+    //                 } else {
+    //                     $dbStatus = strtolower($submission->status ?? '');
+
+    //                     if ($dbStatus === 'submitted' || $dbStatus === 'h') {
+    //                         $status = 'H';
+    //                         $totalH++;
+    //                     } elseif ($dbStatus === 'late' || $dbStatus === 't') {
+    //                         $status = 'T';
+    //                         $totalT++;
+    //                     } else {
+    //                         if ($submission->submitted_at && $assignment->due_date && $submission->submitted_at->gt($assignment->due_date)) {
+    //                             $status = 'T';
+    //                             $totalT++;
+    //                         } else {
+    //                             $status = 'H';
+    //                             $totalH++;
+    //                         }
+    //                     }
+
+    //                     $score       = $submission->score;
+    //                     $submittedAt = $submission->submitted_at ? $submission->submitted_at->format('d M Y, H:i') : null;
+    //                     $feedback    = $submission->feedback ?? '';
+    //                 }
+
+    //                 $statusTugas[$assignment->id]   = $status;
+    //                 $nilaiTugas[$assignment->id]    = $score;
+    //                 $tanggalTugas[$assignment->id]  = $submittedAt;
+    //                 $feedbackTugas[$assignment->id] = $feedback;
+    //             }
+
+    //             return [
+    //                 'student_id'    => $student->id,
+    //                 'nisn'          => $student->nisn ?? $student->id,
+    //                 'nama'          => $student->name,
+    //                 'tugas'         => $statusTugas,
+    //                 'nilai'         => $nilaiTugas,
+    //                 'tanggal_kumpul'=> $tanggalTugas,
+    //                 'feedback'      => $feedbackTugas, // Dikirim ke view Blade
+    //                 'total_h'       => $totalH,
+    //                 'total_t'       => $totalT,
+    //                 'total_a'       => $totalA,
+    //             ];
+    //         });
+    //     }
+
+    //     return view('recap.tugas', compact(
+    //         'classrooms',
+    //         'subjects',
+    //         'selectedClassroom',
+    //         'selectedSubject',
+    //         'learningObjectives',
+    //         'assignments',
+    //         'rekapData',
+    //         'activeAcademicYear'
+    //     ));
+    // }
+
+    // 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru)
     public function index(Request $request)
     {
         // Ambil ID Guru yang sedang login
@@ -361,7 +504,7 @@ class RekapTugasController extends Controller
                 $statusTugas  = [];
                 $nilaiTugas   = [];
                 $tanggalTugas = [];
-                $feedbackTugas = []; // Array untuk menyimpan feedback guru
+                $feedbackTugas = [];
                 $totalH = 0; $totalT = 0; $totalA = 0;
 
                 foreach ($assignments as $assignment) {
@@ -405,14 +548,24 @@ class RekapTugasController extends Controller
                     $feedbackTugas[$assignment->id] = $feedback;
                 }
 
+                // --- PEMBARUAN: Format nomor HP otomatis ke kode negara 62 ---
+                $rawPhone = $student->parent_phone ?? $student->phone ?? '';
+                $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                } elseif (str_starts_with($cleanPhone, '8')) {
+                    $cleanPhone = '62' . $cleanPhone;
+                }
+
                 return [
                     'student_id'    => $student->id,
                     'nisn'          => $student->nisn ?? $student->id,
                     'nama'          => $student->name,
+                    'phone'         => $cleanPhone,
                     'tugas'         => $statusTugas,
                     'nilai'         => $nilaiTugas,
                     'tanggal_kumpul'=> $tanggalTugas,
-                    'feedback'      => $feedbackTugas, // Dikirim ke view Blade
+                    'feedback'      => $feedbackTugas,
                     'total_h'       => $totalH,
                     'total_t'       => $totalT,
                     'total_a'       => $totalA,

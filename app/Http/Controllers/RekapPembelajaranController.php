@@ -13,6 +13,7 @@ use DB;
 class RekapPembelajaranController extends Controller
 {
     public function index(Request $request)
+    public function index(Request $request)
     {
         $userId = auth()->id();
         $teacherId = DB::table('teachers')->where('user_id', $userId)->value('id') ?? $userId;
@@ -126,7 +127,6 @@ class RekapPembelajaranController extends Controller
                         ->where('student_id', $student->id)
                         ->first();
 
-                    // PERBAIKAN: Cek kolom mana yang tersedia di database Anda
                     $grade = null;
                     if ($submission) {
                         $grade = $submission->score 
@@ -147,11 +147,20 @@ class RekapPembelajaranController extends Controller
                 // 3. Penentuan Status Peringatan (Warning Status)
                 $needAttention = ($attendancePercentage < 75) || ($avgGrade > 0 && $avgGrade < 70);
 
+                // --- PEMBARUAN: Format nomor HP otomatis ke kode negara 62 ---
+                $rawPhone = $student->parent_phone ?? $student->phone ?? '';
+                $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                } elseif (str_starts_with($cleanPhone, '8')) {
+                    $cleanPhone = '62' . $cleanPhone;
+                }
+
                 return [
                     'student_id'      => $student->id,
                     'nisn'            => $student->nisn ?? $student->id,
                     'nama'            => $student->name,
-                    'phone'           => $student->parent_phone ?? $student->phone ?? '',
+                    'phone'           => $cleanPhone,
                     'presensi'        => $statusPresensi,
                     'catatan'         => $catatanSiswa,
                     'attachment'      => $attachmentSiswa,
