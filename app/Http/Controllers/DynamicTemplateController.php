@@ -17,18 +17,16 @@ class DynamicTemplateController extends Controller
 
     public function __construct(GeminiApiService $geminiService)
     {
-        $this->geminiService = $geminiService;
+        $this->geminiService =$geminiService;
     }
 
     /**
-     * Tampilan utama generator perangkat ajar
+     * Tampilan Utama
      */
     public function index()
     {
-        $tps = TpMaster::all();
-        $teachers = Teacher::all();
+        $tps = TpMaster::all();$teachers = Teacher::all();
 
-        // Buat direktori penyimpanan template jika belum ada
         if (!Storage::exists('public/templates')) {
             Storage::makeDirectory('public/templates');
         }
@@ -39,38 +37,73 @@ class DynamicTemplateController extends Controller
     }
 
     /**
-     * Helper Fungsi untuk mengonversi data jenis apa pun (Array, Object, JSON) ke String murni.
-     * Mengunci error 'Array to string conversion' secara total.
+     * Method Upload Template (Selesaikan error Call to undefined method)
      */
+    public function uploadTemplate(Request $request)
+    {
+        try {
+            $request->validate([
+                'template_file' => 'required|file|mimes:docx|max:10240',
+                'template_name' => 'required|string|max:100'
+            ]);
+
+            $file =$request->file('template_file');
+            $filename = time() . '_' . Str::slug($request->template_name) . '.docx';
+            
+            // Simpan file ke storage
+            $file->storeAs('public/templates',$filename);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Template Word (.docx) berhasil diunggah!'
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengunggah template: ' . $e->getMessage()
+            ], 422);
+        }
+    }
+
     /**
-     * Helper khusus untuk menyuntikkan teks AI ke Word dengan Line Break (<w:br/>)
+     * Helper Konversi Data jenis apapun ke String murni
+     */
+    private function safeString($data)
+    {
+        if (is_null($data)) return '-';
+        if (is_string($data) \vert{}\vert{} is_numeric($data) || is_bool($data)) return (string)$data;
+
+        if (is_array($data) || is_object($data)) {$result = [];
+            foreach ((array) $data as $key =>$val) {
+                if (is_array($val) || is_object($val)) {$result[] = is_numeric($key) ?$this->safeString($val) : "{$key}: " . $this->safeString($val);
+                } else {
+                    $result[] = is_numeric($key) ? (string)$val : "{$key}: {$val}";
+                }
+            }
+            return implode("\n• ", $result);
+        }
+
+        return (string) $data;
+    }
+
+    /**
+     * Helper Menyuntikkan Teks ke Word dengan Line Break (<w:br/>)
      */
     private function setValueWithLineBreaks($templateProcessor, $variable,$text)
     {
         $text = (string)$text;
-        // Ganti new line biasa dengan format multiline milik PhpOffice/PhpWord
         $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $text));
         
-        if (count($lines) > 1) { // Gunakan metode cloneValue / setComplexValue jika tersedia, atau konversi ke line break Word$formattedText = implode("<w:br/>", array_map('htmlspecialchars', $lines));$templateProcessor->setValue($variable,$formattedText);
+        if (count($lines) > 1) {$formattedText = implode("<w:br/>", array_map('htmlspecialchars', $lines));$templateProcessor->setValue($variable,$formattedText);
         } else {
             $templateProcessor->setValue($variable, htmlspecialchars($text));
         }
     }
 
-    private function safeString($data)
-    {
-        if (is_null($data)) return '-';
-        if (is_string($data) || is_numeric($data)) return (string)$data;
-
-        if (is_array($data) || is_object($data)) {$result = [];
-            foreach ((array) $data as$key => $val) {$valStr = is_array($val) || is_object($val) ? json_encode($val) : (string)$val;
-                $result[] = is_numeric($key) ?$valStr : "{$key}: {$valStr}";
-            }
-            return implode("\n• ", $result);
-        }
-        return (string) $data;
-    }
-
+    /**
+     * Process & Generate Word (.docx)
+     */
     public function generateDocument(Request $request)
     {
         set_time_limit(300);
@@ -95,50 +128,46 @@ class DynamicTemplateController extends Controller
 
             $fullTemplatePath = Storage::path($templateRelativePath);
 
-            // 1. Load Template Word
             $templateProcessor = new TemplateProcessor($fullTemplatePath);
-            
-            // Ambil SEMUA variabel yang ada pada dokumen Word
             $variables =$templateProcessor->getVariables();
 
-            // 2. Ambil data aktual dari PostgreSQL
             $tp = TpMaster::with('subject')->findOrFail($request->tp_id);
             $teacher = Teacher::findOrFail($request->teacher_id);
             
             $namaMapel =$this->safeString($tp->subject->name ?? $tp->subject_name ?? 'Teknik Ketenagalistrikan');
-            $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Kompetensi Keahlian SMK');
-            $namaGuru = $this->safeString($teacher->name ?? '-');
+            $judulTp =$this->safeString($tp->title);$indikatorTp = $this->safeString($tp->indicators ?? 'Standar kompetensi SMK');
+            $namaGuru = $this->safeString($teacher->name ?? 'GUSTIFA FAUZAN, S.Pd');
             $nipGuru = $this->safeString($teacher->nip ?? '-');
 
-            // Filter variabel yang BUKAN variabel identitas
             $staticKeys = ['nama_mapel', 'nama_guru', 'nip_guru', 'tujuan_pembelajaran', 'tp', 'mapel', 'guru', 'nip'];$aiVariables = array_values(array_diff($variables,$staticKeys));
 
-            // 3. Susun Prompt AI yang Sangat Spesifik
-            $systemInstruction = "Anda adalah Ahli Kurikulum SMK Vokasi. "
-                . "TUGAS: Buatkan konten praktikum yang 100% SPESIFIK membahas topik TP yang diberikan. "
-                . "DILARANG mengembalikan data umum/default. "
-                . "OUTPUT WAJIB BERUPA JSON VALID TANPA MARKDOWN (tanpa ```json).";
+            $systemInstruction = "Anda adalah Pakar Pengembang Kurikulum Merdeka SMK Vokasi. "
+                . "TUGAS: Hasilkan konten pembelajaran yang 100% RELEVAN dan SPESIFIK sesuai Tujuan Pembelajaran (TP). "
+                . "OUTPUT WAJIB BERUPA OBJEK JSON VALID tanpa markup ```json.";
 
-            $userPrompt = "Buatkan isi konten praktikum spesifik untuk:\n"
-                . "Mata Pelajaran: {$namaMapel}\n"
-                . "Tujuan Pembelajaran (TP): {$judulTp}\n"
-                . "Indikator: {$indikatorTp}\n\n"
-                . "Isilah variabel-variabel berikut sesuai konteks TP '{$judulTp}':\n"
+            $userPrompt = "Saya sedang menyusun dokumen perangkat ajar SMK dengan acuan data resmi berikut:\n"
+                . "----------------------------------------\n"
+                . "- MATA PELAJARAN: {$namaMapel}\n"
+                . "- TUJUAN PEMBELAJARAN (TP): {$judulTp}\n"
+                . "- INDIKATOR/ELEMEN KUNCI: {$indikatorTp}\n"
+                . "- GURU PENGAMPU: {$namaGuru}\n"
+                . "----------------------------------------\n\n"
+                . "Tolong buatkan isi konten teknis yang mendalam dan spesifik untuk mengisi variabel-variabel berikut:\n"
                 . json_encode($aiVariables) . "\n\n"
-                . "Keluarkah JSON dengan KUNCI/KEY persis seperti daftar variabel di atas!";
+                . "KETENTUAN PENTING:\n"
+                . "1. Buatlah jawaban berbentuk objek JSON dengan KEY/KUNCI persis seperti daftar variabel di atas.\n"
+                . "2. Setiap nilai (value) HARUS berbentuk STRING murni atau TEKS TUNGGAL.\n"
+                . "3. Bahas materi spesifik tentang '{$judulTp}'.";
 
-            // 4. Panggil Gemini AI
             $aiResponse = $this->geminiService->generateContent($userPrompt, $systemInstruction);
             
             $cleanJson = preg_replace('/^```json\s*|\s*```$/i', '', trim($aiResponse));
             $cleanJson = trim($cleanJson, '`');
             $aiData = json_decode($cleanJson, true) ?? [];
 
-            // 5. Inject Ke Template Word
             foreach ($variables as $variable) {
                 $varLower = strtolower($variable);
 
-                // Variabel Identitas Statis
                 if (in_array($varLower, ['nama_mapel', 'mapel'])) {
                     $templateProcessor->setValue($variable, htmlspecialchars($namaMapel));
                 } elseif (in_array($varLower, ['nama_guru', 'guru'])) {
@@ -148,10 +177,8 @@ class DynamicTemplateController extends Controller
                 } elseif (in_array($varLower, ['tujuan_pembelajaran', 'tp'])) {
                     $templateProcessor->setValue($variable, htmlspecialchars($judulTp));
                 } else {
-                    // Variabel Konten AI (Cari yang paling cocok di array JSON AI)
                     $rawValue = $aiData[$variable] ?? $aiData[$varLower] ?? null;
 
-                    // Jika AI tidak mengembalikan key tersebut, cari yang mirip
                     if ($rawValue === null) {
                         foreach ($aiData as $k => $v) {
                             if (strtolower($k) === $varLower) {
@@ -162,13 +189,10 @@ class DynamicTemplateController extends Controller
                     }
 
                     $safeValue = $this->safeString($rawValue ?? 'Konten disesuaikan dengan TP: ' . $judulTp);
-                    
-                    // Inject menggunakan Line Break khusus Word
                     $this->setValueWithLineBreaks($templateProcessor, $variable, $safeValue);
                 }
             }
 
-            // 6. Simpan Temporary File & Convert Ke Base64
             $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
             $templateProcessor->saveAs($tempFile);
             
@@ -180,7 +204,7 @@ class DynamicTemplateController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Dokumen & Konten Isi Berhasil Diperbarui Sesuai TP!',
+                'message' => 'Dokumen berhasil disesuaikan dengan TP!',
                 'filename' => $downloadFilename,
                 'file_data' => $base64File,
                 'file_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
