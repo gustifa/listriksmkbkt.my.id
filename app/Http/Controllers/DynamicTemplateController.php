@@ -369,11 +369,13 @@ PROMPT;
     /**
  * Membuat File Template Master Word (.docx) Secara Otomatis di Memory
  */
+/**
+ * Membuat Struktur Template Word Master secara Otomatis di Memory/Temporary Server
+ */
 private function generateAutoTemplateStream()
 {
     $phpWord = new PhpWord();
     
-    // Set Margin Halaman
     $section = $phpWord->addSection([
         'marginTop' => 1134, // 2 cm
         'marginBottom' => 1134,
@@ -381,7 +383,7 @@ private function generateAutoTemplateStream()
         'marginRight' => 1134,
     ]);
 
-    // 1. Header Judul
+    // 1. Header & Judul Dokumen
     $titleStyle = ['name' => 'Arial', 'size' => 14, 'bold' => true, 'color' => '0F2240'];
     $subTitleStyle = ['name' => 'Arial', 'size' => 12, 'bold' => true, 'color' => '0051A3'];
     
@@ -389,7 +391,7 @@ private function generateAutoTemplateStream()
     $section->addText('${topik_pembelajaran}', $subTitleStyle, ['alignment' => Jc::CENTER]);
     $section->addTextBreak(1);
 
-    // 2. Tabel Identitas / Informasi Umum
+    // 2. Tabel Identitas
     $tableStyle = ['borderSize' => 6, 'borderColor' => 'CCCCCC', 'cellMargin' => 80];
     $phpWord->addTableStyle('IdentityTable', $tableStyle);
     $table = $section->addTable('IdentityTable');
@@ -412,7 +414,7 @@ private function generateAutoTemplateStream()
 
     $section->addTextBreak(1);
 
-    // 3. Helper untuk Menambahkan Bagian Konten
+    // 3. Helper Section Box
     $addSectionBox = function($title, $variable) use ($section) {
         $section->addText($title, ['name' => 'Arial', 'size' => 11, 'bold' => true, 'color' => '0F2240']);
         
@@ -424,7 +426,7 @@ private function generateAutoTemplateStream()
         $section->addTextBreak(1);
     };
 
-    // 4. Susun Bagian Konten
+    // 4. Menyusun Variabel Utama Dokumen
     $addSectionBox('I. TUJUAN PEMBELAJARAN & INDIKATOR KINERJA', '${tujuan_pembelajaran_detail}');
     $addSectionBox('II. KESELAMATAN KERJA (K3) DAN PETUNJUK UMUM', '${keselamatan_kerja}');
     $addSectionBox('III. ALAT DAN BAHAN PRAKTIKUM', '${alat_dan_bahan}');
@@ -432,9 +434,9 @@ private function generateAutoTemplateStream()
     $addSectionBox('V. LANGKAH-LANGKAH KERJA PERCOBAAN', '${langkah_kerja}');
     $addSectionBox('VI. LEMBAR PENILAIAN & RUBRIK KINERJA', '${rubrik_penilaian}');
 
-    // Simpan ke file temporary
+    // Simpan ke file temporary menggunakan writer 'Word2007'
     $tempPath = tempnam(sys_get_temp_dir(), 'tpl_auto_');
-    $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2006');
+    $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
     $objWriter->save($tempPath);
 
     return $tempPath;
