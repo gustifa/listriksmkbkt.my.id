@@ -15,8 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class RekapTugasController extends Controller
 {
-    // 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru & Perhitungan Bobot Dinamis)
-    // 1. Tampilan Utama Rekapitulasi (Filter Sesuai Jadwal Guru & Perhitungan Bobot Dinamis)
+    // 1. Tampilan Utama Rekapitulasi
     public function index(Request $request)
     {
         $userId = auth()->id();
@@ -76,7 +75,6 @@ class RekapTugasController extends Controller
                 ->orderBy('name', 'asc')
                 ->get();
 
-            // Hitung Total Bobot Tugas yang Aktif (Tugas yang TIDAK diabaikan)
             $totalBobotAktif = $assignments
                 ->reject(fn($asg) => (bool) ($asg->is_ignored ?? false))
                 ->sum(fn($asg) => (float) ($asg->weight ?? 1));
@@ -103,7 +101,6 @@ class RekapTugasController extends Controller
                         $submittedAt  = null;
                         $feedback     = '';
                         
-                        // HANYA Tambahkan Alpa jika tugas TIDAK diabaikan
                         if (!$isIgnored) {
                             $totalA++;
                         }
@@ -136,13 +133,11 @@ class RekapTugasController extends Controller
                     $tanggalTugas[$assignment->id]  = $submittedAt;
                     $feedbackTugas[$assignment->id] = $feedback;
 
-                    // Hitung kalkulasi terbobot HANYA JIKA tugas tidak diabaikan dan ada nilai
                     if (!$isIgnored && !is_null($score)) {
                         $totalNilaiTerbobot += ((float)$score * $weight);
                     }
                 }
 
-                // Kalkulasi Rata-Rata Terbobot Dinamis
                 $rataRata = $totalBobotAktif > 0 ? round($totalNilaiTerbobot / $totalBobotAktif, 1) : 0;
 
                 $rawPhone = $student->parent_phone ?? $student->phone ?? '';
@@ -181,8 +176,6 @@ class RekapTugasController extends Controller
             'activeAcademicYear'
         ));
     }
-
-    
 
     // 2. Simpan TP Baru via AJAX
     public function storeLearningObjective(Request $request)
@@ -305,54 +298,73 @@ class RekapTugasController extends Controller
         ]);
     }
 
-    // 5. Update Status, Nilai, Waktu Pengumpulan & Feedback (Individual)
+    // 5. Update Status, Nilai, Waktu Pengumpulan & Feedback (Mendukung Penerapan Kelompok)
     public function toggleStatus(Request $request)
     {
         $request->validate([
-            'assignment_id' => 'required|uuid|exists:assignments,id',
-            'student_id'    => 'required|uuid|exists:students,id',
-            'status'        => 'required|in:H,T,A,submitted,late',
-            'score'         => 'nullable|numeric|min:0|max:100',
-            'submitted_at'  => 'nullable|date',
-            'feedback'      => 'nullable|string',
+            'assignment_id'      => 'required|uuid|exists:assignments,id',
+            'student_id'         => 'required|uuid|exists:students,id',
+            'status'             => 'required|in:H,T,A,submitted,late',
+            'score'              => 'nullable|numeric|min:0|max:100',
+            'submitted_at'       => 'nullable|date',
+            'feedback'           => 'nullable|string',
+            'group_student_ids'  => 'nullable|array',
+            'group_student_ids.*' => 'uuid|exists:students,id',
         ]);
 
         $assignment = Assignment::findOrFail($request->assignment_id);
 
-        if ($request->status === 'A') {
-            AssignmentSubmission::where('assignment_id', $request->assignment_id)
-                ->where('student_id', $request->student_id)
-                ->delete();
-        } else {
-            if ($request->filled('submitted_at')) {
-                $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
-            } else {
-                $submittedAt = ($request->status === 'T' || $request->status === 'late') 
-                    ? now()->addHours(2)
-                    : ($assignment->due_date ?? now());
+        // Gabungkan ID Siswa Utama dengan Anggota Kelompok
+        $targetStudentIds = array_unique(array_merge([$request->student_id], $request->input('group_student_ids', [])));
+
+        // Buat Informasi Catatan Kelompok jika memilih lebih dari 1 siswa
+        $finalFeedback = $request->feedback;
+        if (count($targetStudentIds) > 1) {
+            $memberNames = Student::whereIn('id', $targetStudentIds)->pluck('name')->toArray();
+            $groupNote = "\n[Kelompok: " . implode(', ', $memberNames) . "]";
+            
+            // Hindari duplikasi catatan kelompok jika sudah ada
+            if (!str_contains($finalFeedback ?? '', '[Kelompok:')) {
+                $finalFeedback = trim(($finalFeedback ?? '') . $groupNote);
             }
+        }
 
-            $dbStatus = ($request->status === 'H' || $request->status === 'submitted') ? 'submitted' : 'late';
+        foreach ($targetStudentIds as $stId) {
+            if ($request->status === 'A') {
+                AssignmentSubmission::where('assignment_id', $request->assignment_id)
+                    ->where('student_id', $stId)
+                    ->delete();
+            } else {
+                if ($request->filled('submitted_at')) {
+                    $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
+                } else {
+                    $submittedAt = ($request->status === 'T' || $request->status === 'late') 
+                        ? now()->addHours(2)
+                        : ($assignment->due_date ?? now());
+                }
 
-            AssignmentSubmission::updateOrCreate(
-                [
-                    'assignment_id' => $request->assignment_id,
-                    'student_id'    => $request->student_id,
-                ],
-                [
-                    'submitted_at' => $submittedAt,
-                    'status'       => $dbStatus,
-                    'score'        => $request->filled('score') ? $request->score : null,
-                    'feedback'     => $request->feedback,
-                    'graded_at'    => $request->filled('score') ? now() : null,
-                    'updated_at'   => now()
-                ]
-            );
+                $dbStatus = ($request->status === 'H' || $request->status === 'submitted') ? 'submitted' : 'late';
+
+                AssignmentSubmission::updateOrCreate(
+                    [
+                        'assignment_id' => $request->assignment_id,
+                        'student_id'    => $stId,
+                    ],
+                    [
+                        'submitted_at' => $submittedAt,
+                        'status'       => $dbStatus,
+                        'score'        => $request->filled('score') ? $request->score : null,
+                        'feedback'     => $finalFeedback,
+                        'graded_at'    => $request->filled('score') ? now() : null,
+                        'updated_at'   => now()
+                    ]
+                );
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Status, nilai, waktu pengumpulan, dan feedback berhasil diperbarui!'
+            'message' => 'Status, nilai, dan feedback kelompok berhasil diperbarui!'
         ]);
     }
 
@@ -534,7 +546,7 @@ class RekapTugasController extends Controller
         ]);
     }
 
-    // 8. Pengisian Rekap Tugas Massal (Sertakan Nilai, Waktu, Feedback, & Pilihan Siswa Checklist)
+    // 8. Pengisian Rekap Tugas Massal
     public function bulkUpdate(Request $request)
     {
         $validated = $request->validate([
@@ -590,17 +602,15 @@ class RekapTugasController extends Controller
         ]);
     }
 
-// 9. Update Bobot & Status Abaikan Tugas secara Dinamis
+    // 9. Update Bobot & Status Abaikan Tugas secara Dinamis
     public function updateWeights(Request $request)
     {
         $weights = $request->input('weights', []);
         $ignored = $request->input('ignored', []);
 
-        // Ambil semua ID tugas dari array weights
         $allAssignmentIds = array_keys($weights);
 
         foreach ($allAssignmentIds as $assignmentId) {
-            // Cek apakah tugas tercentang di array ignored
             $isIgnored = isset($ignored[$assignmentId]) && ($ignored[$assignmentId] == 1 || $ignored[$assignmentId] == '1');
             $weightVal = $isIgnored ? 0 : (float) ($weights[$assignmentId] ?? 1);
 
