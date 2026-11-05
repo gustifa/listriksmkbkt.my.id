@@ -101,6 +101,20 @@ $status = $guruId->status ?? '0';
                     </ul>
                 </li>
 
+                <!-- REKAPITULASI UNTUK ADMIN -->
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-spreadsheet"></i></div>
+                        <div class="menu-title">Rekapitulasi System</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-reader'></i>Rekap Pembelajaran (PBM)</a></li>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian (Gerbang)</a></li>
+                        <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
+                    </ul>
+                </li>
+
                 <li>
                     <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class="bx bx-chip"></i></div>
@@ -150,6 +164,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('print.index') }}"><i class='bx bx-id-card'></i>Cetak Kartu Siswa</a></li>
                         <li><a href="{{ route('report.surat_tugas_all') }}" target="_blank"><i class='bx bx-file'></i>Surat Tugas Guru</a></li>
                         <li><a href="{{ route('inventories.index') }}"><i class='bx bx-box'></i>Inventaris & KIR</a></li>
+                        <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                     </ul>
                 </li>
                 @role('bendahara')
@@ -173,15 +188,16 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Monitoring & Laporan</div>
                     </a>
                     <ul>
-                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-radio-circle'></i>Presensi Gerbang</a></li>
-                        <li><a href="{{ route('report.index') }}"><i class='bx bx-radio-circle'></i>Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas Siswa</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-reader'></i>Rekap Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
+                        <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                         <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-radio-circle'></i>Transkrip Absensi</a></li>
                         <li><a href="{{ route('recap.index') }}"><i class='bx bx-radio-circle'></i>Rekapitulasi Sekolah</a></li>
                         <li><a href="{{ route('admin.prayer_reports.index') }}"><i class='bx bx-radio-circle'></i>Presensi Sholat</a></li>
                         <li><a href="{{ route('reports.missing_attendance') }}"><i class='bx bx-radio-circle'></i>Laporan Alfa/Abolisi</a></li>
                         <li><a href="{{ route('laporan.daya_tampung') }}"><i class='bx bx-radio-circle'></i>Usulan Daya Tampung</a></li>
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
-                        <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Izin Siswa</a></li>
                         <li><a href="{{ route('inventories.index') }}"><i class='bx bx-box'></i>Aset & Inventaris Sekolah</a></li>
                     </ul>
                 </li>
@@ -238,7 +254,10 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Laporan Kejuruan</div>
                     </a>
                     <ul>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas Kejuruan</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-reader'></i>Rekap Pembelajaran PBM</a></li>
                         <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-border-all'></i>Presensi Gerbang</a></li>
+                        <li><a href="{{ route('admin.permit.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                         <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Absensi</a></li>
                         <li><a href="{{ route('recap.index') }}"><i class='bx bx-id-card'></i>Rekapitulasi Scope</a></li>
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
@@ -291,8 +310,11 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Laporan Binaan</div>
                     </a>
                     <ul>
-                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Kelas</a></li>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas Kelas</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-reader'></i>Rekap Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
                         <li><a href="{{ route('admin.permit.recap') }}"><i class='bx bx-border-all'></i>Rekap Izin Siswa</a></li>
+                        <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Kelas</a></li>
                     </ul>
                 </li>
             @endhasanyrole
@@ -337,6 +359,20 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{route('schedule.index')}}"><i class='bx bx-radio-circle'></i>Jadwal Mengajar</a></li>
                         <li><a href="{{route('journal.index')}}"><i class='bx bx-radio-circle'></i>Jurnal Mengajar</a></li>
+                    </ul>
+                </li>
+
+                <!-- DITAMBAHKAN MENU REKAPITULASI UNTUK GURU -->
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bx-spreadsheet'></i></div>
+                        <div class="menu-title">Rekapitulasi PBM</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas</a></li>
+                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-open'></i>Rekap Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
+                        <li><a href="{{ route('admin.permit.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                     </ul>
                 </li>
 
@@ -398,7 +434,7 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Izin Dispensasi</div>
                     </a>
                     <ul>
-                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Scan Izin</a></li>
+                        <li><a href="{{route('admin.permit.index')}}"><i class='bx bx-radio-circle'></i>Scan & Rekap Izin</a></li>
                     </ul>
                 </li>
             @endhasanyrole
