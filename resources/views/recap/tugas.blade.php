@@ -209,10 +209,6 @@
                             @else
                                 <span class="text-danger fw-bold">X</span>
                             @endif
-
-                            @if(!empty($feedback))
-                                <span class="badge bg-info text-dark d-block" style="font-size: 8px; margin-top: 2px;" title="{{ $feedback }}">💬 Kelompok</span>
-                            @endif
                         </td>
                     @endforeach
 
@@ -374,7 +370,7 @@
 </div>
 @endif
 
-<!-- MODAL 4: ATUR BOBOT & ABAIKAN TUGAS DINAMIS -->
+<!-- MODAL 4: ATUR BOBOT & ABAIKAN TUGAS DINAMIS (FIXED RESPONSIVE) -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBobotTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -385,6 +381,7 @@
             </div>
             <form id="formUpdateBobot">
                 <div class="modal-body p-3 p-md-4">
+                    <!-- INFORMASI LENGKAP & PETUNJUK CARA KERJA BOBOT DINAMIS -->
                     <div class="card border-primary mb-3 bg-light">
                         <div class="card-body p-3">
                             <h6 class="fw-bold text-primary mb-2">📌 Informasi & Panduan Pengisian Bobot:</h6>
@@ -399,6 +396,7 @@
                         </div>
                     </div>
 
+                    <!-- CONTAINER TABEL DENGAN SCROLL VERTIKAL SAJA -->
                     <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;" class="border rounded">
                         <table class="table table-bordered align-middle m-0" style="width: 100%; table-layout: fixed;">
                             <thead class="table-light text-center sticky-top">
@@ -463,13 +461,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // Data Siswa Kelas untuk Fitur Kelompok
-    const studentsInClass = [
-        @foreach($rekapData as $s)
-            { id: '{{ $s["student_id"] }}', name: '{{ addslashes($s["nama"]) }}' },
-        @endforeach
-    ];
-
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
         
@@ -641,6 +632,7 @@
             });
         });
 
+        // Switch Enable/Disable Input Bobot saat Checkbox Abaikan Diklik
         $(document).on('change', '.check-ignore', function() {
             let isChecked = $(this).is(':checked');
             let weightInput = $(this).closest('tr').find('.input-weight');
@@ -651,6 +643,7 @@
             }
         });
 
+        // Submit Form Update Bobot (Mengabaikan properti disabled agar nilai weight 0 tetap terkirim)
         $('#formUpdateBobot').submit(function(e) {
             e.preventDefault();
             
@@ -704,32 +697,14 @@
         });
     }
 
-    // Modal Edit Individu & Penerapan Feedback Kelompok
     function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
         const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
-
-        // Opsi pilihan siswa lain (untuk tugas kelompok)
-        let groupOptionsHtml = '';
-        studentsInClass.forEach(s => {
-            if (s.id !== studentId) {
-                groupOptionsHtml += `
-                    <div class="col-6">
-                        <div class="form-check text-start">
-                            <input class="form-check-input group-student-checkbox" type="checkbox" value="${s.id}" id="group_st_${s.id}">
-                            <label class="form-check-label small text-truncate d-block cursor-pointer" for="group_st_${s.id}">
-                                ${s.name}
-                            </label>
-                        </div>
-                    </div>
-                `;
-            }
-        });
 
         Swal.fire({
             title: `Update Rekap, Nilai & Feedback`,
             html: `
                 <div class="text-start mb-2">
-                    <p class="mb-2">Siswa Utama: <strong>${studentName}</strong></p>
+                    <p class="mb-2">Siswa: <strong>${studentName}</strong></p>
                     
                     <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
                     <select id="swal_status" class="form-select mb-3">
@@ -744,30 +719,13 @@
                     <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
                     <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
 
-                    <label class="form-label fw-bold mb-1">Catatan / Feedback Guru:</label>
-                    <textarea id="swal_feedback" class="form-control mb-3" rows="2" placeholder="Tulis feedback tugas di sini...">${currentFeedback || ''}</textarea>
-
-                    <!-- FITUR BARU: PILIHAN ANGGOTA KELOMPOK -->
-                    <div class="border rounded p-2 bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                            <label class="form-label fw-bold text-primary m-0 small">👥 Salin Nilai & Feedback ke Anggota Kelompok:</label>
-                            <small class="text-muted" style="font-size: 10px;">(Opsional)</small>
-                        </div>
-                        <div class="row g-1" style="max-height: 120px; overflow-y: auto;">
-                            ${groupOptionsHtml}
-                        </div>
-                    </div>
+                    <label class="form-label fw-bold mb-1">Catatan / Feedback Guru (Opsional):</label>
+                    <textarea id="swal_feedback" class="form-control" rows="2" placeholder="Catatan...">${currentFeedback || ''}</textarea>
                 </div>
             `,
-            width: '600px',
             showCancelButton: true,
             confirmButtonText: 'Simpan Data',
             preConfirm: () => {
-                let selectedGroupMembers = [];
-                $('.group-student-checkbox:checked').each(function() {
-                    selectedGroupMembers.push($(this).val());
-                });
-
                 return $.ajax({
                     url: '{{ route("rekap.tugas.toggle") }}',
                     type: 'POST',
@@ -777,8 +735,7 @@
                         status: $('#swal_status').val(),
                         score: $('#swal_score').val(),
                         submitted_at: $('#swal_submitted_at').val(),
-                        feedback: $('#swal_feedback').val(),
-                        group_student_ids: selectedGroupMembers // Dikirim ke Controller
+                        feedback: $('#swal_feedback').val()
                     }
                 }).catch(error => {
                     Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
