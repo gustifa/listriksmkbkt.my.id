@@ -310,10 +310,10 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Laporan Binaan</div>
                     </a>
                     <ul>
-                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas Kelas</a></li>
-                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-reader'></i>Rekap Pembelajaran PBM</a></li>
-                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
-                        <li><a href="{{ route('admin.permit.recap') }}"><i class='bx bx-border-all'></i>Rekap Izin Siswa</a></li>
+                        <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas</a></li>
+                        <li><a href="{{ route('rekap-presensi.index') }}"><i class='bx bx-book-open'></i>Rekap Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('rekap.harian.index') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
+                        <li><a href="{{ route('rekap.izin.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                         <li><a href="{{ route('transkrip.index') }}"><i class='bx bx-border-all'></i>Transkrip Kelas</a></li>
                     </ul>
                 </li>
@@ -370,9 +370,9 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{ route('rekap.tugas') }}"><i class='bx bx-task'></i>Rekap Tugas</a></li>
-                        <li><a href="{{ route('report.index') }}"><i class='bx bx-book-open'></i>Rekap Pembelajaran PBM</a></li>
-                        <li><a href="{{ route('daily_attendance.report') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
-                        <li><a href="{{ route('admin.permit.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
+                        <li><a href="{{ route('rekap-presensi.index') }}"><i class='bx bx-book-open'></i>Rekap Pembelajaran PBM</a></li>
+                        <li><a href="{{ route('rekap.harian.index') }}"><i class='bx bx-time-five'></i>Rekap Harian Gerbang</a></li>
+                        <li><a href="{{ route('rekap.izin.index') }}"><i class='bx bx-id-card'></i>Rekap Izin Siswa</a></li>
                     </ul>
                 </li>
 
