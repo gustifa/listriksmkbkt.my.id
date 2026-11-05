@@ -178,7 +178,7 @@
             </thead>
             <tbody>
                 @foreach($rekapData as $index => $row)
-                <tr class="{{ $index % 2 == 1 ? 'bg-zebra' : '' }}">
+                <tr id="row-student-{{ $row['student_id'] }}" class="{{ $index % 2 == 1 ? 'bg-zebra' : '' }}">
                     <td class="sticky-col sticky-col-1">{{ $index + 1 }}</td>
                     <td class="sticky-col sticky-col-2">{{ $row['nisn'] }}</td>
                     <td class="sticky-col sticky-col-3 text-left fw-bold">{{ $row['nama'] }}</td>
@@ -194,32 +194,43 @@
                             $submittedAtRaw = $sub && $sub->submitted_at ? $sub->submitted_at->format('Y-m-d\TH:i') : '';
                         @endphp
                         
-                        <td class="cell-clickable col-task-{{ $taskIndex }}" 
-                            onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAtFormatted }}', '{{ $submittedAtRaw }}', '{{ addslashes($feedback) }}')">
-                            @if($status == 'H' || $status == 'submitted')
-                                <span class="text-success fw-bold">✓</span>
-                                @if(!is_null($score) && $score !== '')
-                                    <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
+                        <!-- PENGGUNAAN DATASET UNTUK MENCEGAH JAVASCRIPT SYNTAX ERROR -->
+                        <td class="cell-clickable cell-task col-task-{{ $taskIndex }}" 
+                            id="cell-{{ $row['student_id'] }}-{{ $assignment->id }}"
+                            data-assignment-id="{{ $assignment->id }}"
+                            data-student-id="{{ $row['student_id'] }}"
+                            data-student-name="{{ $row['nama'] }}"
+                            data-status="{{ $status }}"
+                            data-score="{{ $score }}"
+                            data-submitted-raw="{{ $submittedAtRaw }}"
+                            data-feedback="{{ $feedback }}">
+                            
+                            <div class="cell-content">
+                                @if($status == 'H' || $status == 'submitted')
+                                    <span class="text-success fw-bold">✓</span>
+                                    @if(!is_null($score) && $score !== '')
+                                        <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
+                                    @endif
+                                @elseif($status == 'T' || $status == 'late')
+                                    <span class="text-warning fw-bold">✓(T)</span>
+                                    @if(!is_null($score) && $score !== '')
+                                        <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
+                                    @endif
+                                @else
+                                    <span class="text-danger fw-bold">X</span>
                                 @endif
-                            @elseif($status == 'T' || $status == 'late')
-                                <span class="text-warning fw-bold">✓(T)</span>
-                                @if(!is_null($score) && $score !== '')
-                                    <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
-                                @endif
-                            @else
-                                <span class="text-danger fw-bold">X</span>
-                            @endif
 
-                            @if(!empty($feedback))
-                                <span class="badge bg-info text-dark d-block" style="font-size: 8px; margin-top: 2px;" title="{{ $feedback }}">💬 Kelompok</span>
-                            @endif
+                                @if(!empty($feedback))
+                                    <span class="badge bg-info text-dark d-block badge-feedback" style="font-size: 8px; margin-top: 2px;" title="{{ $feedback }}">💬 Kelompok</span>
+                                @endif
+                            </div>
                         </td>
                     @endforeach
 
-                    <td class="fw-bold bg-light text-success">{{ $row['total_h'] }}</td>
-                    <td class="fw-bold bg-light text-warning">{{ $row['total_t'] }}</td>
-                    <td class="fw-bold bg-light text-danger">{{ $row['total_a'] }}</td>
-                    <td class="fw-bold bg-light {{ ($row['rata_rata'] ?? 0) < 70 ? 'text-danger' : 'text-primary' }}">
+                    <td class="fw-bold bg-light text-success cell-total-h">{{ $row['total_h'] }}</td>
+                    <td class="fw-bold bg-light text-warning cell-total-t">{{ $row['total_t'] }}</td>
+                    <td class="fw-bold bg-light text-danger cell-total-a">{{ $row['total_a'] }}</td>
+                    <td class="fw-bold bg-light cell-rata-rata {{ ($row['rata_rata'] ?? 0) < 70 ? 'text-danger' : 'text-primary' }}">
                         {{ $row['rata_rata'] ?? 0 }}
                     </td>
                 </tr>
@@ -463,16 +474,13 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // Data Siswa Kelas untuk Fitur Kelompok
-    const studentsInClass = [
-        @foreach($rekapData as $s)
-            { id: '{{ $s["student_id"] }}', name: '{{ addslashes($s["nama"]) }}' },
-        @endforeach
-    ];
+    // Inisialisasi daftar siswa dengan aman via JSON
+    const studentsInClass = @json($rekapData->map(function($item) {
+        return ['id' => $item['student_id'], 'name' => $item['nama']];
+    }));
 
     $(document).ready(function() {
         $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
-        
         if ($('#modalTugas').length) {
             $('.select2-modal').select2({ theme: 'bootstrap-5', dropdownParent: $('#modalTugas'), width: '100%' });
         }
@@ -481,6 +489,12 @@
         }
 
         $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
+
+        // EVENT CLICK SEL TABEL UNTUK MEMBUKA MODAL EDIT
+        $(document).on('click', '.cell-task', function() {
+            const cell = $(this);
+            openUpdateModal(cell);
+        });
 
         const taskStorageKey = 'vis_tasks_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
 
@@ -704,98 +718,154 @@
         });
     }
 
-    function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
-    const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
+    // FUNGSI MEMBUKA MODAL & UPDATE AJAX REKAP SEL TANPA RELOAD
+    function openUpdateModal(cellElement) {
+        const assignmentId = cellElement.data('assignment-id');
+        const studentId    = cellElement.data('student-id');
+        const studentName  = cellElement.data('student-name');
+        const currentStatus= cellElement.data('status');
+        const currentScore = cellElement.data('score');
+        const submittedRaw = cellElement.data('submitted-raw');
+        const currentFb    = cellElement.data('feedback');
 
-    // Generate opsi siswa kelompok dengan aman
-    let groupOptionsHtml = '';
-    if (Array.isArray(studentsInClass)) {
-        studentsInClass.forEach(s => {
-            if (s.id !== studentId) {
-                // Escape petik ganda untuk atribut HTML
-                const safeName = $('<div>').text(s.name).html();
-                groupOptionsHtml += `
-                    <div class="col-6">
-                        <div class="form-check text-start">
-                            <input class="form-check-input group-student-checkbox" type="checkbox" value="${s.id}" id="group_st_${s.id}">
-                            <label class="form-check-label small text-truncate d-block cursor-pointer" for="group_st_${s.id}">
-                                ${safeName}
-                            </label>
+        const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
+
+        let groupOptionsHtml = '';
+        if (Array.isArray(studentsInClass)) {
+            studentsInClass.forEach(s => {
+                if (s.id !== studentId) {
+                    groupOptionsHtml += `
+                        <div class="col-6">
+                            <div class="form-check text-start">
+                                <input class="form-check-input group-student-checkbox" type="checkbox" value="${s.id}" id="group_st_${s.id}">
+                                <label class="form-check-label small text-truncate d-block cursor-pointer" for="group_st_${s.id}">
+                                    ${s.name}
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        Swal.fire({
+            title: `Update Rekap & Feedback`,
+            html: `
+                <div class="text-start mb-2">
+                    <p class="mb-2">Siswa Utama: <strong>${studentName}</strong></p>
+                    
+                    <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
+                    <select id="swal_status" class="form-select mb-3">
+                        <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
+                        <option value="T" ${activeStatus === 'T' ? 'selected' : ''}>✓(T) Terlambat</option>
+                        <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
+                    </select>
+
+                    <label class="form-label fw-bold mb-1">Waktu Pengumpulan (Opsional):</label>
+                    <input type="datetime-local" id="swal_submitted_at" class="form-control mb-3" value="${submittedRaw || ''}">
+
+                    <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
+                    <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
+
+                    <label class="form-label fw-bold mb-1">Catatan / Feedback Guru:</label>
+                    <textarea id="swal_feedback" class="form-control mb-3" rows="2" placeholder="Tulis feedback tugas di sini...">${currentFb || ''}</textarea>
+
+                    <div class="border rounded p-2 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                            <label class="form-label fw-bold text-primary m-0 small">👥 Salin Nilai & Feedback ke Anggota Kelompok:</label>
+                            <small class="text-muted" style="font-size: 10px;">(Opsional)</small>
+                        </div>
+                        <div class="row g-1" style="max-height: 120px; overflow-y: auto;">
+                            ${groupOptionsHtml}
                         </div>
                     </div>
-                `;
+                </div>
+            `,
+            width: '600px',
+            showCancelButton: true,
+            confirmButtonText: '💾 Simpan',
+            cancelButtonText: 'Batal',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                let selectedGroupMembers = [];
+                $('.group-student-checkbox:checked').each(function() {
+                    selectedGroupMembers.push($(this).val());
+                });
+
+                return $.ajax({
+                    url: '{{ route("rekap.tugas.toggle") }}',
+                    type: 'POST',
+                    data: { 
+                        assignment_id: assignmentId, 
+                        student_id: studentId, 
+                        status: $('#swal_status').val(),
+                        score: $('#swal_score').val(),
+                        submitted_at: $('#swal_submitted_at').val(),
+                        feedback: $('#swal_feedback').val(),
+                        group_student_ids: selectedGroupMembers
+                    }
+                }).then(response => {
+                    return response;
+                }).catch(error => {
+                    Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
+                });
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value && result.value.success) {
+                const resData = result.value.updated_data || [];
+                
+                // UPDATE SEL DOM SECARA REALTME TANPA RELOAD HALAMAN
+                resData.forEach(item => {
+                    const targetCell = $(`#cell-${item.student_id}-${item.assignment_id}`);
+                    if (targetCell.length) {
+                        // Update Data Attributes
+                        targetCell.data('status', item.status);
+                        targetCell.data('score', item.score);
+                        targetCell.data('feedback', item.feedback);
+
+                        // Render Ulang Isi Sel HTML
+                        let cellHtml = '';
+                        if (item.status === 'H' || item.status === 'submitted') {
+                            cellHtml += '<span class="text-success fw-bold">✓</span>';
+                            if (item.score !== null && item.score !== '') {
+                                cellHtml += `<small class="text-muted d-block" style="font-size: 9px;">(${item.score})</small>`;
+                            }
+                        } else if (item.status === 'T' || item.status === 'late') {
+                            cellHtml += '<span class="text-warning fw-bold">✓(T)</span>';
+                            if (item.score !== null && item.score !== '') {
+                                cellHtml += `<small class="text-muted d-block" style="font-size: 9px;">(${item.score})</small>`;
+                            }
+                        } else {
+                            cellHtml += '<span class="text-danger fw-bold">X</span>';
+                        }
+
+                        if (item.feedback) {
+                            cellHtml += `<span class="badge bg-info text-dark d-block badge-feedback" style="font-size: 8px; margin-top: 2px;" title="${item.feedback}">💬 Kelompok</span>`;
+                        }
+
+                        targetCell.find('.cell-content').html(cellHtml);
+
+                        // Update Ringkasan Total & Rata-rata pada baris siswa
+                        const row = $(`#row-student-${item.student_id}`);
+                        if (row.length && item.summary) {
+                            row.find('.cell-total-h').text(item.summary.total_h);
+                            row.find('.cell-total-t').text(item.summary.total_t);
+                            row.find('.cell-total-a').text(item.summary.total_a);
+                            
+                            const rataRataCell = row.find('.cell-rata-rata');
+                            rataRataCell.text(item.summary.rata_rata);
+                            if (item.summary.rata_rata < 70) {
+                                rataRataCell.removeClass('text-primary').addClass('text-danger');
+                            } else {
+                                rataRataCell.removeClass('text-danger').addClass('text-primary');
+                            }
+                        }
+                    }
+                });
+
+                Swal.fire({ icon: 'success', title: 'Berhasil Diperbarui!', timer: 1000, showConfirmButton: false });
             }
         });
     }
-
-    // Escape feedback & nama untuk mencegah error HTML
-    const safeFeedback = $('<div>').text(currentFeedback || '').html();
-    const safeStudentName = $('<div>').text(studentName || '').html();
-
-    Swal.fire({
-        title: `Update Rekap, Nilai & Feedback`,
-        html: `
-            <div class="text-start mb-2">
-                <p class="mb-2">Siswa Utama: <strong>${safeStudentName}</strong></p>
-                
-                <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
-                <select id="swal_status" class="form-select mb-3">
-                    <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
-                    <option value="T" ${activeStatus === 'T' ? 'selected' : ''}>✓(T) Terlambat</option>
-                    <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
-                </select>
-
-                <label class="form-label fw-bold mb-1">Waktu Pengumpulan (Opsional):</label>
-                <input type="datetime-local" id="swal_submitted_at" class="form-control mb-3" value="${submittedAtRaw || ''}">
-
-                <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
-                <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
-
-                <label class="form-label fw-bold mb-1">Catatan / Feedback Guru:</label>
-                <textarea id="swal_feedback" class="form-control mb-3" rows="2" placeholder="Tulis feedback tugas di sini...">${safeFeedback}</textarea>
-
-                <!-- FITUR ANGGOTA KELOMPOK -->
-                <div class="border rounded p-2 bg-light">
-                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                        <label class="form-label fw-bold text-primary m-0 small">👥 Salin Nilai & Feedback ke Anggota Kelompok:</label>
-                        <small class="text-muted" style="font-size: 10px;">(Opsional)</small>
-                    </div>
-                    <div class="row g-1" style="max-height: 120px; overflow-y: auto;">
-                        ${groupOptionsHtml}
-                    </div>
-                </div>
-            </div>
-        `,
-        width: '600px',
-        showCancelButton: true,
-        confirmButtonText: 'Simpan Data',
-        preConfirm: () => {
-            let selectedGroupMembers = [];
-            $('.group-student-checkbox:checked').each(function() {
-                selectedGroupMembers.push($(this).val());
-            });
-
-            return $.ajax({
-                url: '{{ route("rekap.tugas.toggle") }}',
-                type: 'POST',
-                data: { 
-                    assignment_id: assignmentId, 
-                    student_id: studentId, 
-                    status: $('#swal_status').val(),
-                    score: $('#swal_score').val(),
-                    submitted_at: $('#swal_submitted_at').val(),
-                    feedback: $('#swal_feedback').val(),
-                    group_student_ids: selectedGroupMembers
-                }
-            }).catch(error => {
-                Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
-            });
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1200, showConfirmButton: false }).then(() => location.reload());
-        }
-    });
-}
 </script>
 </x-app-layout>

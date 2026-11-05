@@ -297,33 +297,30 @@ class RekapTugasController extends Controller
             'subject'      => $assignment->subject?->name ?? '-'
         ]);
     }
-
-    // 5. Update Status, Nilai, Waktu Pengumpulan & Feedback (Mendukung Penerapan Kelompok)
+    // 5. Update Status, Nilai, Waktu Pengumpulan & Feedback (Mendukung AJAX Realtime Tanpa Reload)
     public function toggleStatus(Request $request)
     {
         $request->validate([
-            'assignment_id'      => 'required|uuid|exists:assignments,id',
-            'student_id'         => 'required|uuid|exists:students,id',
-            'status'             => 'required|in:H,T,A,submitted,late',
-            'score'              => 'nullable|numeric|min:0|max:100',
-            'submitted_at'       => 'nullable|date',
-            'feedback'           => 'nullable|string',
-            'group_student_ids'  => 'nullable|array',
+            'assignment_id'       => 'required|uuid|exists:assignments,id',
+            'student_id'          => 'required|uuid|exists:students,id',
+            'status'              => 'required|in:H,T,A,submitted,late',
+            'score'               => 'nullable|numeric|min:0|max:100',
+            'submitted_at'        => 'nullable|date',
+            'feedback'            => 'nullable|string',
+            'group_student_ids'   => 'nullable|array',
             'group_student_ids.*' => 'uuid|exists:students,id',
         ]);
 
         $assignment = Assignment::findOrFail($request->assignment_id);
 
-        // Gabungkan ID Siswa Utama dengan Anggota Kelompok
+        // Gabungkan ID Siswa Utama dan Anggota Kelompok
         $targetStudentIds = array_unique(array_merge([$request->student_id], $request->input('group_student_ids', [])));
 
-        // Buat Informasi Catatan Kelompok jika memilih lebih dari 1 siswa
         $finalFeedback = $request->feedback;
         if (count($targetStudentIds) > 1) {
             $memberNames = Student::whereIn('id', $targetStudentIds)->pluck('name')->toArray();
             $groupNote = "\n[Kelompok: " . implode(', ', $memberNames) . "]";
             
-            // Hindari duplikasi catatan kelompok jika sudah ada
             if (!str_contains($finalFeedback ?? '', '[Kelompok:')) {
                 $finalFeedback = trim(($finalFeedback ?? '') . $groupNote);
             }
@@ -362,9 +359,65 @@ class RekapTugasController extends Controller
             }
         }
 
+        // Hitung Ulang Ringkasan Rata-Rata & Total Status untuk Siswa Terlibat (Tanpa Reload Halaman)
+        $updatedData = [];
+        $activeAssignments = Assignment::where('classroom_id', $assignment->classroom_id)
+            ->where('subject_id', $assignment->subject_id)
+            ->get();
+
+        $totalBobotAktif = $activeAssignments
+            ->reject(fn($asg) => (bool) ($asg->is_ignored ?? false))
+            ->sum(fn($asg) => (float) ($asg->weight ?? 1));
+
+        foreach ($targetStudentIds as $stId) {
+            $totalH = 0; $totalT = 0; $totalA = 0;
+            $totalNilaiTerbobot = 0;
+
+            foreach ($activeAssignments as $asg) {
+                $isIgnored = (bool) ($asg->is_ignored ?? false);
+                $weight    = $isIgnored ? 0 : (float) ($asg->weight ?? 1);
+
+                $sub = AssignmentSubmission::where('assignment_id', $asg->id)
+                    ->where('student_id', $stId)
+                    ->first();
+
+                if (!$sub) {
+                    if (!$isIgnored) $totalA++;
+                } else {
+                    $st = strtolower($sub->status ?? '');
+                    if ($st === 'submitted' || $st === 'h') {
+                        if (!$isIgnored) $totalH++;
+                    } else {
+                        if (!$isIgnored) $totalT++;
+                    }
+
+                    if (!$isIgnored && !is_null($sub->score)) {
+                        $totalNilaiTerbobot += ((float)$sub->score * $weight);
+                    }
+                }
+            }
+
+            $rataRata = $totalBobotAktif > 0 ? round($totalNilaiTerbobot / $totalBobotAktif, 1) : 0;
+
+            $updatedData[] = [
+                'student_id'    => $stId,
+                'assignment_id' => $assignment->id,
+                'status'        => $request->status,
+                'score'         => $request->filled('score') ? $request->score : null,
+                'feedback'      => $finalFeedback,
+                'summary'       => [
+                    'total_h'   => $totalH,
+                    'total_t'   => $totalT,
+                    'total_a'   => $totalA,
+                    'rata_rata' => $rataRata
+                ]
+            ];
+        }
+
         return response()->json([
-            'success' => true,
-            'message' => 'Status, nilai, dan feedback kelompok berhasil diperbarui!'
+            'success'      => true,
+            'message'      => 'Data rekap berhasil diperbarui!',
+            'updated_data' => $updatedData
         ]);
     }
 
