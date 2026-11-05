@@ -22,6 +22,8 @@ class Assignment extends Model
         'is_published', // <- Tambahkan kolom ini
         'learning_objective_id',
         'academic_year_id',
+        'weight',
+        'is_ignored',
     ];
 
     protected $casts = [

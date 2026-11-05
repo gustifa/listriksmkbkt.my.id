@@ -226,6 +226,7 @@ Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::cla
     // Route AJAX untuk Simpan Tugas Baru
     Route::post('/rekap-tugas/store-assignment', [RekapTugasController::class, 'storeAssignment'])->name('rekap.tugas.store_assignment');
     Route::post('/rekap-tugas/bulk-update', [RekapTugasController::class, 'bulkUpdate'])->name('rekap.tugas.bulk_update');
+    Route::post('/rekap-tugas/update-weights', [RekapTugasController::class, 'updateWeights'])->name('rekap.tugas.update_weights');
 
     // Route AJAX untuk Detail Tugas & Update Status Pengumpulan
     Route::get('/rekap-tugas/detail/{assignment}', [RekapTugasController::class, 'getAssignmentDetail'])->name('rekap.tugas.detail');

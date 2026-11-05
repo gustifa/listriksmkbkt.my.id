@@ -18,6 +18,7 @@
         .text-left { text-align: left !important; padding-left: 6px !important; }
         .cursor-pointer { cursor: pointer; }
         .tp-badge { font-size: 9px; background-color: #0d6efd; color: #fff; padding: 2px 4px; border-radius: 3px; display: block; margin-bottom: 2px; }
+        .weight-badge { font-size: 9px; background-color: #6c757d; color: #fff; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-top: 2px; }
 
         @media (min-width: 769px) {
             .table-rekap th.sticky-col, .table-rekap td.sticky-col { position: sticky; z-index: 2; }
@@ -55,6 +56,9 @@
 
         @if($selectedClassroom && $selectedSubject)
         <div class="d-flex flex-wrap gap-2 no-print">
+            <button type="button" class="btn btn-outline-dark btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalBobotTugas" title="Pengaturan Bobot Tugas">
+                ⚖️ Atur Bobot Tugas
+            </button>
             <button type="button" class="btn btn-warning btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalBulkRekap" title="Pengisian Massal">
                 ⚡ Rekap Massal
             </button>
@@ -123,7 +127,7 @@
                     <div class="form-check py-1">
                         <input class="form-check-input toggle-col-checkbox cursor-pointer" type="checkbox" data-column="{{ $index }}" id="col-check-{{ $index }}" checked>
                         <label class="form-check-label text-truncate d-block cursor-pointer" for="col-check-{{ $index }}" title="{{ $assignment->title }}">
-                            ({{ $index + 1 }}) {{ $assignment->title }}
+                            ({{ $index + 1 }}) {{ $assignment->title }} {{ ($assignment->is_ignored ?? false) ? '(Diabaikan)' : '' }}
                         </label>
                     </div>
                 </li>
@@ -150,12 +154,18 @@
                         <th class="header-vertical col-task-{{ $index }}" onclick="showAssignmentInfo('{{ $assignment->id }}')" title="Klik untuk lihat detail tugas">
                             <span class="tp-badge">{{ $assignment->learningObjective->code ?? 'TP' }}</span>
                             {{ $assignment->title }} ({{ $assignment->due_date ? $assignment->due_date->format('d/m') : '-' }})
+                            @if($assignment->is_ignored ?? false)
+                                <span class="badge bg-secondary d-block mt-1">Diabaikan</span>
+                            @else
+                                <span class="weight-badge">B: {{ $assignment->weight ?? 1 }}</span>
+                            @endif
                         </th>
                     @empty
                         <th rowspan="2" class="text-muted fst-italic">Belum ada tugas pada semester ini. Klik tombol "+ Tambah Tugas" di atas.</th>
                     @endforelse
 
                     <th colspan="3">JML TDK KUMPUL / STATUS</th>
+                    <th rowspan="2" style="width: 65px;" class="bg-light">RATA-RATA</th>
                 </tr>
                 <tr>
                     @foreach($assignments as $index => $assignment)
@@ -188,8 +198,14 @@
                             onclick="updateStatus('{{ $assignment->id }}', '{{ $row['student_id'] }}', '{{ addslashes($row['nama']) }}', '{{ $status }}', '{{ $score }}', '{{ $submittedAtFormatted }}', '{{ $submittedAtRaw }}', '{{ addslashes($feedback) }}')">
                             @if($status == 'H' || $status == 'submitted')
                                 <span class="text-success fw-bold">✓</span>
+                                @if(!is_null($score) && $score !== '')
+                                    <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
+                                @endif
                             @elseif($status == 'T' || $status == 'late')
                                 <span class="text-warning fw-bold">✓(T)</span>
+                                @if(!is_null($score) && $score !== '')
+                                    <small class="text-muted d-block" style="font-size: 9px;">({{ $score }})</small>
+                                @endif
                             @else
                                 <span class="text-danger fw-bold">X</span>
                             @endif
@@ -199,6 +215,9 @@
                     <td class="fw-bold bg-light text-success">{{ $row['total_h'] }}</td>
                     <td class="fw-bold bg-light text-warning">{{ $row['total_t'] }}</td>
                     <td class="fw-bold bg-light text-danger">{{ $row['total_a'] }}</td>
+                    <td class="fw-bold bg-light {{ ($row['rata_rata'] ?? 0) < 70 ? 'text-danger' : 'text-primary' }}">
+                        {{ $row['rata_rata'] ?? 0 }}
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -276,7 +295,7 @@
     </div>
 </div>
 
-<!-- MODAL REKAP TUGAS MASSAL (DENGAN CHECKBOX SISWA) -->
+<!-- MODAL 3: REKAP MASSAL -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBulkRekap" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -297,7 +316,6 @@
                         </select>
                     </div>
 
-                    <!-- DAFTAR SISWA CHECKBOX -->
                     <div class="border rounded p-3 bg-light mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                             <label class="form-label fw-bold text-primary m-0">Pilih Siswa Terlibat <span class="text-danger">*</span></label>
@@ -352,8 +370,90 @@
 </div>
 @endif
 
+<!-- MODAL 4: ATUR BOBOT & ABAIKAN TUGAS DINAMIS -->
+@if($selectedClassroom && $selectedSubject)
+<div class="modal fade no-print" id="modalBobotTugas" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-dark text-white">
+                <h6 class="modal-title fw-bold">⚖️ Pengaturan Bobot & Status Abaikan Tugas</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formUpdateBobot">
+                <div class="modal-body p-4">
+                    <div class="card border-primary mb-3 bg-light">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold text-primary mb-2">📌 Informasi & Panduan Pengisian Bobot:</h6>
+                            <ul class="mb-0 ps-3 small text-secondary">
+                                <li><strong>Bobot Standar (1):</strong> Tugas harian / kuis biasa memiliki bobot <code>1</code>.</li>
+                                <li><strong>Bobot Tinggi (>1):</strong> Untuk tugas skala besar/Praktikum/Proyek, Anda dapat memberi bobot misal <code>2</code> atau <code>3</code> (sehingga nilainya berdampak lebih besar pada rata-rata).</li>
+                                <li><strong>Fitur "Abaikan":</strong> Jika dicentang, tugas otomatis berbobot <code>0</code> dan <strong>TIDAK dihitung</strong> dalam rata-rata nilai maupun persentase keterlambatan/alpa siswa.</li>
+                                <li><strong>Rumus Rata-Rata Terbobot:</strong> <br>
+                                    <code>Rata-Rata = Σ(Nilai × Bobot) ÷ Σ(Total Bobot Tugas Aktif)</code>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th style="width: 40px;">No</th>
+                                    <th>Judul Tugas</th>
+                                    <th style="width: 150px;">Bobot Nilai</th>
+                                    <th style="width: 130px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($assignments as $index => $asg)
+                                <tr>
+                                    <td class="text-center fw-bold">{{ $index + 1 }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ $asg->title }}</div>
+                                        <small class="text-muted">Deadline: {{ $asg->due_date ? $asg->due_date->format('d/m/Y H:i') : '-' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" 
+                                                   name="weights[{{ $asg->id }}]" 
+                                                   class="form-control text-center input-weight fw-bold" 
+                                                   value="{{ $asg->weight ?? 1 }}" 
+                                                   min="0" max="100" step="0.5"
+                                                   {{ ($asg->is_ignored ?? false) ? 'disabled' : '' }}>
+                                            <span class="input-group-text">x</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <!-- Hidden input agar status 0 terkirim jika tidak dicentang -->
+                                            <input type="hidden" name="ignored[{{ $asg->id }}]" value="0">
+                                            <input class="form-check-input check-ignore cursor-pointer" 
+                                                   type="checkbox" 
+                                                   name="ignored[{{ $asg->id }}]" 
+                                                   value="1" 
+                                                   id="ignore-{{ $asg->id }}"
+                                                   {{ ($asg->is_ignored ?? false) ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-bold text-danger cursor-pointer" for="ignore-{{ $asg->id }}">Abaikan</label>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-dark fw-bold">💾 Simpan Pengaturan Bobot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -372,7 +472,6 @@
 
         const taskStorageKey = 'vis_tasks_' + '{{ $selectedClassroom }}' + '_' + '{{ $selectedSubject }}';
 
-        // RESTORE LOCALSTORAGE STATUS VISIBILITAS KOLOM TUGAS
         function restoreVisibility() {
             const savedState = localStorage.getItem(taskStorageKey);
             if (savedState) {
@@ -404,7 +503,6 @@
 
         restoreVisibility();
 
-        // TOGGLE FILTER TUGAS
         $(document).on('change', '.toggle-col-checkbox', function() {
             const colIndex = $(this).data('column');
             if ($(this).is(':checked')) { 
@@ -428,7 +526,6 @@
             }
         });
 
-        // Submit Form TP
         $('#formTambahTP').submit(function(e) {
             e.preventDefault();
             $.ajax({
@@ -449,7 +546,6 @@
             });
         });
 
-        // Submit Form Tugas
         $('#formTambahTugas').submit(function(e) {
             e.preventDefault();
             $.ajax({
@@ -474,64 +570,99 @@
         });
 
         $('#check-all-task-students').change(function() {
-    $('.task-student-checkbox').prop('checked', $(this).is(':checked'));
-});
+            $('.task-student-checkbox').prop('checked', $(this).is(':checked'));
+        });
 
-$('#formBulkRekap').submit(function(e) {
-    e.preventDefault();
-    const assignmentId = $('#bulk_assignment_id').val();
-    const classroomId  = $('#classroom_id').val();
+        $('#formBulkRekap').submit(function(e) {
+            e.preventDefault();
+            const assignmentId = $('#bulk_assignment_id').val();
+            const classroomId  = $('#classroom_id').val();
 
-    let selectedStudents = [];
-    $('.task-student-checkbox:checked').each(function() {
-        selectedStudents.push($(this).val());
-    });
+            let selectedStudents = [];
+            $('.task-student-checkbox:checked').each(function() {
+                selectedStudents.push($(this).val());
+            });
 
-    if (!assignmentId || !classroomId) {
-        Swal.fire('Peringatan', 'Silakan pilih tugas dan kelas terlebih dahulu.', 'warning');
-        return;
-    }
+            if (!assignmentId || !classroomId) {
+                Swal.fire('Peringatan', 'Silakan pilih tugas dan kelas terlebih dahulu.', 'warning');
+                return;
+            }
 
-    if (selectedStudents.length === 0) {
-        Swal.fire('Peringatan', 'Silakan pilih setidaknya satu siswa!', 'warning');
-        return;
-    }
+            if (selectedStudents.length === 0) {
+                Swal.fire('Peringatan', 'Silakan pilih setidaknya satu siswa!', 'warning');
+                return;
+            }
 
-    Swal.fire({
-        title: 'Apakah Anda Yakin?',
-        text: `Rekap tugas akan diperbarui secara massal untuk ${selectedStudents.length} siswa terpilih!`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#ffc107',
-        confirmButtonText: 'Ya, Terapkan!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({
+                title: 'Apakah Anda Yakin?',
+                text: `Rekap tugas akan diperbarui secara massal untuk ${selectedStudents.length} siswa terpilih!`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                confirmButtonText: 'Ya, Terapkan!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            $.ajax({
-                url: '{{ route("rekap.tugas.bulk_update") }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    assignment_id: assignmentId,
-                    classroom_id: classroomId,
-                    student_ids: selectedStudents,
-                    status: $('#bulk_status').val(),
-                    submitted_at: $('#bulk_submitted_at').val(),
-                    score: $('#bulk_score').val(),
-                    feedback: $('#bulk_feedback').val()
-                },
-                success: function(res) {
-                    $('#modalBulkRekap').modal('hide');
-                    Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
-                },
-                error: function(err) {
-                    Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal memperbarui data', 'error');
+                    $.ajax({
+                        url: '{{ route("rekap.tugas.bulk_update") }}',
+                        type: 'POST',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            assignment_id: assignmentId,
+                            classroom_id: classroomId,
+                            student_ids: selectedStudents,
+                            status: $('#bulk_status').val(),
+                            submitted_at: $('#bulk_submitted_at').val(),
+                            score: $('#bulk_score').val(),
+                            feedback: $('#bulk_feedback').val()
+                        },
+                        success: function(res) {
+                            $('#modalBulkRekap').modal('hide');
+                            Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
+                        },
+                        error: function(err) {
+                            Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal memperbarui data', 'error');
+                        }
+                    });
                 }
             });
-        }
-    });
-});
+        });
+
+        // Switch Enable/Disable Input Bobot saat Checkbox Abaikan Diklik
+        $(document).on('change', '.check-ignore', function() {
+            let isChecked = $(this).is(':checked');
+            let weightInput = $(this).closest('tr').find('.input-weight');
+            if (isChecked) {
+                weightInput.prop('disabled', true).val(0);
+            } else {
+                weightInput.prop('disabled', false).val(1);
+            }
+        });
+
+        // Submit Form Update Bobot (Mengabaikan properti disabled agar nilai weight 0 tetap terkirim)
+        $('#formUpdateBobot').submit(function(e) {
+            e.preventDefault();
+            
+            let disabledInputs = $(this).find(':input:disabled').prop('disabled', false);
+            let formData = $(this).serialize();
+            disabledInputs.prop('disabled', true);
+            
+            Swal.fire({ title: 'Menyimpan Bobot...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            $.ajax({
+                url: '{{ route("rekap.tugas.update_weights") }}',
+                type: 'POST',
+                data: formData + '&_token={{ csrf_token() }}',
+                success: function(resp) {
+                    $('#modalBobotTugas').modal('hide');
+                    Swal.fire('Berhasil!', resp.message, 'success').then(() => location.reload());
+                },
+                error: function(err) {
+                    Swal.fire('Gagal!', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
+                }
+            });
+        });
     });
 
     function showAssignmentInfo(assignmentId) {
