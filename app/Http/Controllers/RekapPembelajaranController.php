@@ -12,7 +12,6 @@ use DB;
 
 class RekapPembelajaranController extends Controller
 {
-    
     public function index(Request $request)
     {
         $userId = auth()->id();
@@ -181,5 +180,81 @@ class RekapPembelajaranController extends Controller
             'classrooms', 'subjects', 'selectedClassroom', 
             'selectedSubject', 'dates', 'assignments', 'rekapData', 'jurnalMap', 'activeAcademicYear'
         ));
+    }
+
+    // --- FITUR BARU: Presensi Massal Pilihan Siswa ---
+    public function bulkStoreAttendance(Request $request)
+    {
+        $request->validate([
+            'classroom_id' => 'required|uuid|exists:classrooms,id',
+            'subject_id'   => 'required|uuid|exists:subjects,id',
+            'student_ids'  => 'required|array|min:1',
+            'student_ids.*'=> 'uuid|exists:students,id',
+            'date'         => 'required|date',
+            'status'       => 'required|in:H,S,I,A,hadir,sakit,izin,alpa',
+            'topic'        => 'nullable|string',
+            'activities'   => 'nullable|string',
+            'obstacles'    => 'nullable|string',
+        ]);
+
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+        $statusMap = [
+            'H' => 'hadir', 'hadir' => 'hadir',
+            'S' => 'sakit', 'sakit' => 'sakit',
+            'I' => 'izin',  'izin'  => 'izin',
+            'A' => 'alpa',  'alpa'  => 'alpa'
+        ];
+        $finalStatus = $statusMap[$request->status] ?? 'hadir';
+
+        if ($request->filled('topic')) {
+            DB::table('learning_journals')->updateOrInsert(
+                [
+                    'classroom_id' => $request->classroom_id,
+                    'subject_id'   => $request->subject_id,
+                    'date'         => $request->date,
+                ],
+                [
+                    'id'               => (string) Str::uuid(),
+                    'teacher_id'       => auth()->id(),
+                    'academic_year_id' => $activeAcademicYear?->id,
+                    'topic'            => $request->topic,
+                    'activities'       => $request->activities,
+                    'obstacles'        => $request->obstacles,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]
+            );
+        }
+
+        $scheduleId = DB::table('schedules')
+            ->where('classroom_id', $request->classroom_id)
+            ->where('subject_id', $request->subject_id)
+            ->value('id');
+
+        foreach ($request->student_ids as $studentId) {
+            DB::table('attendances')->updateOrInsert(
+                [
+                    'student_id' => $studentId,
+                    'subject_id' => $request->subject_id,
+                    'date'       => $request->date,
+                ],
+                [
+                    'id'               => (string) Str::uuid(),
+                    'schedule_id'      => $scheduleId ?? (string) Str::uuid(),
+                    'academic_year_id' => $activeAcademicYear?->id,
+                    'status'           => $finalStatus,
+                    'check_in_time'    => now()->format('H:i:s'),
+                    'recorded_by'      => auth()->user()->name ?? 'teacher_bulk',
+                    'is_synced'        => true,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]
+            );
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Presensi & jurnal pembelajaran berhasil disimpan untuk ' . count($request->student_ids) . ' siswa terpilih!'
+        ]);
     }
 }

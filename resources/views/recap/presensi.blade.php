@@ -199,7 +199,7 @@
     @endif
 </div>
 
-<!-- MODAL PRESENSI & JURNAL MASSAL -->
+<!-- MODAL PRESENSI & JURNAL MASSAL (DENGAN CHECKBOX SISWA) -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBulkPresensi" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -218,11 +218,35 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-bold">Set Status Kehadiran Massal <span class="text-danger">*</span></label>
                             <select id="bulk_status" class="form-select" required>
-                                <option value="H">✓ Hadir Semua</option>
+                                <option value="H">✓ Hadir Semua Terpilih</option>
                                 <option value="S">Sakit Semua</option>
                                 <option value="I">Izin Semua</option>
                                 <option value="A">Alpa / Belum Hadir</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- DAFTAR SISWA CHECKBOX -->
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                            <label class="form-label fw-bold text-primary m-0">Pilih Siswa Terlibat <span class="text-danger">*</span></label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="check-all-pres-students" checked>
+                                <label class="form-check-label fw-semibold text-dark cursor-pointer" for="check-all-pres-students">Pilih Semua Siswa</label>
+                            </div>
+                        </div>
+
+                        <div class="row g-2" style="max-height: 220px; overflow-y: auto;">
+                            @foreach($rekapData as $s)
+                            <div class="col-12 col-md-6">
+                                <div class="form-check bg-white p-2 border rounded shadow-sm">
+                                    <input class="form-check-input pres-student-checkbox ms-1" type="checkbox" value="{{ $s['student_id'] }}" id="pres-student-{{ $s['student_id'] }}" checked>
+                                    <label class="form-check-label fw-semibold text-truncate d-block ms-4 cursor-pointer" for="pres-student-{{ $s['student_id'] }}">
+                                        {{ $s['nama'] }}
+                                    </label>
+                                </div>
+                            </div>
+                            @endforeach
                         </div>
                     </div>
 
@@ -317,41 +341,56 @@
             }
         });
 
-        // Submit Presensi Massal & Jurnal
-        $('#formBulkPresensi').submit(function(e) {
-            e.preventDefault();
-            Swal.fire({
-                title: 'Konfirmasi Presensi Massal',
-                text: 'Presensi seluruh siswa dan Jurnal Pembelajaran akan disimpan!',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, Simpan!'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                    $.ajax({
-                        url: '{{ route("rekap.presensi.bulk") }}',
-                        type: 'POST',
-                        data: {
-                            _token: '{{ csrf_token() }}',
-                            classroom_id: '{{ $selectedClassroom }}',
-                            subject_id: '{{ $selectedSubject }}',
-                            date: $('#bulk_date').val(),
-                            status: $('#bulk_status').val(),
-                            topic: $('#bulk_topic').val(),
-                            activities: $('#bulk_activities').val(),
-                            obstacles: $('#bulk_obstacles').val()
-                        },
-                        success: function(resp) {
-                            Swal.fire('Berhasil!', resp.message, 'success').then(() => location.reload());
-                        },
-                        error: function(err) {
-                            Swal.fire('Gagal!', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
-                        }
-                    });
+        $('#check-all-pres-students').change(function() {
+    $('.pres-student-checkbox').prop('checked', $(this).is(':checked'));
+});
+
+$('#formBulkPresensi').submit(function(e) {
+    e.preventDefault();
+
+    let selectedStudents = [];
+    $('.pres-student-checkbox:checked').each(function() {
+        selectedStudents.push($(this).val());
+    });
+
+    if (selectedStudents.length === 0) {
+        Swal.fire('Peringatan', 'Silakan pilih setidaknya satu siswa!', 'warning');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Konfirmasi Presensi Massal',
+        text: `Presensi dan Jurnal Pembelajaran akan disimpan untuk ${selectedStudents.length} siswa terpilih!`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Simpan!'
+    }).then((res) => {
+        if (res.isConfirmed) {
+            Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            $.ajax({
+                url: '{{ route("rekap.presensi.bulk") }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    classroom_id: '{{ $selectedClassroom }}',
+                    subject_id: '{{ $selectedSubject }}',
+                    student_ids: selectedStudents,
+                    date: $('#bulk_date').val(),
+                    status: $('#bulk_status').val(),
+                    topic: $('#bulk_topic').val(),
+                    activities: $('#bulk_activities').val(),
+                    obstacles: $('#bulk_obstacles').val()
+                },
+                success: function(resp) {
+                    Swal.fire('Berhasil!', resp.message, 'success').then(() => location.reload());
+                },
+                error: function(err) {
+                    Swal.fire('Gagal!', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
                 }
             });
-        });
+        }
+    });
+});
     });
 
     // Update Presensi Individual

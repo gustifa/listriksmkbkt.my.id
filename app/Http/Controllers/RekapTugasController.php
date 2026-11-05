@@ -1069,20 +1069,79 @@ class RekapTugasController extends Controller
     //     ]);
     // }
     // 8. Pengisian Rekap Tugas Massal (Sertakan Nilai, Waktu & Feedback Massal)
+// public function bulkUpdate(Request $request)
+// {
+//     // 1. Validasi Input dari Request AJAX
+//     $validated = $request->validate([
+//         'assignment_id' => 'required|uuid|exists:assignments,id',
+//         'classroom_id'  => 'required|uuid|exists:classrooms,id',
+//         'status'        => 'required|in:H,T,A',
+//         'score'         => 'nullable|numeric|min:0|max:100',
+//         'submitted_at'  => 'nullable|date',
+//         'feedback'      => 'nullable|string',
+//     ]);
+
+//     // 2. Ambil seluruh siswa di kelas terpilih
+//     $students = Student::where('classroom_id', $validated['classroom_id'])->get();
+
+//     $dbStatusMap = [
+//         'H' => 'submitted',
+//         'T' => 'late',
+//     ];
+
+//     foreach ($students as $student) {
+//         if ($validated['status'] === 'A') {
+//             // Jika status A (Belum Kumpul), hapus record pengumpulan
+//             AssignmentSubmission::where('assignment_id', $validated['assignment_id'])
+//                 ->where('student_id', $student->id)
+//                 ->delete();
+//         } else {
+//             // Tentukan waktu pengumpulan
+//             if ($request->filled('submitted_at')) {
+//                 $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
+//             } else {
+//                 $submittedAt = now();
+//             }
+
+//             // Simpan atau buat data baru di database
+//             AssignmentSubmission::updateOrCreate(
+//                 [
+//                     'assignment_id' => $validated['assignment_id'],
+//                     'student_id'    => $student->id,
+//                 ],
+//                 [
+//                     'submitted_at' => $submittedAt,
+//                     'status'       => $dbStatusMap[$validated['status']],
+//                     'score'        => $request->filled('score') ? $request->score : null,
+//                     'feedback'     => $request->feedback, // Simpan Feedback Massal
+//                     'graded_at'    => $request->filled('score') ? now() : null,
+//                     'updated_at'   => now()
+//                 ]
+//             );
+//         }
+//     }
+
+//     return response()->json([
+//         'success' => true,
+//         'message' => 'Rekapitulasi tugas massal (status, nilai, waktu, dan feedback) berhasil diperbarui!'
+//     ]);
+// }
+
+// 8. Pengisian Rekap Tugas Massal (Sertakan Nilai, Waktu, Feedback, & Pilihan Siswa Checklist)
 public function bulkUpdate(Request $request)
 {
-    // 1. Validasi Input dari Request AJAX
     $validated = $request->validate([
         'assignment_id' => 'required|uuid|exists:assignments,id',
         'classroom_id'  => 'required|uuid|exists:classrooms,id',
+        'student_ids'   => 'required|array|min:1',
+        'student_ids.*' => 'uuid|exists:students,id',
         'status'        => 'required|in:H,T,A',
         'score'         => 'nullable|numeric|min:0|max:100',
         'submitted_at'  => 'nullable|date',
         'feedback'      => 'nullable|string',
     ]);
 
-    // 2. Ambil seluruh siswa di kelas terpilih
-    $students = Student::where('classroom_id', $validated['classroom_id'])->get();
+    $students = Student::whereIn('id', $validated['student_ids'])->get();
 
     $dbStatusMap = [
         'H' => 'submitted',
@@ -1091,19 +1150,16 @@ public function bulkUpdate(Request $request)
 
     foreach ($students as $student) {
         if ($validated['status'] === 'A') {
-            // Jika status A (Belum Kumpul), hapus record pengumpulan
             AssignmentSubmission::where('assignment_id', $validated['assignment_id'])
                 ->where('student_id', $student->id)
                 ->delete();
         } else {
-            // Tentukan waktu pengumpulan
             if ($request->filled('submitted_at')) {
                 $submittedAt = \Carbon\Carbon::parse($request->submitted_at);
             } else {
                 $submittedAt = now();
             }
 
-            // Simpan atau buat data baru di database
             AssignmentSubmission::updateOrCreate(
                 [
                     'assignment_id' => $validated['assignment_id'],
@@ -1113,7 +1169,7 @@ public function bulkUpdate(Request $request)
                     'submitted_at' => $submittedAt,
                     'status'       => $dbStatusMap[$validated['status']],
                     'score'        => $request->filled('score') ? $request->score : null,
-                    'feedback'     => $request->feedback, // Simpan Feedback Massal
+                    'feedback'     => $request->feedback,
                     'graded_at'    => $request->filled('score') ? now() : null,
                     'updated_at'   => now()
                 ]
@@ -1123,7 +1179,7 @@ public function bulkUpdate(Request $request)
 
     return response()->json([
         'success' => true,
-        'message' => 'Rekapitulasi tugas massal (status, nilai, waktu, dan feedback) berhasil diperbarui!'
+        'message' => 'Rekapitulasi tugas massal berhasil diperbarui untuk ' . count($students) . ' siswa terpilih!'
     ]);
 }
 }

@@ -201,12 +201,14 @@ class RekapPresensiController extends Controller
         return response()->json(['success' => true, 'message' => 'Presensi dan catatan berhasil disimpan!']);
     }
 
-    // 3. Presensi Massal + Jurnal KBM
+    // 3. Presensi Massal + Jurnal KBM (UPDATED: Dukung Pilihan Siswa Checklist)
     public function bulkUpdate(Request $request)
     {
         $request->validate([
             'classroom_id' => 'required|uuid|exists:classrooms,id',
             'subject_id'   => 'required|uuid|exists:subjects,id',
+            'student_ids'  => 'required|array|min:1',
+            'student_ids.*'=> 'uuid|exists:students,id',
             'date'         => 'required|date',
             'status'       => 'required|in:H,S,I,A',
             'topic'        => 'nullable|string',
@@ -214,9 +216,9 @@ class RekapPresensiController extends Controller
             'obstacles'    => 'nullable|string',
         ]);
 
-        $students = Student::where('classroom_id', $request->classroom_id)->get();
+        $students = Student::whereIn('id', $request->student_ids)->get();
         if ($students->isEmpty()) {
-            return response()->json(['success' => false, 'message' => 'Siswa tidak ditemukan.'], 404);
+            return response()->json(['success' => false, 'message' => 'Siswa terpilih tidak ditemukan.'], 404);
         }
 
         $activeYear = AcademicYear::where('is_active', true)->first();
@@ -292,7 +294,7 @@ class RekapPresensiController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Presensi massal dan Jurnal Pembelajaran berhasil disimpan!'
+            'message' => 'Presensi massal dan Jurnal Pembelajaran berhasil disimpan untuk ' . count($students) . ' siswa terpilih!'
         ]);
     }
 }

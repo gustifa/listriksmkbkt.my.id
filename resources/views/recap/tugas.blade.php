@@ -276,10 +276,10 @@
     </div>
 </div>
 
-<!-- MODAL 3: REKAP MASSAL -->
+<!-- MODAL REKAP TUGAS MASSAL (DENGAN CHECKBOX SISWA) -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBulkRekap" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-warning text-dark">
                 <h6 class="modal-title fw-bold">⚡ Pengisian Rekap Tugas Massal</h6>
@@ -296,6 +296,31 @@
                             @endforeach
                         </select>
                     </div>
+
+                    <!-- DAFTAR SISWA CHECKBOX -->
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                            <label class="form-label fw-bold text-primary m-0">Pilih Siswa Terlibat <span class="text-danger">*</span></label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="check-all-task-students" checked>
+                                <label class="form-check-label fw-semibold text-dark cursor-pointer" for="check-all-task-students">Pilih Semua Siswa</label>
+                            </div>
+                        </div>
+
+                        <div class="row g-2" style="max-height: 200px; overflow-y: auto;">
+                            @foreach($rekapData as $s)
+                            <div class="col-12 col-md-6">
+                                <div class="form-check bg-white p-2 border rounded shadow-sm">
+                                    <input class="form-check-input task-student-checkbox ms-1" type="checkbox" value="{{ $s['student_id'] }}" id="task-student-{{ $s['student_id'] }}" checked>
+                                    <label class="form-check-label fw-semibold text-truncate d-block ms-4 cursor-pointer" for="task-student-{{ $s['student_id'] }}">
+                                        {{ $s['nama'] }}
+                                    </label>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="bulk_status" class="form-label fw-bold text-dark">Status Pengumpulan <span class="text-danger">*</span></label>
                         <select id="bulk_status" class="form-select" required>
@@ -448,51 +473,65 @@
             });
         });
 
-        // Submit Form Rekap Massal
-        $('#formBulkRekap').submit(function(e) {
-            e.preventDefault();
-            const assignmentId = $('#bulk_assignment_id').val();
-            const classroomId  = $('#classroom_id').val();
+        $('#check-all-task-students').change(function() {
+    $('.task-student-checkbox').prop('checked', $(this).is(':checked'));
+});
 
-            if (!assignmentId || !classroomId) {
-                Swal.fire('Peringatan', 'Silakan pilih tugas dan kelas terlebih dahulu.', 'warning');
-                return;
-            }
+$('#formBulkRekap').submit(function(e) {
+    e.preventDefault();
+    const assignmentId = $('#bulk_assignment_id').val();
+    const classroomId  = $('#classroom_id').val();
 
-            Swal.fire({
-                title: 'Apakah Anda Yakin?',
-                text: "Rekap tugas seluruh siswa akan diperbarui secara massal!",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#ffc107',
-                confirmButtonText: 'Ya, Terapkan!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    let selectedStudents = [];
+    $('.task-student-checkbox:checked').each(function() {
+        selectedStudents.push($(this).val());
+    });
 
-                    $.ajax({
-                        url: '{{ route("rekap.tugas.bulk_update") }}',
-                        type: 'POST',
-                        data: {
-                            _token: '{{ csrf_token() }}',
-                            assignment_id: assignmentId,
-                            classroom_id: classroomId,
-                            status: $('#bulk_status').val(),
-                            submitted_at: $('#bulk_submitted_at').val(),
-                            score: $('#bulk_score').val(),
-                            feedback: $('#bulk_feedback').val()
-                        },
-                        success: function(res) {
-                            $('#modalBulkRekap').modal('hide');
-                            Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
-                        },
-                        error: function(err) {
-                            Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal memperbarui data', 'error');
-                        }
-                    });
+    if (!assignmentId || !classroomId) {
+        Swal.fire('Peringatan', 'Silakan pilih tugas dan kelas terlebih dahulu.', 'warning');
+        return;
+    }
+
+    if (selectedStudents.length === 0) {
+        Swal.fire('Peringatan', 'Silakan pilih setidaknya satu siswa!', 'warning');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Apakah Anda Yakin?',
+        text: `Rekap tugas akan diperbarui secara massal untuk ${selectedStudents.length} siswa terpilih!`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        confirmButtonText: 'Ya, Terapkan!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'Memproses data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            $.ajax({
+                url: '{{ route("rekap.tugas.bulk_update") }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    assignment_id: assignmentId,
+                    classroom_id: classroomId,
+                    student_ids: selectedStudents,
+                    status: $('#bulk_status').val(),
+                    submitted_at: $('#bulk_submitted_at').val(),
+                    score: $('#bulk_score').val(),
+                    feedback: $('#bulk_feedback').val()
+                },
+                success: function(res) {
+                    $('#modalBulkRekap').modal('hide');
+                    Swal.fire('Berhasil!', res.message, 'success').then(() => location.reload());
+                },
+                error: function(err) {
+                    Swal.fire('Gagal!', err.responseJSON?.message || 'Gagal memperbarui data', 'error');
                 }
             });
-        });
+        }
+    });
+});
     });
 
     function showAssignmentInfo(assignmentId) {

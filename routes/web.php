@@ -44,7 +44,8 @@ use App\Http\Controllers\AttendanceRecapController;
 use App\Http\Controllers\DailyAttendanceRecapController;
 use App\Http\Controllers\PrayerAttendanceRecapController;
 use App\Http\Controllers\CombinedWeeklyReportController;
-
+use App\Http\Controllers\RekapHarianController;
+use App\Http\Controllers\RekapIzinController;
 use App\Http\Controllers\VideoGeneratorController;
 
 
@@ -180,7 +181,12 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
-
+    Route::get('/rekap-izin', [RekapIzinController::class, 'index'])->name('rekap.izin.index');
+    Route::post('/rekap-izin/update', [RekapIzinController::class, 'updateStatus'])->name('rekap.izin.update');
+    Route::post('/rekap-izin/bulk', [RekapIzinController::class, 'bulkUpdate'])->name('rekap.izin.bulk');
+    Route::get('/rekap-harian', [RekapHarianController::class, 'index'])->name('rekap.harian.index');
+    Route::post('/rekap-harian/update', [RekapHarianController::class, 'updateStatus'])->name('rekap.harian.update');
+    Route::post('/rekap-harian/bulk', [RekapHarianController::class, 'bulkUpdate'])->name('rekap.harian.bulk');
     Route::post('/dynamic-templates/generate-video', [VideoGeneratorController::class, 'generateVideo'])->name('dynamic-templates.generate-video');
     // Tambahkan route ini di routes/web.php
 Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::class, 'generateImage'])->name('dynamic-templates.generate-image');
@@ -197,6 +203,7 @@ Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::cla
 
     Route::prefix('rekap-pembelajaran')->name('rekap.pembelajaran.')->group(function () {
         Route::get('/', [RekapPembelajaranController::class, 'index'])->name('index');
+        Route::post('/bulk', [RekapPembelajaranController::class, 'bulkUpdate'])->name('bulk');
     });
 
     Route::prefix('dynamic-templates')->name('dynamic-templates.')->group(function () {
