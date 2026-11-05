@@ -370,7 +370,7 @@
 </div>
 @endif
 
-<!-- MODAL 4: ATUR BOBOT & ABAIKAN TUGAS DINAMIS -->
+<!-- MODAL 4: ATUR BOBOT & ABAIKAN TUGAS DINAMIS (FIXED RESPONSIVE) -->
 @if($selectedClassroom && $selectedSubject)
 <div class="modal fade no-print" id="modalBobotTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -380,14 +380,15 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="formUpdateBobot">
-                <div class="modal-body p-4">
+                <div class="modal-body p-3 p-md-4">
+                    <!-- INFORMASI LENGKAP & PETUNJUK CARA KERJA BOBOT DINAMIS -->
                     <div class="card border-primary mb-3 bg-light">
                         <div class="card-body p-3">
                             <h6 class="fw-bold text-primary mb-2">📌 Informasi & Panduan Pengisian Bobot:</h6>
                             <ul class="mb-0 ps-3 small text-secondary">
                                 <li><strong>Bobot Standar (1):</strong> Tugas harian / kuis biasa memiliki bobot <code>1</code>.</li>
-                                <li><strong>Bobot Tinggi (>1):</strong> Untuk tugas skala besar/Praktikum/Proyek, Anda dapat memberi bobot misal <code>2</code> atau <code>3</code> (sehingga nilainya berdampak lebih besar pada rata-rata).</li>
-                                <li><strong>Fitur "Abaikan":</strong> Jika dicentang, tugas otomatis berbobot <code>0</code> dan <strong>TIDAK dihitung</strong> dalam rata-rata nilai maupun persentase keterlambatan/alpa siswa.</li>
+                                <li><strong>Bobot Tinggi (>1):</strong> Untuk tugas skala besar/Praktikum/Proyek, berikan bobot misal <code>2</code> atau <code>3</code> (dampaknya lebih besar pada rata-rata).</li>
+                                <li><strong>Fitur "Abaikan":</strong> Jika dicentang, tugas otomatis berbobot <code>0</code> dan <strong>TIDAK dihitung</strong> dalam rata-rata nilai maupun persentase alpa siswa.</li>
                                 <li><strong>Rumus Rata-Rata Terbobot:</strong> <br>
                                     <code>Rata-Rata = Σ(Nilai × Bobot) ÷ Σ(Total Bobot Tugas Aktif)</code>
                                 </li>
@@ -395,23 +396,26 @@
                         </div>
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
-                            <thead class="table-light text-center">
+                    <!-- CONTAINER TABEL DENGAN SCROLL VERTIKAL SAJA -->
+                    <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;" class="border rounded">
+                        <table class="table table-bordered align-middle m-0" style="width: 100%; table-layout: fixed;">
+                            <thead class="table-light text-center sticky-top">
                                 <tr>
-                                    <th style="width: 40px;">No</th>
+                                    <th style="width: 45px;">No</th>
                                     <th>Judul Tugas</th>
-                                    <th style="width: 150px;">Bobot Nilai</th>
-                                    <th style="width: 130px;">Status</th>
+                                    <th style="width: 130px;">Bobot Nilai</th>
+                                    <th style="width: 120px;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($assignments as $index => $asg)
                                 <tr>
                                     <td class="text-center fw-bold">{{ $index + 1 }}</td>
-                                    <td>
-                                        <div class="fw-bold text-dark">{{ $asg->title }}</div>
-                                        <small class="text-muted">Deadline: {{ $asg->due_date ? $asg->due_date->format('d/m/Y H:i') : '-' }}</small>
+                                    <td class="text-wrap">
+                                        <div class="fw-bold text-dark text-break">{{ $asg->title }}</div>
+                                        <small class="text-muted d-block mt-1" style="font-size: 11px;">
+                                            Deadline: {{ $asg->due_date ? $asg->due_date->format('d/m/Y H:i') : '-' }}
+                                        </small>
                                     </td>
                                     <td>
                                         <div class="input-group input-group-sm">
@@ -426,7 +430,6 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="form-check form-switch d-inline-block">
-                                            <!-- Hidden input agar status 0 terkirim jika tidak dicentang -->
                                             <input type="hidden" name="ignored[{{ $asg->id }}]" value="0">
                                             <input class="form-check-input check-ignore cursor-pointer" 
                                                    type="checkbox" 
