@@ -2,193 +2,153 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InventoryLoan;
 use App\Models\Inventory;
-use App\Models\Setting;
+use App\Models\InventoryLoan;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Validator;
+use PDF; // Barry
 
 class InventoryLoanController extends Controller
 {
-    /**
-     * Simpan Peminjaman Baru dengan Validasi Stok (Mendukung AJAX & Direct Post)
-     */
-    public function store(Request $request)
+    // public function index()
+    // {
+    //     $inventories = Inventory::where('quantity', '>', 0)->get();
+    //     $students = Student::orderBy('name', 'asc')->get();
+        
+    //     return view('inventory_loans.index', compact('inventories', 'students'));
+    // }
+    public function index()
+{
+    // Hanya ambil ruangan yang bertipe 'bengkel'
+    $rooms = \App\Models\Room::where('type', 'bengkel')
+                              ->orderBy('name', 'asc')
+                              ->get();
+
+    $students = \App\Models\Student::orderBy('name', 'asc')->get();
+    
+    return view('inventory_loans.index', compact('rooms', 'students'));
+}
+
+    public function storeBatch(Request $request)
     {
-        // Validasi input
-        $request->validate([
-            'inventory_id'  => 'required|exists:inventories,id',
-            'borrower_name' => 'required|string|max:255',
-            'quantity'      => 'required|integer|min:1',
-            'loan_date'     => 'required|date',
+        // Validasi Array Items
+        $validator = Validator::make($request->all(), [
+            'student_id' => 'required|exists:students,id',
+            'notes'      => 'nullable|string|max:500',
+            'items'      => 'required|array|min:1',
+            'items.*.id' => 'required|exists:inventories,id',
+            'items.*.qty' => 'required|integer|min:1',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        DB::beginTransaction();
         try {
-            return DB::transaction(function () use ($request) {
-                $item = Inventory::findOrFail($request->inventory_id);
+            $student = Student::findOrFail($request->student_id);
+            $updatedStocks = [];
 
-                // 1. Hitung total barang yang sedang dipinjam (Status 'dipinjam')
-                $borrowedQty = InventoryLoan::where('inventory_id', $item->id)
-                                ->where('status', 'dipinjam')
-                                ->sum('quantity');
+            foreach ($request->items as $itemData) {
+                $inventory = Inventory::findOrFail($itemData['id']);
+                $qtyRequested = (int) $itemData['qty'];
 
-                // 2. Hitung sisa stok yang tersedia
-                $availableQty = $item->quantity - $borrowedQty;
-
-                // 3. Cek apakah permintaan melebihi sisa stok
-                if ($request->quantity > $availableQty) {
-                    $errorMsg = "Stok tidak mencukupi! Total: {$item->quantity}, Dipinjam: {$borrowedQty}, Tersedia: {$availableQty}";
-
-                    if ($request->ajax() || $request->wantsJson()) {
-                        return response()->json([
-                            'status'  => 'error',
-                            'message' => $errorMsg
-                        ], 422);
-                    }
-
-                    return redirect()->back()
-                        ->withErrors(['quantity' => $errorMsg])
-                        ->withInput();
+                // Check Stok
+                if ($qtyRequested > $inventory->quantity) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Stok barang '{$inventory->name}' tidak mencukupi (Tersedia: {$inventory->quantity} {$inventory->unit})."
+                    ], 400);
                 }
 
-                // --- SIMPAN DATA JIKA VALID ---
-                $loan = InventoryLoan::create([
-                    'inventory_id'  => $request->inventory_id,
-                    'borrower_name' => $request->borrower_name,
-                    'quantity'      => $request->quantity,
-                    'loan_date'     => $request->loan_date,
-                    'status'        => 'dipinjam',
-                    'notes'         => $request->input('notes')
+                $isBahan  = ($inventory->type === 'bahan');
+                $loanType = $isBahan ? 'pemakaian_bahan' : 'peminjaman_alat';
+                $status   = $isBahan ? 'habis_pakai' : 'dipinjam';
+
+                // 1. Simpan Loan Record
+                InventoryLoan::create([
+                    'inventory_id'  => $inventory->id,
+                    'student_id'    => $student->id,
+                    'borrower_name' => $student->name,
+                    'quantity'      => $qtyRequested,
+                    'loan_date'     => now(),
+                    'loan_type'     => $loanType,
+                    'status'        => $status,
+                    'notes'         => $request->notes,
                 ]);
 
-                // Jika Request via AJAX (SweetAlert2)
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json([
-                        'status'   => 'success',
-                        'message'  => 'Peminjaman berhasil dicatat.',
-                        'data'     => $loan,
-                        'redirect' => route('inventory-loan.active')
-                    ], 200);
-                }
+                // 2. Potong Stok
+                $inventory->decrement('quantity', $qtyRequested);
 
-                return redirect()->back()->with('success', 'Peminjaman berhasil dicatat.');
-            });
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
-                ], 500);
+                // Data stok terbaru untuk update tampilan UI
+                $updatedStocks[] = [
+                    'id' => $inventory->id,
+                    'new_stock' => $inventory->quantity,
+                    'name' => $inventory->name,
+                    'unit' => $inventory->unit,
+                    'type' => $inventory->type
+                ];
             }
 
-            return redirect()->back()->with('error', 'Gagal memproses peminjaman: ' . $e->getMessage());
-        }
-    }
+            DB::commit();
 
-    /**
-     * Proses Pengembalian Barang
-     */
-    public function returnItem(Request $request, $id)
-    {
-        $loan = InventoryLoan::findOrFail($id);
-
-        $returnNote = $request->input('notes');
-        $finalNotes = $loan->notes;
-
-        if (!empty($returnNote)) {
-            $timestamp = Carbon::now()->format('d/m H:i');
-            $appendString = "Kembali ($timestamp): " . $returnNote;
-
-            if (!empty($finalNotes)) {
-                $finalNotes .= " | " . $appendString;
-            } else {
-                $finalNotes = $appendString;
-            }
-        }
-
-        $loan->update([
-            'status'      => 'kembali',
-            'return_date' => Carbon::now(),
-            'notes'       => $finalNotes
-        ]);
-
-        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Barang berhasil dikembalikan.'
+                'success' => true,
+                'message' => 'Semua alat & bahan berhasil diproses!',
+                'updated_stocks' => $updatedStocks
             ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-
-        return redirect()->back()->with('success', 'Barang berhasil dikembalikan.');
     }
 
-    /**
-     * API: Ambil Daftar Riwayat Peminjaman (Aktif & Selesai)
-     */
-    public function activeLoans()
-    {
-        $loans = InventoryLoan::with('inventory')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(100)
-                    ->get();
+    public function getInventoriesByRoom($roomId)
+{
+    try {
+        // Ambil barang berdasarkan room_id yang memiliki stok > 0
+        $inventories = Inventory::where('room_id', $roomId)
+                                ->where('quantity', '>', 0)
+                                ->get(['id', 'name', 'type', 'quantity', 'unit']);
 
-        return response()->json($loans);
+        return response()->json($inventories, 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Gagal mengambil data: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+public function printBAST(Request $request)
+{
+    $studentId = $request->query('student_id');
+    $date      = $request->query('date', date('Y-m-d'));
+
+    $student = Student::findOrFail($studentId);
+
+    // Ambil daftar barang yang dipinjam/dipakai siswa pada tanggal tersebut
+    $loans = InventoryLoan::with(['inventory', 'inventory.room'])
+                          ->where('student_id', $studentId)
+                          ->whereDate('loan_date', $date)
+                          ->get();
+
+    if ($loans->isEmpty()) {
+        return back()->with('error', 'Tidak ada riwayat peminjaman ditemukan pada tanggal tersebut.');
     }
 
-    /**
-     * Cetak Bukti Peminjaman / Pengembalian (PDF)
-     */
-    public function printProof($id)
-    {
-        $loan = InventoryLoan::with(['inventory.room'])->findOrFail($id);
-        $school = $this->getSchoolData();
+    $pdf = PDF::loadView('inventory_loans.pdf_bast', compact('student', 'loans', 'date'))
+              ->setPaper('a4', 'portrait');
 
-        $pdf = Pdf::loadView('pdf.inventory_loan_proof', compact('loan', 'school'));
-        $pdf->setPaper('a5', 'landscape');
-        $pdf->setOptions([
-            'isRemoteEnabled' => true,
-            'isPhpEnabled'    => true,
-            'chroot'          => public_path(),
-        ]);
-
-        return $pdf->stream('Bukti_Peminjaman_' . preg_replace('/[^A-Za-z0-9\-]/', '_', $loan->borrower_name) . '.pdf');
-    }
-
-    private function imageToBase64($path)
-    {
-        if (!$path || $path == '-') return null;
-        $cleanPath = str_replace('storage/', '', $path);
-
-        $pathsToCheck = [
-            storage_path('app/public/' . $cleanPath),
-            public_path('storage/' . $cleanPath),
-            public_path($path)
-        ];
-
-        foreach ($pathsToCheck as $fullPath) {
-            if (file_exists($fullPath)) {
-                $type = pathinfo($fullPath, PATHINFO_EXTENSION);
-                $data = file_get_contents($fullPath);
-                return 'data:image/' . $type . ';base64,' . base64_encode($data);
-            }
-        }
-        return null;
-    }
-
-    private function getSchoolData()
-    {
-        return [
-            'school_name'    => Setting::value('school_name', 'SMK DEFAULT'),
-            'school_address' => Setting::value('school_address', 'Alamat Sekolah'),
-            'school_phone'   => Setting::value('school_phone', '-'),
-            'school_web'     => Setting::value('school_web', '-'),
-            'school_email'   => Setting::value('school_email', '-'),
-            'logo_left'      => $this->imageToBase64(Setting::value('logo_left')),
-            'logo_right'     => $this->imageToBase64(Setting::value('logo_right')),
-            'sign_city'      => Setting::value('signature_city', 'Jakarta'),
-            'petugas_name'   => 'Petugas Bengkel'
-        ];
-    }
+    return $pdf->stream("BAST_Peminjaman_{$student->nis}_{$date}.pdf");
+}
 }

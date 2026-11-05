@@ -34,4 +34,12 @@ class Loan extends Model
     {
         return $this->belongsTo(Inventory::class);
     }
+
+    /**
+     * Relasi ke Model Student (Siswa) - DITAMBAHKAN
+     */
+    public function student()
+    {
+        return $this->belongsTo(Student::class, 'student_id');
+    }
 }

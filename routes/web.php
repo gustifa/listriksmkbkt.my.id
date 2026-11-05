@@ -181,6 +181,20 @@ Route::post('/update/password', [UserController::class, 'updatePassword'])->name
 // GROUP : MONITORING & GLOBAL UTILITY (Semua User Login)
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
+    // Loan & Assessment
+    // Route untuk Halaman Form Peminjaman (create)
+    Route::get('/loans/create', [LoanController::class, 'create'])->name('loans.create');
+
+    // Route AJAX untuk mengambil barang per Bengkel (getItemsByRoom)
+    Route::get('/loans/get-items-by-room', [LoanController::class, 'getItemsByRoom'])->name('loans.get-items-by-room');
+    
+    // Route Peminjaman & Pengembalian yang sudah ada
+    Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
+    Route::post('/loans', [LoanController::class, 'store'])->name('loans.store');
+    Route::post('/loans/{id}/return', [LoanController::class, 'returnItem'])->name('loans.return');
+    Route::get('/loans/scan', [LoanController::class, 'scan'])->name('loans.scan');
+    Route::get('/loans/{id}/print', [LoanController::class, 'printReceipt'])->name('loans.print');
+    Route::get('/loans/{id}/print-return', [LoanController::class, 'printReturnReceipt'])->name('loans.print-return');
     Route::get('/rekap-izin', [RekapIzinController::class, 'index'])->name('rekap.izin.index');
     Route::post('/rekap-izin/update', [RekapIzinController::class, 'updateStatus'])->name('rekap.izin.update');
     Route::post('/rekap-izin/bulk', [RekapIzinController::class, 'bulkUpdate'])->name('rekap.izin.bulk');
@@ -189,7 +203,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/rekap-harian/bulk', [RekapHarianController::class, 'bulkUpdate'])->name('rekap.harian.bulk');
     Route::post('/dynamic-templates/generate-video', [VideoGeneratorController::class, 'generateVideo'])->name('dynamic-templates.generate-video');
     // Tambahkan route ini di routes/web.php
-Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::class, 'generateImage'])->name('dynamic-templates.generate-image');
+    Route::post('/dynamic-templates/generate-image', [DynamicTemplateController::class, 'generateImage'])->name('dynamic-templates.generate-image');
     Route::prefix('rekap-presensi')->name('rekap.presensi.')->group(function () {
         // 1. Tampilan Utama Rekapitulasi Presensi
         Route::get('/', [RekapPresensiController::class, 'index'])->name('index');
@@ -524,12 +538,13 @@ Route::middleware(['auth', 'role:super_admin|admin|kepsek|wakakur|wakasis|wakahu
     Route::post('/journal/store', [TeachingJournalController::class, 'store'])->name('journal.store');
     Route::get('/journal/show/{schedule_id}', [TeachingJournalController::class, 'show'])->name('journal.show');
 
-    // Loan & Assessment
-    Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
-    Route::get('/loans/scan', [LoanController::class, 'scan'])->name('loans.scan');
-    Route::post('/loans/store', [LoanController::class, 'store'])->name('loans.store');
-    Route::post('/loans/return/{id}', [LoanController::class, 'returnItem'])->name('loans.return');
-    Route::get('/report/attendance-list/{schedule}', [LaporanGuruController::class, 'printAttendanceList'])->name('report.attendance_list');
+    
+    // Route::post('/loans/{id}/return', [LoanController::class, 'returnItem'])->name('loans.return');
+    // Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
+    // Route::get('/loans/scan', [LoanController::class, 'scan'])->name('loans.scan');
+    // Route::post('/loans/store', [LoanController::class, 'store'])->name('loans.store');
+    // Route::post('/loans/return/{id}', [LoanController::class, 'returnItem'])->name('loans.return');
+    // Route::get('/report/attendance-list/{schedule}', [LaporanGuruController::class, 'printAttendanceList'])->name('report.attendance_list');
 
     Route::get('/guru/internships', [InternshipAssessmentController::class, 'index'])->name('teacher.internships.index');
     Route::get('/guru/internships/{id}/assess', [InternshipAssessmentController::class, 'create'])->name('teacher.internships.assess');
@@ -853,13 +868,38 @@ Route::middleware(['auth', 'role:admin|super_admin|kabeng|kaprog|walas|bk'])->gr
     Route::get('/report/surat-tugas/{teacher_id}', [ReportController::class, 'printSuratTugas'])->name('report.surat_tugas');
     Route::get('/report/surat-tugas-all', [ReportController::class, 'printAllSuratTugas'])->name('report.surat_tugas_all');
 
-    Route::resource('inventory', InventoryController::class);
-    Route::get('/inventory-loan-history', [InventoryLoanController::class, 'history'])->name('inventory.history');
-    Route::get('/inventory-loan', [InventoryLoanController::class, 'store'])->name('inventory-loan.store');
-    Route::get('/inventory-loan/active', [InventoryLoanController::class, 'activeLoans'])->name('inventory-loan.active');
-    Route::put('/inventory-loan/{id}/return', [InventoryLoanController::class, 'returnItem'])->name('inventory-loan.return');
-    Route::get('/inventory-loan/{id}/print', [InventoryLoanController::class, 'printProof'])->name('inventory-loan.print');
-    Route::get('/inventory/{id}/barcode', [InventoryController::class, 'printBarcode'])->name('inventory.barcode');
+    // Peminjaman Alat dan Bahan
+    Route::get('/inventory-loans', [InventoryLoanController::class, 'index'])->name('inventory-loans.index');
+    Route::post('/inventory-loans/store', [InventoryLoanController::class, 'store'])->name('inventory-loans.store');
+    Route::post('/inventory-loans/store-batch', [InventoryLoanController::class, 'storeBatch'])->name('inventory-loans.store-batch');
+    Route::get('/inventory-loans/get-inventories/{roomId}', [InventoryLoanController::class, 'getInventoriesByRoom'])->name('inventory-loans.get-by-room');
+    // 1. Ekspor Excel Stok
+    Route::get('/inventories/export-excel', [InventoryController::class, 'exportExcel'])->name('inventories.export-excel');
+    // Route::resource('inventory', InventoryController::class);
+    // Route::get('/inventory-loan-history', [InventoryLoanController::class, 'history'])->name('inventory.history');
+    // Route::get('/inventory-loan', [InventoryLoanController::class, 'store'])->name('inventory-loan.store');
+    // Route::get('/inventory-loan/active', [InventoryLoanController::class, 'activeLoans'])->name('inventory-loan.active');
+    // Route::put('/inventory-loan/{id}/return', [InventoryLoanController::class, 'returnItem'])->name('inventory-loan.return');
+    // Route::get('/inventory-loan/{id}/print', [InventoryLoanController::class, 'printProof'])->name('inventory-loan.print');
+    // Route::get('/inventory/{id}/barcode', [InventoryController::class, 'printBarcode'])->name('inventory.barcode');
+    Route::get('/inventories/print-by-room/{roomId}', [InventoryController::class, 'printByRoom'])->name('inventories.print-by-room');
+    // 2. Cetak BAST Peminjaman PDF
+    Route::get('/inventory-loans/print-bast', [InventoryLoanController::class, 'printBAST'])->name('inventory-loans.print-bast');
+    Route::get('/inventories/{id}/transactions', [InventoryController::class, 'getTransactions'])->name('inventories.transactions');
+    Route::get('/inventories/generate-code', [InventoryController::class, 'generateCode'])->name('inventories.generate-code');
+    Route::prefix('inventories')->name('inventories.')->group(function () {
+        Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::get('/data', [InventoryController::class, 'getData'])->name('data');
+        Route::get('/download-template', [InventoryController::class, 'downloadTemplate'])->name('download-template');
+        Route::post('/', [InventoryController::class, 'store'])->name('store');
+        Route::post('/import-excel', [InventoryController::class, 'importExcel'])->name('import-excel');
+        Route::get('/{id}', [InventoryController::class, 'show'])->name('show');
+        Route::put('/{id}', [InventoryController::class, 'update'])->name('update');
+        Route::delete('/{id}', [InventoryController::class, 'destroy'])->name('destroy');
+        // Tambahkan di dalam grup route inventories
+        Route::post('/{id}/transfer', [InventoryController::class, 'transfer'])->name('transfer');
+        // Route import & download template
+    });
 
     Route::get('/monitoring-sholat', [PrayerMonitoringController::class, 'index'])->name('admin.prayer.monitoring');
     Route::get('/prayer/settings', [PrayerSettingController::class, 'index'])->name('admin.prayer.settings');

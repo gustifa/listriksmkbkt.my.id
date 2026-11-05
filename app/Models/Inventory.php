@@ -11,16 +11,19 @@ class Inventory extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'room_id',
-        'name',
         'code',
-        'brand',
+        'name',
+        'room_id',
+        'type',             // Wajib ada agar tidak terlewat saat insert
         'category',
+        'brand_model',
         'quantity',
+        'min_quantity',
         'unit',
         'condition',
-        'purchase_date',
-        'description'
+        'funding_source',
+        'acquisition_year',
+        'description',
     ];
 
     /**

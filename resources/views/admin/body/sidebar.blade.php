@@ -66,10 +66,22 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{route('programs.index')}}"><i class='bx bx-minus-front'></i>Program Keahlian</a></li>
                         <li><a href="{{route('majors.index')}}"><i class='bx bx-minus-front'></i>Jurusan</a></li>
                         <li><a href="{{route('subjects.index')}}"><i class='bx bx-minus-front'></i>Mapel</a></li>
-                        <li><a href="{{route('rooms.index')}}"><i class='bx bx-radio-circle'></i>Bengkel</a></li>
+                        <li><a href="{{route('rooms.index')}}"><i class='bx bx-radio-circle'></i>Bengkel & Ruang</a></li>
                         <li><a href="{{route('admin.user-roles.index')}}"><i class='bx bx-shield-quarter'></i>Role & Permission</a></li>
-                        <li><a href="{{route('admin.inventory.index')}}"><i class='bx bx-box'></i>Inventaris</a></li>
                         <li><a href="{{route('prayer-location.index')}}"><i class='bx bx-map-pin'></i>Sholat</a></li>
+                    </ul>
+                </li>
+
+                <!-- MENU INVENTARIS & SARPRAS UNTUK ADMIN -->
+                <li>
+                    <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class="bx bx-box"></i></div>
+                        <div class="menu-title">Sarpras & Inventaris</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{route('inventories.index')}}"><i class='bx bx-radio-circle'></i>Kelola Inventaris</a></li>
+                        <li><a href="{{route('rooms.index')}}"><i class='bx bx-radio-circle'></i>Data Ruang & Bengkel</a></li>
+                        <li><a href="{{route('inventories.index')}}?print_kir=true"><i class='bx bx-printer'></i>Laporan KIR Ruangan</a></li>
                     </ul>
                 </li>
 
@@ -97,7 +109,7 @@ $status = $guruId->status ?? '0';
                     <ul>
                         <li><a href="{{route('admin.sync.index')}}"><i class='bx bx-sync'></i>Sinkronisasi Data</a></li>
                         <li><a href="{{route('admin.attendance.manage.index')}}"><i class='bx bx-slider-alt'></i>Manage Presensi</a></li>
-                        <li><a href="{{route('auto-absent.index')}}"><i class='bx bx-time-five'></i>Otomatisasi Alpa</a></li> {{-- <--- Ditambahkan di sini --}}
+                        <li><a href="{{route('auto-absent.index')}}"><i class='bx bx-time-five'></i>Otomatisasi Alpa</a></li>
                         <li><a href="{{route('admin.activity_logs.index')}}"><i class='bx bx-history'></i>Log Aktivitas</a></li>
                         <li><a href="{{route('admin.device-settings.index')}}"><i class='bx bx-mobile-vibration'></i>Reset HP Siswa</a></li>
                         <li><a href="{{route('system.update.index')}}"><i class='bx bx-cloud-download'></i>Update Sistem</a></li>
@@ -117,7 +129,6 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{route('dynamic-templates.index')}}"><i class='bx bx-sync'></i>AI Perangkat</a></li>
-                        
                     </ul>
                 </li>
             @endhasanyrole
@@ -138,6 +149,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('documents.index') }}"><i class='bx bx-radio-circle'></i>Dokumen Sekolah</a></li>
                         <li><a href="{{ route('print.index') }}"><i class='bx bx-id-card'></i>Cetak Kartu Siswa</a></li>
                         <li><a href="{{ route('report.surat_tugas_all') }}" target="_blank"><i class='bx bx-file'></i>Surat Tugas Guru</a></li>
+                        <li><a href="{{ route('inventories.index') }}"><i class='bx bx-box'></i>Inventaris & KIR</a></li>
                     </ul>
                 </li>
                 @role('bendahara')
@@ -170,6 +182,7 @@ $status = $guruId->status ?? '0';
                         <li><a href="{{ route('laporan.daya_tampung') }}"><i class='bx bx-radio-circle'></i>Usulan Daya Tampung</a></li>
                         <li><a href="{{ route('admin.reports.student-calendar.index') }}"><i class='bx bx-id-card'></i>Kalender</a></li>
                         <li><a href="{{ route('admin.izin.index') }}"><i class='bx bx-id-card'></i>Izin Siswa</a></li>
+                        <li><a href="{{ route('inventories.index') }}"><i class='bx bx-box'></i>Aset & Inventaris Sekolah</a></li>
                     </ul>
                 </li>
             @endhasanyrole
@@ -210,9 +223,11 @@ $status = $guruId->status ?? '0';
                         <div class="menu-title">Bengkel & Workshop</div>
                     </a>
                     <ul>
-                        <li><a href="{{ route('auto-absent.index') }}"><i class='bx bx-cog'></i>Setting</a></li> {{-- <--- Ditambahkan di sini --}}
-                        <li><a href="{{ route('admin.inventory.index') }}"><i class='bx bx-radio-circle'></i>Stok Alat & Bahan</a></li>
-                        <li><a href="{{ route('loans.index') }}"><i class='bx bx-radio-circle'></i>Peminjaman Alat</a></li>
+                        <li><a href="{{ route('auto-absent.index') }}"><i class='bx bx-cog'></i>Setting Absen</a></li>
+                        <li><a href="{{ route('inventories.index') }}"><i class='bx bx-box'></i>Stok Alat & Bahan</a></li>
+                        @if(Route::has('loans.index'))
+                        <li><a href="{{ route('loans.index') }}"><i class='bx bx-transfer'></i>Peminjaman Alat</a></li>
+                        @endif
                     </ul>
                 </li>
                 @endrole
@@ -327,6 +342,16 @@ $status = $guruId->status ?? '0';
 
                 <li>
                     <a class="has-arrow" href="javascript:;">
+                        <div class="parent-icon"><i class='bx bxs-wrench'></i></div>
+                        <div class="menu-title">Stok & Peminjaman Alat</div>
+                    </a>
+                    <ul>
+                        <li><a href="{{ route('inventories.index') }}"><i class='bx bx-radio-circle'></i>Cek Stok Bengkel</a></li>
+                    </ul>
+                </li>
+
+                <li>
+                    <a class="has-arrow" href="javascript:;">
                         <div class="parent-icon"><i class='bx bxs-edit'></i></div>
                         <div class="menu-title">Ujian CBT</div>
                     </a>
@@ -434,7 +459,7 @@ $status = $guruId->status ?? '0';
                     </a>
                     <ul>
                         <li><a href="{{route('student.profile')}}"><i class='bx bx-radio-circle'></i>Profil Siswa</a></li>
-                        <li><a href="{{ route('student.violations.index') }}"><i class='bx bx-radio-circle'></i>Poin Pelanggaran</a></li> {{-- <--- Tambahkan ini --}}
+                        <li><a href="{{ route('student.violations.index') }}"><i class='bx bx-radio-circle'></i>Poin Pelanggaran</a></li>
                         <li><a href="{{route('student.history.subject')}}"><i class='bx bx-radio-circle'></i>Riwayat PBM</a></li>
                         <li><a href="{{route('student.history.daily')}}"><i class='bx bx-radio-circle'></i>Riwayat Gerbang</a></li>
                         <li><a href="{{ route('student.attendance-calendar.index') }}"><i class='bx bx-radio-circle'></i>Kalender Kehadiran</a></li>
