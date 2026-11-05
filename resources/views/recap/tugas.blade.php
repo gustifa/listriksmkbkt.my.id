@@ -704,91 +704,98 @@
         });
     }
 
-    // Modal Edit Individu & Penerapan Feedback Kelompok
     function updateStatus(assignmentId, studentId, studentName, currentStatus, currentScore, submittedAtFormatted, submittedAtRaw, currentFeedback) {
-        const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
+    const activeStatus = (currentStatus === 'submitted') ? 'H' : ((currentStatus === 'late') ? 'T' : currentStatus);
 
-        // Opsi pilihan siswa lain (untuk tugas kelompok)
-        let groupOptionsHtml = '';
+    // Generate opsi siswa kelompok dengan aman
+    let groupOptionsHtml = '';
+    if (Array.isArray(studentsInClass)) {
         studentsInClass.forEach(s => {
             if (s.id !== studentId) {
+                // Escape petik ganda untuk atribut HTML
+                const safeName = $('<div>').text(s.name).html();
                 groupOptionsHtml += `
                     <div class="col-6">
                         <div class="form-check text-start">
                             <input class="form-check-input group-student-checkbox" type="checkbox" value="${s.id}" id="group_st_${s.id}">
                             <label class="form-check-label small text-truncate d-block cursor-pointer" for="group_st_${s.id}">
-                                ${s.name}
+                                ${safeName}
                             </label>
                         </div>
                     </div>
                 `;
             }
         });
+    }
 
-        Swal.fire({
-            title: `Update Rekap, Nilai & Feedback`,
-            html: `
-                <div class="text-start mb-2">
-                    <p class="mb-2">Siswa Utama: <strong>${studentName}</strong></p>
-                    
-                    <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
-                    <select id="swal_status" class="form-select mb-3">
-                        <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
-                        <option value="T" ${activeStatus === 'T' ? 'selected' : ''}>✓(T) Terlambat</option>
-                        <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
-                    </select>
+    // Escape feedback & nama untuk mencegah error HTML
+    const safeFeedback = $('<div>').text(currentFeedback || '').html();
+    const safeStudentName = $('<div>').text(studentName || '').html();
 
-                    <label class="form-label fw-bold mb-1">Waktu Pengumpulan (Opsional):</label>
-                    <input type="datetime-local" id="swal_submitted_at" class="form-control mb-3" value="${submittedAtRaw || ''}">
+    Swal.fire({
+        title: `Update Rekap, Nilai & Feedback`,
+        html: `
+            <div class="text-start mb-2">
+                <p class="mb-2">Siswa Utama: <strong>${safeStudentName}</strong></p>
+                
+                <label class="form-label fw-bold mb-1">Status Kehadiran / Pengumpulan:</label>
+                <select id="swal_status" class="form-select mb-3">
+                    <option value="H" ${activeStatus === 'H' ? 'selected' : ''}>✓ Hadir (Tepat Waktu)</option>
+                    <option value="T" ${activeStatus === 'T' ? 'selected' : ''}>✓(T) Terlambat</option>
+                    <option value="A" ${activeStatus === 'A' ? 'selected' : ''}>X Alpa / Belum Mengumpulkan</option>
+                </select>
 
-                    <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
-                    <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
+                <label class="form-label fw-bold mb-1">Waktu Pengumpulan (Opsional):</label>
+                <input type="datetime-local" id="swal_submitted_at" class="form-control mb-3" value="${submittedAtRaw || ''}">
 
-                    <label class="form-label fw-bold mb-1">Catatan / Feedback Guru:</label>
-                    <textarea id="swal_feedback" class="form-control mb-3" rows="2" placeholder="Tulis feedback tugas di sini...">${currentFeedback || ''}</textarea>
+                <label class="form-label fw-bold mb-1">Input Nilai Tugas (0-100):</label>
+                <input type="number" id="swal_score" class="form-control mb-3" placeholder="Contoh: 85" min="0" max="100" step="0.1" value="${currentScore !== undefined && currentScore !== null ? currentScore : ''}">
 
-                    <!-- FITUR BARU: PILIHAN ANGGOTA KELOMPOK -->
-                    <div class="border rounded p-2 bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                            <label class="form-label fw-bold text-primary m-0 small">👥 Salin Nilai & Feedback ke Anggota Kelompok:</label>
-                            <small class="text-muted" style="font-size: 10px;">(Opsional)</small>
-                        </div>
-                        <div class="row g-1" style="max-height: 120px; overflow-y: auto;">
-                            ${groupOptionsHtml}
-                        </div>
+                <label class="form-label fw-bold mb-1">Catatan / Feedback Guru:</label>
+                <textarea id="swal_feedback" class="form-control mb-3" rows="2" placeholder="Tulis feedback tugas di sini...">${safeFeedback}</textarea>
+
+                <!-- FITUR ANGGOTA KELOMPOK -->
+                <div class="border rounded p-2 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                        <label class="form-label fw-bold text-primary m-0 small">👥 Salin Nilai & Feedback ke Anggota Kelompok:</label>
+                        <small class="text-muted" style="font-size: 10px;">(Opsional)</small>
+                    </div>
+                    <div class="row g-1" style="max-height: 120px; overflow-y: auto;">
+                        ${groupOptionsHtml}
                     </div>
                 </div>
-            `,
-            width: '600px',
-            showCancelButton: true,
-            confirmButtonText: 'Simpan Data',
-            preConfirm: () => {
-                let selectedGroupMembers = [];
-                $('.group-student-checkbox:checked').each(function() {
-                    selectedGroupMembers.push($(this).val());
-                });
+            </div>
+        `,
+        width: '600px',
+        showCancelButton: true,
+        confirmButtonText: 'Simpan Data',
+        preConfirm: () => {
+            let selectedGroupMembers = [];
+            $('.group-student-checkbox:checked').each(function() {
+                selectedGroupMembers.push($(this).val());
+            });
 
-                return $.ajax({
-                    url: '{{ route("rekap.tugas.toggle") }}',
-                    type: 'POST',
-                    data: { 
-                        assignment_id: assignmentId, 
-                        student_id: studentId, 
-                        status: $('#swal_status').val(),
-                        score: $('#swal_score').val(),
-                        submitted_at: $('#swal_submitted_at').val(),
-                        feedback: $('#swal_feedback').val(),
-                        group_student_ids: selectedGroupMembers // Dikirim ke Controller
-                    }
-                }).catch(error => {
-                    Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
-                });
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1200, showConfirmButton: false }).then(() => location.reload());
-            }
-        });
-    }
+            return $.ajax({
+                url: '{{ route("rekap.tugas.toggle") }}',
+                type: 'POST',
+                data: { 
+                    assignment_id: assignmentId, 
+                    student_id: studentId, 
+                    status: $('#swal_status').val(),
+                    score: $('#swal_score').val(),
+                    submitted_at: $('#swal_submitted_at').val(),
+                    feedback: $('#swal_feedback').val(),
+                    group_student_ids: selectedGroupMembers
+                }
+            }).catch(error => {
+                Swal.showValidationMessage(error.responseJSON?.message || 'Gagal memperbarui data.');
+            });
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1200, showConfirmButton: false }).then(() => location.reload());
+        }
+    });
+}
 </script>
 </x-app-layout>
